@@ -129,15 +129,57 @@ def active_provider() -> str:
     return "groq"
 
 
-def provider_configured() -> bool:
-    """Whether the active backend has what a call needs to be attempted (a
-    rejected key still fails at call time, as LLMError)."""
-    provider = active_provider()
+_PROVIDER_NAMES = ("paid", "huggingface", "local", "groq")
+
+
+def provider_chain() -> list:
+    """The providers a chat call tries, in order.
+
+    LLM_PROVIDERS (comma list of groq, huggingface, local, paid) turns on
+    fallback: when one provider is not configured, rejects its credential,
+    is out of its free quota, is down, or is refused by the spending policy
+    (no confirmed price), the next one is asked. Unset, only
+    active_provider() is used, exactly as before.
+
+    Fallback is opt-in on purpose: each provider is a different place the
+    question and the company passages are sent (a local llama-server keeps
+    them on this machine, Groq and Hugging Face do not), and "paid" costs
+    money - so neither where the data goes nor what it costs ever changes
+    unless an operator lists that provider."""
+    listed = [p.strip().lower() for p in os.getenv("LLM_PROVIDERS", "").split(",") if p.strip()]
+    unknown = [p for p in listed if p not in _PROVIDER_NAMES]
+    if unknown:
+        logger.warning("LLM_PROVIDERS names unknown providers %s (known: %s); ignored", unknown, list(_PROVIDER_NAMES))
+    chain = [p for p in dict.fromkeys(listed) if p in _PROVIDER_NAMES]
+    return chain or [active_provider()]
+
+
+def _configured(provider: str) -> bool:
     if provider == "groq":
         return bool(os.getenv("GROQ_API_KEY"))
     if provider == "huggingface":
-        return bool(os.getenv("HUGGINGFACE_API_TOKEN"))
-    return True
+        return bool(HUGGINGFACE_LLM_MODEL and os.getenv("HUGGINGFACE_API_TOKEN"))
+    if provider == "local":
+        return bool(LOCAL_LLM_BASE_URL)
+    if provider == "paid":
+        return bool(PAID_LLM_BASE_URL and PAID_LLM_API_KEY)
+    return False
+
+
+def provider_configured() -> bool:
+    """Whether some provider in the chain has what a call needs to be
+    attempted (a rejected key still fails at call time, as LLMError)."""
+    chain = provider_chain()
+    if len(chain) == 1 and chain[0] == active_provider():
+        # The single-provider path keeps its long-standing rule: local and
+        # paid are "configured" once selected (the call reports the rest).
+        provider = chain[0]
+        if provider == "groq":
+            return bool(os.getenv("GROQ_API_KEY"))
+        if provider == "huggingface":
+            return bool(os.getenv("HUGGINGFACE_API_TOKEN"))
+        return True
+    return any(_configured(p) for p in chain)
 
 # Local llama-server generates at real-measured ~6 tokens/sec on this
 # platform's reference hardware (i5-1135G7, 4 threads, Qwen2.5-3B Q5_K_M -
@@ -243,36 +285,46 @@ CIRCUIT_BREAKER_COOLDOWN_SECONDS = float(os.getenv("GROQ_CIRCUIT_BREAKER_COOLDOW
 # without paying to re-send an entire session's history on every message.
 MAX_HISTORY_MESSAGES = int(os.getenv("RAG_MAX_HISTORY_MESSAGES", "12"))
 
-_circuit_state = {"consecutive_failures": 0, "opened_at": None}
+# One breaker per provider URL: with a fallback chain (provider_chain()),
+# a provider that is down must not also fail fast the healthy one after it.
+_circuit_states: dict = {}
 
 
-def _reset_circuit_breaker() -> None:
-    """Test-only reset hook - module-level state would otherwise leak
-    failure counts across unrelated test cases (and across requests for
-    different, independent backends in a real deployment that switches
-    providers at runtime)."""
-    _circuit_state["consecutive_failures"] = 0
-    _circuit_state["opened_at"] = None
+def _circuit_state(url: str = None) -> dict:
+    return _circuit_states.setdefault(url, {"consecutive_failures": 0, "opened_at": None})
 
 
-def _circuit_is_open() -> bool:
-    opened_at = _circuit_state["opened_at"]
+def _reset_circuit_breaker(url: str = None) -> None:
+    """Test-only reset hook (no url: every provider's breaker) - module-level
+    state would otherwise leak failure counts across unrelated test cases."""
+    if url is None:
+        _circuit_states.clear()
+    else:
+        _circuit_states.pop(url, None)
+
+
+def _circuit_is_open(url: str = None) -> bool:
+    """Whether this provider's breaker is open (no url: any provider's)."""
+    if url is None:
+        return any(_circuit_is_open(key) for key in list(_circuit_states))
+    opened_at = _circuit_state(url)["opened_at"]
     if opened_at is None:
         return False
     if time.monotonic() - opened_at >= CIRCUIT_BREAKER_COOLDOWN_SECONDS:
-        _reset_circuit_breaker()  # cooldown elapsed - let the next call retry for real
+        _reset_circuit_breaker(url)  # cooldown elapsed - let the next call retry for real
         return False
     return True
 
 
-def _record_circuit_success() -> None:
-    _reset_circuit_breaker()
+def _record_circuit_success(url: str = None) -> None:
+    _reset_circuit_breaker(url)
 
 
-def _record_circuit_failure() -> None:
-    _circuit_state["consecutive_failures"] += 1
-    if _circuit_state["consecutive_failures"] >= CIRCUIT_BREAKER_THRESHOLD:
-        _circuit_state["opened_at"] = time.monotonic()
+def _record_circuit_failure(url: str = None) -> None:
+    state = _circuit_state(url)
+    state["consecutive_failures"] += 1
+    if state["consecutive_failures"] >= CIRCUIT_BREAKER_THRESHOLD:
+        state["opened_at"] = time.monotonic()
 
 
 def _backoff_seconds(attempt: int) -> float:
@@ -512,7 +564,7 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
     instead of repeating the full retry sequence against a provider
     that's already known to be down.
     """
-    if _circuit_is_open():
+    if _circuit_is_open(url):
         raise LLMError(
             f"LLM provider ({url}) circuit breaker is open after {CIRCUIT_BREAKER_THRESHOLD} consecutive "
             f"failures - failing fast for up to {CIRCUIT_BREAKER_COOLDOWN_SECONDS:.0f}s instead of retrying "
@@ -533,12 +585,12 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
                 time.sleep(_backoff_seconds(attempt))
                 attempt += 1
                 continue
-            _record_circuit_failure()
+            _record_circuit_failure(url)
             raise LLMError(f"LLM provider request failed: {err}") from err
 
         if response.status_code not in _RETRYABLE_STATUS_CODES:
             if response.status_code == 200:
-                _record_circuit_success()
+                _record_circuit_success(url)
             return response
         if response.status_code == 429:
             wait = _retry_after_seconds(response)
@@ -552,7 +604,7 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             time.sleep(wait)
             continue
         if attempt == MAX_RETRIES:
-            _record_circuit_failure()
+            _record_circuit_failure(url)
             return response
 
         logger.warning(
@@ -639,8 +691,65 @@ def _chat_completion_with_usage(
     provider doesn't report usage at all (e.g. the local llama-server
     backend) rather than raising - token usage is for cost accounting,
     not something the answer itself depends on.
+
+    With LLM_PROVIDERS set (provider_chain()), a provider that can't answer
+    hands the call to the next one; usage then also names the provider that
+    answered ("provider").
     """
-    provider = active_provider()
+    chain = provider_chain()
+    if len(chain) == 1:
+        return _call_provider(chain[0], messages, api_key=api_key, model=model, temperature=temperature,
+                              timeout=timeout, max_tokens=max_tokens, json_mode=json_mode)
+    from src.ai.billing import credits
+
+    errors = []
+    for provider in chain:
+        try:
+            if not _configured(provider):
+                raise LLMNotConfiguredError(f"LLM provider {provider!r} is listed in LLM_PROVIDERS but not configured.")
+            answer, usage = _call_provider(provider, messages, temperature=temperature, timeout=timeout,
+                                           max_tokens=max_tokens, json_mode=json_mode)
+        except credits.BudgetError as err:
+            if err.reason not in _PROVIDER_SPECIFIC_REFUSALS:
+                raise  # the company's own budget or access: no provider may run
+            logger.warning("LLM provider %s refused by spending policy (%s); trying the next one", provider, err.reason)
+            errors.append(err)
+            continue
+        except LLMError as err:
+            # The raw message can name the provider account: server log only.
+            logger.warning("LLM provider %s failed (%s: %s); trying the next one",
+                           provider, type(err).__name__, str(err)[:300])
+            errors.append(err)
+            continue
+        if errors:
+            logger.info("LLM call answered by fallback provider %s after %d failure(s)", provider, len(errors))
+        return answer, {**usage, "provider": provider}
+    # Nothing answered. The most useful failure for the caller: a rate limit
+    # (it carries a retry hint), else the last real failure; "not configured"
+    # only when that is true of every provider in the chain.
+    meaningful = [e for e in errors if not isinstance(e, LLMNotConfiguredError)]
+    if not meaningful:
+        raise LLMNotConfiguredError(f"No LLM provider in LLM_PROVIDERS={','.join(chain)} is configured.")
+    rate_limited = [e for e in meaningful if isinstance(e, LLMRateLimitError)]
+    raise (rate_limited[0] if rate_limited else meaningful[-1])
+
+
+# Spending-policy refusals about one provider (no confirmed price, switched
+# off, its cap reached): the next provider in the chain may still run.
+_PROVIDER_SPECIFIC_REFUSALS = ("COST_NOT_CONFIGURED", "PROVIDER_DISABLED", "PROVIDER_CAP_REACHED")
+
+
+def _call_provider(
+    provider: str,
+    messages: list,
+    api_key: str = None,
+    model: str = None,
+    temperature: float = DEFAULT_TEMPERATURE,
+    timeout: float = None,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    json_mode: bool = False,
+) -> tuple:
+    """One provider's chat call (see _chat_completion_with_usage())."""
     using_paid = provider == "paid"
     using_hf = provider == "huggingface"
     using_local = provider == "local"

@@ -45,6 +45,15 @@ cannot do; on a 4-core Codespace SD-Turbo-class models would take tens of
 seconds per image plus a multi-GB download - possible for experiments,
 not a product default.
 
+A self-hosted server ("local", LOCAL_IMAGE_BASE_URL) is supported for an
+operator who does have such hardware: an OpenAI-compatible images API or
+AUTOMATIC1111's txt2img API. It is tried first when set, because it is free
+per image and the prompt stays on that machine.
+
+Formats (IMAGE_FORMATS): square, 4:5 portrait, 9:16 story, 16:9 landscape
+and 1.91:1 link/ad. Each provider is asked for that shape where its API
+allows, and every result is centre-cropped to the exact ratio.
+
 This sandbox's network policy blocks every image provider and the model
 download CDN, so live generation could not be checked here; the request
 building, response parsing, fallback and checks are tested against the
@@ -127,6 +136,43 @@ _MAX_PROMPT_CHARS = 2000
 _SUPPORTED_IMAGE_CONTENT_TYPES = ("image/png", "image/jpeg", "image/webp")
 
 
+# Formats a campaign image can be made in. width/height is what is asked of
+# a provider (about one megapixel, sizes most diffusion models accept);
+# whatever comes back is centre-cropped to the exact ratio (fit_to_format),
+# since not every provider honours a requested size (Workers AI's FLUX.1
+# [schnell] always answers 1024x1024). "poster" is the designed fallback's
+# size - the platforms' own recommended pixel sizes.
+IMAGE_FORMATS = {
+    "SQUARE": {"ratio": "1:1", "width": 1024, "height": 1024, "poster": (1080, 1080),
+               "channels": ["INSTAGRAM", "FACEBOOK"]},
+    "PORTRAIT": {"ratio": "4:5", "width": 896, "height": 1120, "poster": (1080, 1350),
+                 "channels": ["INSTAGRAM", "FACEBOOK"]},
+    "STORY": {"ratio": "9:16", "width": 768, "height": 1344, "poster": (1080, 1920),
+              "channels": ["INSTAGRAM", "TIKTOK", "FACEBOOK"]},
+    "LANDSCAPE": {"ratio": "16:9", "width": 1344, "height": 768, "poster": (1920, 1080),
+                  "channels": ["FACEBOOK", "GOOGLE_ADS", "WEBSITE"]},
+    "WIDE": {"ratio": "1.91:1", "width": 1344, "height": 704, "poster": (1200, 628),
+             "channels": ["FACEBOOK", "GOOGLE_ADS", "WEBSITE"]},
+}
+DEFAULT_IMAGE_FORMAT = "SQUARE"
+
+
+def _ratio(image_format: str) -> float:
+    left, _, right = IMAGE_FORMATS[image_format]["ratio"].partition(":")
+    return float(left) / float(right)
+
+
+def image_formats() -> List[dict]:
+    """For GET /marketing/options: the formats the Studio offers."""
+    return [{"key": key, "ratio": spec["ratio"], "width": spec["poster"][0], "height": spec["poster"][1],
+             "channels": list(spec["channels"])} for key, spec in IMAGE_FORMATS.items()]
+
+
+def request_size(image_format: Optional[str]) -> tuple:
+    spec = IMAGE_FORMATS.get(image_format or DEFAULT_IMAGE_FORMAT, IMAGE_FORMATS[DEFAULT_IMAGE_FORMAT])
+    return spec["width"], spec["height"]
+
+
 class ImageGenerationError(Exception):
     """Raised for every honest non-success outcome. `status` is always one
     of the campaigns.image_generation_status values the migration/router
@@ -159,6 +205,9 @@ class GeneratedImage:
     mode: str = "ai"
     # Providers tried before this one succeeded, with why each failed.
     attempts: List[dict] = field(default_factory=list)
+    # The provider's model, when it names one (stored for operators only).
+    model: Optional[str] = None
+    image_format: str = DEFAULT_IMAGE_FORMAT
 
 
 def build_image_prompt(campaign: dict) -> str:
@@ -228,16 +277,19 @@ def _credentials(name: str) -> List[Optional[str]]:
         return _csv("POLLINATIONS_API_KEYS")
     if name == "aihorde":
         return _csv("HORDE_API_KEYS") or [_ANON_HORDE_KEY]
+    if name == "local":  # one "credential" per self-hosted server: its URL
+        return _local_image_base_urls()
     return []
 
 
-def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None) -> GeneratedImage:
+def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     url = f"{_POLLINATIONS_BASE_URL}/{quote(prompt)}"
+    width, height = size or (_POLLINATIONS_WIDTH, _POLLINATIONS_HEIGHT)
     try:
         response = httpx.get(
             url,
             headers={"Authorization": f"Bearer {credential}"} if credential else None,
-            params={"width": _POLLINATIONS_WIDTH, "height": _POLLINATIONS_HEIGHT, "nologo": "true", "private": "true",
+            params={"width": width, "height": height, "nologo": "true", "private": "true",
                     "model": os.getenv("POLLINATIONS_MODEL", "flux"), "seed": int(time.time()) % 1_000_000},
             timeout=_TIMEOUT_SECONDS,
         )
@@ -253,11 +305,11 @@ def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = N
 
     return GeneratedImage(
         content=response.content, content_type=content_type, provider="pollinations",
-        used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
+        model=os.getenv("POLLINATIONS_MODEL", "flux"), used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
     )
 
 
-def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None) -> GeneratedImage:
+def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     token = credential or os.getenv("HUGGINGFACE_API_TOKEN")
     if not token:
         raise ImageGenerationError(
@@ -271,7 +323,7 @@ def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = No
             response = httpx.post(
                 _HUGGINGFACE_API_URL.format(model=model),
                 headers={"Authorization": f"Bearer {token}"},
-                json={"inputs": prompt},
+                json={"inputs": prompt, **({"parameters": {"width": size[0], "height": size[1]}} if size else {})},
                 timeout=_TIMEOUT_SECONDS,
             )
         except httpx.HTTPError as err:
@@ -293,7 +345,7 @@ def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = No
         raise ImageGenerationError("PROVIDER_ERROR", f"Hugging Face did not return an image (HTTP {response.status_code}): {response.text[:200]}")
 
     return GeneratedImage(
-        content=response.content, content_type=content_type, provider="huggingface",
+        content=response.content, content_type=content_type, provider="huggingface", model=model,
         used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
     )
 
@@ -323,7 +375,7 @@ def _cloudflare_models() -> List[str]:
     return _csv("CLOUDFLARE_IMAGE_MODELS", "CLOUDFLARE_IMAGE_MODEL") or list(_CLOUDFLARE_MODELS)
 
 
-def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None) -> GeneratedImage:
+def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     if credential:
         account, _, token = credential.partition(":")
     else:
@@ -333,7 +385,9 @@ def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = Non
     last_error = None
     for model in _cloudflare_models():  # the next model is tried if one fails; a quota error stops (same account allowance)
         body = {"prompt": prompt[:2048]}
-        body.update({"steps": 4} if "flux" in model else {"num_steps": 8, "width": 1024, "height": 1024})
+        # FLUX.1 [schnell] on Workers AI takes no size (always 1024x1024; cropped afterwards).
+        width, height = size or (1024, 1024)
+        body.update({"steps": 4} if "flux" in model else {"num_steps": 8, "width": width, "height": height})
         try:
             response = httpx.post(
                 _CLOUDFLARE_URL.format(account=account, model=model),
@@ -360,7 +414,7 @@ def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = Non
                 continue
             content_type = "image/jpeg"
         return GeneratedImage(
-            content=content, content_type=content_type, provider="cloudflare",
+            content=content, content_type=content_type, provider="cloudflare", model=model,
             used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
         )
     raise last_error or ImageGenerationError("PROVIDER_ERROR", "Cloudflare returned no image.")
@@ -369,7 +423,10 @@ def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = Non
 _GEMINI_URL = os.getenv("GEMINI_URL", "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
 
 
-def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None) -> GeneratedImage:
+_GEMINI_RATIOS = {"1:1": 1.0, "4:5": 0.8, "9:16": 9 / 16, "16:9": 16 / 9, "3:4": 0.75, "4:3": 4 / 3}
+
+
+def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     """Google AI Studio's image model on a free API key (no card). Images carry
     Google's invisible SynthID mark, never a visible one."""
     if not credential:
@@ -378,7 +435,10 @@ def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, r
     try:
         response = httpx.post(
             _GEMINI_URL.format(model=model), headers={"x-goog-api-key": credential},
-            json={"contents": [{"parts": [{"text": prompt[:1500]}]}], "generationConfig": {"responseModalities": ["IMAGE"]}},
+            json={"contents": [{"parts": [{"text": prompt[:1500]}]}], "generationConfig": {
+                "responseModalities": ["IMAGE"],
+                **({"imageConfig": {"aspectRatio": min(_GEMINI_RATIOS, key=lambda r: abs(_GEMINI_RATIOS[r] - size[0] / size[1]))}}
+                   if size else {})}},
             timeout=_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as err:
@@ -392,7 +452,7 @@ def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, r
     except (ValueError, KeyError, IndexError, TypeError, StopIteration) as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Gemini did not return an image (HTTP {response.status_code}).") from err
     return GeneratedImage(
-        content=content, content_type=content_type, provider="gemini",
+        content=content, content_type=content_type, provider="gemini", model=model,
         used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
     )
 
@@ -403,7 +463,7 @@ _HORDE_URL = "https://aihorde.net/api/v2"
 _HORDE_MAX_WAIT = float(os.getenv("MARKETING_AI_HORDE_MAX_WAIT_SECONDS", "240"))
 
 
-def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None) -> GeneratedImage:
+def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     """Together's free FLUX.1 [schnell] model (needs a free account key)."""
     if not credential:
         raise ImageGenerationError("NOT_CONFIGURED", "TOGETHER_API_KEYS is not set.")
@@ -411,7 +471,8 @@ def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None,
         response = httpx.post(
             _TOGETHER_URL, headers={"Authorization": f"Bearer {credential}"},
             json={"model": os.getenv("TOGETHER_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell-Free"),
-                  "prompt": prompt[:1500], "width": 1024, "height": 1024, "steps": 4, "n": 1,
+                  "prompt": prompt[:1500], "width": (size or (1024, 1024))[0], "height": (size or (1024, 1024))[1],
+                  "steps": 4, "n": 1,
                   "response_format": "b64_json"},
             timeout=_TIMEOUT_SECONDS,
         )
@@ -429,7 +490,15 @@ def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None,
     )
 
 
-def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None) -> GeneratedImage:
+def _horde_size(size: Optional[tuple]) -> tuple:
+    """The requested shape at about 768x768 pixels in all (what anonymous
+    Horde workers accept), each side a multiple of 64 (Horde's rule)."""
+    width, height = size or (768, 768)
+    scale = (768 * 768 / (width * height)) ** 0.5
+    return max(64, int(width * scale) // 64 * 64), max(64, int(height * scale) // 64 * 64)
+
+
+def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     """AI Horde (aihorde.net): a free, community-run Stable Diffusion network.
     Works with no account (the anonymous key) but anonymous jobs can wait in a
     queue for minutes, so it sits last in the chain; a free registered key
@@ -438,7 +507,7 @@ def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, 
     body = {"prompt": f"{prompt[:1200]} ### text, letters, watermark, logo, blurry, low quality, deformed",
             "nsfw": False, "censor_nsfw": True, "r2": True,
             # Horde rejects sizes that are not multiples of 64 (HTTP 400).
-            "params": {"width": 768, "height": 768, "steps": 25, "n": 1, "cfg_scale": 6}}
+            "params": {"width": _horde_size(size)[0], "height": _horde_size(size)[1], "steps": 25, "n": 1, "cfg_scale": 6}}
     job = None
     try:
         submitted = httpx.post(f"{_HORDE_URL}/generate/async", headers=headers, json=body, timeout=_TIMEOUT_SECONDS)
@@ -479,6 +548,94 @@ def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, 
                 pass
 
 
+# A self-hosted image server on the operator's own hardware (free per image,
+# and the prompt never leaves that machine). Two widely used local APIs:
+#   openai  POST {base}/v1/images/generations, b64_json answer - LocalAI,
+#           stable-diffusion.cpp's server and other OpenAI-compatible ones
+#   a1111   POST {base}/sdapi/v1/txt2img - AUTOMATIC1111, Forge, SD.Next
+# Off until LOCAL_IMAGE_BASE_URL is set. A diffusion model needs a GPU or
+# several GB of RAM and tens of seconds per image on CPU, so this is for a
+# machine that can run one - never the 512 MB free web service.
+_LOCAL_IMAGE_TIMEOUT_SECONDS = float(os.getenv("LOCAL_IMAGE_TIMEOUT_SECONDS", "300"))
+_NEGATIVE_PROMPT = "text, letters, watermark, logo, blurry, low quality, deformed"
+
+
+def _local_image_base_urls() -> List[str]:
+    """Every self-hosted server: LOCAL_IMAGE_BASE_URLS (comma list - one per
+    machine, each its own chain entry with its own busy/cooldown state) or
+    the single LOCAL_IMAGE_BASE_URL."""
+    return [u.rstrip("/") for u in _csv("LOCAL_IMAGE_BASE_URLS", "LOCAL_IMAGE_BASE_URL")]
+
+
+def _local_image_base_url() -> str:
+    urls = _local_image_base_urls()
+    return urls[0] if urls else ""
+
+
+def local_server_health(timeout: float = 3.0) -> List[dict]:
+    """Each self-hosted server's own /health (device, busy, measured seconds
+    per image, memory), for the capacity view. Addresses are not included."""
+    report = []
+    for i, base in enumerate(_local_image_base_urls(), 1):
+        try:
+            data = httpx.get(f"{base}/health", timeout=timeout).json()
+            report.append({"server": i, "ok": bool(data.get("ok")), "busy": data.get("busy"), "device": data.get("device"),
+                           "dtype": data.get("dtype"), "images_made": data.get("images_made"),
+                           "average_seconds_per_image": data.get("average_seconds_per_image"),
+                           "memory": data.get("memory")})
+        except (httpx.HTTPError, ValueError):
+            report.append({"server": i, "ok": False})
+    return report
+
+
+def only_self_hosted() -> bool:
+    """True when every image provider that can run is a self-hosted server
+    (no per-image provider cost)."""
+    entries = [e for e in provider_chain() if _split(e)[0] != "local" or _local_image_base_urls()]
+    return bool(entries) and all(_split(e)[0] == "local" for e in entries)
+
+
+def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
+    base = (credential or _local_image_base_url()).rstrip("/")
+    if not base:
+        raise ImageGenerationError("NOT_CONFIGURED", "LOCAL_IMAGE_BASE_URL is not set.")
+    api = os.getenv("LOCAL_IMAGE_API", "openai").strip().lower()
+    model = os.getenv("LOCAL_IMAGE_MODEL", "").strip() or None
+    key = os.getenv("LOCAL_IMAGE_API_KEY", "").strip()
+    width, height = size or (1024, 1024)
+    if api == "a1111":
+        url = f"{base}/sdapi/v1/txt2img"
+        body = {"prompt": prompt[:2000], "negative_prompt": _NEGATIVE_PROMPT, "width": width, "height": height,
+                "steps": int(os.getenv("LOCAL_IMAGE_STEPS", "20")), "batch_size": 1, "n_iter": 1,
+                "seed": seed if seed is not None else -1}
+    elif api == "openai":
+        url = f"{base}/v1/images/generations"
+        body = {"prompt": prompt[:2000], "n": 1, "size": f"{width}x{height}", "response_format": "b64_json",
+                **({"model": model} if model else {}), **({"seed": seed} if seed is not None else {})}
+    else:
+        raise ImageGenerationError("NOT_CONFIGURED", f"LOCAL_IMAGE_API must be 'openai' or 'a1111', not {api!r}.")
+    try:
+        response = httpx.post(url, json=body, headers={"Authorization": f"Bearer {key}"} if key else None,
+                              timeout=_LOCAL_IMAGE_TIMEOUT_SECONDS)
+    except httpx.HTTPError as err:
+        raise ImageGenerationError("PROVIDER_ERROR", f"Local image server request failed: {type(err).__name__}") from err
+    if response.status_code in (429, 503):  # busy with another image
+        # Our own server: check back soon rather than sitting out a whole image's time.
+        raise ProviderBusy(f"Local image server busy (HTTP {response.status_code})", min(_retry_after(response), 15.0))
+    try:
+        payload = response.json() if response.status_code == 200 else {}
+        encoded = payload["images"][0] if api == "a1111" else payload["data"][0]["b64_json"]
+        if "," in encoded[:100] and encoded.startswith("data:"):
+            encoded = encoded.split(",", 1)[1]
+        content = base64.b64decode(encoded)
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as err:
+        raise ImageGenerationError("PROVIDER_ERROR", f"Local image server did not return an image (HTTP {response.status_code}).") from err
+    return GeneratedImage(
+        content=content, content_type="image/png", provider="local", model=model or api,
+        used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
+    )
+
+
 class ProviderBusy(ImageGenerationError):
     """The provider is rate limited or out of its free allowance right now."""
 
@@ -495,6 +652,7 @@ def _retry_after(response) -> float:
 
 
 _MIN_IMAGE_SIDE = 256
+_RATIO_TOLERANCE = 0.02
 
 
 def verify_image(image: GeneratedImage) -> GeneratedImage:
@@ -514,7 +672,42 @@ def verify_image(image: GeneratedImage) -> GeneratedImage:
     return image
 
 
+def fit_to_format(image: GeneratedImage, image_format: str) -> GeneratedImage:
+    """Centre-crops a verified image to the format's exact ratio (never
+    stretches it, never enlarges it). An image already within 2% of the
+    ratio is kept as it is."""
+    target = _ratio(image_format)
+    image.image_format = image_format
+    with Image.open(io.BytesIO(image.content)) as picture:
+        picture.load()
+        width, height = picture.size
+        if abs(width / height - target) / target <= _RATIO_TOLERANCE:
+            image.width, image.height = width, height
+            return image
+        if width / height > target:
+            new_width = round(height * target)
+            left = (width - new_width) // 2
+            box = (left, 0, left + new_width, height)
+        else:
+            new_height = round(width / target)
+            top = (height - new_height) // 2
+            box = (0, top, width, top + new_height)
+        cropped = picture.crop(box)
+        buffer = io.BytesIO()
+        if image.content_type == "image/jpeg":
+            cropped.convert("RGB").save(buffer, format="JPEG", quality=92)
+        else:
+            cropped.save(buffer, format="PNG", optimize=True)
+            image.content_type = "image/png"
+    image.content = buffer.getvalue()
+    image.width, image.height = cropped.size
+    if min(image.width, image.height) < _MIN_IMAGE_SIDE:
+        raise ImageGenerationError("PROVIDER_ERROR", f"{image.provider} image is too small for the {image_format} format.")
+    return image
+
+
 _PROVIDERS = {
+    "local": _generate_via_local,
     "cloudflare": _generate_via_cloudflare,
     "huggingface": _generate_via_huggingface,
     "together": _generate_via_together,
@@ -550,7 +743,9 @@ def provider_chain() -> List[str]:
 
     MARKETING_IMAGE_PROVIDERS (comma list) sets it explicitly; the older
     single MARKETING_IMAGE_PROVIDER still works ("none" turns images off).
-    Otherwise ("auto"): every free account with credentials - rotated so the
+    Otherwise ("auto"): a self-hosted image server first when
+    LOCAL_IMAGE_BASE_URL is set (free, and the prompt stays on that
+    machine), then every free account with credentials - rotated so the
     load (and free daily allowance) is spread evenly - then the keyless
     fallback (AI Horde) unless MARKETING_IMAGE_KEYLESS=false.
     """
@@ -563,9 +758,11 @@ def provider_chain() -> List[str]:
     else:
         keyed = [entry for name in _KEYED for entry in _entries(name)]
         random.shuffle(keyed)
-        names = keyed
+        names = _entries("local") + keyed
         if os.getenv("MARKETING_IMAGE_KEYLESS", "true").strip().lower() not in ("0", "false", "no"):
             names += list(_KEYLESS_ORDER)
+    # A plain "local" means every configured self-hosted server.
+    names = [entry for n in names for entry in ((_entries("local") or ["local"]) if n == "local" else [n])]
     return [n for n in dict.fromkeys(names) if n != "none"]
 
 
@@ -612,6 +809,7 @@ def get_reference_image_capability() -> dict:
 def generate_campaign_image(
     prompt: str, provider: Optional[str] = None,
     reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None,
+    image_format: str = DEFAULT_IMAGE_FORMAT, seed: Optional[int] = None,
 ) -> GeneratedImage:
     """
     Tries each provider in provider_chain() (or only `provider`, which tests
@@ -619,8 +817,12 @@ def generate_campaign_image(
     A provider that fails moves on to the next; one that is rate limited or
     out of its free allowance is also set aside for its Retry-After. Returns
     real image bytes (checked to be an image) or raises
-    ImageGenerationError - never a placeholder.
+    ImageGenerationError - never a placeholder. The image is asked for in
+    image_format's shape and cropped to its exact ratio (fit_to_format).
     """
+    if image_format not in IMAGE_FORMATS:
+        raise ImageGenerationError("PROVIDER_ERROR", f"Unknown image format {image_format!r} (expected one of {sorted(IMAGE_FORMATS)}).")
+    size = request_size(image_format)
     names = [provider.strip().lower()] if provider is not None else provider_chain()
     if not names:
         raise ImageGenerationError("NOT_CONFIGURED", _NOT_CONFIGURED_MESSAGE)
@@ -649,10 +851,10 @@ def generate_campaign_image(
             with credits.provider_call(credits.AI, base, "image_generation", {"image": 1}) as call:
                 raw = _PROVIDERS[base](
                     prompt, reference_image=reference_image, reference_content_type=reference_content_type,
-                    credential=credential,
+                    credential=credential, size=size, seed=seed,
                 )
                 call.measured({"image": 1})
-            image = verify_image(raw)
+            image = fit_to_format(verify_image(raw), image_format)
         except credits.BudgetError as err:
             if err.reason not in _PROVIDER_SPECIFIC_REFUSALS:
                 raise  # the company's budget or access: no other provider may run either
@@ -689,8 +891,13 @@ def get_image_generation_capability() -> dict:
     serves an image is deliberately not exposed - only server logs name it."""
     def usable(entry: str) -> bool:
         base, credential = _split(entry)
+        if base == "local":
+            return bool(_local_image_base_urls())
         return base not in _KEYED or credential is not None
 
-    if not any(usable(entry) for entry in provider_chain()):
+    usable_entries = [entry for entry in provider_chain() if usable(entry)]
+    if not usable_entries:
         return {"available": False, "provider": None, "providers": [], "external": False, "reason": _NOT_CONFIGURED_MESSAGE}
-    return {"available": True, "provider": "ai", "providers": ["ai"], "external": True, "reason": None}
+    # "external": the prompt may go to an outside service (any provider but a self-hosted one).
+    external = any(_split(entry)[0] != "local" for entry in usable_entries)
+    return {"available": True, "provider": "ai", "providers": ["ai"], "external": external, "reason": None}

@@ -62,6 +62,26 @@ const routes = ['/dashboard', '/products', '/products/new', '/demand', '/pricing
   '/billing', '/workspaces/new', ...['profile', 'company', 'team', 'notifications', 'preferences', 'security'].map((tab) => `/settings?tab=${tab}`)];
 for (const route of routes) record(route, await audit(route));
 
+// The Marketing Studio's campaign editor and image gallery exist only once a
+// campaign has been made: audit the newest completed one when there is one.
+const API = process.env.API_URL || 'http://localhost:8000';
+const authToken = await page.evaluate(() => JSON.parse(localStorage.getItem('ceopro_auth_session') || '{}').accessToken);
+const campaigns = await page.request.get(`${API}/marketing/campaigns?limit=5`, { headers: { Authorization: `Bearer ${authToken}` } })
+  .then((r) => r.json()).catch(() => null);
+const opened = campaigns?.campaigns?.find((c) => c.status === 'COMPLETED');
+if (opened) {
+  const route = `/marketing?campaign=${opened.campaign_id}`;
+  await page.goto(BASE + route, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.studio-gallery', { timeout: 20000 }).catch(() => {});
+  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(800);
+  await page.addScriptTag({ content: AXE });
+  record('/marketing (campaign and image gallery)', await page.evaluate(async () => (await window.axe.run(document, {
+    runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] }, resultTypes: ['violations'],
+  })).violations));
+  console.log(`audited the campaign editor with ${await page.locator('.studio-gallery__item').count()} gallery image(s)`);
+}
+
 // The price comparison dialog (ladder, added-value guidance, band editor) exists only for a company that has competitor
 // evidence; audit each product's dialog when there are any.
 await page.goto(`${BASE}/pricing`, { waitUntil: 'domcontentloaded' });

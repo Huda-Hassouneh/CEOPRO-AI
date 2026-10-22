@@ -117,14 +117,23 @@ def test_a_campaign_is_created_with_its_image_edited_reloaded_paged_and_deleted(
     assert client.patch(f"/marketing/campaigns/{cid}", json={"variants": [{"platform": "GOOGLE_ADS", "variant_index": 1, "headline": "x" * 31}]},
                         headers=headers).status_code == 422
 
-    # Regenerating replaces the image file (the old one no longer takes space).
+    # Regenerating adds the new image to the gallery and attaches it; the
+    # earlier one stays (and takes space) until it is deleted.
     first_key = reloaded["generated_image_key"]
     assert client.post(f"/marketing/campaigns/{cid}/generate-image", headers=headers).json()["image_generation_status"] == "COMPLETED"
     second_key = client.get(f"/marketing/campaigns/{cid}", headers=headers).json()["generated_image_key"]
-    assert second_key != first_key and _storage_keys(tenant) == [second_key]
+    assert second_key != first_key and _storage_keys(tenant) == [first_key, second_key]
+    gallery = client.get(f"/marketing/campaigns/{cid}/assets", headers=headers).json()["assets"]
+    assert len(gallery) == 2 and [a["attached"] for a in gallery] == [True, False]
+    assert "provider" not in gallery[0] and "image_key" not in gallery[0]  # never exposed
+    # Deleting the attached image attaches the one left and frees its space.
+    deleted = client.delete(f"/marketing/campaigns/{cid}/assets/{gallery[0]['asset_id']}", headers=headers)
+    assert deleted.status_code == 200, deleted.text
+    assert client.get(f"/marketing/campaigns/{cid}", headers=headers).json()["generated_image_key"] == first_key
+    assert _storage_keys(tenant) == [first_key]
     minio = db.minio_client()
     names = [o.object_name for o in minio.list_objects(image_storage.GENERATED_IMAGES_BUCKET, prefix=f"{tenant}/{cid}/", recursive=True)]
-    assert names == [second_key]
+    assert names == [first_key]
 
     # History reaches every campaign, not only the latest few, and searches.
     for i in range(3):

@@ -16,11 +16,13 @@ import httpClient from '../../../shared/lib/httpClient.js';
 import { marketingApi } from '../api/marketingApi.js';
 import { CampaignEditor, CampaignStatusPill } from '../components/CampaignEditor.jsx';
 import { MarketingErrorMessage } from '../components/MarketingErrorMessage.jsx';
+import { DEFAULT_IMAGE_FORMATS } from '../components/ImageStudio.jsx';
 import { PhotoPicker } from '../components/PhotoPicker.jsx';
 import { useMarketingOptions } from '../hooks/useMarketingOptions.js';
 import { useCreateCampaign } from '../hooks/useCreateCampaign.js';
 import { useCampaigns } from '../hooks/useCampaigns.js';
 import { useDeleteCampaign } from '../hooks/useCampaignActions.js';
+import { useImageCapacity } from '../hooks/useImageJobs.js';
 import '../styles/Marketing.css';
 
 const STEPS = ['what', 'create', 'review'];
@@ -99,6 +101,9 @@ export default function MarketingStudioPage() {
   const [params, setParams] = useSearchParams();
   const options = useMarketingOptions();
   const createCampaign = useCreateCampaign();
+  // With a live image worker the first image is queued, not made inside the create request.
+  const imageQueue = useImageCapacity();
+  const queueImages = Boolean(imageQueue.data?.available);
   const runLocked = useSubmitLock();
   const queryClient = useQueryClient();
 
@@ -113,6 +118,7 @@ export default function MarketingStudioPage() {
   const [theme, setTheme] = useState('');
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState(null);
+  const [imageFormat, setImageFormat] = useState('SQUARE');
   const [openId, setOpenId] = useState(params.get('campaign'));
   const [progress, setProgress] = useState(null); // 'copy' | 'image' while generating
   const [elapsed, setElapsed] = useState(0);
@@ -133,7 +139,7 @@ export default function MarketingStudioPage() {
     ? { ...options.data.capabilities.image_generation, background_removal: options.data.capabilities.background_removal } : null;
 
   // Any change to what is being made is a new request; the same inputs pressed again reuse the key.
-  useEffect(() => { requestKey.current = null; }, [source, productId, url, description, goal, language, audience, theme, notes, occasion]);
+  useEffect(() => { requestKey.current = null; }, [source, productId, url, description, goal, language, audience, theme, notes, occasion, imageFormat]);
   useEffect(() => {
     if (!progress) return undefined;
     const started = Date.now();
@@ -179,9 +185,15 @@ export default function MarketingStudioPage() {
         variantsPerPlatform: 1,
         platforms: ONE_POST,
         requestKey: requestKey.current,
-        generateImage: Boolean(capability?.available),
+        generateImage: !queueImages,
+        imageFormat,
         language,
       });
+      if (queueImages) {
+        try {
+          await marketingApi.queueImageBatch(campaign.campaign_id, { formats: [imageFormat], variations: 1, attachFirst: true });
+        } catch { /* the campaign is saved; images can be made from the campaign */ }
+      }
       if (photo) {
         try {
           await marketingApi.uploadCampaignImage({ campaignId: campaign.campaign_id, file: photo });
@@ -208,8 +220,11 @@ export default function MarketingStudioPage() {
           text: !draft.product_id && !draft.source_url ? draft.source_text : undefined,
           strategyType: draft.strategy_type, focus: draft.focus || undefined, creativeTheme: draft.creative_theme || undefined,
           customCreativePrompt: draft.custom_creative_prompt || undefined, variantsPerPlatform: 1, platforms: ONE_POST,
-          requestKey: newRequestKey(), generateImage: Boolean(capability?.available), language,
+          requestKey: newRequestKey(), generateImage: !queueImages, imageFormat, language,
         });
+        if (queueImages) {
+          await marketingApi.queueImageBatch(campaign.campaign_id, { formats: [imageFormat], variations: 1, attachFirst: true }).catch(() => {});
+        }
         queryClient.setQueryData(['marketing-campaign', campaign.campaign_id], campaign);
         open(campaign.campaign_id);
         return campaign;
@@ -303,6 +318,11 @@ export default function MarketingStudioPage() {
                       {THEMES.map((key) => <option key={key} value={key}>{t(`marketingApex.style.names.${key}`)}</option>)}
                     </select>
                   </label>
+                  <label className="apex-field"><span>{t('studio.gallery.formatLabel')}</span>
+                    <select className="apex-input" value={imageFormat} onChange={(e) => setImageFormat(e.target.value)}>
+                      {(options.data?.image_formats ?? DEFAULT_IMAGE_FORMATS).map((f) => <option key={f.key} value={f.key}>{t(`studio.gallery.formats.${f.key}`)}</option>)}
+                    </select>
+                  </label>
                   <label className="apex-field"><span>{t('studio.notesLabel')}</span><textarea className="apex-input mk-textarea" rows={2} maxLength={1200} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('marketingApex.direction.placeholder')} /></label>
                   <div className="mk-photo">
                     <div><strong>{t('marketingApex.what.photoTitle')}</strong><p className="apex-muted">{t('studio.photoHint')}</p></div>
@@ -338,6 +358,7 @@ export default function MarketingStudioPage() {
             {openCampaign.data && (openCampaign.data.status === 'FAILED'
               ? <Panel><StateBlock kind="error" compact title={t('marketingApex.result.failedCampaign')} description={t('marketingApex.errors.failed')} /></Panel>
               : <CampaignEditor campaign={openCampaign.data} capability={capability} t={t} locale={locale}
+                  imageFormats={options.data?.image_formats} assetChannels={options.data?.asset_channels}
                   onDeleted={() => open(null)} onRewrite={rewrite} rewriting={Boolean(progress)} />)}
           </div>
 
