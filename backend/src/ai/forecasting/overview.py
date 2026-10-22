@@ -67,7 +67,7 @@ def build_overview(conn, tenant_id: str, product_id: Optional[str] = None, today
                        MAX(i.issue_date) AS last_sale
                 FROM invoice_items ii
                 JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
-                WHERE ii.tenant_id = %(tenant)s
+                WHERE ii.tenant_id = %(tenant)s AND i.payment_status <> 'CANCELLED'
                 GROUP BY ii.product_id
             ), latest AS (
                 SELECT DISTINCT ON (product_id) product_id, forecast_id, expected_demand,
@@ -130,6 +130,7 @@ def build_overview(conn, tenant_id: str, product_id: Optional[str] = None, today
             "forecast_created_at": created_at.isoformat() if created_at else None,
             "forecast_method": features.get("method"),
             "confidence_score": features.get("confidence_score"),
+            "data_sufficiency": features.get("data_sufficiency"),
             "expected_revenue": round(forecast * price, 2) if forecast is not None and price is not None else None,
             "trend": trend,
             "trend_change_pct": change_pct,
@@ -185,7 +186,8 @@ def _series(conn, tenant_id: str, selected: list, history_start: date, today: da
                 SELECT i.issue_date::date, SUM(ii.quantity)
                 FROM invoice_items ii
                 JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
-                WHERE ii.tenant_id = %s AND i.issue_date >= %s AND i.issue_date < %s
+                WHERE ii.tenant_id = %s AND i.payment_status <> 'CANCELLED'
+                  AND i.issue_date >= %s AND i.issue_date < %s
                   AND ii.product_id = ANY(%s::uuid[])
                 GROUP BY 1;
                 """,

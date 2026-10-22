@@ -20,3 +20,22 @@ export function useRefreshForecasts() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['demand-overview'] }),
   });
 }
+
+export function useGenerateForecast() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (productId) => demandApi.generate(productId),
+    onSuccess: (_result, productId) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['demand-overview'] }),
+      queryClient.invalidateQueries({ queryKey: ['demand-forecast-history', productId] }),
+    ]),
+  });
+}
+
+export function useDemandForecastHistory(productId) {
+  return useQuery({
+    queryKey: ['demand-forecast-history', productId],
+    queryFn: () => demandApi.history(productId),
+    enabled: Boolean(productId && productId !== 'all'),
+  });
+}

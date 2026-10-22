@@ -112,3 +112,26 @@ def test_slow_intermittent_seller_gets_a_realistic_monthly_total_not_zero(fake_c
     assert result["source"] == "baseline"  # no daily model on an intermittent series
     mock_model_version.assert_not_called()
     assert 6 <= result["expected_demand"] <= 14
+
+
+@pytest.mark.parametrize("values", [[1.0, 2.0], [1.0, float("nan"), 2.0], [1.0, -1.0, 2.0]])
+def test_incomplete_or_invalid_model_output_is_not_persisted(fake_conn, values):
+    history = _daily(40)
+    choice = {
+        "source": "baseline", "name": "test", "values": values, "metrics": None,
+        "baseline_name": "test", "intermittent": False, "model_rejected_on_totals": False,
+    }
+    with patch.object(pipeline.data_access, "load_daily_demand", return_value=history), \
+         patch.object(pipeline.data_access, "load_product_context", return_value=PRODUCT_CONTEXT), \
+         patch.object(pipeline, "choose_forecast", return_value=choice), \
+         patch.object(pipeline.evidence, "insert_demand_forecast") as persist:
+        with pytest.raises(ValueError, match="incomplete or invalid horizon"):
+            pipeline.run_forecast(fake_conn, "tenant-1", "product-1", horizon_days=3)
+    persist.assert_not_called()
+
+
+def test_invalid_horizon_is_rejected_before_database_or_model_work(fake_conn):
+    with patch.object(pipeline.data_access, "load_daily_demand") as load:
+        with pytest.raises(ValueError, match="horizon"):
+            pipeline.run_forecast(fake_conn, "tenant-1", "product-1", horizon_days=0)
+    load.assert_not_called()

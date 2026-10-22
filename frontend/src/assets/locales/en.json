@@ -2536,6 +2536,7 @@
     },
     "actions": {
       "refresh": "Refresh forecasts",
+      "generateSelected": "Generate this forecast",
       "retry": "Try again",
       "addProduct": "Add a product",
       "importSales": "Import sales",
@@ -2554,7 +2555,23 @@
     "refresh": {
       "running": "Updating forecasts with your latest sales — {{done}} of {{total}} products done.",
       "failed": "Forecasts couldn't be updated right now. The figures below are from the last successful update.",
+      "generating": "Generating this product's forecast from its sales history…",
+      "noHistory": "There is no eligible sales history for this product yet. No forecast was generated.",
+      "blocked": "Access to demand forecasts changed. No new forecast was saved.",
       "label": "Forecast update progress"
+    },
+    "history": {
+      "eyebrow": "Saved runs",
+      "title": "Forecast history",
+      "subtitle": "Previously persisted forecasts for this product. A forecast is a model estimate, not a guaranteed result.",
+      "generated": "Generated",
+      "target": "Forecast through",
+      "range": "Uncertainty range",
+      "confidence": "Confidence",
+      "empty": "No saved forecasts yet",
+      "emptyDescription": "A forecast appears here after KEEL processes eligible sales history.",
+      "error": "Forecast history couldn't be loaded. Your saved results remain unchanged.",
+      "buildingData": "Building history ({{days}} of {{minimum}} days); this baseline is preliminary."
     },
     "stats": {
       "forecast": "Forecast demand · next 30 days",
