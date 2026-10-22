@@ -294,6 +294,18 @@ Branch `fix/assistant-evidence-when-model-unpriced`, [PR #74](https://github.com
 | 133 | **Clean up the local QA data** when finished: companies `qa.rag@example.com` (Zaytouna Fine Foods) and `qa.other@example.com` (QA Other Co), four uploaded test PDFs, and their ledger rows, in the local `v-pg` database. Also stop any leftover `uvicorn`/`vite` processes. | Developer (local) | ✅ Done 2026-10-21 — 10 local QA companies (qa.rag, qa.other, qa.tok, qa.tok2, 6 router-test companies) deleted with `company_data.delete_company`, their 10 user rows and 16 stored files removed, local API and Vite stopped. The test suite's own leftovers (about 4,800 companies) were left alone. |
 | 134 | **Local `.env` has `UNASSIGNED_PLAN_ACCESS=default`** (free access for companies without a plan). Development only; `scripts.check_config` errors on it where KEEL is deployed. Do not copy this file anywhere. | Developer (local) | 🟡 Info |
 
+## AI model fallback and marketing image gallery (added 2026-10-22)
+
+Branch `claude/peaceful-planck-083t1y`; details and test evidence in `docs/AI_MODEL_MARKETING_IMPLEMENTATION.md`.
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 144 | **Verify the licence of the default local model** `Qwen2.5-3B-Instruct` (believed to be the non-commercial Qwen Research License, unlike the Apache-2.0 1.5B and 7B models). If confirmed, switch `docker-compose.yml` (`llm-local`) and `scripts/download_local_llm_model.py` to Qwen2.5-7B-Instruct or 1.5B-Instruct. | Product owner | 🔴 Open |
+| 145 | **Replace the expired Hugging Face token** (`ceopro-deploy` reports "expired") wherever it is configured, with a fine-grained token limited to "Make calls to Inference Providers". | Hugging Face account owner | 🔴 Open |
+| 146 | **One live run on staging** after deploying this branch: a campaign whose copy comes from Groq, one hosted AI image in a non-square format, and (if used) the fallback `LLM_PROVIDERS=groq,local`. Nothing live could be reached from the development sandbox. | Developer with staging access | 🟠 Open |
+| 147 | **Decide whether to set `LLM_PROVIDERS`** on staging/production, and which providers it may list: each listed provider is another place questions and company passages are sent. | Product owner | 🟠 Open |
+| 148 | **Self-hosted image server (optional)**: if wanted, run AUTOMATIC1111/Forge (`--api`) or LocalAI on a GPU machine reachable from the API and set `LOCAL_IMAGE_BASE_URL` / `LOCAL_IMAGE_API`. Not possible on the 512 MB service. | Infra | ⚪ Optional |
+
 ## How to update this file
 
 - **Numbers repeat across sections.** Rows were numbered per section at different times, so #1-#26, #51-#59 and #85 each appear more than once (for example #51-#58 in "Needs a decision" are competitor and pricing items, and #51-#58 in "Subscriptions & billing" are staging go-live items; #85 is both the test run log in "Marketing images" and the image rebuild in "Competitor menus and OCR"). Other documents and commit messages cite these numbers, so they are not renumbered: cite a row as *section name + number* ("Subscriptions #54"), and give new rows a number above the highest one in the file (currently 123).
