@@ -1872,10 +1872,10 @@ Design, causes and as-built notes: `COMPETITOR_COMMENTS_AND_RETRY_PLAN.md` (sect
   (stored `answer_summary`). The repair flag was returned but not stored, and a summary dropped by the claim checks was
   silent (the render falls back to the answer's first claims). `Draft.summary_dropped` and `render()["summary_source"]`
   (`model` / `fallback` / `none`) now feed one `assistant_answer` log line per answer. No API or schema change. See
-  PENDING_ACTIONS #144 for the queries and the baseline to record before deploy.
+  PENDING_ACTIONS #151 for the queries and the baseline to record before deploy.
 - **Corrected assumption**: a future-date check on migration filenames was written and failed on eight existing files; dating
   ahead is the repo's convention. The runner tracks applied files by name, so ordering cannot skip a migration (PENDING_ACTIONS
-  #145). Kept only a filename-format test.
+  #152). Kept only a filename-format test.
 - **Local cleanup**: the two `qa.summary*` companies were deleted (#142). A SQL delete cascades through the database but not
   to MinIO; 8 orphaned result files and 8 PDFs were removed through the API. Prefer `company_data.delete_company`.
 - **Testing**: 21 citation tests pass, including the new one; the filename test passes on all current migrations. The
