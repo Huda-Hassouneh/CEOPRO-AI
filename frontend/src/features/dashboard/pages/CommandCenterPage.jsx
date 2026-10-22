@@ -131,7 +131,7 @@ export function CommandCenterPage() {
 
         <div className="apex-grid apex-grid--main-side">
           <Panel eyebrow={t('commandCenter.trend.eyebrow')} title={t('commandCenter.trend.title', { days: windowDays })} actions={<ApexButton size="sm" variant="ghost" onClick={() => navigate(routePaths.reports)}>{t('commandCenter.trend.reports')}<ArrowRight size={14} className="apex-flip-rtl" /></ApexButton>}>
-            {data.sales_trend?.points?.length
+            {data.sales_trend?.has_data
               ? <TrendChart points={data.sales_trend.points} locale={locale} formatValue={(v) => money(v, currency, 2)} valueLabel={t('commandCenter.trend.revenue')} />
               : <StateBlock compact title={t('commandCenter.trend.empty')} />}
           </Panel>
