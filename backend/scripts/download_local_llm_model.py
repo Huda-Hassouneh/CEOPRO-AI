@@ -1,6 +1,12 @@
 """
 KEEL - One-Time Local LLM Model Download.
 
+SUPERSEDED (2026-10-22): use scripts/fetch_llm_model.sh, which fetches
+Qwen3-4B-Instruct-2507 (Apache-2.0, read from the GGUF metadata) - the model
+docker-compose.yml's llm-local service now loads. Qwen2.5-3B-Instruct below
+is, to our knowledge, under the non-commercial Qwen Research License; check
+its LICENSE before any commercial use. Kept for existing setups.
+
 Fetches the exact GGUF model file docker-compose.yml's `llm-local` service
 (and a bare `llama-server` run outside Docker) expects at ./models/ -
 Qwen2.5-3B-Instruct, Q5_K_M quantization, from its official Hugging Face

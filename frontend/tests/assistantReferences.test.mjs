@@ -60,6 +60,8 @@ test('evidence states become notes the user can read, never silent', () => {
   assert.deepEqual(statusNotes(response.evidence_status), ['researchNotConfigured', 'notPermitted']);
   assert.deepEqual(statusNotes([{ need: 'landed_cost_calculation', status: 'missing_inputs' }]), ['calculationMissing']);
   assert.deepEqual(statusNotes([{ need: 'public_research', status: 'found' }]), []);
+  assert.deepEqual(statusNotes([{ need: 'answer_writing', status: 'not_configured' }]), ['answerNotConfigured']);
+  assert.deepEqual(statusNotes([{ need: 'answer_writing', status: 'provider_busy' }]), [], 'a busy provider is temporary, not an admin task');
 });
 
 test('claims keep their kind and verification state', () => {
@@ -68,4 +70,19 @@ test('claims keep their kind and verification state', () => {
   assert.equal(blocks[0].claims[0].verified, false);
   assert.equal(blocks[0].claims[1].kind, 'general');
   assert.equal(mapBlocks([]), null);
+});
+
+test('a long answer carries its short summary, and a short one has none', () => {
+  const long = mapAnswer({ ...response, answer_summary: { text: 'Short.', refs: [1], claims: [{ text: 'Short.', kind: 'fact', refs: [1], verified: true, notes: [] }] } });
+  assert.equal(long.summary.claims[0].text, 'Short.');
+  assert.deepEqual(long.summary.claims[0].refs, [1]);
+  assert.equal(mapAnswer(response).summary, null);
+  assert.equal(mapAnswer({ ...response, answer_summary: { claims: [] } }).summary, null);
+});
+
+test('a summary quoted in another language than the question carries a note', () => {
+  const claims = [{ text: 'Every employee receives 21 days.', kind: 'fact', refs: [1], verified: true, notes: [] }];
+  assert.equal(mapAnswer({ ...response, answer_summary: { claims, note: 'source_language' } }).summary.note, 'sourceLanguage');
+  assert.equal(mapAnswer({ ...response, answer_summary: { claims } }).summary.note, null);
+  assert.equal(mapAnswer({ ...response, answer_summary: { claims, note: 'something_else' } }).summary.note, null);
 });

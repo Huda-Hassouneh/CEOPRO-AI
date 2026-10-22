@@ -1,6 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import Badge from '../../../shared/components/ui/Badge.jsx';
 import { formatMoney } from '../utils/money.js';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 export function InvoiceList({ invoices, locale, t, formatDate }) {
   if (!invoices?.length) return <p className="billing-usage-unavailable">{t('billing.invoices.empty')}</p>;
@@ -11,7 +12,7 @@ export function InvoiceList({ invoices, locale, t, formatDate }) {
       <td><bdi>{formatMoney(invoice.amount, invoice.currency, locale)}</bdi></td>
       <td><Badge variant={invoice.status === 'succeeded' ? 'light-success' : 'error'}>{t(`billing.invoices.${invoice.status}`)}</Badge></td>
       <td>{(invoice.invoice_pdf_url || invoice.hosted_invoice_url)
-        ? <a href={invoice.invoice_pdf_url || invoice.hosted_invoice_url} target="_blank" rel="noreferrer">{t('billing.invoices.view')} <ExternalLink size={12} aria-hidden="true" /></a>
+        ? <a href={safeHref(invoice.invoice_pdf_url || invoice.hosted_invoice_url)} target="_blank" rel="noreferrer">{t('billing.invoices.view')} <ExternalLink size={12} aria-hidden="true" /></a>
         : '—'}</td>
     </tr>)}</tbody>
   </table></div>;

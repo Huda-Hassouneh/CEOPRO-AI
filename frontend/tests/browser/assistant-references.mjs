@@ -42,8 +42,15 @@ await composer.waitFor({ timeout: 20000 });
 await composer.fill(question);
 await composer.press('Enter');
 const answer = page.locator('.rag-message.is-assistant').last();
-await answer.locator('.rag-answer-copy').waitFor({ timeout: 120000 });
+// A long answer opens on its short summary, with the full answer in a collapsed disclosure.
+await answer.locator('.rag-answer-summary, .rag-answer-copy').first().waitFor({ timeout: 120000 });
 await page.waitForFunction(() => !document.querySelector('.rag-generating'), null, { timeout: 120000 });
+const disclosure = answer.locator('.rag-answer-details > summary');
+if (await disclosure.count()) {
+  check(await answer.locator('.rag-answer-details .rag-answer-copy').isHidden(), 'the full answer is not collapsed behind its summary');
+  await disclosure.click();
+  check(await answer.locator('.rag-answer-details .rag-answer-copy').isVisible(), 'the full answer does not open');
+}
 
 const markers = answer.locator('.rag-cite button');
 const markerCount = await markers.count();

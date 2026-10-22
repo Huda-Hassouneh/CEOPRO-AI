@@ -26,7 +26,7 @@ from typing import Optional
 
 import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.ai import db
 from src.ai.core import auth_throttle, notifications, usage
@@ -119,11 +119,21 @@ def _fetch_user_memberships(conn, user_id):
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=1024)
     # Only needed when the account belongs to more than one workspace (see
     # below) - omit it for the common single-workspace case.
     tenant_id: Optional[str] = None
+
+
+_DUMMY_HASH = None
+
+
+def _dummy_password_hash() -> str:
+    global _DUMMY_HASH
+    if _DUMMY_HASH is None:
+        _DUMMY_HASH = hash_password("timing-equalisation-only")
+    return _DUMMY_HASH
 
 
 @router.post("/login")
@@ -147,6 +157,8 @@ def login(body: LoginRequest) -> dict:
     try:
         user_row = _fetch_login_identity(conn, body.email)
         if user_row is None:
+            # Same work as a real check, so the response time doesn't reveal which emails exist.
+            verify_password(body.password, _dummy_password_hash())
             auth_throttle.record_failure("login", body.email)
             raise HTTPException(status_code=401, detail=_INVALID_CREDENTIALS_DETAIL)
 
@@ -203,8 +215,8 @@ def login(body: LoginRequest) -> dict:
 
 
 class SignupRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=254)
+    password: str = Field(max_length=1024)
     full_name: str
     business_name: str
     # No defaults guessed for either - see this endpoint's own docstring
@@ -425,8 +437,7 @@ def refresh(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
 # --- Password reset -----------------------------------------------------
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
-
+    email: str = Field(max_length=254)
 
 def _create_token(conn, token_type: str, raw_token: str, expire_minutes: int, *, commit=True, **fields) -> None:
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
@@ -550,8 +561,8 @@ def forgot_password(body: ForgotPasswordRequest) -> dict:
 
 
 class VerifyCodeRequest(BaseModel):
-    email: str
-    code: str
+    email: str = Field(max_length=254)
+    code: str = Field(max_length=32)
 
 
 @router.post("/password/verify-code")
@@ -569,9 +580,9 @@ def verify_reset_code(body: VerifyCodeRequest) -> dict:
 
 
 class ResetPasswordRequest(BaseModel):
-    email: str
-    code: str
-    new_password: str
+    email: str = Field(max_length=254)
+    code: str = Field(max_length=32)
+    new_password: str = Field(max_length=1024)
 
 
 @router.post("/password/reset")
@@ -588,6 +599,8 @@ def reset_password(body: ResetPasswordRequest) -> dict:
         _consume_token(conn, token["token_id"])
         auth_throttle.reset("code", body.email)
         auth_throttle.reset("login", body.email)  # a fresh password starts with a clean slate
+        # Whoever held the old password (or a stolen session) is signed out everywhere.
+        security.invalidate_sessions(token["user_id"])
     finally:
         conn.close()
     return {"ok": True}
@@ -596,9 +609,8 @@ def reset_password(body: ResetPasswordRequest) -> dict:
 # --- Email verification --------------------------------------------------
 
 class ResendVerificationRequest(BaseModel):
-    email: str
+    email: str = Field(max_length=254)
     registration_token: Optional[str] = None
-
 
 @router.post("/email/resend-verification")
 def resend_email_verification(body: ResendVerificationRequest) -> dict:
@@ -626,8 +638,8 @@ def resend_email_verification(body: ResendVerificationRequest) -> dict:
 
 
 class VerifyEmailRequest(BaseModel):
-    email: str
-    code: str
+    email: str = Field(max_length=254)
+    code: str = Field(max_length=32)
     registration_token: Optional[str] = None
 
 
@@ -677,9 +689,11 @@ def get_invitation(token: str) -> dict:
                 "SELECT role_name FROM system_roles WHERE role_key = %s;", (invitation["role_key"],),
             )
             role_row = cursor.fetchone()
+        account_exists = _fetch_user_by_email(conn, invitation["email"]) is not None
     finally:
         conn.close()
     return {
+        "account_exists": account_exists,
         "email": invitation["email"],
         "business_name": company_row[0] if company_row else None,
         "role_name": role_row[0] if role_row else invitation["role_key"],
@@ -709,25 +723,46 @@ def _seat_limit(tenant_id: str):
 
 @router.post("/invitations/{token}/accept")
 def accept_invitation(token: str, body: AcceptInvitationRequest) -> dict:
-    """Single transaction binds invitation, identity, live seat allowance and consumption."""
+    """Accept an invitation transactionally with live seat and identity checks."""
     conn = db.auth_lookup_connection()
+    email = None
+    existing_user = None
+    login_verified = False
     try:
         invitation = _fetch_active_token(conn, "TEAM_INVITATION", token)
         if invitation is None:
-            raise HTTPException(404, "This invitation is invalid or has expired.")
+            raise HTTPException(status_code=404, detail="This invitation is invalid or has expired.")
+        email = invitation["email"]
         tenant_id = str(invitation["tenant_id"])
+        # Match the definer function's lock so the password proof cannot race a password reset
+        # or a concurrent account creation for this email.
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0));",
+                           ("keel_signup:" + email.lower(),))
+        existing_user = _fetch_user_by_email(conn, email)
+        if existing_user is not None:
+            auth_throttle.ensure_allowed("login", email)
+            if not body.password or not verify_password(body.password, existing_user[1]):
+                auth_throttle.record_failure("login", email)
+                raise HTTPException(status_code=401, detail="Enter the password of the account this invitation was sent to.")
+            full_name = existing_user[2]
+            password_hash = None  # the invitation function never changes an existing account's password
+            login_verified = True
+        else:
+            full_name = (body.full_name or "").strip()
+            if body.password:
+                ensure_password_policy(body.password)
+                password_hash = hash_password(body.password)
+            else:
+                password_hash = None
+
         with conn.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0));",
                            ("keel_billing_tenant:" + tenant_id,))
-        # Existing entitlement authority reads under the same commercial lock used by Task 6.
         seat_limit = _seat_limit(tenant_id)
-        password_hash = None
-        if body.password:
-            ensure_password_policy(body.password)
-            password_hash = hash_password(body.password)
         with conn.cursor() as cursor:
             cursor.execute("SELECT keel_accept_team_invitation(%s,%s,%s,%s);",
-                (hash_token(token), (body.full_name or "").strip(), password_hash, seat_limit))
+                           (hash_token(token), full_name, password_hash, seat_limit))
             result = cursor.fetchone()[0]
         conn.commit()
     except psycopg2.errors.RaiseException as exc:
@@ -743,6 +778,8 @@ def accept_invitation(token: str, body: AcceptInvitationRequest) -> dict:
         raise
     finally:
         conn.close()
+    if login_verified:
+        auth_throttle.reset("login", email)
     if result.get("error"):
         raise HTTPException(422 if result["error"] == "credentials_required" else 404,
                             "Full name and password are required for a new account." if result["error"] == "credentials_required"
