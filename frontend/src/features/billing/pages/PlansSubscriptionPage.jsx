@@ -19,7 +19,7 @@ import { CreditBudgets, UsageHistory } from '../components/CreditBudgets.jsx';
 import { usePlans } from '../hooks/usePlans.js';
 import { useSubscription } from '../hooks/useSubscription.js';
 import { useBillingAction, useInvoices, useUsageHistory } from '../hooks/useBillingActions.js';
-import { errorReason } from '../api/billingApi.js';
+import { checkoutConfirmationState, errorReason } from '../api/billingApi.js';
 import { getUpgradeRecommendation } from '../utils/subscriptionRecommendations.js';
 import { formatMoney } from '../utils/money.js';
 import '../styles/Billing.css';
@@ -59,19 +59,27 @@ export function PlansSubscriptionPage() {
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   const formatDate = (value) => dateFormatter.format(new Date(value));
+  const checkoutConfirmation = checkoutConfirmationState({
+    hasSubscription: subscription?.hasSubscription,
+    status: subscription?.status,
+  });
 
   useEffect(() => {
     if (subscription?.hasSubscription && subscription.billingPeriod) setBillingPeriod(subscription.billingPeriod);
   }, [subscription?.hasSubscription, subscription?.billingPeriod]);
   useEffect(() => {
-    if (checkoutResult === 'success') setNotice({ variant: 'success', message: t('billing.checkout.success') });
+    if (checkoutResult === 'success') {
+      const key = checkoutConfirmation === 'confirmed' ? 'confirmed' : checkoutConfirmation === 'notConfirmed' ? 'notConfirmed' : 'pending';
+      const variant = checkoutConfirmation === 'confirmed' ? 'success' : checkoutConfirmation === 'notConfirmed' ? 'error' : 'info';
+      setNotice({ variant, message: t(`billing.checkout.${key}`) });
+    }
     if (checkoutResult === 'cancelled') setNotice({ variant: 'info', message: t('billing.checkout.cancelled') });
     if (checkoutResult) {
       const timer = window.setTimeout(() => setSearchParams({}, { replace: true }), 30000);
       return () => window.clearTimeout(timer);
     }
     return undefined;
-  }, [checkoutResult, setSearchParams, t]);
+  }, [checkoutConfirmation, checkoutResult, setSearchParams, t]);
 
   if (plansQuery.isPending || subscriptionQuery.isPending) return <div className="billing-management-loading" aria-busy="true"><Skeleton height="78px" variant="rectangular" /><Skeleton height="190px" variant="rectangular" /><div>{[0, 1, 2].map((item) => <Skeleton key={item} height="150px" variant="rectangular" />)}</div></div>;
   if (plansQuery.isError || subscriptionQuery.isError) return <EmptyState title={t('billing.management.errorTitle')} description={t('billing.management.errorDescription')} action={<Button size="sm" onClick={() => { plansQuery.refetch(); subscriptionQuery.refetch(); }}>{t('billing.management.retry')}</Button>} />;
