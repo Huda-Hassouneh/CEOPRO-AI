@@ -276,7 +276,9 @@ def remaining(conn, tenant_id: str, feature_code: str) -> Optional[int]:
     if plan["status"] not in ACCESS_GRANTING_STATUSES:
         return 0
     feature = plan["features"].get(feature_code)
-    if not feature or feature["limit"] is None:
+    if not feature:
+        return 0
+    if feature["limit"] is None:
         return None
     return max(0, feature["limit"] - _metered_used(conn, tenant_id, feature_code, plan["period_start"]))
 
@@ -316,13 +318,14 @@ def settle(conn, reservation: dict, actual: int) -> None:
     reservation["amount"] = int(actual)
 
 
-# Features introduced with KEEL's credit plans are never unlimited by
-# omission: a plan without a row for them doesn't include them.
-_FAIL_CLOSED_FEATURES = (MONTHLY_REPORTS, TEAM_SEATS, DATA_CREDITS, AI_CREDITS)
-
-
 def _missing_limit(feature_code: str) -> Optional[int]:
-    return 0 if feature_code in _FAIL_CLOSED_FEATURES else None
+    """A missing plan-limit row is not an unlimited grant.
+
+    Unlimited is represented by an existing row with ``limit_value IS NULL``.
+    An omitted row is incomplete/unconfigured catalog state and must fail
+    closed for every metered or capacity feature.
+    """
+    return 0
 
 
 def _require_active(plan: dict, feature_code: str) -> None:
@@ -490,7 +493,9 @@ def capacity_left(conn, tenant_id: str, feature_code: str) -> Optional[float]:
     if plan["status"] not in ACCESS_GRANTING_STATUSES:
         return 0
     feature = plan["features"].get(feature_code)
-    if not feature or feature["limit"] is None:
+    if not feature:
+        return 0
+    if feature["limit"] is None:
         return None
     lock_feature(conn, tenant_id, feature_code)
     return max(0, feature["limit"] - _live_used(conn, tenant_id, feature_code))

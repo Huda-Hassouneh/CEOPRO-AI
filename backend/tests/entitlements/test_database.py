@@ -107,6 +107,40 @@ def test_missing_report_limit_fails_closed_but_explicit_null_is_unlimited(
         usage.reserve(owner_db, tid, usage.MONTHLY_REPORTS)
 
 
+def test_missing_plan_limit_fails_closed_for_sum_and_live_capacity(owner_db, assigned):
+    from uuid import uuid4
+
+    tid, _ = assigned
+    unconfigured_plan = f"missing_limit_{uuid4().hex[:12]}"
+    with owner_db.cursor() as cur:
+        cur.execute(
+            "INSERT INTO usage_plans(plan_key,display_name) VALUES(%s,'Missing limit test')",
+            (unconfigured_plan,),
+        )
+        cur.execute(
+            "UPDATE tenant_plan_assignments SET plan_key=%s WHERE tenant_id=%s",
+            (unconfigured_plan, tid),
+        )
+
+    try:
+        assert usage.remaining(owner_db, tid, usage.RAG_ASSISTANT) == 0
+        with pytest.raises(usage.PlanLimitReached) as metered:
+            usage.reserve(owner_db, tid, usage.RAG_ASSISTANT)
+        assert metered.value.reason == "QUOTA_EXHAUSTED"
+
+        assert usage.capacity_left(owner_db, tid, usage.TRACKED_PRODUCTS) == 0
+        with pytest.raises(usage.PlanLimitReached) as capacity:
+            usage.ensure_capacity(owner_db, tid, usage.TRACKED_PRODUCTS)
+        assert capacity.value.reason == "CAPACITY_REACHED"
+    finally:
+        with owner_db.cursor() as cur:
+            cur.execute(
+                "UPDATE tenant_plan_assignments SET plan_key='standard' WHERE tenant_id=%s",
+                (tid,),
+            )
+            cur.execute("DELETE FROM usage_plans WHERE plan_key=%s", (unconfigured_plan,))
+
+
 def test_atomic_limit_release_and_read_contract(owner_db, assigned):
     tid, _ = assigned
     plan = usage.get_plan(owner_db, tid)
