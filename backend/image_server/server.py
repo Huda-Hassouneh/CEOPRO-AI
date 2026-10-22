@@ -57,11 +57,12 @@ MAX_PIXELS = int(os.getenv("KEEL_IMAGE_MAX_PIXELS", str(1408 * 1024)))
 OUTPUT_FORMAT = os.getenv("KEEL_IMAGE_OUTPUT", "jpeg").lower()  # jpeg (smaller files) or png
 JPEG_QUALITY = int(os.getenv("KEEL_IMAGE_JPEG_QUALITY", "93"))
 API_KEY = os.getenv("KEEL_IMAGE_API_KEY", "")
-# Making one 1024x1024 image needs about 0.5-1 GB on top of the loaded model.
-# Below this much free memory the server answers "busy" (the KEEL worker
-# retries later) instead of starting an image the kernel may kill it for -
-# seen for real on a 16 GB machine also running the copy model.
-MIN_FREE_GB = float(os.getenv("KEEL_IMAGE_MIN_FREE_GB", "1.5"))
+# Making one 1024x1024 image on CPU needs about 2.3 GB on top of the loaded
+# model (measured: 7.8 GB idle, 10.2 GB peak, SDXL bfloat16). Below this much
+# free memory the server answers "busy" (the KEEL worker retries later)
+# instead of starting an image the kernel may kill it for - which happened
+# for real on a 16 GB machine also running the copy model.
+MIN_FREE_GB = float(os.getenv("KEEL_IMAGE_MIN_FREE_GB", "3.0"))
 DEFAULT_NEGATIVE = os.getenv(
     "KEEL_IMAGE_NEGATIVE_PROMPT",
     "text, letters, words, watermark, logo, signature, blurry, low quality, jpeg artifacts, deformed, "
@@ -105,6 +106,12 @@ def load_pipeline():
     # DPM-Solver++ (Karras sigmas): good images in about 20 steps instead of 30-50.
     pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config, use_karras_sigmas=True)
     pipe.set_progress_bar_config(disable=True)
+    if os.getenv("KEEL_IMAGE_VAE_TILING", "true").lower() == "true" and hasattr(pipe, "enable_vae_tiling"):
+        # Decoding the full image in one go is the memory peak (+2 GB at 1024x1024
+        # on CPU, measured); tiles keep it small for the same picture.
+        pipe.enable_vae_tiling()
+    if os.getenv("KEEL_IMAGE_ATTENTION_SLICING", "false").lower() == "true":
+        pipe.enable_attention_slicing()  # lower peak memory, somewhat slower
     pipe = pipe.to(device)
     _state.update(pipe=pipe, device=device, dtype=str(dtype).replace("torch.", ""),
                   load_seconds=round(time.monotonic() - started, 1))
