@@ -194,7 +194,10 @@ def overview(ctx: Ctx):
 
 
 @router.get("/companies")
-def companies(ctx: Ctx, limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)):
+def companies(ctx: Ctx, limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0, le=1000000),
+              search: str | None = Query(None, max_length=200)):
+    if search is not None:
+        return service.search(ctx, "companies", search, limit, offset)
     return {"items": service.command(ctx, "companies", {"limit": limit, "offset": offset})}
 
 
@@ -214,7 +217,10 @@ def company_status(company_id: UUID, body: Status, ctx: Ctx):
 
 
 @router.get("/users")
-def users(ctx: Ctx, limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)):
+def users(ctx: Ctx, limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0, le=1000000),
+          search: str | None = Query(None, max_length=200)):
+    if search is not None:
+        return service.search(ctx, "users", search, limit, offset)
     return {"items": service.command(ctx, "users", {"limit": limit, "offset": offset})}
 
 

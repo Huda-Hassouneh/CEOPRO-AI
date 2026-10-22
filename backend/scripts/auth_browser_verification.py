@@ -14,6 +14,7 @@ import tempfile
 import threading
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 from urllib.request import urlopen
@@ -33,6 +34,7 @@ def main():
     from src.ai.core.security import hash_password
     platform_email = f"auth-browser-platform-owner-{secrets.token_hex(8)}@example.test"
     platform_password = f"Platform-{secrets.token_urlsafe(18)}!aA9"
+    search_marker = f"{secrets.token_hex(6)}"
     with psycopg2.connect(database_url) as conn, conn.cursor() as cursor:
         cursor.execute(
             "SELECT u.user_id,u.email FROM keel_platform_members m JOIN users u USING(user_id) "
@@ -53,6 +55,22 @@ def main():
             cursor.execute(
                 "SELECT keel_bootstrap_platform_owner(%s,'JO','JOD','isolated AUTH browser acceptance fixture')",
                 (platform_user_id,),
+            )
+        # Seed enough isolated records to prove the browser asks the server to
+        # filter the full directory and paginate the filtered set. The target
+        # suffix is deliberately on the third 50-row page before filtering.
+        created_at = datetime.now(timezone.utc)
+        for index in range(120):
+            cursor.execute(
+                "INSERT INTO companies(tenant_id,business_name,country_code,primary_currency,created_at) "
+                "VALUES(%s,%s,'JO','JOD',%s)",
+                (str(uuid.uuid4()), f"Browser Search {search_marker} Company {index:03}", created_at - timedelta(seconds=index)),
+            )
+            cursor.execute(
+                "INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at,created_at) "
+                "VALUES(%s,%s,'browser-search-fixture',%s,now(),%s)",
+                (str(uuid.uuid4()), f"browser-search-{search_marker}-{index:03}@example.test",
+                 f"Browser Search {search_marker} User {index:03}", created_at - timedelta(seconds=index)),
             )
     mailbox = {}
     secret = secrets.token_hex(32)
@@ -121,7 +139,8 @@ def main():
            'PHASE1A_BROWSER_BASE_URL': 'http://127.0.0.1:15173',
            'AUTH_TEST_MAILBOX_KEY': secret, 'REQUIRE_EMAIL_VERIFICATION': 'true',
            'AUTH_BROWSER_PLATFORM_OWNER_EMAIL': platform_email,
-           'AUTH_BROWSER_PLATFORM_OWNER_PASSWORD': platform_password}
+           'AUTH_BROWSER_PLATFORM_OWNER_PASSWORD': platform_password,
+           'AUTH_BROWSER_PLATFORM_SEARCH_MARKER': search_marker}
     processes = []
     with tempfile.TemporaryDirectory(prefix='keel-auth-browser-') as logs:
         handles = []

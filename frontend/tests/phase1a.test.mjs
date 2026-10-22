@@ -24,12 +24,15 @@ test('platform API uses existing bearer HTTP client and explicit bounded managem
   const original = httpClient.defaults.adapter; const calls = [];
   httpClient.defaults.adapter = async (config) => { calls.push(config); return { data: { items: [] }, status: 200, statusText: 'OK', config, headers: {} }; };
   try {
-    await platformApi.read('companies', 50); await platformApi.companyStatus('id', { active: false, reason: 'incident' });
+    await platformApi.read('companies', 50); await platformApi.read('companies', 0, 'North Shop'); await platformApi.read('users', 100, 'person@example.test');
+    await platformApi.companyStatus('id', { active: false, reason: 'incident' });
     await platformApi.member('user', { status: 'suspended', reason: 'offboard' }); await platformApi.invitationAction('invite', 'resend', 'retry');
     assert.equal(calls[0].url, '/platform/companies'); assert.deepEqual(calls[0].params, { limit: 50, offset: 50 });
-    assert.equal(calls[1].method, 'patch'); assert.equal(calls[1].url, '/platform/companies/id/status');
-    assert.deepEqual(JSON.parse(calls[1].data), { active: false, reason: 'incident' });
-    assert.equal(calls[2].url, '/platform/team/user'); assert.equal(calls[3].url, '/platform/team/invitations/invite/resend');
+    assert.deepEqual(calls[1].params, { limit: 50, offset: 0, search: 'North Shop' });
+    assert.deepEqual(calls[2].params, { limit: 50, offset: 100, search: 'person@example.test' });
+    assert.equal(calls[3].method, 'patch'); assert.equal(calls[3].url, '/platform/companies/id/status');
+    assert.deepEqual(JSON.parse(calls[3].data), { active: false, reason: 'incident' });
+    assert.equal(calls[4].url, '/platform/team/user'); assert.equal(calls[5].url, '/platform/team/invitations/invite/resend');
   } finally { httpClient.defaults.adapter = original; }
 });
 test('platform public invitation and owner approval preserve distinct endpoints and idempotency data', async () => {
