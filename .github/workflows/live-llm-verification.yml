@@ -19,6 +19,10 @@ name: Live LLM Verification (manual)
 on:
   workflow_dispatch:
 
+# Least privilege: these jobs only read the repository (security pass 2026-10-21).
+permissions:
+  contents: read
+
 jobs:
   live-llm-verification:
     runs-on: ubuntu-latest

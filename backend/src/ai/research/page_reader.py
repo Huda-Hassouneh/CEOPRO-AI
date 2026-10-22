@@ -30,7 +30,7 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
-from src.market_scraper.network_security import UnsafeTargetError, resolve_public_addresses
+from src.market_scraper.network_security import UnsafeTargetError, pin_request, resolve_public_addresses
 
 logger = logging.getLogger("KEEL_RESEARCH")
 
@@ -97,7 +97,10 @@ def _default_fetch(url: str, **kwargs) -> httpx.Response:
                                # some servers' streams then fail to decode ("brotli: decoder failed"), which
                                # showed up as a readable page being reported unreachable.
                                "Accept-Encoding": "gzip, deflate"}) as client:
-        with client.stream("GET", url) as response:
+        # Connects to the address that was checked for this URL (a competitor's own domain is
+        # not trusted to keep answering with the same one).
+        target, pin_headers, pin_extensions = pin_request(url)
+        with client.stream("GET", target, headers=pin_headers, extensions=pin_extensions) as response:
             chunks, size = [], 0
             for chunk in response.iter_bytes():
                 size += len(chunk)

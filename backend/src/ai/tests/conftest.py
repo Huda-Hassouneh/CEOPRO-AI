@@ -149,6 +149,15 @@ def _models_obtainable_by_default(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _signed_in_member_is_an_owner_by_default(request, monkeypatch):
+    """Router tests run on MagicMock connections that can't answer the role lookup; they act as the
+    company owner. The role rules themselves are tested in test_security_hardening.py."""
+    from src.ai.core import permissions
+
+    monkeypatch.setattr(permissions, "_current_role", lambda ctx: "owner")
+
+
+@pytest.fixture(autouse=True)
 def _connector_hosts_are_mocked(monkeypatch):
     """Connector tests use made-up hostnames with the network mocked; the
     public-address check (network_security.assert_connector_target) has

@@ -9,6 +9,7 @@ import { canReviewPrices, intelChannel, intelOrigin, needsCheck, parseCorrectedP
 import { discoveryApi } from '../api/discoveryApi.js';
 import { useReviewIntel } from '../hooks/useCompetitorData.js';
 import { analysisErrorKey, Citations, SourceLink } from './Citations.jsx';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const CONFIDENCE = (value) => (value >= 0.85 ? 'high' : value >= 0.6 ? 'medium' : 'low');
 const ANALYSIS_LISTS = ['strengths', 'weaknesses', 'differentiators', 'opportunities'];
@@ -202,7 +203,7 @@ export function CompetitorIntel({ competitor, t, locale }) {
           <ul className="intel-news">
             {news.data.map((a) => (
               <li key={a.url}><Newspaper size={14} aria-hidden="true" />
-                <div><a href={a.url} target="_blank" rel="noreferrer noopener" dir="auto">{a.title}</a>
+                <div><a href={safeHref(a.url)} target="_blank" rel="noreferrer noopener" dir="auto">{a.title}</a>
                   {a.summary && <p className="intel-news__summary" dir="auto">{a.summary}</p>}
                   <div className="apex-muted">{[a.source_domain, a.published_at && date.format(new Date(a.published_at)), NEWS_ORIGIN[a.source_kind] && t(NEWS_ORIGIN[a.source_kind])].filter(Boolean).join(' · ')}</div></div>
               </li>

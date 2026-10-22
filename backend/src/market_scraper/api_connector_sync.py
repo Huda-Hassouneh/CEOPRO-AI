@@ -34,9 +34,7 @@ not built here").
 import logging
 from typing import Callable, List, Optional
 
-import httpx
-
-from src.market_scraper.network_security import assert_connector_target
+from src.market_scraper.network_security import UnsafeTargetError, fetch_public_json, validate_header_name
 
 from src.ai.extraction.adapters.api_adapter import read_paginated_api
 from src.ai.extraction.ingestion_pipeline import process_records
@@ -63,6 +61,12 @@ DEFAULT_MAX_PAGES = 1000
 # the same worker iteration) indefinitely. 20s matches this codebase's
 # other outbound-HTTP defaults (rag/llm_client.py's own Groq timeout).
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 20.0
+
+
+def _private_hosts_allowed() -> bool:
+    import os
+
+    return os.getenv("CONNECTORS_ALLOW_PRIVATE_HOSTS", "").lower() in ("1", "true", "yes")
 
 
 def _get_nested(payload: object, path: Optional[str]) -> object:
@@ -128,6 +132,10 @@ def build_api_fetch_page(
     headers = {}
     token = credentials.get("api_key") or credentials.get("token")
     if token:
+        validate_header_name(auth_header)
+        if str(base_url).lower().startswith("http://") and not _private_hosts_allowed():
+            # A key sent over plain http can be read by anyone on the path.
+            raise UnsafeTargetError("a connection with credentials must use https")
         headers[auth_header] = f"{auth_scheme} {token}".strip()
 
     def fetch_page(page: int) -> Optional[List[dict]]:
@@ -136,10 +144,10 @@ def build_api_fetch_page(
         if page_size_param and page_size is not None:
             params[page_size_param] = page_size
 
-        assert_connector_target(base_url)  # re-checked per request: DNS can change after setup
-        response = httpx.get(base_url, params=params, headers=headers, timeout=timeout)
-        response.raise_for_status()
-        records = _get_nested(response.json(), records_path)
+        # Checked again on every request (DNS can change after setup) and connected to by the
+        # address that was checked, so it can't be swapped in between.
+        payload = fetch_public_json(base_url, params=params, headers=headers, timeout=timeout)
+        records = _get_nested(payload, records_path)
         if records is None:
             return None
         if not isinstance(records, list):

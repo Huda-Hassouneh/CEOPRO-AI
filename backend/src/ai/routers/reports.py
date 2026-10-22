@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 
 from src.ai import db
-from src.ai.core import usage
+from src.ai.core import permissions, usage
+from src.ai.rag import access
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import financial_summary as dashboard_financial_summary
 from src.ai.dashboard import reports as dashboard_reports
@@ -21,7 +22,7 @@ from src.ai.pricing import comparisons as price_comparisons
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
-@router.get("/sales")
+@router.get("/sales", dependencies=[permissions.require_capabilities(access.SALES)])
 def sales_report(
     start_date: Optional[datetime] = Query(default=None, description="Inclusive - ISO 8601, e.g. 2026-01-01"),
     end_date: Optional[datetime] = Query(default=None, description="Exclusive - ISO 8601"),
@@ -118,7 +119,7 @@ def count_report(ctx: TenantContext, key: str) -> Optional[dict]:
         raise err.as_http()
 
 
-@router.get("/sales/export")
+@router.get("/sales/export", dependencies=[permissions.require_capabilities(access.SALES)])
 def export_sales_report(
     format: str = Query(default="csv", pattern="^(csv|json|pdf)$"),
     lang: str = Query(default="en", pattern="^(en|ar)$"),
@@ -171,7 +172,7 @@ def export_sales_report(
                              headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
-@router.get("/financial-summary")
+@router.get("/financial-summary", dependencies=[permissions.require_capabilities(access.SALES, access.COSTS)])
 def financial_summary_report(
     window_days: int = Query(default=dashboard_financial_summary.DEFAULT_WINDOW_DAYS, ge=1, le=365),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -193,7 +194,7 @@ def financial_summary_report(
         conn.close()
 
 
-@router.get("/price-comparison")
+@router.get("/price-comparison", dependencies=[permissions.require_capabilities(access.CATALOG, access.COMPETITORS)])
 def price_comparison_report(
     limit: int = Query(default=50, ge=1, le=200),
     ctx: TenantContext = Depends(get_tenant_context),

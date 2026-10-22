@@ -7,6 +7,7 @@ import { routePaths } from '../../../app/router/routePaths.js';
 import { ApexButton, Panel, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
 import { discoveryApi } from '../api/discoveryApi.js';
 import { analysisErrorKey, Citations } from './Citations.jsx';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 // Market news found by discovery (industry and competitor headlines, each
 // linking to the article) and an AI summary of the trends in it, every
@@ -52,7 +53,7 @@ export function MarketInsights() {
             {news.data.map((a) => (
               <li key={a.url}><Newspaper size={14} aria-hidden="true" />
                 <div>
-                  <a href={a.url} target="_blank" rel="noreferrer noopener" dir="auto">{a.title}</a>
+                  <a href={safeHref(a.url)} target="_blank" rel="noreferrer noopener" dir="auto">{a.title}</a>
                   <div className="apex-muted">
                     {[a.source_domain, a.published_at && date.format(new Date(a.published_at))].filter(Boolean).join(' · ')}
                     {a.competitor_name && <> · <Pill>{a.competitor_name}</Pill></>}

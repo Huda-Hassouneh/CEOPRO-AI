@@ -4,7 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.ai import db
+from src.ai.core import permissions
 from src.ai.core.security import TenantContext, get_tenant_context
+from src.ai.rag import access
 from src.ai.dashboard import activity as dashboard_activity
 from src.ai.dashboard import competitor_activity as dashboard_competitor_activity
 from src.ai.dashboard import competitor_pricing as dashboard_competitor_pricing
@@ -28,7 +30,7 @@ from src.ai.routers.products import get_product
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-@router.get("/sales-trend")
+@router.get("/sales-trend", dependencies=[permissions.require_capabilities(access.SALES)])
 def dashboard_sales_trend_endpoint(
     window_days: int = Query(default=dashboard_metrics.DEFAULT_WINDOW_DAYS, ge=1, le=365),
     ctx: TenantContext = Depends(get_tenant_context),
@@ -47,7 +49,7 @@ def dashboard_sales_trend_endpoint(
         conn.close()
 
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=[permissions.require_capabilities(access.SALES)])
 def dashboard_metrics_endpoint(
     window_days: int = Query(default=dashboard_metrics.DEFAULT_WINDOW_DAYS, ge=1, le=365),
     ctx: TenantContext = Depends(get_tenant_context),

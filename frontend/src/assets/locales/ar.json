@@ -967,6 +967,8 @@
       "expiresIn": "تنتهي صلاحية الدعوة خلال",
       "days": "{{count}} أيام",
       "accept": "قبول الدعوة",
+      "passwordExisting": "كلمة المرور الخاصة بك",
+      "passwordNew": "اختر كلمة مرور",
       "anotherAccount": "تسجيل الدخول بحساب آخر",
       "wrongAccount": "ليس هذا الحساب المطلوب؟",
       "differentEmail": "استخدم بريداً إلكترونياً مختلفاً",

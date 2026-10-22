@@ -18,6 +18,7 @@ import { PriceRecommendationModal } from '../../pricing/components/PriceRecommen
 import { CompetitorDataChips } from '../../market-intelligence/components/DataCompleteness.jsx';
 import { ProductPriceLadder } from '../../pricing/components/ProductPriceLadder.jsx';
 import { ProductMarketDetail } from '../../market-intelligence/components/ProductMarketDetail.jsx';
+import { safeHref } from '../../../shared/lib/safeUrl.js';
 
 const TONE_ICON = { restock: Boxes, overstock: Boxes, sales_down: TrendingDown, sales_up: TrendingUp, no_recent_sales: AlertTriangle, priced_above: Tag, priced_below: Tag, no_competitor_prices: Users, competitor_price_change: Tag, negative_reviews: MessageSquareText };
 
@@ -161,7 +162,7 @@ export function ProductHubPage() {
                             <button type="button" className="apex-table__link" onClick={() => navigate(routePaths.marketCompetitorDetail.replace(':competitorId', c.competitor_id))}>{c.name}</button>
                             <div><Pill tone={c.level === 'PRODUCT' ? 'violet' : 'neutral'}>{t(c.level === 'PRODUCT' ? 'productHub.competition.levelProduct' : 'productHub.competition.levelMarket')}</Pill></div>
                             <CompetitorDataChips data={c.details} competitorId={c.competitor_id} />
-                            {c.url && <a className="apex-inline-link" href={c.url} target="_blank" rel="noreferrer noopener" aria-label={t('productHub.competition.openListing', { name: c.name })}><ExternalLink size={12} /></a>}
+                            {c.url && <a className="apex-inline-link" href={safeHref(c.url)} target="_blank" rel="noreferrer noopener" aria-label={t('productHub.competition.openListing', { name: c.name })}><ExternalLink size={12} /></a>}
                           </td>
                           <td className="apex-table__num apex-table__primary">{c.price == null ? '—' : money(c.price, c.currency)}{c.price_change_pct != null && <div><Delta value={c.price_change_pct} /></div>}</td>
                           <td className="apex-table__num">{c.vs_you_pct == null ? '—' : <Pill tone={c.vs_you_pct < 0 ? 'warning' : 'success'}>{t(c.vs_you_pct < 0 ? 'productHub.competition.cheaper' : c.vs_you_pct > 0 ? 'productHub.competition.pricier' : 'productHub.competition.same', { pct: number.format(Math.abs(c.vs_you_pct)) })}</Pill>}</td>
@@ -169,7 +170,7 @@ export function ProductHubPage() {
                             {fmtDate(c.observed_at)}
                             <div className="product-price-source">
                               {c.source?.kind === 'product_page' && c.url
-                                ? <a className="apex-inline-link" href={c.url} target="_blank" rel="noreferrer noopener">{t('productHub.competition.sourceProductPage')}</a>
+                                ? <a className="apex-inline-link" href={safeHref(c.url)} target="_blank" rel="noreferrer noopener">{t('productHub.competition.sourceProductPage')}</a>
                                 : c.source?.kind === 'data_source'
                                   ? t('productHub.competition.sourceDataSource', { name: c.source.name })
                                   : t('productHub.competition.sourceManual')}
