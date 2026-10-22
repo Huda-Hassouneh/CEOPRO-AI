@@ -103,6 +103,7 @@ class Draft:
     blocks: List[dict]
     follow_up_questions: List[str] = field(default_factory=list)
     summary: List["Claim"] = field(default_factory=list)  # the short answer shown first; may be empty
+    summary_dropped: int = 0  # model-written summary claims removed by the checks
 
 
 @dataclass
@@ -338,7 +339,8 @@ def validate(draft: Draft, registry: ev.EvidenceRegistry, user_text: str = "",
                 blocks.append({**block, "rows": rows, "evidence": ids})
         else:
             blocks.append(block)
-    return Draft(blocks=blocks, follow_up_questions=draft.follow_up_questions, summary=summary), issues
+    return Draft(blocks=blocks, follow_up_questions=draft.follow_up_questions, summary=summary,
+                 summary_dropped=len(draft.summary) - len(summary)), issues
 
 
 def repair_prompt(issues: List[Issue]) -> str:
@@ -412,6 +414,7 @@ def render(draft: Draft, registry: ev.EvidenceRegistry, always: Iterable[str] = 
                 "refs": refs(claim.evidence, claim.kind), "verified": claim.verified, "notes": claim.notes}
 
     summary = _summary_claims(draft)
+    summary_source = "none" if not summary else "model" if draft.summary else "fallback"
     answer_summary = None
     if summary:
         # Numbered first, so the references the short answer cites are the lowest numbers.
@@ -471,7 +474,7 @@ def render(draft: Draft, registry: ev.EvidenceRegistry, always: Iterable[str] = 
         references.append(reference)
     return {"blocks": blocks, "answer": "\n\n".join(line for line in lines if line), "references": references,
             "follow_up_questions": draft.follow_up_questions, "numbering": numbering,
-            "summary": answer_summary}
+            "summary": answer_summary, "summary_source": summary_source, "summary_dropped": draft.summary_dropped}
 
 
 def plain_text(answer: str) -> str:
