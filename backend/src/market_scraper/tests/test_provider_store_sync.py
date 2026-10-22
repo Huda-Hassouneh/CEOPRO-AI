@@ -260,7 +260,8 @@ def test_safe_read_retry_requires_verified_store_binding():
     assert "ps.provider=ds.collector_key" in conn.calls[0][0]
 
 
-def test_safe_retry_reopens_the_same_failed_job_under_the_receipt_fence(monkeypatch):
+@pytest.mark.parametrize("provider", ["shopify", "woocommerce"])
+def test_safe_retry_reopens_the_same_failed_job_under_the_receipt_fence(monkeypatch, provider):
     conn = Mock()
     cursor = MagicMock()
     cursor.__enter__.return_value.fetchone.return_value = ("source-1", "FAILED")
@@ -272,7 +273,7 @@ def test_safe_retry_reopens_the_same_failed_job_under_the_receipt_fence(monkeypa
                "ingestion_job_id": "job-1"}
 
     job_id = data_access.create_or_reuse_receipt_ingestion_job(
-        conn, "tenant-1", "source-1", receipt, replay_safe_provider_read=True,
+        conn, "tenant-1", "source-1", receipt, replay_safe_provider_read=True, provider=provider,
     )
 
     assert job_id == "job-1"
@@ -281,7 +282,26 @@ def test_safe_retry_reopens_the_same_failed_job_under_the_receipt_fence(monkeypa
     assert "SELECT source_id,job_status" in statements[0]
     assert "SET job_status='PROCESSING'" in statements[1]
     assert "ps.connection_state='verified'" in statements[1]
+    assert cursor.__enter__.return_value.execute.call_args_list[1].args[1][-2:] == (provider, provider)
     conn.commit.assert_called_once()
+
+
+def test_safe_retry_rejects_missing_or_unsupported_provider_before_database_update(monkeypatch):
+    conn = Mock()
+    cursor = MagicMock()
+    cursor.__enter__.return_value.fetchone.return_value = ("source-1", "FAILED")
+    conn.cursor.return_value = cursor
+    receipt = {"tenant_id": "tenant-1", "source_id": "source-1",
+               "operation_type": sync.operation_receipts.SCHEDULED_CONNECTOR_SYNC,
+               "ingestion_job_id": "job-1"}
+
+    with pytest.raises(ValueError, match="supported verified provider"):
+        data_access.create_or_reuse_receipt_ingestion_job(
+            conn, "tenant-1", "source-1", receipt, replay_safe_provider_read=True,
+        )
+
+    assert cursor.__enter__.return_value.execute.call_count == 1
+    conn.commit.assert_not_called()
 
 
 def test_worker_uses_real_shopify_graphql_client_with_contract_fixture(monkeypatch):

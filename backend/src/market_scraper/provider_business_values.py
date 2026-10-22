@@ -158,7 +158,29 @@ def normalize_woocommerce_record(entity_type: str, payload: Mapping[str, Any], *
     currency = _currency_code(store_currency, "store currency")
     values: dict[str, Any]
     if entity_type in {"product", "variant"}:
-        values = {"title": _text(payload.get("name"), "name", required=True),
+        title = _text(payload.get("name"), "name", required=True)
+        status = _text(payload.get("status"), "status", limit=80)
+        created_at = _text(payload.get("date_created_gmt") or payload.get("date_created"), "date_created", limit=100)
+        updated_at = _text(payload.get("date_modified_gmt") or payload.get("date_modified"), "date_modified", limit=100)
+        if entity_type == "product":
+            # M98's immutable provider product contract does not allow Woo
+            # SKU/barcode/type/price fields. Validate money before holding it,
+            # then retain only allowlisted values and explicit field findings;
+            # otherwise one Woo product would abort every stream's transaction.
+            _decimal_text(payload.get("price"), "price")
+            _decimal_text(payload.get("regular_price"), "regular_price")
+            _decimal_text(payload.get("sale_price"), "sale_price")
+            values = {"title": title, "status": status, "created_at": created_at, "updated_at": updated_at}
+            findings = _findings_for_identity(entity_type, values)
+            unsupported = {
+                "sku": payload.get("sku"), "global_unique_id": payload.get("global_unique_id"),
+                "type": payload.get("type"), "price": payload.get("price"),
+                "regular_price": payload.get("regular_price"), "sale_price": payload.get("sale_price"),
+            }
+            findings.extend({"field": field, "code": "provider_business_field_not_supported"}
+                            for field, value in unsupported.items() if value not in (None, ""))
+            return values, findings
+        values = {"title": title,
                   "status": _text(payload.get("status"), "status", limit=80),
                   "sku": _text(payload.get("sku"), "sku", limit=255),
                   "barcode": _text(payload.get("global_unique_id"), "global_unique_id", limit=255),
@@ -167,8 +189,7 @@ def normalize_woocommerce_record(entity_type: str, payload: Mapping[str, Any], *
                   "regular_price": _decimal_text(payload.get("regular_price"), "regular_price"),
                   "sale_price": _decimal_text(payload.get("sale_price"), "sale_price"),
                   "currency_code": currency,
-                  "created_at": _text(payload.get("date_created_gmt") or payload.get("date_created"), "date_created", limit=100),
-                  "updated_at": _text(payload.get("date_modified_gmt") or payload.get("date_modified"), "date_modified", limit=100)}
+                  "created_at": created_at, "updated_at": updated_at}
         if any(v is not None for v in (values["price"], values["regular_price"], values["sale_price"])) and currency is None:
             return values, [{"field": "currency_code", "code": "store_currency_unavailable"}]
     elif entity_type == "order":
