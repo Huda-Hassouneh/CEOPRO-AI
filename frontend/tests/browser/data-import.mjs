@@ -28,6 +28,19 @@ try {
   await page.locator('input[type="password"]').fill(process.env.E2E_PASSWORD);
   await page.locator('button[type="submit"]').click();
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30000 });
+  const historicalDashboard = page.waitForResponse((response) =>
+    response.url().includes('/dashboard/command-center') && response.status() === 200);
+  await page.goto(`${base}/dashboard`);
+  const historical = await (await historicalDashboard).json();
+  assert.equal(historical.has_sales, true, 'older canonical sales must prevent first-time setup');
+  if (locale === 'en') {
+    assert.equal(historical.metrics.revenue.amount, 0, 'older sales must not enter the current period');
+    assert.equal(historical.sales_trend.has_data, false);
+    await page.getByText(translations.commandCenter.trend.empty).first().waitFor();
+    assert.equal(await page.locator('.apex-grid--main-side .apex-chart').count(), 0, 'quiet period must show the empty chart state');
+  } else {
+    assert.equal(historical.metrics.revenue.amount, 37.5, 'Arabic pass sees the completed English imports');
+  }
   await page.goto(`${base}/connect-data`);
   await page.getByRole('heading', { name: ui.page.title }).waitFor();
   assert.equal(await page.locator('html').getAttribute('dir'), locale === 'ar' ? 'rtl' : 'ltr');
@@ -152,11 +165,60 @@ try {
     const invalidDetail = await invalidDetailResponse.json();
     assert.equal(invalidDetail.rows[0].canonical_posting_status, 'not_committed');
     assert.ok(invalidDetail.rows[0].validation_findings.length > 0);
-    await page.getByRole('button', { name: ui.drafts.open }).first().click();
+    const draftListResponse = await page.request.get(`${api}/extraction/import-drafts?limit=10&offset=0`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(draftListResponse.status(), 200);
+    const draftIndex = (await draftListResponse.json()).items.findIndex((item) =>
+      item.batch_id === invalidResult.import_draft.batch_id);
+    assert.ok(draftIndex >= 0, 'invalid draft must remain in import history');
+    await page.reload();
+    await page.locator('.import-drafts-list-table tbody tr').nth(draftIndex)
+      .getByRole('button', { name: ui.drafts.open }).click();
     const invalidPreview = page.locator('.import-draft-detail');
     await invalidPreview.getByText(invalidName).waitFor();
     await invalidPreview.getByRole('region', { name: ui.drafts.rowsLabel })
       .getByText(ui.drafts.states.not_committed).first().waitFor();
+  }
+
+  const dashboardResponse = page.waitForResponse((response) =>
+    response.url().includes('/dashboard/command-center') && response.status() === 200);
+  await page.goto(`${base}/dashboard`);
+  const dashboard = await (await dashboardResponse).json();
+  const expectedRevenue = locale === 'en' ? 37.5 : 50;
+  const expectedUnits = locale === 'en' ? 6 : 8;
+  assert.equal(dashboard.metrics.revenue.amount, expectedRevenue, 'canonical invoice totals must count once');
+  assert.equal(dashboard.metrics.units_sold.units, expectedUnits);
+  assert.equal(dashboard.today.orders, 0, 'the imports are dated two days ago');
+  assert.equal(dashboard.has_sales, true);
+  assert.equal(dashboard.sales_trend.has_data, true);
+  assert.equal(dashboard.sales_trend.points.find((point) => point.date === '2026-10-20')?.value,
+    expectedRevenue, 'chart values must match canonical period revenue');
+  assert.ok(dashboard.top_products.some((product) => product.name === validMarker && product.revenue === 12.5));
+  await page.locator('.apex-chart').waitFor();
+  const expectedDisplay = new Intl.NumberFormat(locale, { style: 'currency', currency: 'JOD', maximumFractionDigits: 0 }).format(expectedRevenue);
+  await page.waitForFunction((value) => document.querySelector('.apex-grid--stats .apex-stat__value')?.textContent?.includes(value), expectedDisplay);
+  assert.equal(await page.locator('html').getAttribute('dir'), locale === 'ar' ? 'rtl' : 'ltr');
+
+  const periodResponse = page.waitForResponse((response) =>
+    response.url().includes('/dashboard/command-center?window_days=7') && response.status() === 200);
+  await page.getByRole('button', { name: translations.commandCenter.window.days.replace('{{count}}', '7') }).click();
+  assert.equal((await (await periodResponse).json()).metrics.revenue.amount, expectedRevenue);
+  const ninetyResponse = page.waitForResponse((response) =>
+    response.url().includes('/dashboard/command-center?window_days=90') && response.status() === 200);
+  await page.getByRole('button', { name: translations.commandCenter.window.days.replace('{{count}}', '90') }).click();
+  const ninety = await (await ninetyResponse).json();
+  assert.equal(ninety.metrics.revenue.amount, expectedRevenue);
+  assert.equal(ninety.metrics.revenue.change_pct, null, 'insufficient prior-window history must not fabricate growth');
+
+  if (locale === 'en') {
+    const failedEndpoint = '**/dashboard/command-center**';
+    await page.route(failedEndpoint, (route) => route.abort());
+    await page.reload();
+    await page.getByText(translations.commandCenter.error.title).waitFor({ timeout: 30000 });
+    await page.unroute(failedEndpoint);
+    await page.getByRole('button', { name: translations.demandApex.actions.retry }).click();
+    await page.locator('.apex-grid--main-side .apex-chart').waitFor();
   }
 
   console.log(`PASS authenticated Data Connections import flow (${locale}, ${locale === 'ar' ? 'mobile RTL' : 'desktop'}): upload, history, preview, tenant isolation, canonical status.`);

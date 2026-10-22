@@ -62,6 +62,8 @@ class CommandCenterTotalsTest(unittest.TestCase):
         self.assertTrue(result["has_sales"])  # Old sales do not reopen onboarding.
         sql, params = next((sql, params) for sql, params in conn.queries if "SUM(i.total_amount)" in sql)
         self.assertIn("JOIN invoices sale", sql)
+        self.assertIn("sale.payment_status = 'PAID'", sql)
+        self.assertIn("i.payment_status = 'PAID'", sql)
         self.assertNotIn("transactions", sql)  # Mirrors are never a second sale.
         self.assertEqual(params, ("tenant-a", "tenant-a"))
 
