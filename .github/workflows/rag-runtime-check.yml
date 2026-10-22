@@ -25,6 +25,10 @@ on:
       - .github/workflows/rag-runtime-check.yml
   workflow_dispatch:
 
+# Least privilege: these jobs only read the repository (security pass 2026-10-21).
+permissions:
+  contents: read
+
 jobs:
   rag-runtime:
     runs-on: ubuntu-latest

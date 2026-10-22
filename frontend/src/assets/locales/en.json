@@ -967,6 +967,8 @@
       "expiresIn": "Invitation expires in",
       "days": "{{count}} days",
       "accept": "Accept Invitation",
+      "passwordExisting": "Your password",
+      "passwordNew": "Choose a password",
       "anotherAccount": "Sign in to another account",
       "wrongAccount": "Not the right account?",
       "differentEmail": "Use a different email",

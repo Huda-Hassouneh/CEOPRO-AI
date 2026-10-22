@@ -144,6 +144,13 @@ def onboarding_connect_api(
     """
     _check_target(request.base_url)
     _require_vault(request.credentials)
+    if request.auth_header is not None:
+        from src.market_scraper.network_security import UnsafeTargetError, validate_header_name
+
+        try:
+            validate_header_name(request.auth_header)
+        except UnsafeTargetError:
+            raise HTTPException(status_code=422, detail="That header name can't be used for authentication.")
     config = {
         key: value for key, value in {
             "base_url": request.base_url,

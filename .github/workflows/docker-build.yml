@@ -12,6 +12,10 @@ on:
     paths: ['backend/**', 'render.yaml', '.github/workflows/docker-build.yml']
   workflow_dispatch:
 
+# Least privilege: these jobs only read the repository (security pass 2026-10-21).
+permissions:
+  contents: read
+
 jobs:
   images:
     runs-on: ubuntu-latest

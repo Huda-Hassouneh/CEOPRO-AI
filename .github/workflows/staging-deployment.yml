@@ -5,6 +5,10 @@ on:
     branches:
       - staging
 
+# Least privilege: these jobs only read the repository (security pass 2026-10-21).
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

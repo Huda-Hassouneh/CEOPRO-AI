@@ -38,7 +38,7 @@ from typing import Optional
 
 import psycopg2
 
-from src.market_scraper.network_security import assert_connector_target
+from src.market_scraper.network_security import pinned_address
 
 from src.ai.extraction.adapters.db_adapter import read_db_query
 from src.ai.extraction.ingestion_pipeline import process_records
@@ -47,6 +47,10 @@ from src.market_scraper.data_access import create_ingestion_job, finish_ingestio
 logger = logging.getLogger("CEOPRO_AI_CONNECTOR_SYNC")
 
 DEFAULT_SYNC_INTERVAL_MINUTES = 15
+
+# One sync reads at most this many rows: a query that returns a whole warehouse must not
+# exhaust the worker's memory.
+MAX_SYNC_ROWS = 500_000
 
 # The collector_key a source must be registered under to be treated as a
 # live, polled DB connector rather than a one-time file upload or a
@@ -149,9 +153,12 @@ def sync_db_connector_source(conn, tenant_id: str, source_id: str) -> dict:
     job_id = create_ingestion_job(conn, tenant_id, source_id)
 
     try:
-        assert_connector_target(f"https://{config['host']}:{int(config['port'])}")
+        # Connects to the one public address that was checked (hostaddr), keeping the name for
+        # the server's identity: a DNS answer can't change to an internal address in between.
+        address = pinned_address(f"https://{config['host']}:{int(config['port'])}")
+        pin = {"hostaddr": address} if address != config["host"] else {}
         client_conn = psycopg2.connect(
-            host=config["host"], port=config["port"], dbname=config["dbname"],
+            host=config["host"], **pin, port=int(config["port"]), dbname=config["dbname"],
             user=credentials["user"], password=credentials["password"],
             connect_timeout=15,
         )
@@ -162,7 +169,7 @@ def sync_db_connector_source(conn, tenant_id: str, source_id: str) -> dict:
     try:
         client_conn.set_session(readonly=True)
         try:
-            headers, rows = read_db_query(client_conn, config["query"])
+            headers, rows = read_db_query(client_conn, config["query"], max_rows=MAX_SYNC_ROWS)
         finally:
             client_conn.close()
     except Exception as e:
