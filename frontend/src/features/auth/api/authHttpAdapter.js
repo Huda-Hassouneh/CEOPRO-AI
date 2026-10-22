@@ -52,7 +52,7 @@ export const authHttpAdapter = Object.freeze({
   signup: (payload) => unwrap(httpClient.post(authEndpoints.signup, toSignupRequest(payload))).then((body) => ({ session: toSession(body), pendingRegistration: body.status === 'pending_verification' ? body : null })),
   forgotPassword: (payload) => unwrap(httpClient.post(authEndpoints.forgotPassword, payload)),
   verifyResetCode: (payload) => unwrap(httpClient.post(authEndpoints.verifyResetCode, payload)),
-  resetPassword: (payload) => unwrap(httpClient.post(authEndpoints.resetPassword, payload)),
+  resetPassword: ({ email, code, password }) => unwrap(httpClient.post(authEndpoints.resetPassword, { email, code, new_password: password })),
   resendVerification: (payload) => unwrap(httpClient.post(authEndpoints.resendVerification, payload)),
   verifyEmail: (payload) => unwrap(httpClient.post(authEndpoints.verifyEmail, payload)),
   getInvitation: (token) => unwrap(httpClient.get(`${authEndpoints.invitation}/${encodeURIComponent(token)}`)),
