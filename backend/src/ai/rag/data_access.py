@@ -224,6 +224,12 @@ def load_chunks_missing_embeddings(conn, tenant_id: str, limit: int = 256,
             """
             SELECT chunk_id, chunk_text_content FROM rag_document_chunks
             WHERE tenant_id = %s
+              AND EXISTS (
+                  SELECT 1 FROM rag_documents_metadata m
+                  WHERE m.tenant_id = rag_document_chunks.tenant_id
+                    AND m.document_id = rag_document_chunks.document_id
+                    AND m.processed_status = 'Processed'
+              )
               AND (embedding IS NULL OR (%s::text IS NOT NULL AND embedding_model_version IS DISTINCT FROM %s::text))
             ORDER BY document_id, chunk_index
             LIMIT %s;
@@ -252,16 +258,18 @@ def set_chunk_embeddings(conn, tenant_id: str, chunk_ids: List[str], embeddings:
 
 def load_tenant_chunks(conn, tenant_id: str,
                        model_version: Optional[str] = None) -> List[Tuple[str, str, Optional[np.ndarray]]]:
-    """Returns every persisted (chunk_id, chunk_text, embedding) row for a tenant, oldest first.
+    """Returns only indexed, ready documents' (chunk_id, text, embedding) rows for a tenant.
     Given model_version, a vector made by any other model comes back as None:
     vectors from different models can't be compared."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT chunk_id, chunk_text_content, embedding, embedding_model_version
-            FROM rag_document_chunks
-            WHERE tenant_id = %s
-            ORDER BY document_id, chunk_index;
+            SELECT c.chunk_id, c.chunk_text_content, c.embedding, c.embedding_model_version
+            FROM rag_document_chunks c
+            JOIN rag_documents_metadata m
+              ON m.tenant_id = c.tenant_id AND m.document_id = c.document_id
+            WHERE c.tenant_id = %s AND m.processed_status = 'Processed'
+            ORDER BY c.document_id, c.chunk_index;
             """,
             (tenant_id,),
         )

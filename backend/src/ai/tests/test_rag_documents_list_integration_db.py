@@ -57,7 +57,7 @@ def test_lists_uploaded_documents_with_status_and_passage_count_but_not_generate
     documents = {d["file_name"]: d for d in list_uploaded_documents(conn, tenant_id)}
 
     assert set(documents) == {"Return policy.pdf", "Supplier contract.pdf"}
-    assert (documents["Return policy.pdf"]["status"], documents["Return policy.pdf"]["chunk_count"]) == ("ready", 3)
+    assert (documents["Return policy.pdf"]["status"], documents["Return policy.pdf"]["chunk_count"], documents["Return policy.pdf"]["searchable"]) == ("ready", 3, True)
     assert documents["Supplier contract.pdf"]["status"] == "failed"
     assert documents["Return policy.pdf"]["type"] == "pdf"
 
