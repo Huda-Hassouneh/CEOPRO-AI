@@ -67,6 +67,8 @@ def _wait_postgres(docker: str, container: str) -> None:
 
 def _seed(database_url: str, jwt_secret: str) -> dict[str, str]:
     os.environ["JWT_SECRET"] = jwt_secret
+    if str(BACKEND) not in sys.path:
+        sys.path.insert(0, str(BACKEND))
     from src.ai.core.security import hash_password
 
     suffix = secrets.token_hex(5).upper()
@@ -88,6 +90,26 @@ def _seed(database_url: str, jwt_secret: str) -> dict[str, str]:
         for key, product_id in products.items():
             cur.execute("INSERT INTO products(product_id,tenant_id,product_name,current_price,currency,source) VALUES(%s,%s,%s::jsonb,6.25,'JOD','MANUAL')",
                         (product_id, tenant, json.dumps({"en": markers[key], "ar": markers[key]})))
+        # A real older canonical sale keeps the Dashboard out of first-time
+        # setup while the 7/30/90-day charts still have no current sales.
+        old_product, old_invoice = str(uuid.uuid4()), str(uuid.uuid4())
+        cur.execute("INSERT INTO products(product_id,tenant_id,product_name,current_price,currency,source) VALUES(%s,%s,%s::jsonb,10,'JOD','MANUAL')",
+                    (old_product, tenant, json.dumps({"en": "Historical sale", "ar": "Historical sale"})))
+        cur.execute("INSERT INTO invoices(invoice_id,tenant_id,invoice_number,issue_date,subtotal,total_amount,currency,payment_status) VALUES(%s,%s,%s,current_date-120,20,20,'JOD','PAID')",
+                    (old_invoice, tenant, f"HIST-{suffix}"))
+        cur.execute("INSERT INTO invoice_items(tenant_id,invoice_id,product_id,quantity,unit_price,total_price) VALUES(%s,%s,%s,2,10,20)",
+                    (tenant, old_invoice, old_product))
+        cur.execute("INSERT INTO transactions(tenant_id,product_id,quantity_sold,unit_price,total_price,original_currency,transaction_date) VALUES(%s,%s,2,10,20,'JOD',current_date-120)",
+                    (tenant, old_product))
+        pending_product = str(uuid.uuid4())
+        cur.execute("INSERT INTO products(product_id,tenant_id,product_name,current_price,currency,source) VALUES(%s,%s,%s::jsonb,10,'JOD','MANUAL')",
+                    (pending_product, tenant, json.dumps({"en": "Unsettled invoice", "ar": "Unsettled invoice"})))
+        for status, amount in (("UNPAID", 100), ("CANCELLED", 200)):
+            invoice_id = str(uuid.uuid4())
+            cur.execute("INSERT INTO invoices(invoice_id,tenant_id,invoice_number,issue_date,subtotal,total_amount,currency,payment_status) VALUES(%s,%s,%s,current_date-2,%s,%s,'JOD',%s)",
+                        (invoice_id, tenant, f"{status}-{suffix}", amount, amount, status))
+            cur.execute("INSERT INTO invoice_items(tenant_id,invoice_id,product_id,quantity,unit_price,total_price) VALUES(%s,%s,%s,%s,10,%s)",
+                        (tenant, invoice_id, pending_product, amount // 10, amount))
         cur.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency,onboarding_completed_at) VALUES(%s,'Other import tenant','US','USD',now())",
                     (other_tenant,))
         cur.execute("INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at) VALUES(%s,%s,'test-only','Other tenant owner',now())",
@@ -99,7 +121,7 @@ def _seed(database_url: str, jwt_secret: str) -> dict[str, str]:
 
     other_token = jwt.encode({"tenant_id": other_tenant, "user_id": other_user, "exp": int(time.time()) + 3600},
                              jwt_secret, algorithm="HS256")
-    return {"tenant": tenant, "user": user, "email": email, "password": password,
+    return {"tenant": tenant, "user": user, "other_tenant": other_tenant, "email": email, "password": password,
             "other_token": other_token, **markers, **{f"product_{key}": value for key, value in products.items()}}
 
 
@@ -173,6 +195,8 @@ def main() -> int:
             "src/ai/tests/test_extraction_ingestion_pipeline_integration_db.py",
             "src/ai/tests/test_import_drafts_http_integration_db.py",
             "src/ai/tests/test_recent_imports_integration_db.py",
+            "src/ai/tests/test_dashboard_metrics_integration_db.py",
+            "src/ai/tests/test_command_center_cache_integration_db.py",
         ]
         # These legacy DB tests intentionally seed no subscription assignment
         # and rely on the test-only default plan contract documented in conftest.
@@ -222,6 +246,17 @@ def main() -> int:
                         (tenant, product_ids))
             if cur.fetchone()[0] != 4:
                 raise RuntimeError("canonical invoice mirrors do not match the four posted sales rows")
+            cur.execute("SELECT count(*),sum(total_amount) FROM invoices WHERE tenant_id=%s AND payment_status='PAID' AND issue_date>=current_date-29",
+                        (tenant,))
+            invoice_count, invoice_revenue = cur.fetchone()
+            if invoice_count != 4 or invoice_revenue != 50:
+                raise RuntimeError(f"dashboard invoice source mismatch: count={invoice_count}, revenue={invoice_revenue}")
+            cur.execute("""SELECT sum(ii.quantity),sum(ii.total_price) FROM invoice_items ii
+                           JOIN invoices i ON i.tenant_id=ii.tenant_id AND i.invoice_id=ii.invoice_id
+                           WHERE ii.tenant_id=%s AND i.payment_status='PAID' AND i.issue_date>=current_date-29""", (tenant,))
+            invoice_units, item_revenue = cur.fetchone()
+            if invoice_units != 8 or item_revenue != 50:
+                raise RuntimeError(f"dashboard item source mismatch: units={invoice_units}, revenue={item_revenue}")
             cur.execute("SELECT count(*) FROM import_staging_rows s JOIN ingestion_jobs j ON j.tenant_id=s.tenant_id AND j.job_id=s.job_id WHERE s.tenant_id=%s AND s.validation_status='COMMITTED' AND s.committed_table='transactions' AND s.committed_record_id IS NOT NULL", (tenant,))
             if cur.fetchone()[0] != 4:
                 raise RuntimeError("staging rows do not preserve transaction posting provenance")
@@ -232,7 +267,18 @@ def main() -> int:
                         (tenant, f"{fixture['invalid']}.csv"))
             if cur.fetchone()[0] != 1:
                 raise RuntimeError("invalid row was not retained as noncanonical staging evidence")
-        print("PASS actual database inspection: four sales transactions and invoice mirrors; quantities, totals, product IDs and source staging provenance preserved; invalid row remained unposted; upload source consumed no persistent connector slot.")
+        with psycopg2.connect(host="127.0.0.1", port=pg_port, dbname="keel_import_test",
+                              user="ceopro_app", password=app_password) as app_conn, app_conn.cursor() as app_cur:
+            app_cur.execute("SELECT set_config('app.current_tenant_id',%s,true),set_config('app.current_user_id',%s,true)",
+                            (fixture["tenant"], fixture["user"]))
+            app_cur.execute("SELECT count(*),sum(total_amount) FROM invoices WHERE payment_status='PAID' AND issue_date>=current_date-29")
+            if app_cur.fetchone() != (4, 50):
+                raise RuntimeError("restricted role could not read its own canonical dashboard invoices")
+            app_cur.execute("SELECT set_config('app.current_tenant_id',%s,true)", (fixture["other_tenant"],))
+            app_cur.execute("SELECT count(*) FROM invoices")
+            if app_cur.fetchone()[0] != 0:
+                raise RuntimeError("restricted role exposed invoices after switching to an unauthorized tenant")
+        print("PASS actual database inspection: four sales transactions and invoice mirrors; 30-day invoices=4, revenue=50 JOD, units=8; restricted ceopro_app tenant isolation; staging provenance and invalid row retention; upload source consumed no persistent connector slot.")
         print("PASS FastAPI /health/ready; PostgreSQL 17/pgvector 1-99; authenticated React/Chromium en+ar flow.")
         return 0
     finally:

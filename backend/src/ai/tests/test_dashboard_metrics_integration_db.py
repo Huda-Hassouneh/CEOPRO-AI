@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 import psycopg2
 import pytest
 
-from src.ai.dashboard.metrics import get_dashboard_metrics
+from src.ai.dashboard.metrics import get_dashboard_metrics, get_sales_trend
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -49,14 +49,14 @@ def _insert_product(conn, tenant_id, name="Widget") -> str:
     return product_id
 
 
-def _insert_invoice(conn, tenant_id, product_id, quantity, unit_price, issue_date, currency="JOD"):
+def _insert_invoice(conn, tenant_id, product_id, quantity, unit_price, issue_date, currency="JOD", status="PAID"):
     invoice_id = str(uuid.uuid4())
     total = quantity * unit_price
     with conn.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO invoices (invoice_id, tenant_id, invoice_number, issue_date, subtotal, total_amount, currency) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s);",
-            (invoice_id, tenant_id, f"INV-{invoice_id[:8]}", issue_date, total, total, currency),
+            "INSERT INTO invoices (invoice_id, tenant_id, invoice_number, issue_date, subtotal, total_amount, currency, payment_status) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s);",
+            (invoice_id, tenant_id, f"INV-{invoice_id[:8]}", issue_date, total, total, currency, status),
         )
         cursor.execute(
             "INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price) "
@@ -117,6 +117,23 @@ def test_revenue_and_units_reflect_real_invoices_in_the_recent_window(conn):
     assert result["revenue"]["amount"] == 50.0
     assert result["revenue"]["currency"] == "JOD"
     assert result["units_sold"]["units"] == 5
+
+
+def test_unpaid_and_cancelled_invoices_do_not_become_dashboard_sales(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id)
+    now = datetime.now(timezone.utc)
+    _insert_invoice(conn, tenant_id, product_id, 2, 10.0, now - timedelta(days=2), status="PAID")
+    _insert_invoice(conn, tenant_id, product_id, 10, 10.0, now - timedelta(days=2), status="UNPAID")
+    _insert_invoice(conn, tenant_id, product_id, 20, 10.0, now - timedelta(days=2), status="CANCELLED")
+
+    metrics = get_dashboard_metrics(conn, tenant_id)
+    trend = get_sales_trend(conn, tenant_id)
+
+    assert metrics["revenue"]["amount"] == 20.0
+    assert metrics["units_sold"]["units"] == 2
+    assert sum(point["value"] for point in trend["points"]) == 20.0
+    assert sum(point["units"] for point in trend["points"]) == 2
 
 
 def test_change_pct_compares_recent_window_against_prior_window(conn):

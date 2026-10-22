@@ -17,17 +17,17 @@ Sale, and anything requiring login/billing.
 
 Metric definitions (spelled out here since none of these numbers is
 self-evidently unambiguous):
-  revenue        Sum of invoices.total_amount within the trailing window,
+  revenue        Sum of PAID invoices.total_amount within the trailing window,
                  vs. the prior window of equal length. Summed across
                  whatever currencies exist on those invoices, same
                  simplification generate_sales_history_summary() already
                  makes - correct for the common single-currency-tenant
                  case; a genuinely multi-currency tenant would need a
                  real currency-aware rollup, not built here.
-  units_sold     Sum of invoice_items.quantity in the same two windows -
+  units_sold     Sum of PAID invoice_items.quantity in the same two windows -
                  a distinct number from revenue (unit volume, not value).
   transaction_growth_pct
-                 Percent change in invoice COUNT (not amount) between the
+                 Percent change in PAID invoice COUNT (not amount) between the
                  two windows - "is the business making more separate
                  sales", a genuinely different signal than the revenue/
                  units totals above, not a restatement of either.
@@ -65,7 +65,7 @@ def _pct_change(recent: float, prior: float) -> Optional[float]:
 
 def _first_sale_at(conn, tenant_id: str):
     with conn.cursor() as cursor:
-        cursor.execute("SELECT MIN(issue_date) FROM invoices WHERE tenant_id = %s;", (tenant_id,))
+        cursor.execute("SELECT MIN(issue_date) FROM invoices WHERE tenant_id = %s AND payment_status = 'PAID';", (tenant_id,))
         row = cursor.fetchone()
     return row[0] if row else None
 
@@ -93,7 +93,7 @@ def get_dashboard_metrics(conn, tenant_id: str, window_days: int = DEFAULT_WINDO
                 COUNT(*) FILTER (WHERE issue_date >= %(recent_start)s) AS recent_invoice_count,
                 COUNT(*) FILTER (WHERE issue_date >= %(prior_start)s AND issue_date < %(recent_start)s) AS prior_invoice_count
             FROM invoices
-            WHERE tenant_id = %(tenant_id)s AND issue_date >= %(prior_start)s;
+            WHERE tenant_id = %(tenant_id)s AND payment_status = 'PAID' AND issue_date >= %(prior_start)s;
             """,
             {"tenant_id": tenant_id, "recent_start": recent_start, "prior_start": prior_start},
         )
@@ -107,7 +107,8 @@ def get_dashboard_metrics(conn, tenant_id: str, window_days: int = DEFAULT_WINDO
                     THEN ii.quantity ELSE 0 END), 0) AS prior_units
             FROM invoice_items ii
             JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
-            WHERE ii.tenant_id = %(tenant_id)s AND i.issue_date >= %(prior_start)s;
+            WHERE ii.tenant_id = %(tenant_id)s AND i.payment_status = 'PAID'
+              AND i.issue_date >= %(prior_start)s;
             """,
             {"tenant_id": tenant_id, "recent_start": recent_start, "prior_start": prior_start},
         )
@@ -204,7 +205,8 @@ def get_sales_trend(conn, tenant_id: str, window_days: int = DEFAULT_WINDOW_DAYS
             SELECT i.issue_date::date AS day,
                    SUM(i.total_amount) AS revenue
             FROM invoices i
-            WHERE i.tenant_id = %(tenant_id)s AND i.issue_date >= %(recent_start)s
+            WHERE i.tenant_id = %(tenant_id)s AND i.payment_status = 'PAID'
+              AND i.issue_date >= %(recent_start)s
             GROUP BY day;
             """,
             {"tenant_id": tenant_id, "recent_start": recent_start},
@@ -215,7 +217,8 @@ def get_sales_trend(conn, tenant_id: str, window_days: int = DEFAULT_WINDOW_DAYS
             SELECT i.issue_date::date AS day, SUM(ii.quantity) AS units
             FROM invoice_items ii
             JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
-            WHERE ii.tenant_id = %(tenant_id)s AND i.issue_date >= %(recent_start)s
+            WHERE ii.tenant_id = %(tenant_id)s AND i.payment_status = 'PAID'
+              AND i.issue_date >= %(recent_start)s
             GROUP BY day;
             """,
             {"tenant_id": tenant_id, "recent_start": recent_start},

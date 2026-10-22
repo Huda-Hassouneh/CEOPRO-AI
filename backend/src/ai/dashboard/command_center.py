@@ -45,10 +45,12 @@ def build_command_center(conn, tenant_id: str, window_days: int = 30) -> dict:
                              FROM invoice_items ii
                              JOIN invoices sale ON sale.tenant_id = ii.tenant_id
                                AND sale.invoice_id = ii.invoice_id
-                             WHERE ii.tenant_id = %s AND sale.issue_date >= CURRENT_DATE::timestamptz), 0),
+                             WHERE ii.tenant_id = %s AND sale.payment_status = 'PAID'
+                               AND sale.issue_date >= CURRENT_DATE::timestamptz), 0),
                    MAX(i.currency)
             FROM invoices i
-            WHERE i.tenant_id = %s AND i.issue_date >= CURRENT_DATE::timestamptz;
+            WHERE i.tenant_id = %s AND i.payment_status = 'PAID'
+              AND i.issue_date >= CURRENT_DATE::timestamptz;
             """,
             (tenant_id, tenant_id),
         )
@@ -57,7 +59,7 @@ def build_command_center(conn, tenant_id: str, window_days: int = 30) -> dict:
         # The setup screen describes a tenant that has never imported sales.
         # A quiet reporting window must not send an established customer back
         # to onboarding when older canonical sales still exist.
-        cursor.execute("SELECT EXISTS (SELECT 1 FROM invoices WHERE tenant_id = %s);", (tenant_id,))
+        cursor.execute("SELECT EXISTS (SELECT 1 FROM invoices WHERE tenant_id = %s AND payment_status = 'PAID');", (tenant_id,))
         has_sales = cursor.fetchone()[0]
 
         cursor.execute(
@@ -71,7 +73,8 @@ def build_command_center(conn, tenant_id: str, window_days: int = 30) -> dict:
             FROM invoice_items ii
             JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
             JOIN products p ON p.tenant_id = ii.tenant_id AND p.product_id = ii.product_id AND p.deleted_at IS NULL
-            WHERE ii.tenant_id = %(tenant)s AND i.issue_date >= %(previous)s
+            WHERE ii.tenant_id = %(tenant)s AND i.payment_status = 'PAID'
+              AND i.issue_date >= %(previous)s
             GROUP BY ii.product_id, p.product_name;
             """,
             {"tenant": tenant_id, "recent": window_start(conn, window_days), "previous": window_start(conn, window_days, periods=2)},
