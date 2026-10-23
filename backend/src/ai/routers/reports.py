@@ -111,10 +111,11 @@ def report_key(ctx: TenantContext, idempotency_key: Optional[str], *parts) -> st
     return "auto:" + hashlib.sha256(material.encode()).hexdigest()[:48]
 
 
-def count_report(ctx: TenantContext, key: str) -> Optional[dict]:
+def count_report(ctx: TenantContext, key: str, fingerprint: Optional[str] = None) -> Optional[dict]:
     """One report against the plan's monthly allowance (402 when used up)."""
     try:
-        return usage.reserve_request(ctx.tenant_id, usage.MONTHLY_REPORTS, key, ctx.user_id)
+        return usage.reserve_request(ctx.tenant_id, usage.MONTHLY_REPORTS, key, ctx.user_id,
+                                     request_fingerprint=fingerprint)
     except usage.PlanLimitReached as err:
         raise err.as_http()
 
@@ -133,7 +134,9 @@ def export_sales_report(
     the period (dashboard/sales_pdf.py). Each export counts as one report
     against the plan's monthly allowance; a failed export is given back."""
     _check_range(start_date, end_date)
-    counted = count_report(ctx, report_key(ctx, idempotency_key, "sales", format, lang, start_date, end_date))
+    parts = ("sales", format, lang, start_date, end_date)
+    fingerprint = hashlib.sha256(json.dumps(parts, default=str, ensure_ascii=True).encode()).hexdigest()
+    counted = count_report(ctx, report_key(ctx, idempotency_key, *parts), fingerprint)
     try:
         conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     except Exception:
@@ -197,6 +200,7 @@ def financial_summary_report(
 @router.get("/price-comparison", dependencies=[permissions.require_capabilities(access.CATALOG, access.COMPETITORS)])
 def price_comparison_report(
     limit: int = Query(default=50, ge=1, le=200),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict:
     """
@@ -204,10 +208,20 @@ def price_comparison_report(
     per-tier low / median / high, the headline position and, for added-value-only products, the justified range.
     The same data as GET /pricing/comparisons/{id}, for all products at once. Read-only.
     """
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    parts = ("price-comparison", limit)
+    fingerprint = hashlib.sha256(json.dumps(parts, default=str, ensure_ascii=True).encode()).hexdigest()
+    counted = count_report(ctx, report_key(ctx, idempotency_key, *parts), fingerprint)
+    try:
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    except Exception:
+        usage.release_request(counted)
+        raise
     try:
         entries = price_comparisons.ladder_overview(conn, ctx.tenant_id, limit)
         conn.commit()
         return {"products": entries, "count": len(entries)}
+    except Exception:
+        usage.release_request(counted)
+        raise
     finally:
         conn.close()

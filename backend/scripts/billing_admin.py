@@ -9,15 +9,15 @@ Usage (from backend/, with DATABASE_URL set to the schema-owning role):
     python -m scripts.billing_admin budgets
     python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \\
         --unit input_token --usd-per-million 0.075 --source "Groq pricing page" --verified-on 2026-10-17 \\
-        --by "Name" --reason "Confirmed from the Groq invoice"
+        --by "PLATFORM_OWNER_USER_UUID" --reason "Confirmed from the Groq invoice"
     python -m scripts.billing_admin set-price --budget data --provider google_places --operation text_search \\
-        --unit request --usd 0.032 --source "Google Maps Platform bill" --verified-on 2026-10-17 --by "Name" --reason "..."
-    python -m scripts.billing_admin set-control --provider '*' --kill-switch on --by "Name" --reason "Incident 42"
-    python -m scripts.billing_admin set-control --provider groq --monthly-cap-usd 200 --by "Name" --reason "..."
-    python -m scripts.billing_admin set-contract --tenant <id> --contract-ref C-2026-001 --by "Name" --reason "..." \\
+        --unit request --usd 0.032 --source "Google Maps Platform bill" --verified-on 2026-10-17 --by "PLATFORM_OWNER_USER_UUID" --reason "..."
+    python -m scripts.billing_admin set-control --provider '*' --kill-switch on --by "PLATFORM_OWNER_USER_UUID" --reason "Incident 42"
+    python -m scripts.billing_admin set-control --provider groq --monthly-cap-usd 200 --by "PLATFORM_OWNER_USER_UUID" --reason "..."
+    python -m scripts.billing_admin set-contract --tenant <id> --contract-ref C-2026-001 --by "PLATFORM_OWNER_USER_UUID" --reason "..." \\
         --monthly-price 900 --limit tracked_products=2000 --limit data_credits=9000 --limit ai_credits=9000
-    python -m scripts.billing_admin adjust-credits --tenant <id> --budget ai --credits -100 --reference T-7 --by "Name" --reason "..."
-    python -m scripts.billing_admin reconcile --ledger <id> --actual-usd 0.84 --reference apify-run-123 --by "Name"
+    python -m scripts.billing_admin adjust-credits --tenant <id> --budget ai --credits -100 --reference T-7 --by "PLATFORM_OWNER_USER_UUID" --reason "..."
+    python -m scripts.billing_admin reconcile --ledger <id> --actual-usd 0.84 --reference apify-run-123 --by "PLATFORM_OWNER_USER_UUID"
     python -m scripts.billing_admin expire-reservations
 """
 import argparse
@@ -26,6 +26,7 @@ import os
 import sys
 from datetime import date
 from decimal import Decimal
+from uuid import UUID
 
 import psycopg2
 
@@ -101,7 +102,8 @@ def main(argv=None) -> int:
     sub.add_parser("expire-reservations")
 
     for command in (p, c, k, a, r):
-        command.add_argument("--by", required=True, help="who approved this (recorded)")
+        command.add_argument("--by", required=True, type=UUID, help="existing active Platform Owner user UUID (recorded)")
+        command.add_argument("--owner-token-stdin", required=True, action="store_true", help="read the approving owner Python bearer token from stdin; never put tokens in shell history")
     for command in (p, c, k, a):
         command.add_argument("--reason", required=True)
     r.add_argument("--reason", default="provider-reported usage")
@@ -111,8 +113,33 @@ def main(argv=None) -> int:
         print(json.dumps({key: b.as_dict() for key, b in cost_model.recommended_budgets().items()}, indent=2))
         return 0
 
+    owner_context = None
+    if args.command != "expire-reservations":
+        from src.ai.core.security import get_tenant_context
+        from fastapi import HTTPException
+        owner_token = sys.stdin.readline().strip()
+        if not owner_token:
+            parser.error("An active Platform Owner bearer token must be supplied through stdin")
+        try:
+            owner_context = get_tenant_context(authorization="Bearer " + owner_token)
+        except HTTPException:
+            parser.error("Platform Owner session could not be verified; no changes applied")
+        if str(args.by) != str(owner_context.user_id):
+            parser.error("--by must match the authenticated approving owner")
     conn = _connect()
     try:
+        if args.command not in {"expire-reservations"}:
+            # Schema credentials alone are not an attributed Platform Owner approval.
+            # --by is now the existing Python owner's UUID, never a free-form privilege claim.
+            owner_id = str(owner_context.user_id)
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended('keel_platform_authority',0));")
+                cursor.execute("SELECT 1 FROM keel_platform_members m JOIN users u USING(user_id) "
+                               "WHERE m.user_id=%s AND m.role_key='owner' AND m.status='active' "
+                               "AND u.platform_disabled_at IS NULL;", (owner_id,))
+                if not cursor.fetchone():
+                    raise PermissionError("An active Platform Owner approval is required")
+            args.by = owner_id
         if args.command == "set-price":
             unit_cost = args.usd if args.usd is not None else args.usd_per_million / Decimal(1_000_000)
             written = admin.set_price(conn, budget_kind=args.budget, provider=args.provider, operation=args.operation,

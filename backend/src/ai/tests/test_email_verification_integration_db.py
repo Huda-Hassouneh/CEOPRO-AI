@@ -47,7 +47,7 @@ def _signup(client):
     email = f"verify+{uuid.uuid4().hex[:8]}@example.com"
     response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Verify Co", "email": email,
                                                   "country_code": "JO", "primary_currency": "JOD", "password": PASSWORD})
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
     return email, response.json()
 
 
@@ -57,44 +57,53 @@ def _auth(token):
 
 def test_required_verification_blocks_the_app_until_the_code_is_entered(client, sent, monkeypatch):
     monkeypatch.setenv("REQUIRE_EMAIL_VERIFICATION", "true")
-    email, session = _signup(client)
-    assert session["email_verified"] is False and session["email_verification_required"] is True
-    assert _claims(session["access_token"])["ev"] is False and _claims(session["access_token"])["evr"] is True
+    email, registration = _signup(client)
+    assert registration["status"] == "pending_verification"
+    assert registration["email_verification_required"] is True
+    assert "access_token" not in registration and "tenant_id" not in registration
     assert email in sent, "sign-up sends the first code"
 
-    blocked = client.get("/products", headers=_auth(session["access_token"]))
-    assert blocked.status_code == 403
-    assert blocked.headers["X-Auth-Reason"] == "email-verification-required"
-    # The sign-in endpoints still work while unconfirmed.
-    assert client.get("/auth/workspaces", headers=_auth(session["access_token"])).status_code == 200
-
-    assert client.post("/auth/email/verify", json={"email": email, "code": "000000"}).status_code in (400, 401)
-    assert client.post("/auth/email/verify", json={"email": email, "code": sent[email]}).status_code == 200
-
-    renewed = client.post("/auth/refresh", headers=_auth(session["access_token"]))
-    assert renewed.status_code == 200 and renewed.json()["email_verified"] is True
-    assert client.get("/products", headers=_auth(renewed.json()["access_token"])).status_code == 200
+    assert client.post("/auth/email/verify", json={
+        "email": email, "registration_token": registration["registration_token"], "code": "000000",
+    }).status_code in (400, 401)
+    verified = client.post("/auth/email/verify", json={
+        "email": email, "registration_token": registration["registration_token"], "code": sent[email],
+    })
+    assert verified.status_code == 200, verified.text
+    session = verified.json()
+    assert session["email_verified"] is True
+    assert client.get("/products", headers=_auth(session["access_token"])).status_code == 200
 
     login = client.post("/auth/login", json={"email": email, "password": PASSWORD}).json()
     assert login["email_verified"] is True and _claims(login["access_token"])["ev"] is True
 
 
-def test_not_required_without_email_delivery(client, sent, monkeypatch):
+def test_registration_remains_pending_when_email_delivery_is_unavailable(client, sent, monkeypatch):
     monkeypatch.setenv("REQUIRE_EMAIL_VERIFICATION", "auto")
     from src.ai.core import notifications
 
     monkeypatch.setattr(notifications, "is_configured", lambda: False)
-    _, session = _signup(client)
-    assert session["email_verification_required"] is False
-    assert client.get("/products", headers=_auth(session["access_token"])).status_code == 200
-
-    monkeypatch.setattr(notifications, "is_configured", lambda: True)
-    assert client.get("/products", headers=_auth(session["access_token"])).status_code == 403
+    monkeypatch.setattr(notifications, "send_email_verification_email", lambda _email, _code: False)
+    email, registration = _signup(client)
+    assert registration["delivery"] == "unavailable"
+    assert registration["email_verification_required"] is True
+    assert "access_token" not in registration
+    conn = psycopg2.connect(ADMIN_DATABASE_URL)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM users WHERE email = %s;", (email,))
+            assert cursor.fetchone()[0] == 0
+    finally:
+        conn.close()
 
 
 def test_password_reset_confirms_the_address(client, sent, monkeypatch):
     monkeypatch.setenv("REQUIRE_EMAIL_VERIFICATION", "true")
-    email, _ = _signup(client)
+    email, registration = _signup(client)
+    verified = client.post("/auth/email/verify", json={
+        "email": email, "registration_token": registration["registration_token"], "code": sent[email],
+    })
+    assert verified.status_code == 200, verified.text
     assert client.post("/auth/password/forgot", json={"email": email}).status_code == 200
     new_password = "Reset!Email-Test2026"
     response = client.post("/auth/password/reset", json={"email": email, "code": sent[("reset", email)], "new_password": new_password})
@@ -111,8 +120,10 @@ def test_accepting_an_invitation_confirms_the_address(client, sent, monkeypatch)
     links = {}
     monkeypatch.setattr(notifications, "send_team_invitation_email",
                         lambda to, business, token: links.__setitem__(to, token) or True)
-    owner_email, _ = _signup(client)
-    assert client.post("/auth/email/verify", json={"email": owner_email, "code": sent[owner_email]}).status_code == 200
+    owner_email, registration = _signup(client)
+    assert client.post("/auth/email/verify", json={
+        "email": owner_email, "registration_token": registration["registration_token"], "code": sent[owner_email],
+    }).status_code == 200
     owner_session = client.post("/auth/login", json={"email": owner_email, "password": PASSWORD}).json()
     invitee = f"invitee+{uuid.uuid4().hex[:8]}@example.com"
     invited = client.post("/settings/team/invitations", json={"email": invitee, "role_key": "staff"},

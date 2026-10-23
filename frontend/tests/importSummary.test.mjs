@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { summarizeImport } from '../src/features/data-ingestion/utils/importSummary.js';
+import { retainFailedImportFiles, summarizeImport } from '../src/features/data-ingestion/utils/importSummary.js';
 
 const t = (key, params = {}) => `${key}${JSON.stringify(params)}`;
 const uploaded = (name, promotion) => ({ name, status: 'uploaded', summary: { promotion } });
@@ -45,4 +45,14 @@ test('rows over the plan product limit are reported as such, not as unreadable r
   assert.equal(variant, 'warning');
   assert.match(message, /importSummary\.overProductLimit\{"count":"5"\}/);
   assert.match(message, /importSummary\.failed\{"count":"2"\}/);
+});
+
+test('a mixed upload retry keeps rejected files but removes completed uploads', () => {
+  const success = { name: 'sales.csv', size: 32 };
+  const failed = { name: 'unsupported.csv', size: 28 };
+  const retry = retainFailedImportFiles([success, failed], [
+    { name: success.name, size: success.size, status: 'uploaded' },
+    { name: failed.name, size: failed.size, status: 'failed' },
+  ]);
+  assert.deepEqual(retry, [failed]);
 });

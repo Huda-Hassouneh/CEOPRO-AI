@@ -38,7 +38,7 @@ image generation now is.
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from urllib.parse import urlparse
 from uuid import UUID
@@ -76,6 +76,94 @@ _IMAGE_MAGIC_BYTES = {
 _IMAGE_CONTENT_TYPES = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
 }
+_STORAGE_RECOVERY_GRACE = timedelta(hours=24)
+_STORAGE_RECOVERY_BATCH = 100
+
+
+def _track_image_before_put(ctx: TenantContext, kind: str, on_recorded=None):
+    """Commit the tenant-scoped quota record on its own app-role connection."""
+    def track(bucket: str, object_key: str, size_bytes: int) -> None:
+        ledger_conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+        try:
+            storage_ledger.record(ledger_conn, ctx.tenant_id, bucket, object_key, size_bytes, kind)
+            ledger_conn.commit()
+            if on_recorded is not None:
+                on_recorded()
+        except Exception:
+            ledger_conn.rollback()
+            raise
+        finally:
+            ledger_conn.close()
+
+    return track
+
+
+def _reconcile_stale_marketing_uploads(conn, client, tenant_id: str) -> int:
+    """Remove only old, unreferenced marketing objects; retain uncertain rows.
+
+    Runs lazily on marketing upload paths. The 24-hour grace avoids racing a
+    slow in-flight request; active campaign pointers and storage failures keep
+    their ledger rows. A later retry can safely repeat cleanup.
+    """
+    cutoff = datetime.now(timezone.utc) - _STORAGE_RECOVERY_GRACE
+
+    def is_referenced(bucket: str, object_key: str) -> bool:
+        if bucket not in image_storage.ALL_BUCKETS:
+            return True
+        parts = object_key.split("/", 2)
+        if object_key.startswith(f"{tenant_id}/") and len(parts) == 3 and parts[1]:
+            keys = data_access.stored_image_keys(conn, tenant_id, parts[1])
+            return keys is not None and object_key in keys.values()
+        return True
+
+    try:
+        return storage_ledger.recover_stale(
+            conn,
+            tenant_id,
+            "marketing_",
+            cutoff,
+            lambda bucket, key: image_storage.object_exists(client, bucket, key),
+            is_referenced=is_referenced,
+            remove_object=lambda bucket, key: image_storage.remove_image(client, bucket, key),
+            limit=_STORAGE_RECOVERY_BATCH,
+        )
+    except Exception:
+        conn.rollback()
+        logger.exception("Could not inspect stale marketing storage rows (tenant=%s)", tenant_id)
+        return 0
+
+
+def _compensate_image_upload(conn, tenant_id: str, campaign_id: str, bucket: str, object_key: str,
+                             size_bytes: int, kind: str, client) -> None:
+    """Remove an unreferenced upload or retain its bytes in the quota ledger."""
+    try:
+        conn.rollback()
+        try:
+            keys = data_access.stored_image_keys(conn, tenant_id, campaign_id)
+            referenced = keys is not None and object_key in keys.values()
+        except Exception:
+            # A commit error can be ambiguous. Keep the object accounted for
+            # unless the database proves that no campaign references it.
+            referenced = None
+
+        if referenced is not False:
+            storage_ledger.record(conn, tenant_id, bucket, object_key, size_bytes, kind)
+            removed = False
+        else:
+            removed = storage_ledger.compensate_upload(
+                conn, tenant_id, bucket, object_key, size_bytes, kind,
+                lambda: image_storage.remove_image(client, bucket, object_key),
+            )
+        conn.commit()
+        if not removed:
+            logger.error("Kept storage accounting for an object that could not be removed (tenant=%s key=%s)",
+                         tenant_id, object_key)
+    except Exception:
+        logger.exception("Could not reconcile a failed image upload (tenant=%s key=%s)", tenant_id, object_key)
+        try:
+            conn.rollback()
+        except Exception:
+            logger.exception("Could not roll back image cleanup transaction (tenant=%s)", tenant_id)
 
 
 class CampaignCreateRequest(BaseModel):
@@ -509,8 +597,9 @@ def delete_campaign_endpoint(campaign_id: str, ctx: TenantContext = Depends(get_
         removed = []
         try:
             removed = image_storage.remove_campaign_images(db.minio_client(), ctx.tenant_id, campaign_id)
-        except Exception:  # noqa: BLE001 - storage unreachable: delete the record; leftovers are logged
+        except Exception as err:  # noqa: BLE001 - preserve database/accounting state for a safe retry
             logger.exception("Could not delete the images of campaign %s (tenant=%s)", campaign_id, ctx.tenant_id)
+            raise HTTPException(status_code=502, detail="Could not delete stored campaign images. Please try again.") from err
         with conn.cursor() as cursor:
             cursor.execute(
                 "DELETE FROM tenant_storage_objects WHERE tenant_id = %s AND kind LIKE 'marketing_%%' AND object_key LIKE %s;",
@@ -571,16 +660,29 @@ def upload_campaign_image_endpoint(
     _validate_image_content(ext, contents)
 
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    image_key = None
+    minio_client = None
+    preupload_recorded = False
+
+    def mark_preupload_recorded():
+        nonlocal preupload_recorded
+        preupload_recorded = True
+
     try:
         existing = data_access.get_campaign(conn, ctx.tenant_id, campaign_id)
         if existing is None:
             raise HTTPException(status_code=404, detail="Campaign not found")
+        minio_client = db.minio_client()
+        _reconcile_stale_marketing_uploads(conn, minio_client, ctx.tenant_id)
         # The plan's storage limit and monthly upload allowance cover images too.
         usage.ensure_capacity(conn, ctx.tenant_id, usage.DOCUMENT_STORAGE_MB, len(contents) / 1048576)
         usage.reserve(conn, ctx.tenant_id, usage.DOCUMENT_EXTRACTION, max(1, -(-len(contents) // 1024)))
 
+        image_key = image_storage.new_image_object_key(ctx.tenant_id, campaign_id, ext)
         image_key = image_storage.upload_source_image(
-            db.minio_client(), contents, _IMAGE_CONTENT_TYPES[ext], ctx.tenant_id, campaign_id, ext,
+            minio_client, contents, _IMAGE_CONTENT_TYPES[ext], ctx.tenant_id, campaign_id, ext,
+            object_key=image_key,
+            on_pre_upload=_track_image_before_put(ctx, "marketing_source_image", mark_preupload_recorded),
         )
         data_access.set_source_image_key(conn, ctx.tenant_id, campaign_id, image_key)
         storage_ledger.record(conn, ctx.tenant_id, image_storage.SOURCE_IMAGES_BUCKET, image_key, len(contents), "marketing_source_image")
@@ -592,9 +694,15 @@ def upload_campaign_image_endpoint(
         }
     except HTTPException:
         conn.rollback()
+        if image_key and minio_client and preupload_recorded:
+            _compensate_image_upload(conn, ctx.tenant_id, campaign_id, image_storage.SOURCE_IMAGES_BUCKET, image_key,
+                                     len(contents), "marketing_source_image", minio_client)
         raise
     except Exception:
         conn.rollback()
+        if image_key and minio_client and preupload_recorded:
+            _compensate_image_upload(conn, ctx.tenant_id, campaign_id, image_storage.SOURCE_IMAGES_BUCKET, image_key,
+                                     len(contents), "marketing_source_image", minio_client)
         raise
     finally:
         conn.close()
@@ -616,6 +724,15 @@ def remove_background_endpoint(campaign_id: str, ctx: TenantContext = Depends(ge
     background_removal_status, never a fake COMPLETED.
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    processed_key = None
+    minio_client = None
+    processed_size = 0
+    preupload_recorded = False
+
+    def mark_preupload_recorded():
+        nonlocal preupload_recorded
+        preupload_recorded = True
+
     try:
         campaign = data_access.get_campaign(conn, ctx.tenant_id, campaign_id)
         if campaign is None:
@@ -624,6 +741,7 @@ def remove_background_endpoint(campaign_id: str, ctx: TenantContext = Depends(ge
             raise HTTPException(status_code=409, detail="Upload a source product image (POST .../image) before removing its background.")
 
         minio_client = db.minio_client()
+        _reconcile_stale_marketing_uploads(conn, minio_client, ctx.tenant_id)
         try:
             original_bytes, _content_type = image_storage.get_image(minio_client, image_storage.SOURCE_IMAGES_BUCKET, campaign["source_image_key"])
         except Exception as err:
@@ -645,8 +763,14 @@ def remove_background_endpoint(campaign_id: str, ctx: TenantContext = Depends(ge
             }
 
         usage.ensure_capacity(conn, ctx.tenant_id, usage.DOCUMENT_STORAGE_MB, len(processed.content) / 1048576)
+        processed_size = len(processed.content)
+        processed_key = image_storage.new_processed_image_object_key(
+            ctx.tenant_id, campaign_id, processed.content_type,
+        )
         processed_key = image_storage.upload_processed_image(
             minio_client, processed.content, processed.content_type, ctx.tenant_id, campaign_id,
+            object_key=processed_key,
+            on_pre_upload=_track_image_before_put(ctx, "marketing_processed_image", mark_preupload_recorded),
         )
         data_access.save_processed_image(conn, ctx.tenant_id, campaign_id, provider=processed.provider, image_key=processed_key)
         storage_ledger.record(conn, ctx.tenant_id, image_storage.PROCESSED_IMAGES_BUCKET, processed_key,
@@ -658,9 +782,15 @@ def remove_background_endpoint(campaign_id: str, ctx: TenantContext = Depends(ge
         }
     except HTTPException:
         conn.rollback()
+        if processed_key and minio_client and preupload_recorded:
+            _compensate_image_upload(conn, ctx.tenant_id, campaign_id, image_storage.PROCESSED_IMAGES_BUCKET, processed_key,
+                                     processed_size, "marketing_processed_image", minio_client)
         raise
     except Exception:
         conn.rollback()
+        if processed_key and minio_client and preupload_recorded:
+            _compensate_image_upload(conn, ctx.tenant_id, campaign_id, image_storage.PROCESSED_IMAGES_BUCKET, processed_key,
+                                     processed_size, "marketing_processed_image", minio_client)
         raise
     finally:
         conn.close()
@@ -717,21 +847,46 @@ def set_reference_selection_endpoint(
 def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict, *,
                     image_format: str = image_generation.DEFAULT_IMAGE_FORMAT, prompt: Optional[str] = None,
                     channel: Optional[str] = None, attach: bool = True) -> dict:
-    """One image now, in this request (marketing/image_service.py). Always
-    returns the honest outcome; HTTP errors only for a missing reference
-    image or a plan limit (402, raised before any provider call)."""
+    """Generate through the shared gallery/service path while retaining durable
+    pre-upload storage accounting and stale-object recovery.
+    """
+    try:
+        client = db.minio_client()
+        _reconcile_stale_marketing_uploads(conn, client, ctx.tenant_id)
+    except Exception:
+        logger.exception("Could not run stale-image recovery before generation (tenant=%s)", ctx.tenant_id)
+
+    upload = {}
+    def remember_preupload(bucket: str, object_key: str, size_bytes: int) -> None:
+        upload.update(bucket=bucket, object_key=object_key, size_bytes=size_bytes)
+
+    track_preupload = _track_image_before_put(ctx, "marketing_generated_image")
+    def on_pre_upload(bucket: str, object_key: str, size_bytes: int) -> None:
+        remember_preupload(bucket, object_key, size_bytes)
+        track_preupload(bucket, object_key, size_bytes)
+
     try:
         return image_service.generate_and_store(
             conn, ctx.tenant_id, ctx.user_id, campaign_id, campaign,
             image_format=image_format, prompt=prompt, channel=channel, attach=attach,
+            on_pre_upload=on_pre_upload,
         )
     except image_service.ReferenceImageError as err:
         raise HTTPException(status_code=502, detail="Could not read the selected reference image. Please try again.") from err
+    except Exception:
+        if upload:
+            try:
+                _compensate_image_upload(
+                    conn, ctx.tenant_id, campaign_id, upload["bucket"], upload["object_key"],
+                    upload["size_bytes"], "marketing_generated_image", client,
+                )
+            except Exception:
+                logger.exception("Could not reconcile failed generated image (tenant=%s campaign=%s)", ctx.tenant_id, campaign_id)
+        raise
 
 
 class GenerateImageRequest(BaseModel):
-    """All optional: an empty body makes a square image from the campaign's
-    own prompt and attaches it, as before the gallery existed."""
+    """Optional gallery generation controls; an empty body uses the campaign prompt."""
     image_format: str = Field(default=image_generation.DEFAULT_IMAGE_FORMAT)
     prompt: Optional[str] = Field(default=None, max_length=2000)
     channel: Optional[str] = None

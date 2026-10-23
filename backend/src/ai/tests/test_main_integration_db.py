@@ -87,7 +87,7 @@ def seeded_tenant(admin_conn):
             "INSERT INTO users (user_id, email, password_hash, full_name) VALUES (%s, %s, 'x', 'Test User');",
             (user_id, f"{user_id}@example.com"),
         )
-        cursor.execute("SELECT role_key FROM system_roles LIMIT 1;")
+        cursor.execute("SELECT role_key FROM system_roles WHERE lower(role_key)='owner' LIMIT 1;")
         row = cursor.fetchone()
         role_key = row[0] if row else "OWNER"
         if not row:
@@ -122,6 +122,8 @@ def test_uploading_the_canonical_template_is_verified_zero_loss(client, admin_co
     assert body["template_mode"] == "TEMPLATE_COMPLIANT"
     assert body["is_template_compliant"] is True
     assert body["rows_processed"] == 1
+    assert body["import_draft"]["review_only"] is True
+    assert body["import_draft"]["batch_id"]
     assert body["rows_partial"] == 0
     assert body["data_loss_pct"] == 0.0
     assert body["minio_object_key"] is not None
@@ -134,6 +136,74 @@ def test_uploading_the_canonical_template_is_verified_zero_loss(client, admin_co
         assert cursor.fetchone()[0] == "COMMITTED"
         cursor.execute("SELECT job_status FROM ingestion_jobs WHERE tenant_id = %s;", (tenant_id,))
         assert cursor.fetchone()[0] == "COMPLETED"
+
+
+def test_upload_preview_review_history_and_review_retry_are_end_to_end(client, admin_conn, seeded_tenant):
+    tenant_id, headers = seeded_tenant
+    upload = client.post("/extraction/upload", files={"file": ("review.csv", _TEMPLATE_CSV, "text/csv")}, headers=headers)
+    assert upload.status_code == 200
+    batch_id = upload.json()["import_draft"]["batch_id"]
+    revision_id = upload.json()["import_draft"]["revision_id"]
+
+    listed = client.get("/extraction/import-drafts?category=sales", headers=headers)
+    assert listed.status_code == 200
+    assert any(item["batch_id"] == batch_id for item in listed.json()["items"])
+
+    detail = client.get(f"/extraction/import-drafts/{batch_id}", headers=headers)
+    assert detail.status_code == 200
+    view = detail.json()
+    assert view["revision_id"] == revision_id and view["rows"][0]["validation_outcome"] == "valid"
+    assert view["rows"][0]["canonical_posting_status"] == "committed"
+    assert view["review_status"] != view["rows"][0]["canonical_posting_status"]
+
+    with admin_conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM transactions WHERE tenant_id=%s", (tenant_id,))
+        transactions_before_review = cursor.fetchone()[0]
+
+    payload = {"revision_id": revision_id, "decision": "approve", "idempotency_key": "http-review-1",
+               "reason_code": "reviewed_by_owner"}
+    approved = client.post(f"/extraction/import-drafts/{batch_id}/reviews", json=payload, headers=headers)
+    replay = client.post(f"/extraction/import-drafts/{batch_id}/reviews", json=payload, headers=headers)
+    assert approved.status_code == replay.status_code == 200
+    assert approved.json()["canonical_write_performed"] is False
+    assert replay.json()["decision_id"] == approved.json()["decision_id"] and replay.json()["duplicate"] is True
+
+    revisions = client.get(f"/extraction/import-drafts/{batch_id}/revisions", headers=headers)
+    revision = client.get(f"/extraction/import-drafts/{batch_id}/revisions/{revision_id}", headers=headers)
+    history = client.get(f"/extraction/import-drafts/{batch_id}/reviews", headers=headers)
+    assert revisions.status_code == revision.status_code == history.status_code == 200
+    assert len(revisions.json()["revisions"]) == 1
+    assert history.json()["reviews"][0]["reviewer_user_id"]
+    with admin_conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM transactions WHERE tenant_id=%s", (tenant_id,))
+        assert cursor.fetchone()[0] == transactions_before_review
+
+
+def test_import_preview_is_tenant_isolated_and_requires_auth(client, admin_conn, seeded_tenant):
+    tenant_id, headers = seeded_tenant
+    uploaded = client.post("/extraction/upload", files={"file": ("private.csv", _TEMPLATE_CSV, "text/csv")}, headers=headers)
+    batch_id = uploaded.json()["import_draft"]["batch_id"]
+    assert client.get(f"/extraction/import-drafts/{batch_id}").status_code == 401
+
+    other_tenant, other_user = str(uuid.uuid4()), str(uuid.uuid4())
+    with admin_conn.cursor() as cursor:
+        cursor.execute("INSERT INTO companies (tenant_id,business_name,country_code,primary_currency) VALUES (%s,'Other tenant','JO','JOD')", (other_tenant,))
+        cursor.execute("INSERT INTO users (user_id,email,password_hash,full_name) VALUES (%s,%s,'x','Other user')", (other_user, f"{other_user}@example.com"))
+        cursor.execute("SELECT role_key FROM system_roles WHERE lower(role_key)='owner' LIMIT 1")
+        role = cursor.fetchone()[0]
+        cursor.execute("INSERT INTO tenant_users (tenant_id,user_id,role_key) VALUES (%s,%s,%s)", (other_tenant, other_user, role))
+    other_token = jwt.encode({"tenant_id": other_tenant, "user_id": other_user, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
+    assert client.get(f"/extraction/import-drafts/{batch_id}", headers={"Authorization": f"Bearer {other_token}"}).status_code == 404
+
+
+def test_partial_sales_upload_preview_preserves_field_findings(client, seeded_tenant):
+    _, headers = seeded_tenant
+    uploaded = client.post("/extraction/upload", files={"file": ("partial.csv", _PARTIAL_CSV, "text/csv")}, headers=headers)
+    assert uploaded.status_code == 200
+    detail = client.get(f"/extraction/import-drafts/{uploaded.json()['import_draft']['batch_id']}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["rows"][0]["validation_outcome"] == "invalid"
+    assert any(finding["field"] == "quantity" for finding in detail.json()["rows"][0]["validation_findings"])
 
 
 def test_uploading_a_row_with_one_bad_field_reports_partial_not_full_loss(client, admin_conn, seeded_tenant):

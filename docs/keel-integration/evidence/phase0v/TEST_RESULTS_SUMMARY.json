@@ -1,0 +1,67 @@
+{
+  "suites": [
+    {
+      "tests": 150,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 94,
+      "passed": 56,
+      "suite": "backend",
+      "xml": "backend-offline.xml",
+      "command_file": "backend-command.json"
+    },
+    {
+      "tests": 2,
+      "errors": 2,
+      "failures": 0,
+      "skipped": 0,
+      "passed": 0,
+      "suite": "auth",
+      "xml": "auth-offline.xml",
+      "command_file": "auth-command.json"
+    },
+    {
+      "tests": 27,
+      "errors": 3,
+      "failures": 0,
+      "skipped": 0,
+      "passed": 24,
+      "suite": "workers",
+      "xml": "workers-offline.xml",
+      "command_file": "workers-command.json"
+    },
+    {
+      "suite": "frontend-test",
+      "tests": 90,
+      "passed": 90,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml": "NOT_APPLICABLE; frontend-test.log",
+      "command_file": "frontend-test-command.json"
+    }
+  ],
+  "frontend_build": {
+    "target": "frontend-build",
+    "command": [
+      "npm",
+      "run",
+      "build",
+      "--",
+      "--outDir",
+      "/workspace/scratch/327eb0b847b6/analysis/phase0v/frontend-dist",
+      "--emptyOutDir"
+    ],
+    "cwd": "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend",
+    "exit_code": 0,
+    "seconds": 2.189,
+    "environment": "allowlist PATH/LANG/LC_ALL/TMPDIR; no DB/Stripe/provider settings inherited; Python socket TCP fence; production metering defaults; offline background/model flags",
+    "network": "No live providers or databases authorized; no Docker/server available",
+    "log": "frontend-build.log"
+  },
+  "overall_phase_verdict": "BLOCKED",
+  "native_postgresql": "NOT RUN",
+  "provider_certification": "NOT RUN",
+  "browser_e2e": "NOT RUN",
+  "note": "JUnit is authoritative per-case backend evidence; raw backend stdout ends in progress output. Collection errors are separate from assertion failures. Source-read/AST assertions and provider doubles do not certify runtime integration."
+}

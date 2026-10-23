@@ -6,8 +6,8 @@ name: PR Checks
 # production build, and the browser smoke test of every screen) on every pull request and every push to main - previously nothing
 # ran automatically at all (staging-deployment.yml only fires on a push to
 # `staging` and only extracts the OpenAPI schema, it never runs a single
-# test). Zero-cost: GitHub-hosted runners + the free pgvector/pgvector:pg15
-# image used locally and in docker-compose.yml, no paid service of any kind.
+# test). Zero-cost: GitHub-hosted runners with the PostgreSQL 17 + pgvector image
+# used by the reusable verification environment and billing integration tests.
 
 on:
   pull_request:
@@ -24,15 +24,15 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
-          POSTGRES_DB: ceopro_platform
+          POSTGRES_DB: keel_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-cmd "pg_isready -U ceopro_admin -d keel_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -56,8 +56,8 @@ jobs:
       # ceopro_admin, never the restricted ceopro_app role it creates) -
       # a throwaway password scoped to this one ephemeral CI database, not
       # a secret protecting anything real.
-      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
-      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
+      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
       APP_DB_PASSWORD: ci_test_app_password
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
       AI_TEST_REDIS_HOST: localhost
@@ -70,7 +70,7 @@ jobs:
       # 20260928000000_fix_service_actor_tenant_context.sql). Closes
       # test_connector_worker_integration_db.py's 6 always-skipped tests -
       # confirmed passing against a real local Postgres.
-      SCRAPER_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      SCRAPER_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
       SCRAPER_ACTOR_USER_ID: "00000000-0000-0000-0000-000000000000"
       # MinIO is built from source in the step below (no registry serves a prebuilt
       # image any more, so it cannot be a `services:` container). Closes the
@@ -227,15 +227,15 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
-          POSTGRES_DB: ceopro_platform
+          POSTGRES_DB: keel_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-cmd "pg_isready -U ceopro_admin -d keel_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -250,7 +250,7 @@ jobs:
           --health-retries 10
     env:
       # Throwaway values for this one ephemeral job, not secrets.
-      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
       APP_DB_PASSWORD: ci_test_app_password
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
       REDIS_URL: redis://localhost:6379/0
@@ -259,6 +259,7 @@ jobs:
       NOTIFICATION_DIGEST_ENABLED: "false"
       E2E_EMAIL: ci-smoke@keel-ci.example
       E2E_PASSWORD: Ci!Smoke-Only-2026
+      E2E_EXPECT_PLATFORM_DENIAL: "true"
       APP_URL: http://localhost:5173
       API_URL: http://localhost:8000
       CHROMIUM_PATH: /usr/bin/google-chrome
@@ -300,7 +301,7 @@ jobs:
 
       - name: Create the test company
         working-directory: backend
-        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD"
+        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD" --test-email-verification-fixture
 
       - name: Build and serve the frontend
         working-directory: frontend

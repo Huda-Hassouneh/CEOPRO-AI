@@ -23,8 +23,11 @@ client = TestClient(app, raise_server_exceptions=False)
 _SECRET = os.environ["JWT_SECRET"]
 
 # Routes that are intentionally reachable without a Bearer token: liveness,
-# the sign-in / password / e-mail-verification / invitation flows, and the
-# public plan list. Anything else showing up unauthenticated is a defect.
+# the sign-in / password / e-mail-verification / invitation flows, the signed
+# one-use Shopify OAuth callback, and the public plan list. The callback
+# authenticates Shopify and binds its result to the initiating user's
+# authenticated one-use state. Anything else showing up unauthenticated is a
+# defect.
 _PUBLIC = {
     ("GET", "/health"),
     ("GET", "/health/ready"),
@@ -37,6 +40,14 @@ _PUBLIC = {
     ("POST", "/auth/email/verify"),
     ("GET", "/auth/invitations/{token}"),
     ("POST", "/auth/invitations/{token}/accept"),
+    ("GET", "/platform/invitations/{token}"),
+    ("POST", "/platform/invitations/{token}/accept"),
+    ("GET", "/onboarding/shopify/callback"),
+    # The static industry catalog is safe to read before login so the public
+    # workspace setup flow can render profile choices. It performs no
+    # discovery, tenant lookup, or mutation; all other onboarding operations
+    # remain authenticated.
+    ("GET", "/onboarding/industries"),
     ("GET", "/billing/plans"),
 }
 
@@ -85,7 +96,14 @@ def test_every_non_public_route_rejects_a_forged_token(method, path):
     assert response.status_code == 401, f"{method} {path} accepted a token signed with the wrong secret"
 
 
-def test_public_routes_are_exactly_the_documented_set():
+def test_public_routes_are_exactly_the_documented_set(monkeypatch):
+    from fastapi import HTTPException
+    from src.ai.platform import service
+
+    def reject_invalid_invitation_token(token, payload=None):
+        raise HTTPException(status_code=404, detail="Invitation not found.")
+
+    monkeypatch.setattr(service, "invitation", reject_invalid_invitation_token)
     open_routes = {
         (method, path)
         for method, path in _all_operations()

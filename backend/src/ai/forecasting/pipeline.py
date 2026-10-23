@@ -197,14 +197,21 @@ def choose_forecast(daily: pd.DataFrame, sufficiency, current_price, current_sto
 DEFAULT_HORIZON_DAYS = 30
 
 
-def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFAULT_HORIZON_DAYS) -> dict:
+def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFAULT_HORIZON_DAYS,
+                 authorization_check=None) -> dict:
+    if not isinstance(horizon_days, int) or horizon_days < 1 or horizon_days > 365:
+        raise ValueError("Forecast horizon must be an integer from 1 to 365 days")
     daily = data_access.load_daily_demand(conn, tenant_id, product_id)
 
     if daily.empty:
+        if authorization_check:
+            authorization_check()
         explanation = "No historical transaction data is available for this product yet."
         evidence_id = evidence.insert_evidence_record(
             conn, tenant_id, "UNKNOWN", SOURCE_MODULE, {"product_id": product_id}, None, explanation, None
         )
+        if authorization_check:
+            authorization_check()
         conn.commit()
         logger.info(f"No data for tenant={tenant_id} product={product_id}; recorded UNKNOWN evidence={evidence_id}")
         return {"status": "UNKNOWN", "evidence_id": evidence_id}
@@ -221,8 +228,13 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
     forecast_target_date = daily["date"].iloc[-1].date() + timedelta(days=horizon_days)
     chosen_source, chosen_name = choice["source"], choice["name"]
     forecast_values, metrics = choice["values"], choice["metrics"]
+    forecast_values = np.asarray(forecast_values, dtype=float)
+    if forecast_values.shape != (horizon_days,) or not np.isfinite(forecast_values).all() or (forecast_values < 0).any():
+        raise ValueError("Forecast model returned an incomplete or invalid horizon")
     intermittent = choice["intermittent"]
     trained_model_version_str = None
+    if authorization_check:
+        authorization_check()
     if chosen_source == "xgboost":
         trained_model_version_str = date.today().isoformat()
         evidence.insert_model_version(conn, MODEL_NAME, trained_model_version_str, "candidate", metrics)
@@ -272,8 +284,10 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
         forecast_start_date=forecast_start_date,
         features_used={
             "method": chosen_source,
+            "horizon_days": horizon_days,
             "daily": [round(float(value), 3) for value in forecast_values],
             "confidence_score": confidence_score,
+            "data_sufficiency": sufficiency.as_dict(),
         },
     )
 
@@ -288,6 +302,8 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
         chosen_name,
     )
 
+    if authorization_check:
+        authorization_check()
     conn.commit()
     logger.info(
         f"Forecast written tenant={tenant_id} product={product_id} "

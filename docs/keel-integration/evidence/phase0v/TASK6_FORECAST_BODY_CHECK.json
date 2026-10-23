@@ -1,0 +1,7 @@
+{
+  "source": "backend/src/ai/routers/dashboard.py",
+  "function": "dashboard_generate_product_forecast_endpoint",
+  "body_identical_to_HEAD": true,
+  "decorator_access_metadata_intentionally_changed": true,
+  "native_gate_verification": "NOT RUN"
+}

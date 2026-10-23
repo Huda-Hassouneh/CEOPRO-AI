@@ -1,0 +1,241 @@
+obligation_id,repo,path,line,reason,details,snippet
+DYNAMIC-SQL-001,python,backend/src/infrastructure/database/migrations/20260829020000_add_market_collection_intelligence.sql,127,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+DECLARE table_name TEXT;
+BEGIN
+    FOREACH table_name IN ARRAY ARRAY[
+        'market_observations', 'market_events', 'competitor_score_snapshots',
+        'market_alert_rules', 'market_alert_events'
+    ] LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', table_name);
+        EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', table_name);
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = table_name AND policyname = 'tenant_isolation') THEN
+            EXECUTE format(
+                'CREATE POLICY tenant_isolation ON %I FOR ALL USING (tenant_id = get_current_tenant()) WITH CHECK (tenant_id = get_current_tenant())',
+                table_name
+            );
+        END IF;
+    END LOOP;
+END "
+DYNAMIC-SQL-002,python,backend/src/infrastructure/database/migrations/20261009000000_add_billing.sql,158,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+DECLARE
+    tbl TEXT;
+BEGIN
+    FOREACH tbl IN ARRAY ARRAY['billing_customers', 'billing_subscriptions', 'billing_payments', 'billing_trials'] LOOP
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = tbl AND policyname = 'isolation_' || tbl) THEN
+            EXECUTE format('CREATE POLICY %I ON %I FOR SELECT USING (tenant_id = get_current_tenant())', 'isolation_' || tbl, tbl);
+        END IF;
+    END LOOP;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ceopro_app') THEN
+        REVOKE ALL ON billing_customers, billing_subscriptions, billing_payments, billing_trials, billing_webhook_events FROM ceopro_app;
+        GRANT SELECT ON billing_customers, billing_subscriptions, billing_payments, billing_trials, billing_plan_prices TO ceopro_app;
+        REVOKE INSERT, UPDATE, DELETE ON billing_plan_prices FROM ceopro_app;
+    END IF;
+END "
+DYNAMIC-SQL-003,python,backend/src/infrastructure/database/migrations/20261020000000_keel_subscriptions_and_credits.sql,411,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+DECLARE
+    tbl TEXT;
+BEGIN
+    FOREACH tbl IN ARRAY ARRAY['tenant_credit_balances', 'usage_ledger', 'usage_ledger_adjustments', 'metered_request_keys',
+                               'tenant_custom_contracts', 'tenant_entitlement_overrides'] LOOP
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = tbl AND policyname = 'isolation_' || tbl) THEN
+            EXECUTE format('CREATE POLICY %I ON %I FOR SELECT USING (tenant_id = get_current_tenant())', 'isolation_' || tbl, tbl);
+        END IF;
+    END LOOP;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ceopro_app') THEN
+        REVOKE ALL ON tenant_credit_balances, usage_ledger, usage_ledger_adjustments, metered_request_keys,
+                      tenant_custom_contracts, tenant_entitlement_overrides, entitlement_audit_log,
+                      billing_cost_policy, provider_cost_schedules, provider_spend_controls FROM ceopro_app;
+        GRANT SELECT ON tenant_credit_balances, usage_ledger, usage_ledger_adjustments, metered_request_keys,
+                        tenant_custom_contracts, tenant_entitlement_overrides, billing_cost_policy TO ceopro_app;
+        -- Usage counters were app-writable; reports now go through metered_request_keys
+        -- and the billing service, but other features still meter through them.
+    END IF;
+END "
+DYNAMIC-SQL-004,node,backend/prisma/migrations/20260829020000_add_market_collection_intelligence/migration.sql,127,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+DECLARE table_name TEXT;
+BEGIN
+    FOREACH table_name IN ARRAY ARRAY[
+        'market_observations', 'market_events', 'competitor_score_snapshots',
+        'market_alert_rules', 'market_alert_events'
+    ] LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', table_name);
+        EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', table_name);
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = table_name AND policyname = 'tenant_isolation') THEN
+            EXECUTE format(
+                'CREATE POLICY tenant_isolation ON %I FOR ALL USING (tenant_id = get_current_tenant()) WITH CHECK (tenant_id = get_current_tenant())',
+                table_name
+            );
+        END IF;
+    END LOOP;
+END "
+DYNAMIC-SQL-005,node,backend/prisma/migrations/20261006120000_business_data_ingestion_worker/migration.sql,18,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+BEGIN
+    EXECUTE format(
+        'GRANT CONNECT ON DATABASE %I TO ceopro_ingestion_worker',
+        current_database()
+    );
+END
+"
+DYNAMIC-SQL-006,node,backend/prisma/migrations/20261008070000_ai_test_data_writer_permissions/migration.sql,40,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+BEGIN
+  EXECUTE format(
+    'GRANT CONNECT ON DATABASE %I TO %I',
+    current_database(),
+    'ceopro_ai_test_writer'
+  );
+END "
+DYNAMIC-SQL-007,node,backend/prisma/migrations/20261008070000_ai_test_data_writer_permissions/migration.sql,72,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+DECLARE
+  staging_sequence text;
+BEGIN
+  staging_sequence := pg_get_serial_sequence(
+    'public.import_staging_rows',
+    'staging_row_id'
+  );
+
+  IF staging_sequence IS NOT NULL THEN
+    EXECUTE format(
+      'GRANT USAGE, SELECT ON SEQUENCE %s TO %I',
+      staging_sequence::regclass,
+      'ceopro_ai_test_writer'
+    );
+  END IF;
+END "
+DYNAMIC-SQL-008,node,backend/prisma/migrations/20261010010000_platform_admin_overview_counts/migration.sql,7,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+DECLARE
+  member_name text;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_roles
+    WHERE rolname = 'ceopro_platform_overview_reader'
+  ) THEN
+    CREATE ROLE ceopro_platform_overview_reader
+      WITH NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT
+      NOBYPASSRLS NOREPLICATION;
+  ELSE
+    ALTER ROLE ceopro_platform_overview_reader
+      WITH NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT
+      NOBYPASSRLS NOREPLICATION;
+  END IF;
+
+  -- Remove stale grants left by earlier attempts or manual setup. Keep only
+  -- the current migration identity temporarily, because it may need that
+  -- membership to replace/transfer ownership of the function on a retry.
+  FOR member_name IN
+    SELECT member_role.rolname
+    FROM pg_catalog.pg_auth_members AS membership
+    JOIN pg_catalog.pg_roles AS granted_role
+      ON granted_role.oid = membership.roleid
+    JOIN pg_catalog.pg_roles AS member_role
+      ON member_role.oid = membership.member
+    WHERE granted_role.rolname = 'ceopro_platform_overview_reader'
+      AND member_role.rolname <> current_user
+  LOOP
+    EXECUTE format(
+      'REVOKE ceopro_platform_overview_reader FROM %I CASCADE',
+      member_name
+    );
+  END LOOP;
+END;
+"
+DYNAMIC-SQL-009,node,backend/prisma/migrations/20261010010000_platform_admin_overview_counts/migration.sql,143,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+BEGIN
+  EXECUTE format(
+    'GRANT ceopro_platform_overview_reader TO %I',
+    current_user
+  );
+END;
+"
+DYNAMIC-SQL-010,node,backend/prisma/migrations/20261010010000_platform_admin_overview_counts/migration.sql,174,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+BEGIN
+  EXECUTE format(
+    'REVOKE ceopro_platform_overview_reader FROM %I',
+    current_user
+  );
+END;
+"
+DYNAMIC-SQL-011,node,backend/prisma/migrations/20261010020000_fix_platform_overview_execute_grants/migration.sql,7,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+BEGIN
+  EXECUTE format(
+    'GRANT ceopro_platform_overview_reader TO %I',
+    current_user
+  );
+END;
+"
+DYNAMIC-SQL-012,node,backend/prisma/migrations/20261010020000_fix_platform_overview_execute_grants/migration.sql,28,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+BEGIN
+  EXECUTE format(
+    'REVOKE ceopro_platform_overview_reader FROM %I',
+    current_user
+  );
+END;
+"
+DYNAMIC-SQL-013,node,backend/prisma/migrations/20261010030000_platform_admin_list_reads/migration.sql,54,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+BEGIN
+  EXECUTE format(
+    'GRANT ceopro_platform_overview_reader TO %I',
+    current_user
+  );
+END;
+"
+DYNAMIC-SQL-014,node,backend/prisma/migrations/20261010030000_platform_admin_list_reads/migration.sql,161,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants,"
+BEGIN
+  EXECUTE format(
+    'REVOKE ceopro_platform_overview_reader FROM %I',
+    current_user
+  );
+END;
+"
+DYNAMIC-SQL-015,node,backend/prisma/migrations/20261013200000_market_tracking_dispatch/migration.sql,28,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," BEGIN
+ EXECUTE format('CREATE POLICY market_queue_owner ON public.market_tracking_outbox TO %I USING (tenant_id = NULLIF(current_setting(''app.current_tenant_id'',true),'''')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting(''app.current_tenant_id'',true),'''')::uuid)',current_user);
+END "
+DYNAMIC-SQL-016,node,backend/prisma/migrations/20261013220000_keel_market_worker_compatibility/migration.sql,259,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," DECLARE worker_role text; BEGIN
+ FOREACH worker_role IN ARRAY ARRAY['ceopro_app','ceopro_ai_test_writer'] LOOP
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=worker_role) THEN
+   EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.scraping_cost_ledger, public.company_target_markets TO %I',worker_role);
+  END IF;
+ END LOOP;
+END "
+DYNAMIC-SQL-017,node,backend/prisma/migrations/20261015040000_smart_alerts_events/migration.sql,53,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," BEGIN EXECUTE format('GRANT ceopro_event_publisher TO %I',current_user); END "
+DYNAMIC-SQL-018,node,backend/prisma/migrations/20261015040000_smart_alerts_events/migration.sql,56,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," BEGIN EXECUTE format('REVOKE ceopro_event_publisher FROM %I',current_user); END "
+DYNAMIC-SQL-019,node,backend/prisma/migrations/20261017010000_competitor_discovery_workflow/migration.sql,34,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," DECLARE runtime TEXT; BEGIN
+ FOREACH runtime IN ARRAY ARRAY['ceopro_ai_prod_user','ceopro_ai_test_user','ceopro_ai_test_writer'] LOOP
+  IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname=runtime) THEN
+   EXECUTE format('GRANT SELECT,INSERT,UPDATE ON public.competitor_product_candidates TO %I',runtime);
+  END IF;
+ END LOOP;
+END "
+DYNAMIC-SQL-020,node,backend/prisma/migrations/20261017150000_woocommerce_connections/migration.sql,29,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," DECLARE relation TEXT; BEGIN
+ FOREACH relation IN ARRAY ARRAY['store_connections','store_product_links','store_sale_links'] LOOP
+  EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',relation);
+  EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',relation);
+  EXECUTE format('CREATE POLICY store_tenant ON public.%I TO ceopro_app USING(tenant_id=public.get_current_tenant()) WITH CHECK(tenant_id=public.get_current_tenant())',relation);
+  EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC',relation);
+  EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO ceopro_app',relation);
+ END LOOP;
+END "
+DYNAMIC-SQL-021,node,backend/prisma/migrations/20261017180000_woocommerce_inventory_invoices/migration.sql,37,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," DECLARE relation TEXT; BEGIN
+ FOREACH relation IN ARRAY ARRAY['store_inventory_links','store_order_links','store_order_item_links'] LOOP
+  EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',relation);
+  EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',relation);
+  EXECUTE format('CREATE POLICY store_tenant ON public.%I TO ceopro_app USING(tenant_id=public.get_current_tenant()) WITH CHECK(tenant_id=public.get_current_tenant())',relation);
+  EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC',relation);
+  EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO ceopro_app',relation);
+ END LOOP;
+END "
+DYNAMIC-SQL-022,node,backend/prisma/migrations/20261017220000_shopify_store_connector/migration.sql,39,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," DECLARE relation TEXT; BEGIN
+ FOREACH relation IN ARRAY ARRAY['store_oauth_states','store_inventory_locations','shopify_privacy_reports','store_order_exclusions'] LOOP
+  EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',relation);
+  EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',relation);
+  EXECUTE format('CREATE POLICY store_tenant ON public.%I TO ceopro_app USING(tenant_id=public.get_current_tenant()) WITH CHECK(tenant_id=public.get_current_tenant())',relation);
+  EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC',relation);
+  EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON public.%I TO ceopro_app',relation);
+ END LOOP;
+END "
+DYNAMIC-SQL-023,node,backend/prisma/migrations/20261017220000_shopify_store_connector/migration.sql,87,DYNAMIC_SQL_RLS_OR_DDL,Conditional EXECUTE/format requires expansion + pg_catalog verification; no guessed effective grants," DECLARE relation TEXT; BEGIN
+ FOREACH relation IN ARRAY ARRAY['store_connections','data_sources','ingestion_jobs','import_staging_rows',
+ 'store_sale_links','store_order_item_links','store_order_links','store_inventory_locations','store_product_links',
+ 'store_inventory_links','store_oauth_states','store_order_exclusions','shopify_webhook_deliveries','shopify_privacy_reports','invoices','invoice_items','transactions','inventory','products'] LOOP
+  EXECUTE format('CREATE POLICY shopify_events_internal ON public.%I TO ceopro_shopify_events USING(true) WITH CHECK(true)',relation);
+ END LOOP;
+END "

@@ -81,6 +81,11 @@ def _require_role(conn, tenant_id: str, user_id: str, allowed_roles: set) -> str
     unlike the pre-auth lookups routers/auth.py genuinely requires.
     """
     with conn.cursor() as cursor:
+        cursor.execute("SELECT keel_is_platform_workspace(%s);", (tenant_id,))
+        platform_workspace = cursor.fetchone()
+        if platform_workspace and platform_workspace[0] is True:
+            raise HTTPException(status_code=403, detail="Use platform administration for this workspace.")
+    with conn.cursor() as cursor:
         cursor.execute(
             "SELECT role_key FROM tenant_users WHERE tenant_id = %s AND user_id = %s AND removed_at IS NULL;",
             (tenant_id, user_id),
@@ -645,7 +650,7 @@ def _fetch_active_member(conn, tenant_id: str, tenant_user_id: str):
 def _count_active_owners(conn, tenant_id: str) -> int:
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT COUNT(*) FROM tenant_users WHERE tenant_id = %s AND role_key = 'owner' AND removed_at IS NULL;",
+            "SELECT COUNT(*) FROM tenant_users tu JOIN users u ON u.user_id=tu.user_id WHERE tu.tenant_id = %s AND tu.role_key = 'owner' AND tu.removed_at IS NULL AND u.platform_disabled_at IS NULL AND tu.platform_suspended_at IS NULL;",
             (tenant_id,),
         )
         return cursor.fetchone()[0]
@@ -675,6 +680,7 @@ def update_team_member_role(
 
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        usage.lock_feature(conn, ctx.tenant_id, usage.TEAM_SEATS)
         caller_role = _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
 
         member = _fetch_active_member(conn, ctx.tenant_id, tenant_user_id)
@@ -717,6 +723,7 @@ def remove_team_member(tenant_user_id: str, ctx: TenantContext = Depends(get_ten
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        usage.lock_feature(conn, ctx.tenant_id, usage.TEAM_SEATS)
         caller_role = _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
 
         member = _fetch_active_member(conn, ctx.tenant_id, tenant_user_id)
@@ -769,7 +776,7 @@ def change_password(body: ChangePasswordRequest, ctx: TenantContext = Depends(ge
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT password_hash FROM users WHERE user_id = %s;", (ctx.user_id,))
+            cursor.execute("SELECT password_hash FROM users WHERE user_id = %s FOR UPDATE;", (ctx.user_id,))
             row = cursor.fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="User not found.")
@@ -782,7 +789,7 @@ def change_password(body: ChangePasswordRequest, ctx: TenantContext = Depends(ge
         ensure_password_policy(body.new_password)
         new_hash = hash_password(body.new_password)
         with conn.cursor() as cursor:
-            cursor.execute("UPDATE users SET password_hash = %s WHERE user_id = %s;", (new_hash, ctx.user_id))
+            cursor.execute("UPDATE users SET password_hash = %s, credential_version = credential_version + 1 WHERE user_id = %s;", (new_hash, ctx.user_id))
         conn.commit()
         # Every other session (a stolen one included) is signed out; this one continues on a fresh token.
         security.invalidate_sessions(ctx.user_id)

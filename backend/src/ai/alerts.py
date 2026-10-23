@@ -121,7 +121,7 @@ def build_alerts(conn, tenant_id: str, now=None) -> list:
         )
         for job_id, file_name, ended_at in cursor.fetchall():
             alerts.append({"id": _id("job", job_id), "kind": "import_failed", "severity": "danger", "at": _iso(ended_at or now),
-                           "link": "/connect-data", "params": {"name": file_name}})
+                           "link": "/connect-data", "event_key": f"import:failed:{job_id}", "params": {"name": file_name}})
 
         cursor.execute("SELECT ends_at FROM billing_trials WHERE tenant_id = %s;", (tenant_id,))
         trial = cursor.fetchone()

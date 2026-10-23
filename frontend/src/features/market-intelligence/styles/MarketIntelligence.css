@@ -844,3 +844,12 @@
 .market-structure__bar > span { display: block; height: 100%; border-radius: 4px; background: var(--apex-accent, #5b5bd6); }
 .market-structure__prices { margin-top: 22px; overflow-x: auto; }
 .market-structure__prices td .apex-pill { margin: 2px 4px 2px 0; text-decoration: none; gap: 4px; }
+.mpi-panel { margin-block: 14px; padding: 16px; }
+.mpi-panel header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.mpi-panel h2,.mpi-panel p { margin-block:0 8px; }
+.mpi-controls { display:flex; flex-wrap:wrap; gap:12px; margin-block:12px; }
+.mpi-controls label { display:grid; gap:5px; min-width:min(260px,100%); }
+.mpi-controls select { min-height:38px; border:1px solid var(--ceopro-border); border-radius:7px; padding:7px; background:var(--apex-glass); color:var(--ceopro-text-primary); }
+.mpi-result { border-top:1px solid var(--ceopro-border); padding-top:12px; }
+.mpi-result small { color:var(--ceopro-text-secondary); }
+@media(max-width:560px){.mpi-panel header{flex-direction:column}.mpi-panel header button{width:100%}.mpi-controls,.mpi-controls label{width:100%}}

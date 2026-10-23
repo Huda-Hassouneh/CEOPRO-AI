@@ -276,7 +276,9 @@ def remaining(conn, tenant_id: str, feature_code: str) -> Optional[int]:
     if plan["status"] not in ACCESS_GRANTING_STATUSES:
         return 0
     feature = plan["features"].get(feature_code)
-    if not feature or feature["limit"] is None:
+    if not feature:
+        return 0
+    if feature["limit"] is None:
         return None
     return max(0, feature["limit"] - _metered_used(conn, tenant_id, feature_code, plan["period_start"]))
 
@@ -316,13 +318,14 @@ def settle(conn, reservation: dict, actual: int) -> None:
     reservation["amount"] = int(actual)
 
 
-# Features introduced with KEEL's credit plans are never unlimited by
-# omission: a plan without a row for them doesn't include them.
-_FAIL_CLOSED_FEATURES = (MONTHLY_REPORTS, TEAM_SEATS, DATA_CREDITS, AI_CREDITS)
-
-
 def _missing_limit(feature_code: str) -> Optional[int]:
-    return 0 if feature_code in _FAIL_CLOSED_FEATURES else None
+    """A missing plan-limit row is not an unlimited grant.
+
+    Unlimited is represented by an existing row with ``limit_value IS NULL``.
+    An omitted row is incomplete/unconfigured catalog state and must fail
+    closed for every metered or capacity feature.
+    """
+    return 0
 
 
 def _require_active(plan: dict, feature_code: str) -> None:
@@ -335,6 +338,8 @@ def reserve(conn, tenant_id: str, feature_code: str, amount: int = 1) -> dict:
     current period, or raises PlanLimitReached (QUOTA_EXHAUSTED). The caller
     commits the reservation before doing the work, and calls release() if
     the work then fails. Returns the reservation for release()."""
+    if isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0:
+        raise ValueError("Usage amount must be a positive integer.")
     plan = get_plan(conn, tenant_id)
     _require_active(plan, feature_code)
     feature = plan["features"].get(feature_code)
@@ -361,7 +366,8 @@ def reserve(conn, tenant_id: str, feature_code: str, amount: int = 1) -> dict:
 
 
 def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
-                    actor_user_id: Optional[str] = None, conn_factory=None) -> Optional[dict]:
+                    actor_user_id: Optional[str] = None, conn_factory=None, *,
+                    request_fingerprint: Optional[str] = None) -> Optional[dict]:
     """Counts one request (e.g. a report export) against a metered allowance,
     once per idempotency key per period: a retried or replayed request with
     the same key is not counted again (returns None). Raises PlanLimitReached
@@ -372,30 +378,62 @@ def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
 
     conn = (conn_factory or db.system_connection)()
     try:
-        plan = get_plan(conn, tenant_id)
         with conn.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                           ("keel_billing_tenant:" + str(tenant_id),))
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
                            (f"keel_metered:{tenant_id}:{feature_code}",))
+            if actor_user_id is not None:
+                cursor.execute("SELECT 1 FROM tenant_users WHERE tenant_id=%s AND user_id=%s "
+                               "AND removed_at IS NULL AND keel_active_principal(%s,%s) FOR SHARE;",
+                               (tenant_id, actor_user_id, actor_user_id, tenant_id))
+                if cursor.fetchone() is None:
+                    raise HTTPException(status_code=403, detail="An active company membership is required.")
+        plan = get_plan(conn, tenant_id)
+        _require_active(plan, feature_code)
+        feature = plan["features"].get(feature_code)
+        limit = feature["limit"] if feature else _missing_limit(feature_code)
+        if limit == 0:
+            raise PlanLimitReached("QUOTA_EXHAUSTED", feature_code, 0, 0,
+                                   "billing_period", plan["period_end"])
+        with conn.cursor() as cursor:
             cursor.execute(
-                "SELECT 1 FROM metered_request_keys WHERE tenant_id = %s AND feature_code = %s AND idempotency_key = %s;",
-                (tenant_id, feature_code, idempotency_key),
+                "SELECT actor_user_id,request_fingerprint FROM metered_request_keys "
+                "WHERE tenant_id=%s AND feature_code=%s AND period_start=%s AND idempotency_key=%s;",
+                (tenant_id, feature_code, plan["period_start"], idempotency_key),
             )
-            if cursor.fetchone():
-                conn.rollback()
+            previous = cursor.fetchone()
+            if previous:
+                if ((str(previous[0]) if previous[0] is not None else None) !=
+                        (str(actor_user_id) if actor_user_id is not None else None)):
+                    raise HTTPException(status_code=409, detail="This request key belongs to another user.")
+                if previous[1] != request_fingerprint:
+                    raise HTTPException(status_code=409, detail="Use a new request key for a different report.")
+                # A parallel replay may succeed when the original fails; its
+                # original receipt is no longer sufficient evidence to refund.
+                cursor.execute(
+                    "UPDATE metered_request_keys SET replayed=TRUE WHERE tenant_id=%s "
+                    "AND feature_code=%s AND period_start=%s AND idempotency_key=%s;",
+                    (tenant_id, feature_code, plan["period_start"], idempotency_key),
+                )
+                conn.commit()
                 return None
         reservation = reserve(conn, tenant_id, feature_code, 1)
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO metered_request_keys (tenant_id, feature_code, idempotency_key, period_start, actor_user_id)
-                VALUES (%s, %s, %s, %s, %s);
+                INSERT INTO metered_request_keys
+                    (tenant_id,feature_code,idempotency_key,period_start,actor_user_id,request_fingerprint)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING request_id;
                 """,
-                (tenant_id, feature_code, idempotency_key, plan["period_start"], actor_user_id),
+                (tenant_id, feature_code, idempotency_key, reservation["period_start"], actor_user_id, request_fingerprint),
             )
+            request_id = str(cursor.fetchone()[0])
         conn.commit()
         reservation["idempotency_key"] = idempotency_key
+        reservation["request_id"] = request_id
         return reservation
-    except PlanLimitReached:
+    except Exception:  # noqa: BLE001 -- rollback and propagate every accounting failure
         conn.rollback()
         raise
     finally:
@@ -411,12 +449,23 @@ def release_request(reservation: Optional[dict], conn_factory=None) -> None:
 
     conn = (conn_factory or db.system_connection)()
     try:
-        release(conn, reservation)
+        # Old in-flight receipts fail closed rather than refund a new attempt.
+        if not reservation.get("request_id"):
+            conn.rollback()
+            return
         with conn.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                           (f"keel_metered:{reservation['tenant_id']}:{reservation['feature_code']}",))
             cursor.execute(
-                "DELETE FROM metered_request_keys WHERE tenant_id = %s AND feature_code = %s AND idempotency_key = %s;",
-                (reservation["tenant_id"], reservation["feature_code"], reservation["idempotency_key"]),
+                "DELETE FROM metered_request_keys WHERE tenant_id=%s AND feature_code=%s "
+                "AND period_start=%s AND idempotency_key=%s AND request_id=%s "
+                "AND replayed=FALSE RETURNING request_id;",
+                (reservation["tenant_id"], reservation["feature_code"], reservation["period_start"],
+                 reservation["idempotency_key"], reservation["request_id"]),
             )
+            deleted = cursor.fetchone() is not None
+        if deleted:
+            release(conn, reservation)
         conn.commit()
     except Exception:  # noqa: BLE001 - the unit stays counted; never fail the response over it
         conn.rollback()
@@ -444,7 +493,9 @@ def capacity_left(conn, tenant_id: str, feature_code: str) -> Optional[float]:
     if plan["status"] not in ACCESS_GRANTING_STATUSES:
         return 0
     feature = plan["features"].get(feature_code)
-    if not feature or feature["limit"] is None:
+    if not feature:
+        return 0
+    if feature["limit"] is None:
         return None
     lock_feature(conn, tenant_id, feature_code)
     return max(0, feature["limit"] - _live_used(conn, tenant_id, feature_code))

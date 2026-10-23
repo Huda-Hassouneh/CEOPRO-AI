@@ -1,0 +1,62 @@
+{
+  "document_integrity_result": "PASS",
+  "phase0v_verdict": "BLOCKED",
+  "ready_for_phase1a_approval_review": false,
+  "head": "1de393c77dfc6db9d8722d8a611d2384d64d12c0",
+  "source_integrity": {
+    "python": {
+      "files": 1283,
+      "changed_or_missing": []
+    },
+    "node": {
+      "files": 2839,
+      "changed_or_missing": []
+    }
+  },
+  "selected_policies_preserved": 13,
+  "source_commit_reviewed_clean": false,
+  "native_postgresql_verification": "NOT RUN",
+  "provider_certification": "NOT RUN",
+  "browser_e2e": "NOT RUN",
+  "backend_test_counts": {
+    "backend": {
+      "passed": 56,
+      "tests": 150,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 94
+    },
+    "auth": {
+      "passed": 0,
+      "tests": 2,
+      "failures": 0,
+      "errors": 2,
+      "skipped": 0
+    },
+    "workers": {
+      "passed": 24,
+      "tests": 27,
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0
+    }
+  },
+  "frontend_tests": {
+    "passed": 90,
+    "failed": 0,
+    "skipped": 0
+  },
+  "frontend_build_exit_code": 0,
+  "current_document_files": 178,
+  "incremental_operations": {
+    "ADD": 42,
+    "MODIFY": 6
+  },
+  "ledger_matches": true,
+  "actual_git_document_inventory_matches": true,
+  "git_no_index_diff_matches": true,
+  "new_non_document_files": [],
+  "broken_relative_links": [],
+  "errors": [],
+  "note": "PASS refers only to document/provenance consistency; five collection errors, 94 DB-dependent skips and all native gates remain blocked. No production implementation authorized."
+}

@@ -214,12 +214,26 @@ def send_due(now: Optional[datetime] = None, system_connection=None, tenant_conn
                      if (_as_datetime(a.get("at")) or now) > since]
             conn.commit()
             if not items:
+                # The claim is only a concurrency fence while we build/send
+                # the digest. No email was delivered, so do not consume this
+                # period: alerts created later must still be eligible.
+                _release(conn, str(tenant_id), str(user_id), last_sent)
+                conn.commit()
                 result["nothing_new"] += 1
                 continue
             subject, body = compose(items, language if language in _TEXT else "en", company, base_url)
             try:
-                send(email, subject, body)
-                result["sent"] += 1
+                delivered = send(email, subject, body)
+                if delivered is False:
+                    # The configured sender explicitly reports that no send
+                    # was attempted (for example SMTP is not configured).
+                    # Release the claim so a later pass can retry, and never
+                    # report this as delivered.
+                    _release(conn, str(tenant_id), str(user_id), last_sent)
+                    conn.commit()
+                    result["failed"] += 1
+                else:
+                    result["sent"] += 1
             except Exception:  # noqa: BLE001 - release the claim so the next pass retries
                 logger.exception("sending an alert summary failed")
                 _release(conn, str(tenant_id), str(user_id), last_sent)

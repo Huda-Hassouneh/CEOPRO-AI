@@ -60,7 +60,9 @@ const routes = [
   // Stripe-hosted Checkout from Billing.
   ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/billing/checkout', '/onboarding/*']
     .map((path) => ({ path, element: <Navigate to={path.startsWith('/onboarding') ? '/onboarding' : '/billing'} replace /> })),
-  { path: '/admin/*', element: <Navigate to={routePaths.landing} replace /> },
+  { path: '/admin/*', element: <Navigate to="/platform" replace /> },
+  { path: '/platform', lazy: async () => ({ Component: (await import('../../features/platform/PlatformDashboard.jsx')).PlatformDashboard }) },
+  { path: '/platform/invitations/:token', lazy: async () => ({ Component: (await import('../../features/platform/PlatformInvitation.jsx')).PlatformInvitation }) },
   {
     path: routePaths.welcome,
     element: (
@@ -142,7 +144,7 @@ const routes = [
     ),
   },
   {
-    path: routePaths.invitation,
+    path: `${routePaths.invitation}/:token?`,
     element: (
       <AuthLayout brand wide>
         <InvitationPage />

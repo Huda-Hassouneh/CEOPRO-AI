@@ -59,6 +59,27 @@ def _company(business_type, industry_key=None):
     return tenant_id, user_id
 
 
+def _api_user(tenant_id, label):
+    user_id = str(uuid.uuid4())
+    with psycopg2.connect(DATABASE_URL) as conn, conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO users (user_id, email, password_hash, full_name, email_verified_at) "
+            "VALUES (%s, %s, 'test-only', %s, NOW());",
+            (user_id, f"{label}-{user_id}@example.com", label),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_users (tenant_id, user_id, role_key) VALUES (%s, %s, 'owner');",
+            (tenant_id, user_id),
+        )
+    return user_id
+
+
+def _api_token(tenant_id, user_id):
+    from src.ai.core.security import create_access_token
+
+    return create_access_token(tenant_id, user_id, email_verified=True)[0]
+
+
 def _place(name, ref, source="openstreetmap", lat=31.955, lon=35.912, industry="restaurant", **kw):
     return Candidate(name=name, source=source, source_ref=ref, latitude=lat, longitude=lon, industry_key=industry,
                      source_url=f"https://www.openstreetmap.org/{ref}" if source == "openstreetmap" else None, **kw)
@@ -171,7 +192,7 @@ def test_auto_tracking_stays_within_the_plan_limit_and_one_run_at_a_time():
         conn.close()
 
 
-def test_stale_discovery_is_refreshed_on_schedule_and_fresh_is_left_alone():
+def test_stale_discovery_is_refreshed_on_schedule_and_fresh_is_left_alone(monkeypatch):
     from datetime import datetime, timedelta, timezone
 
     from src.market_scraper.market_discovery import refresh
@@ -194,6 +215,20 @@ def test_stale_discovery_is_refreshed_on_schedule_and_fresh_is_left_alone():
 
     source = FakeProvider("openstreetmap", [_place("Bean There", "node/5", industry="cafe"),
                                             _place("Daily Grind", "node/6", industry="cafe")])
+    # Keep this scheduled-worker test entirely on controlled fixtures. The
+    # discovery provider is already fake; also prevent the post-discovery
+    # enrichment/news pipeline from contacting external sources.
+    monkeypatch.setattr(pipeline.enrich, "enrich", lambda candidates: {
+        "checked": 0, "read": 0, "blocked": 0, "statuses": {},
+    })
+    monkeypatch.setattr(pipeline, "_collect_site_intel", lambda *args, **kwargs: {
+        "checked": 0, "read": 0, "pages": 0, "pages_tried": 0, "facts": 0,
+        "products": 0, "prices": 0, "promotions": 0, "statuses": {}, "competitor_ids": [],
+    })
+    monkeypatch.setattr(pipeline, "_collect_news", lambda *args, **kwargs: {
+        "articles": [], "requests": 0, "answered": 0, "status": "skipped",
+        "reason": "fixture", "added": 0,
+    })
     # Other test companies in this database are due too; refresh only this one.
     real_due = refresh.due
     refresh.due = lambda conn, now=None: [row for row in real_due(conn, now=now, limit=1000) if row[0] == tenant]
@@ -226,7 +261,6 @@ def test_results_from_every_web_search_provider_can_be_saved():
 
 def test_competitor_websites_are_read_stored_with_sources_and_kept_private():
     from fastapi.testclient import TestClient
-    import jwt
 
     from src.ai.main import app
     from src.ai.market_inputs import competitor_intel
@@ -236,6 +270,7 @@ def test_competitor_websites_are_read_stored_with_sources_and_kept_private():
     site = lambda url: pages.get(url.rstrip("/"))  # noqa: E731
     tenant, user = _company("Bakery", "bakery")
     other, other_user = _company("Bakery", "bakery")
+    api_other_user = _api_user(other, "market-discovery-other")
     osm = FakeProvider("openstreetmap", [_place("Habibah Sweets", "node/9", industry="bakery", website="https://habibah.jo")])
     summary, listing, run = _run(tenant, user, (osm,), site_reader=lambda url: intel.collect(url, fetch=site))
     competitor_id = listing["competitors"][0]["competitor_id"]
@@ -268,8 +303,7 @@ def test_competitor_websites_are_read_stored_with_sources_and_kept_private():
     finally:
         conn.close()
     client = TestClient(app)
-    token = jwt.encode({"tenant_id": other, "user_id": other_user, "exp": int(time.time()) + 3600}, os.environ["JWT_SECRET"], algorithm="HS256")
-    headers = {"Authorization": f"Bearer {token}"}
+    headers = {"Authorization": f"Bearer {_api_token(other, api_other_user)}"}
     assert client.get(f"/discovery/competitors/{competitor_id}", headers=headers).status_code == 404
     assert client.post(f"/discovery/competitors/{competitor_id}/refresh", headers=headers).status_code == 404
 
@@ -315,7 +349,6 @@ def test_industry_and_competitor_news_is_stored_with_links_and_private():
 
 def test_ai_analysis_cites_only_real_evidence_and_stays_private(monkeypatch):
     from fastapi.testclient import TestClient
-    import jwt
 
     from src.ai.main import app
     from src.ai.rag import llm_client
@@ -324,6 +357,8 @@ def test_ai_analysis_cites_only_real_evidence_and_stays_private(monkeypatch):
     pages = {"https://habibah.jo": HOME, "https://habibah.jo/menu": MENU, "https://habibah.jo/offers": OFFERS}
     tenant, user = _company("Bakery", "bakery")
     other, other_user = _company("Bakery", "bakery")
+    api_user = _api_user(tenant, "market-discovery-owner")
+    api_other_user = _api_user(other, "market-discovery-other")
     osm = FakeProvider("openstreetmap", [_place("Habibah Sweets", "node/9", industry="bakery", website="https://habibah.jo")])
     _summary, listing, _run_row = _run(tenant, user, (osm,), site_reader=lambda url: intel.collect(url, fetch=lambda u: pages.get(u.rstrip("/"))))
     competitor_id = listing["competitors"][0]["competitor_id"]
@@ -340,7 +375,7 @@ def test_ai_analysis_cites_only_real_evidence_and_stays_private(monkeypatch):
 
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage", model)
     client = TestClient(app)
-    headers = {"Authorization": f"Bearer {jwt.encode({'tenant_id': tenant, 'user_id': user, 'exp': int(time.time()) + 3600}, os.environ['JWT_SECRET'], algorithm='HS256')}"}
+    headers = {"Authorization": f"Bearer {_api_token(tenant, api_user)}"}
     response = client.post(f"/discovery/competitors/{competitor_id}/analysis", headers=headers)
     assert response.status_code == 200, response.text
     analysis = response.json()
@@ -353,7 +388,7 @@ def test_ai_analysis_cites_only_real_evidence_and_stays_private(monkeypatch):
     assert cited["url"].startswith("https://habibah.jo")
     stored = client.get(f"/discovery/competitors/{competitor_id}", headers=headers).json()["intel"]["analysis"]
     assert stored["strengths"] == analysis["strengths"]
-    other_headers = {"Authorization": f"Bearer {jwt.encode({'tenant_id': other, 'user_id': other_user, 'exp': int(time.time()) + 3600}, os.environ['JWT_SECRET'], algorithm='HS256')}"}
+    other_headers = {"Authorization": f"Bearer {_api_token(other, api_other_user)}"}
     assert client.post(f"/discovery/competitors/{competitor_id}/analysis", headers=other_headers).status_code == 404
 
 

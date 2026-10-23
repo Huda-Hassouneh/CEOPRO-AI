@@ -16,12 +16,16 @@ from src.ai.tests.sales_fixtures import insert_sale
 import json
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 
 import psycopg2
 import pytest
 
 from src.ai.forecasting.pipeline import run_forecast
+from src.ai.forecasting.generation import generate_or_reuse_forecast
 from src.ai.routers.products import get_product
+from src.ai.routers.dashboard import _generate_or_reuse_forecast
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -137,3 +141,73 @@ def test_generate_forecast_for_a_product_with_real_sales_history_writes_a_real_f
         )
         (forecast_count,) = cursor.fetchone()
     assert forecast_count == 1
+
+
+def test_repeated_generation_reuses_current_forecast_without_duplicate_history(conn):
+    from datetime import datetime, timedelta, timezone
+
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Idempotent demand")
+    now = datetime.now(timezone.utc)
+    with conn.cursor() as cursor:
+        for day in range(35):
+            insert_sale(cursor, tenant_id, product_id, 3, 2.0, now - timedelta(days=day + 1))
+    conn.commit()
+
+    first = _generate_or_reuse_forecast(conn, tenant_id, product_id)
+    second = _generate_or_reuse_forecast(conn, tenant_id, product_id)
+
+    assert first["status"] == second["status"] == "OK"
+    assert first["forecast_id"] == second["forecast_id"]
+    assert second["reused"] is True
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM demand_forecasts WHERE tenant_id = %s AND product_id = %s;", (tenant_id, product_id))
+        assert cursor.fetchone()[0] == 1
+
+
+def test_repeated_no_history_generation_reuses_unknown_evidence(conn):
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "No demand history")
+    conn.commit()
+
+    first = _generate_or_reuse_forecast(conn, tenant_id, product_id)
+    second = _generate_or_reuse_forecast(conn, tenant_id, product_id)
+
+    assert first["status"] == second["status"] == "UNKNOWN"
+    assert first["evidence_id"] == second["evidence_id"]
+    assert second["reused"] is True
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM evidence_records WHERE tenant_id = %s AND category = 'UNKNOWN' "
+            "AND source_record_ids->>'product_id' = %s;",
+            (tenant_id, product_id),
+        )
+        assert cursor.fetchone()[0] == 1
+
+
+def test_auto_refresh_and_explicit_generation_share_concurrency_idempotency(conn):
+    """The demand-page background refresh and manual API trigger must share one product lock."""
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Concurrent demand")
+    now = datetime.now(timezone.utc)
+    with conn.cursor() as cursor:
+        for day in range(35):
+            insert_sale(cursor, tenant_id, product_id, 3, 2.0, now - timedelta(days=day + 1))
+    conn.commit()
+
+    def generate():
+        worker_conn = psycopg2.connect(DATABASE_URL)
+        try:
+            return generate_or_reuse_forecast(worker_conn, tenant_id, product_id)
+        finally:
+            worker_conn.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _idx: generate(), range(2)))
+
+    assert {result["status"] for result in results} == {"OK"}
+    assert len({result["forecast_id"] for result in results}) == 1
+    assert sorted(result["reused"] for result in results) == [False, True]
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM demand_forecasts WHERE tenant_id=%s AND product_id=%s", (tenant_id, product_id))
+        assert cursor.fetchone()[0] == 1

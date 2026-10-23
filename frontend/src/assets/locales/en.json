@@ -104,6 +104,17 @@
       "saving": "Saving...",
       "cancel": "Cancel"
     },
+    "inventory": {
+      "title": "Manual canonical stock",
+      "sourceBoundary": "This updates KEEL's manually maintained stock record. Shopify and WooCommerce observations remain separate and are not changed here.",
+      "quantity": "Current stock quantity",
+      "reorder": "Reorder level",
+      "safety": "Safety stock",
+      "save": "Save stock",
+      "saved": "Stock saved",
+      "stockInvalid": "Enter non-negative stock values with up to 4 decimal places",
+      "saveError": "Could not save stock"
+    },
     "form": {
       "name": "Product name",
       "brand": "Brand",
@@ -120,9 +131,11 @@
       "errors": {
         "nameRequired": "Product name is required",
         "priceInvalid": "Enter a valid, non-negative price",
+        "stockInvalid": "Enter a non-negative stock quantity with up to 4 decimal places",
         "currencyInvalid": "Enter a valid 3-letter currency code"
       },
       "notFound": "Product not found",
+      "restricted": "Only workspace owners and admins can manage products or inventory.",
       "back": "Back to Products",
       "editTitle": "Edit Product",
       "createTitle": "Add Product",
@@ -173,6 +186,7 @@
     "list": {
       "searchPlaceholder": "Search by name or brand",
       "getRecommendation": "Get Recommendation",
+      "history": "Recommendation history",
       "compare": "Compare market",
       "loadError": "Could not load products",
       "retry": "Retry",
@@ -180,6 +194,34 @@
       "emptyDescription": "Add a product to start comparing its price and cost.",
       "noResultsTitle": "No matching products",
       "noResultsDescription": "Try a different search term."
+    },
+    "history": {
+      "title": "Recommendation history — {{name}}",
+      "note": "These are saved recommendations and their evidence. They do not mean your product price was changed.",
+      "errorTitle": "History unavailable",
+      "errorDescription": "Recommendation history could not be loaded.",
+      "retry": "Retry",
+      "emptyTitle": "No saved recommendations",
+      "emptyDescription": "Recommendations for this product will appear here after they are generated.",
+      "incomplete": "Recommendation evidence",
+      "decision": "Decision",
+      "basis": "Evidence basis",
+      "pagination": "Recommendation history pages",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}",
+      "bases": {
+        "LOCAL_MARKET": "Local market evidence",
+        "INTERNAL_ONLY": "Internal business data",
+        "REGIONAL_ESTIMATE": "Regional estimate",
+        "MARKET_REFERENCE": "Market reference"
+      },
+      "decisions": {
+        "PENDING": "Not reviewed",
+        "ACCEPTED": "Accepted by a user",
+        "REJECTED": "Rejected by a user",
+        "unknown": "Not recorded"
+      }
     },
     "table": {
       "product": "Product",
@@ -335,6 +377,31 @@
         "demand_falling": "The market would allow a higher price, but sales fell {{pct}}% on the previous 30 days ({{recent}} vs {{previous}} units). Raising the price now risks losing more volume."
       }
     }
+  },
+  "marketPerception": {
+    "title": "Customer Market Perception",
+    "description": "Analyze only reviewed and classified customer feedback for your business, products, or tracked competitors.",
+    "scope": "Analysis scope",
+    "business": "Whole business",
+    "product": "Product",
+    "competitor": "Tracked competitor",
+    "chooseProduct": "Product",
+    "chooseCompetitor": "Competitor",
+    "searchProducts": "Search your products",
+    "choose": "Choose a subject",
+    "refresh": "Analyze reviews",
+    "loading": "Analyzing…",
+    "subjectLoadError": "Could not load available subjects. Retry by reloading this page.",
+    "denied": "Market intelligence is not available for this workspace plan.",
+    "subjectMissing": "This subject is no longer available in this workspace.",
+    "error": "Analysis could not be completed. Please retry.",
+    "noReviews": "No eligible analyzed reviews are available yet.",
+    "insufficient": "Only {{count}} analyzed reviews are available; {{minimum}} are currently required before showing an index.",
+    "index": "Market Perception Index",
+    "reviewCount": "Eligible analyzed reviews: {{count}}",
+    "breakdown": "Positive: {{positive}} · Neutral: {{neutral}} · Negative: {{negative}}",
+    "lowSampleNotice": "The numeric index is hidden because the sample is below the backend reliability status.",
+    "evidenceNotice": "Based on eligible, analyzed reviews. This is an evidence summary, not a financial or operational action."
   },
   "marketScoped": {
     "common": {
@@ -958,6 +1025,7 @@
       "backToLogin": "Back to sign in"
     },
     "invitation": {
+      "credentialsHelp": "For a new account, enter your full name and a new password. Existing account holders can leave these fields blank; their password will not change.",
       "imageAlt": "Team invitation",
       "title": "You're invited!",
       "subtitle": "You've been invited to join",
@@ -1019,6 +1087,7 @@
     "errors": {
       "generic": "Something went wrong. Please try again.",
       "network": "Unable to connect. Check your connection and try again.",
+      "sessionExpired": "Your session has expired or is no longer valid. Please sign in again.",
       "serverUnavailable": "The service is temporarily unavailable. Please try again later.",
       "tooManyAttempts": "Too many attempts. Please wait and try again.",
       "authenticationUnavailable": "Authentication is ready for backend connection but is not active yet.",
@@ -1026,15 +1095,17 @@
       "invalidCode": "The verification code is incorrect.",
       "expiredCode": "This verification code has expired.",
       "resendFailed": "We couldn't resend the code. Please try again.",
-      "emailInUse": "An account with this email already exists.",
-      "invitationUnavailable": "We couldn't load this invitation. Please try again."
+      "emailInUse": "This address has an account or pending registration. Sign in, use your original verification tab, or start again after that request expires.",
+      "invitationUnavailable": "We couldn't load this invitation. Please try again.",
+      "deliveryUnavailable": "We could not deliver the verification email. Try resending the code; no company has been created yet."
     },
     "success": {
       "codeResent": "A new verification code has been sent.",
       "invitationAccepted": "Invitation accepted.",
       "passwordReset": "Your password has been reset. You can now log in.",
       "companyDeleted": "The company and all its data were deleted.",
-      "emailVerified": "Your email is confirmed. You can sign in now."
+      "emailVerified": "Your email is confirmed. You can sign in now.",
+      "logoutUnconfirmed": "Signed out on this device. Server sign-out could not be confirmed; the previous token may remain valid until it expires."
     },
     "workspaces": {
       "title": "Choose a company",
@@ -1366,20 +1437,38 @@
         "exhausted": "This budget is used up for the period.",
         "exhaustedOptions": "New work that needs it is paused until {{date}}. You can upgrade your plan now, or contact us about a Custom plan.",
         "notIncluded": "Not included",
+        "unavailable": "Credit usage is temporarily unavailable.",
         "competitorNote": "There is no fixed number of competitors: KEEL discovers and monitors the competitors in your market, area and sources as far as your Data Credits allow.",
         "topUpsUnavailable": "Extra credits can't be bought yet.",
         "historyTitle": "Recent usage",
         "historyEmpty": "Nothing has used credits this period yet.",
-        "historyColumns": { "when": "When", "what": "What", "budget": "Budget", "credits": "Credits", "status": "Status" },
+        "historyColumns": {
+          "when": "When",
+          "what": "What",
+          "budget": "Budget",
+          "credits": "Credits",
+          "status": "Status"
+        },
         "operations": {
-          "assistant_question": "Assistant question", "competitor_analysis": "Competitor analysis", "marketing_campaign": "Marketing content",
-          "marketing_image": "Marketing image", "market_discovery": "Competitor discovery", "competitor_intel": "Competitor websites",
-          "competitor_enrichment": "Competitor details", "product_discovery": "Product discovery", "price_lookup": "Market prices",
-          "web_research": "Web research", "other": "Other"
+          "assistant_question": "Assistant question",
+          "competitor_analysis": "Competitor analysis",
+          "marketing_campaign": "Marketing content",
+          "marketing_image": "Marketing image",
+          "market_discovery": "Competitor discovery",
+          "competitor_intel": "Competitor websites",
+          "competitor_enrichment": "Competitor details",
+          "product_discovery": "Product discovery",
+          "price_lookup": "Market prices",
+          "web_research": "Web research",
+          "other": "Other"
         },
         "statuses": {
-          "reserved": "In progress", "consumed": "Done", "released": "Not charged", "failed_charged": "Failed (charged by provider)",
-          "pending_reconciliation": "Awaiting final cost", "reconciled": "Done"
+          "reserved": "In progress",
+          "consumed": "Done",
+          "released": "Not charged",
+          "failed_charged": "Failed (charged by provider)",
+          "pending_reconciliation": "Awaiting final cost",
+          "reconciled": "Done"
         }
       },
       "startTrial": "Start {{days}}-day free trial",
@@ -1539,8 +1628,10 @@
       "trialCredits": "Free trial includes {{data}} Data Credits and {{ai}} AI Credits"
     },
     "checkout": {
-      "success": "Payment received. Your plan updates here in a few seconds.",
-      "cancelled": "Checkout was cancelled — nothing was charged."
+      "confirmed": "Subscription confirmed. Your plan is active in KEEL.",
+      "pending": "Checkout returned to KEEL. We are confirming the subscription; access changes only after billing confirmation.",
+      "notConfirmed": "Checkout returned, but your subscription is not active yet. Your current access has not changed. Check billing status or try again.",
+      "cancelled": "Checkout was cancelled. This checkout did not activate a subscription."
     },
     "errors": {
       "generic": "That didn’t work. Please try again in a moment.",
@@ -1636,6 +1727,22 @@
       "subtitle": "Sources currently linked to your company workspace.",
       "count": "{{count}} sources"
     },
+    "providerRecords": {
+      "open": "View synced records", "close": "Close records", "title": "Provider records",
+      "notice": "These are fetched source records for review. Review approval does not post canonical products or orders, create invoices, or update stock.",
+      "refresh": "Refresh", "loading": "Loading provider records…", "empty": "No provider business records have been staged yet.",
+      "tableLabel": "Provider business records", "type": "Record type", "providerId": "Provider reference", "values": "Staged values",
+      "validation": "Validation", "review": "Review decision", "actions": "Actions", "history": "History", "loadingHistory": "Loading revision history…",
+      "approve": "Approve review", "reject": "Reject review", "confirmApprove": "Record approval of this staged provider record? This will not post it to canonical data.",
+      "confirmReject": "Record rejection of this staged provider record?", "notPosted": "Canonical status: not posted. Provider records remain source-scoped evidence.",
+      "revision": "Revision {{number}}", "previous": "Previous", "next": "Next", "page": "Page {{page}}",
+      "loadFailed": "Provider records could not be loaded. Try again.", "reviewFailed": "The review could not be saved. Try again.",
+      "sessionExpired": "Your session expired. Sign in again.", "forbidden": "Your role cannot review provider records.",
+      "notFound": "This provider record is unavailable in your workspace.", "conflict": "This revision is stale or already reviewed. Refresh the list.",
+      "entities": { "product": "Product", "variant": "Variant", "order": "Order", "order_line_item": "Order item" },
+      "states": { "valid": "Validated", "invalid": "Invalid", "review_required": "Needs review", "notReviewed": "Not reviewed" },
+      "decisions": { "approve": "Approved for review only", "reject": "Rejected" }
+    },
     "upload": {
       "title": "Upload Files",
       "subtitle": "Add a new version or import additional business data.",
@@ -1652,6 +1759,115 @@
       "status": "Status",
       "emptyTitle": "No recent data activity",
       "emptyDescription": "Imports and connection updates will appear here."
+    },
+    "drafts": {
+      "title": "Import review",
+      "subtitle": "Check imported records and their validation before deciding what to approve.",
+      "reviewIsNotPosting": "Review records here. Approval records your decision; it does not necessarily post data to KEEL.",
+      "reviewIsNotPostingTitle": "Review is not posting",
+      "invoiceBoundary": "Approving an invoice draft does not create or settle a canonical invoice.",
+      "inventoryBoundary": "Approving an inventory draft does not change stock quantities.",
+      "salesBoundary": "Sales rows already marked posted were handled by the existing import path. Review does not post them again.",
+      "refresh": "Refresh",
+      "filterLabel": "Import type",
+      "allCategories": "All types",
+      "categories": { "sales": "Sales", "invoice": "Invoices", "inventory": "Inventory" },
+      "date": "Created",
+      "source": "Source",
+      "category": "Type",
+      "validation": "Validation",
+      "reviewLabel": "Review",
+      "posting": "Canonical posting",
+      "actions": "Actions",
+      "invalidCount": "invalid",
+      "ambiguousCount": "need review",
+      "open": "Preview",
+      "closePreview": "Close preview",
+      "previewTitle": "Import preview",
+      "previewSubtitle": "Review the values, findings, decisions and posting state for this draft.",
+      "listLabel": "Import drafts",
+      "paginationLabel": "Import draft pages",
+      "page": "Page {{page}}",
+      "previous": "Previous",
+      "next": "Next",
+      "emptyTitle": "No import drafts yet",
+      "emptyDescription": "Uploaded sales, invoice and inventory records will appear here for review.",
+      "unknownSource": "File upload",
+      "notAvailable": "Not available",
+      "ingestion": "Import status",
+      "revision": "Revision",
+      "revisionHistory": "Draft version",
+      "revisionOption": "Version {{number}} · {{date}}",
+      "superseded": "Older version",
+      "staleRevision": "This version is read-only. Review the latest version to record a decision.",
+      "rowsLabel": "Imported rows",
+      "row": "Row",
+      "record": "Imported values",
+      "validationFindings": "Validation and identity checks",
+      "needsAssociationReview": "Product or location association needs review.",
+      "noRows": "This version has no rows.",
+      "rowsPage": "Rows {{from}}–{{to}} of {{count}}",
+      "reviewHistory": "Review history",
+      "noReviewHistory": "No review decisions have been recorded.",
+      "approveRow": "Approve row",
+      "rejectRow": "Reject row",
+      "approveBatch": "Approve draft",
+      "rejectBatch": "Reject draft",
+      "review": { "pending": "Not reviewed", "approved": "Approved", "rejected": "Rejected" },
+      "states": {
+        "draft": "Draft",
+        "review_required": "Needs review",
+        "approved": "Reviewed · approved",
+        "rejected": "Reviewed · rejected",
+        "committed": "Posted",
+        "partially_committed": "Partly posted",
+        "not_committed": "Not posted",
+        "invalid": "Invalid",
+        "failed": "Import failed",
+        "completed": "Import complete"
+      },
+      "fields": {
+        "product_name": "Product", "product_id": "Canonical product reference", "provider_product_id": "Source product reference",
+        "quantity": "Quantity", "quantity_semantics": "Quantity type", "unit": "Unit",
+        "unit_price": "Unit price", "line_total": "Line total", "amount_raw": "Amount",
+        "currency": "Currency", "transaction_date": "Sale date", "invoice_date": "Invoice date",
+        "invoice_id": "Invoice reference", "order_id": "Order reference", "barcode": "Barcode",
+        "location_id": "Canonical location reference", "provider_location_id": "Source location reference", "observed_at": "Observed at"
+      },
+      "references": { "present": "Reference present (ID hidden)" },
+      "findings": {
+        "required": "Required value is missing.",
+        "must_be_positive_number": "Enter a number greater than zero.",
+        "must_be_nonnegative_number": "Enter zero or a positive amount.",
+        "invalid_currency_code": "Currency code is not valid.",
+        "invalid_date": "Date is not valid.",
+        "invalid_timestamp": "Timestamp is not valid.",
+        "unsupported_semantics": "Quantity type is not supported.",
+        "provider_identity_requires_review": "Source product identity needs review.",
+        "product_identity_requires_review": "Product identity needs review.",
+        "provider_location_requires_review": "Source location identity needs review.",
+        "existing_validator_rejected": "The import validator rejected this value.",
+        "existing_extractor_rejected": "This row could not be extracted."
+      },
+      "errors": {
+        "unauthorized": "Your session has expired. Sign in again to continue.",
+        "forbidden": "You do not have permission to review this import.",
+        "notFound": "This import is unavailable in your workspace.",
+        "conflict": "This draft changed while you were reviewing it. Reload the latest version.",
+        "invalid": "The review could not be saved. Check the row and try again.",
+        "generic": "Import details could not be loaded. Try again."
+      },
+      "retry": "Try again",
+      "reloadCurrent": "Load latest version",
+      "reasonLabel": "Reason for this decision",
+      "cancel": "Cancel",
+      "confirmAction": "Confirm decision",
+      "submitting": "Saving decision…",
+      "confirm": {
+        "approve": { "title": "Approve this review?", "body": "This records that you reviewed the selected draft or row. It will not post an invoice, change stock, merge products or make a payment." },
+        "reject": { "title": "Reject this review?", "body": "This records that you rejected the selected draft or row. It does not undo sales already posted by the established import process." },
+        "notPosting": "This action only records a review decision. No canonical posting or stock update will run."
+      }
     },
     "add": {
       "title": "Add Data Source",
@@ -1755,6 +1971,46 @@
         "RUNNING": "Syncing",
         "PENDING": "Queued",
         "PARTIAL": "Partly synced"
+      }
+    },
+    "store": {
+      "woocommerce": "WooCommerce",
+      "shopify": "Shopify",
+      "woocommerceIntro": "Connect with the WooCommerce store URL and REST keys you already use. KEEL verifies read access before saving the encrypted credentials.",
+      "shopifyIntro": "Continue to Shopify to authorize read access. The connection is completed only when you return to this signed-in KEEL account.",
+      "woocommerceTitle": "Connect WooCommerce",
+      "shopifyTitle": "Connect Shopify",
+      "options": {
+        "woocommerce": { "title": "Connect WooCommerce", "description": "Use your store URL and read-only REST keys to verify and sync store records." },
+        "shopify": { "title": "Connect Shopify", "description": "Authorize KEEL to read products, orders, inventory and locations from your shop." }
+      },
+      "url": "Store URL or myshopify.com domain",
+      "consumerKey": "WooCommerce consumer key",
+      "consumerSecret": "WooCommerce consumer secret",
+      "frequency": "Sync frequency",
+      "consent": "I authorize KEEL to read this store's products, orders and supported inventory data.",
+      "includeTestOrders": "Include test orders (development stores only).",
+      "woocommerceBoundary": "Use a public HTTPS store URL and read-only WooCommerce REST keys. KEEL does not write to the store.",
+      "shopifyBoundary": "KEEL requests read-only product, order, inventory and location access. No products, orders or stock are changed.",
+      "connect": "Verify and connect",
+      "install": "Continue to Shopify",
+      "connected": "Store connected. Its first read-only sync is queued.",
+      "adminOnly": "Only a tenant owner or admin can connect a store.",
+      "conflict": "This store connection changed or needs review. Refresh the page or ask an owner to reconnect it.",
+      "invalid": "Check the store URL, consent and WooCommerce REST keys.",
+      "failed": "KEEL could not verify or save this store connection. Try again.",
+      "finishFailed": "Shopify could not finish this connection. Start authorization again.",
+      "sessionExpired": "Your session expired. Sign in and start the Shopify connection again.",
+      "callbackFailed": "Shopify could not confirm the installation. Start the connection again.",
+      "capacityReached": "Your plan has reached its connected-store limit.",
+      "reconnect": "Reconnect",
+      "verifiedAt": "Verified {date}",
+      "status": {
+        "verified": "Verified",
+        "verification_required": "Reconnect to verify",
+        "disabled": "Disconnected",
+        "active": "Verification required",
+        "QUEUED": "Queued"
       }
     }
   },
@@ -2019,6 +2275,7 @@
       "title": "Knowledge Base",
       "subtitle": "Manage the documents used by the assistant.",
       "upload": "Upload Document",
+      "supported": "Supported: TXT, Markdown, PDF, DOCX and XLSX (maximum 10 MB). These files are indexed only for assistant questions; they do not create business records.",
       "search": "Search documents...",
       "type": "Document Type",
       "allTypes": "All types",
@@ -2037,7 +2294,7 @@
       "errorDescription": "We could not load the company's documents.",
       "showing": "Showing {{start}}–{{end}} of {{total}} documents",
       "status": {
-        "ready": "Ready",
+        "ready": "Ready for questions",
         "processing": "Processing",
         "failed": "Failed"
       },
@@ -2046,7 +2303,7 @@
     },
     "upload": {
       "title": "Upload documents for the assistant",
-      "description": "PDF documents become searchable by the assistant. CSV and Excel files are imported as sales data, which the assistant also uses.",
+      "description": "Upload TXT, Markdown, PDF, DOCX or XLSX files for assistant search. Knowledge Base uploads stay separate from business imports.",
       "uploading": "Uploading..."
     },
     "actions": {
@@ -2077,7 +2334,7 @@
       "planLimit": "You've used all assistant questions included in your plan for this billing period. They renew after {{date}} — or upgrade your plan in Billing.",
       "busy": "The assistant is answering many questions right now. Please ask again in about {{seconds}} seconds.",
       "uploadFailed": "The document upload failed. Please try again.",
-      "uploadSummary": "{{added}} document(s) added to the assistant · {{data}} spreadsheet(s) imported as business data · {{failed}} could not be processed"
+      "uploadSummary": "{{added}} ready for questions · {{processing}} still processing · {{failed}} need attention"
     },
     "claims": {
       "kindCalculation": "Calculation",
@@ -2324,6 +2581,7 @@
     },
     "actions": {
       "refresh": "Refresh forecasts",
+      "generateSelected": "Generate this forecast",
       "retry": "Try again",
       "addProduct": "Add a product",
       "importSales": "Import sales",
@@ -2342,7 +2600,23 @@
     "refresh": {
       "running": "Updating forecasts with your latest sales — {{done}} of {{total}} products done.",
       "failed": "Forecasts couldn't be updated right now. The figures below are from the last successful update.",
+      "generating": "Generating this product's forecast from its sales history…",
+      "noHistory": "There is no eligible sales history for this product yet. No forecast was generated.",
+      "blocked": "Access to demand forecasts changed. No new forecast was saved.",
       "label": "Forecast update progress"
+    },
+    "history": {
+      "eyebrow": "Saved runs",
+      "title": "Forecast history",
+      "subtitle": "Previously persisted forecasts for this product. A forecast is a model estimate, not a guaranteed result.",
+      "generated": "Generated",
+      "target": "Forecast through",
+      "range": "Uncertainty range",
+      "confidence": "Confidence",
+      "empty": "No saved forecasts yet",
+      "emptyDescription": "A forecast appears here after KEEL processes eligible sales history.",
+      "error": "Forecast history couldn't be loaded. Your saved results remain unchanged.",
+      "buildingData": "Building history ({{days}} of {{minimum}} days); this baseline is preliminary."
     },
     "stats": {
       "forecast": "Forecast demand · next 30 days",
@@ -3198,6 +3472,16 @@
     "title": "Alerts",
     "count": "{{count}} items",
     "error": "Alerts couldn't be loaded.",
+    "retry": "Try again",
+    "inboxTab": "Notifications",
+    "smartTab": "Smart Alerts",
+    "inboxEmpty": "No notifications yet.",
+    "markAllRead": "Mark all read",
+    "showHistory": "Show dismissed",
+    "hideHistory": "Hide dismissed",
+    "dismiss": "Dismiss",
+    "actionFailed": "That notification could not be updated. Try again.",
+    "loadMore": "Load more",
     "empty": "Nothing needs your attention right now.",
     "competitor_price": {
       "down": "{{competitor}} cut {{product}} by {{pct}}% to {{price}}",
@@ -3215,7 +3499,10 @@
     "payment_failed": "Your last payment failed - update your payment method in Billing",
     "credits_low": "You've used {{percent}}% of this period's {{budget}} - they renew on {{date}}",
     "credits_exhausted": "This period's {{budget}} are used up - they renew on {{date}}; upgrade in Billing for more",
-    "budget": { "data": "Data Credits", "ai": "AI Credits" }
+    "budget": {
+      "data": "Data Credits",
+      "ai": "AI Credits"
+    }
   },
   "intel": {
     "citation": "Source {{n}}: {{text}}",
@@ -3811,5 +4098,79 @@
       "open": "Open listing",
       "competitorDetails": "Competitor details"
     }
+  },
+  "platform": {
+    "title": "Platform administration",
+    "searchCompanies": "Search all companies",
+    "searchUsers": "Search all users",
+    "searching": "Searching...",
+    "searchResultCount": "Matching records: {{count}}",
+    "noSearchResults": "No matching records found.",
+    "noDirectoryRecords": "No records are available.",
+    "back": "Customer dashboard",
+    "forbidden": "You do not have permission to administer the platform.",
+    "conflict": "This change conflicts with an existing or protected record. Refresh and try again.",
+    "failed": "The request could not be completed. Try again.",
+    "retry": "Try again",
+    "saved": "Change saved.",
+    "deliveryFailed": "Invitation saved, but email delivery failed. Use Resend after delivery is restored.",
+    "owner": "Platform Owner",
+    "admin": "Platform Admin",
+    "overview": "Overview",
+    "companies": "Companies",
+    "users": "Users",
+    "active_operators": "Active operators",
+    "team": "Operators",
+    "audit": "Audit trail",
+    "settings": "Platform settings",
+    "approvals": "Exceptional approvals",
+    "name": "Name",
+    "status": "Status",
+    "actions": "Actions",
+    "active": "Active",
+    "suspended": "Suspended",
+    "removed": "Removed",
+    "details": "Details",
+    "notes": "Internal notes",
+    "metadata": "Edit company notes",
+    "changeStatus": "Change status",
+    "companyStatus": "Change company status",
+    "userStatus": "Change account access across all workspaces",
+    "invite": "Invite a Platform Admin",
+    "invitations": "Pending invitations",
+    "resend": "Resend invitation",
+    "cancel": "Cancel",
+    "remove": "Remove operator",
+    "removeMember": "Remove operator",
+    "suspendMember": "Change operator status",
+    "transfer": "Transfer platform ownership",
+    "transferWarning": "This transfers exceptional financial authority to the selected admin. Your platform role becomes admin.",
+    "supportEmail": "Support email",
+    "edit": "Edit",
+    "resetPassword": "Reset my password",
+    "previous": "Previous",
+    "next": "Next",
+    "email": "Email",
+    "reason": "Reason for this change",
+    "confirm": "Confirm change",
+    "approvalNotice": "This records an owner authorization only. It does not activate unpaid access, set a quote price, or change a provider spending limit. Those changes require the relevant approved workflow.",
+    "kind": "Exception type",
+    "reference": "Quote, contract or provider reference",
+    "terms": "Exact approved terms and restrictions",
+    "expires": "Authorization expiry",
+    "below_floor_price": "Below-floor price authorization",
+    "manual_access": "Manual access authorization",
+    "provider_spending": "Provider spending authorization",
+    "inviteTitle": "KEEL platform invitation",
+    "inviteExplanation": "Accepting grants platform admin access. Existing account holders can leave name and password blank; existing passwords are preserved. New account holders must enter their name and a strong password.",
+    "accept": "Accept platform invitation",
+    "newCredentials": "A full name and strong password are required for a new operator account.",
+    "invitationInvalid": "This invitation is invalid, expired or already used. Ask the platform owner for a new invitation.",
+    "backToLogin": "Back to sign in",
+    "membershipStatus": "Change access to this workspace",
+    "account": "My account",
+    "signOut": "Sign out",
+    "expired": "Expired",
+    "pending": "Pending"
   }
 }

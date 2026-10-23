@@ -60,6 +60,18 @@ export const dataConnectionsApi = Object.freeze({
     field_mapping: toFieldMapping(form.mapping),
     sync_frequency_minutes: Number(form.frequency),
   })).data,
+  connectWooCommerce: async (form) => (await httpClient.post('/onboarding/connect/woocommerce', {
+    url: form.url.trim(), consumerKey: form.consumerKey.trim(), consumerSecret: form.consumerSecret.trim(),
+    consent: true, syncFrequencyMinutes: Number(form.frequency),
+  })).data,
+  beginShopifyConnect: async (form) => (await httpClient.post('/onboarding/connect/shopify/authorize', {
+    url: form.url.trim(), consent: true, includeTestOrders: Boolean(form.includeTestOrders),
+    syncFrequencyMinutes: Number(form.frequency),
+  })).data,
+  completeShopifyConnect: async (ticket) => (await httpClient.post('/onboarding/connect/shopify/complete', { ticket })).data,
   syncNow: async (sourceId) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/sync`)).data,
   disconnect: async (sourceId) => (await httpClient.delete(`/onboarding/sources/${encodeURIComponent(sourceId)}`)).data,
+  providerRecords: async (sourceId, params = {}) => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records`, { params })).data,
+  providerRecordHistory: async (sourceId, identityId) => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records/${encodeURIComponent(identityId)}/revisions`)).data,
+  reviewProviderRecord: async (sourceId, request) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records/reviews`, request)).data,
 });

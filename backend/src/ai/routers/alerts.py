@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from src.ai import alerts as alerts_module
 from src.ai import db
 from src.ai import notification_prefs
+from src.ai import notification_inbox
 from src.ai.core.security import TenantContext, get_tenant_context
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -16,6 +17,10 @@ def list_alerts(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         items = alerts_module.build_alerts(conn, ctx.tenant_id)
+        persistent_keys = notification_inbox.existing_event_keys(
+            conn, ctx.tenant_id, [a["event_key"] for a in items if a.get("event_key")],
+        )
+        items = [a for a in items if a.get("event_key") not in persistent_keys]
         read_at = alerts_module.last_read(conn, ctx.tenant_id, ctx.user_id)
         with conn.cursor() as cursor:
             cursor.execute("SELECT notification_preferences FROM users WHERE user_id = %s;", (ctx.user_id,))

@@ -8,7 +8,8 @@ from src.ai.core.barcode import parse_barcode_cell
 from src.ai.extraction import promotion
 from src.ai.extraction.ingestion_pipeline import IngestionRowOutcome, IngestionSummary
 from src.ai.extraction.promotion import (
-    _alias_names_by_barcode, _apply_barcodes, _extract_eligible_rows, _load_barcode_index,
+    _alias_names_by_barcode, _apply_barcodes, _extract_eligible_rows, _identity_review_reasons,
+    _load_barcode_index,
 )
 from src.ai.extraction.row_parsing import RowParseResult, parse_mapped_row
 from src.ai.extraction.template_detection import HEADER_SYNONYMS, normalize_header
@@ -107,3 +108,21 @@ def test_barcode_index_reads_only_active_products_with_a_barcode():
     conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("3017620422003", "p1"), (None, "p2")]
     assert _load_barcode_index(conn, "t1") == {"3017620422003": "p1"}
     assert "deleted_at IS NULL" in conn.cursor.return_value.__enter__.return_value.execute.call_args.args[0]
+
+
+def test_same_name_rows_with_different_barcodes_are_held_as_ambiguous():
+    rows = _rows(
+        {**_FIELDS, "product_name": "Twin Product", "barcode": "3017620422003"},
+        {**_FIELDS, "product_name": "Twin Product", "barcode": "96385074"},
+    )
+    reasons = _identity_review_reasons(rows, {}, set(), {}, set())
+    assert set(reasons) == {rows[0].staging_row_id, rows[1].staging_row_id}
+    assert all("conflicting imported barcodes" in reason for reason in reasons.values())
+
+
+def test_conflicting_name_and_barcode_identities_are_not_resolved_by_precedence():
+    rows = _rows({**_FIELDS, "product_name": "Product A", "barcode": "96385074"})
+    reasons = _identity_review_reasons(
+        rows, {"product a": "product-a"}, set(), {"96385074": "product-b"}, set(),
+    )
+    assert reasons == {rows[0].staging_row_id: "product name and barcode identify different tenant products"}

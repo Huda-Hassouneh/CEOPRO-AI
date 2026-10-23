@@ -8,21 +8,26 @@ import io
 import logging
 import os
 import tempfile
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 import redis
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 
 from src.ai import db
 from src.ai.extraction.template_contract import TEMPLATE_ID
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
+from src.ai.extraction import typed_imports
+from src.ai.extraction import minio_persistence
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.rag import pipeline as rag_pipeline
 from src.ai.core.office_files import InvalidOfficeFileError
-from src.ai.core import usage
+from src.ai.core import storage_ledger, usage
 
 router = APIRouter(prefix="/extraction", tags=["extraction"])
 
@@ -39,6 +44,8 @@ _MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)
 # compute). 500 is a starting point (SCALING.md suggests 500-2,000), not a
 # value tuned against production write latency yet.
 _EXTRACTION_COMMIT_EVERY = int(os.getenv("EXTRACTION_COMMIT_EVERY", "500"))
+_STORAGE_RECOVERY_GRACE = timedelta(hours=24)
+_STORAGE_RECOVERY_BATCH = 100
 
 # Content sniffing beyond the file extension - catches a trivial extension
 # spoof (e.g. an arbitrary file renamed to .xlsx). CSV has no reliable magic
@@ -50,6 +57,38 @@ _MAGIC_BYTES = {".pdf": b"%PDF-", ".xlsx": b"PK\x03\x04", ".xlsm": b"PK\x03\x04"
 _TEMPLATES_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "templates"
 )
+
+
+def _track_extraction_result_before_put(tenant_id: str, user_id: str, minio_client):
+    """Commit the result ledger entry before upload on a tenant-scoped connection.
+
+    Old pre-upload rows are forgotten only when MinIO confirms that the
+    specific object is absent. A missing bucket or transient error is
+    inconclusive and therefore leaves accounting intact.
+    """
+    def track(bucket: str, object_key: str, size_bytes: int) -> None:
+        ledger_conn = db.app_role_connection(tenant_id, user_id)
+        try:
+            cutoff = datetime.now(timezone.utc) - _STORAGE_RECOVERY_GRACE
+            storage_ledger.recover_stale(
+                ledger_conn,
+                tenant_id,
+                "upload_result",
+                cutoff,
+                lambda stale_bucket, stale_key: minio_persistence.object_exists(
+                    minio_client, stale_bucket, stale_key,
+                ),
+                limit=_STORAGE_RECOVERY_BATCH,
+            )
+            storage_ledger.record(ledger_conn, tenant_id, bucket, object_key, size_bytes, "upload_result")
+            ledger_conn.commit()
+        except Exception:
+            ledger_conn.rollback()
+            raise
+        finally:
+            ledger_conn.close()
+
+    return track
 
 
 def _publish_discovery_request(tenant_id: str) -> None:
@@ -93,6 +132,124 @@ def extraction_recent_imports(ctx: TenantContext = Depends(get_tenant_context)) 
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         return {"imports": job_management.list_recent_imports(conn, ctx.tenant_id)}
+    finally:
+        conn.close()
+
+
+class ImportReviewRequest(BaseModel):
+    revision_id: UUID
+    decision: str
+    idempotency_key: str = Field(min_length=1, max_length=180)
+    reason_code: str = Field(min_length=1, max_length=100)
+    row_id: Optional[UUID] = None
+
+
+@router.get("/import-drafts")
+def extraction_import_drafts(limit: int = 50, offset: int = 0, category: Optional[str] = None,
+                             state: Optional[str] = None, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Paginated tenant draft index; the legacy GET /imports response is unchanged."""
+    if category is not None and category not in {"sales", "invoice", "inventory"}:
+        raise HTTPException(status_code=422, detail="Unknown import category.")
+    if state is not None and state not in {"draft", "review_required", "approved", "rejected"}:
+        raise HTTPException(status_code=422, detail="Unknown import review state.")
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        items = typed_imports.list_import_drafts(conn, limit=limit, offset=offset, category=category, state=state)
+        return {"items": items, "limit": limit, "offset": offset}
+    except typed_imports.TypedImportError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    finally:
+        conn.close()
+
+
+@router.get("/import-drafts/{batch_id}")
+def extraction_import_draft_detail(batch_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Preview current typed rows, validation findings, review history, and posting status."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = typed_imports.get_import_draft(conn, str(batch_id))
+        if result is None:
+            raise HTTPException(status_code=404, detail="Import draft not found.")
+        return result
+    finally:
+        conn.close()
+
+
+@router.get("/import-drafts/{batch_id}/revisions")
+def extraction_import_revisions(batch_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if typed_imports.get_import_draft(conn, str(batch_id)) is None:
+            raise HTTPException(status_code=404, detail="Import draft not found.")
+        return {"revisions": typed_imports.get_import_revisions(conn, str(batch_id))}
+    finally:
+        conn.close()
+
+
+@router.get("/import-drafts/{batch_id}/revisions/{revision_id}")
+def extraction_import_revision_detail(batch_id: UUID, revision_id: UUID,
+                                      ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = typed_imports.get_import_draft(conn, str(batch_id), revision_id=str(revision_id))
+        if result is None:
+            raise HTTPException(status_code=404, detail="Import draft revision not found.")
+        return result
+    finally:
+        conn.close()
+
+
+@router.get("/import-drafts/{batch_id}/reviews")
+def extraction_import_reviews(batch_id: UUID, revision_id: Optional[UUID] = None,
+                              ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if typed_imports.get_import_draft(conn, str(batch_id)) is None:
+            raise HTTPException(status_code=404, detail="Import draft not found.")
+        return {"reviews": typed_imports.get_import_review_history(conn, str(batch_id), str(revision_id) if revision_id else None)}
+    finally:
+        conn.close()
+
+
+@router.post("/import-drafts/{batch_id}/reviews")
+def extraction_import_review(batch_id: UUID, body: ImportReviewRequest,
+                             ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Record an owner/admin review. This operation never posts canonical records."""
+    if body.decision not in {"approve", "reject"}:
+        raise HTTPException(status_code=422, detail="Decision must be approve or reject.")
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        current = typed_imports.get_import_draft(conn, str(batch_id))
+        if current is None:
+            raise HTTPException(status_code=404, detail="Import draft not found.")
+        if current["current_revision_id"] != str(body.revision_id):
+            raise HTTPException(status_code=409, detail="Review targets a stale draft revision.")
+        result = typed_imports.decide_import_review(
+            conn, batch_id=str(batch_id), revision_id=str(body.revision_id), row_id=str(body.row_id) if body.row_id else None,
+            decision=body.decision, idempotency_key=body.idempotency_key, reason_code=body.reason_code,
+        )
+        conn.commit()
+        return {**result, "review_status": "recorded", "canonical_write_performed": False,
+                "posting_status": current["posting_status"]}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except typed_imports.TypedImportError as exc:
+        conn.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except Exception as exc:
+        conn.rollback()
+        code = getattr(exc, "pgcode", None)
+        if code == "42501":
+            raise HTTPException(status_code=403, detail="An owner or admin role is required to review imports.") from None
+        if code == "22023":
+            raise HTTPException(status_code=422, detail="Review request is invalid.") from None
+        if code in {"23505", "55000", "23514"}:
+            raise HTTPException(status_code=409, detail="The review conflicts with the current draft state.") from None
+        if code == "23503":
+            raise HTTPException(status_code=404, detail="Import draft row not found.") from None
+        logger.exception("extraction import review failed (tenant=%s batch=%s)", ctx.tenant_id, batch_id)
+        raise HTTPException(status_code=500, detail="Import review could not be recorded.") from None
     finally:
         conn.close()
 
@@ -181,6 +338,12 @@ def _register_pdf_as_rag_document(
     """
     object_key = f"uploads/{job_id}{os.path.splitext(file_name)[1] or '.pdf'}"
     try:
+        # The deterministic key lets an interrupted attempt be retried. Commit
+        # its tenant-scoped byte record first so a crash around PUT cannot
+        # leave a successfully stored PDF outside the storage quota.
+        storage_ledger.record(conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key, len(contents),
+                              "rag_document_upload")
+        conn.commit()
         # Found in first-customer acceptance testing: nothing ever created
         # this bucket, so on a fresh MinIO every PDF failed here (NoSuchBucket)
         # and never reached the assistant. Same create-on-first-use pattern
@@ -201,12 +364,48 @@ def _register_pdf_as_rag_document(
                 """,
                 (tenant_id, file_name, object_key, len(contents), user_id),
             )
+            # A previous interrupted cleanup may have retained this same
+            # object in the generic storage ledger. RAG metadata is now the
+            # canonical byte counter for it, so do not count it twice.
+        storage_ledger.forget(conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key)
         conn.commit()
     except Exception:
         logger.exception(
             "extraction upload: could not register PDF as a RAG document (tenant=%s job=%s)", tenant_id, job_id
         )
         conn.rollback()
+        try:
+            already_registered = None
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT 1 FROM rag_documents_metadata WHERE tenant_id = %s AND storage_bucket_path = %s;",
+                        (tenant_id, object_key),
+                    )
+                    already_registered = cursor.fetchone() is not None
+            except Exception:
+                # A failed COMMIT can be ambiguous. Count conservatively
+                # unless the database proves that the metadata row exists.
+                logger.exception("Could not inspect failed RAG registration (tenant=%s job=%s)", tenant_id, job_id)
+                conn.rollback()
+            if already_registered is True:
+                storage_ledger.forget(conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key)
+            elif already_registered is False:
+                removed = storage_ledger.compensate_upload(
+                    conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key, len(contents),
+                    "rag_document_upload",
+                    lambda: minio_client.remove_object(rag_pipeline.DEFAULT_BUCKET, object_key),
+                )
+                if not removed:
+                    logger.error("Retained storage accounting for failed RAG upload cleanup (tenant=%s job=%s)",
+                                 tenant_id, job_id)
+            else:
+                storage_ledger.record(conn, tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key, len(contents),
+                                      "rag_document_upload")
+            conn.commit()
+        except Exception:
+            logger.exception("Could not reconcile failed RAG object upload (tenant=%s job=%s)", tenant_id, job_id)
+            conn.rollback()
         return None
 
     try:
@@ -230,6 +429,7 @@ def _register_pdf_as_rag_document(
 def _summary_response(
     job_id: str, summary, promotion_summary: Optional[promotion.PromotionSummary] = None,
     currency_resolution: Optional[dict] = None, rag_document_status: Optional[str] = None,
+    import_draft: Optional[dict] = None,
 ) -> dict:
     response = {
         "job_id": job_id,
@@ -265,7 +465,27 @@ def _summary_response(
         # set - surfaced here so a real caller can prompt the user to
         # confirm/correct companies.primary_currency, per spec.
         response["currency_resolution"] = currency_resolution
+    if import_draft is not None:
+        response["import_draft"] = {
+            **import_draft,
+            "review_only": True,
+            "canonical_write_performed_by_review": False,
+        }
     return response
+
+
+def _ingestion_job_completion(summary, promotion_summary) -> tuple[str, str | None]:
+    """Return an existing truthful terminal state for row-level outcomes."""
+    has_unresolved_rows = bool(
+        summary.rows_partial or summary.rows_failed or promotion_summary.rows_skipped_incomplete
+        or promotion_summary.rows_failed
+    )
+    if has_unresolved_rows:
+        # ingestion_jobs.job_status intentionally has no PARTIAL value.
+        # Preserve the repository's established truthful representation:
+        # FAILED with row-level counts and staging findings retained.
+        return "FAILED", "Some rows were not promoted and need correction or review."
+    return "COMPLETED", None
 
 
 @router.post("/upload")
@@ -366,6 +586,7 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     job_id = None
     kb_reservation = None
+    import_draft = None
     try:
         # Document processing allowance (plan catalog: KB per billing period,
         # ceil(bytes / 1024)); committed with the job, given back on failure.
@@ -383,6 +604,15 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
             tenant_id=ctx.tenant_id, job_id=job_id, source_name=file.filename or f"upload{ext}",
             headers=headers, rows=rows, conn=conn, redis_client=None, minio_client=minio_client,
             commit_every=_EXTRACTION_COMMIT_EVERY,
+            storage_preupload_callback=_track_extraction_result_before_put(ctx.tenant_id, ctx.user_id, minio_client)
+            if minio_client is not None else None,
+        )
+
+        # Persist the validated typed view alongside the existing raw staging
+        # rows. This is review evidence only; the established sales promotion
+        # path below remains the sole canonical-write authority.
+        import_draft = typed_imports.record_sales_extraction_draft(
+            conn, tenant_id=ctx.tenant_id, actor_id=ctx.user_id, job_id=job_id, summary=summary,
         )
 
         currency_resolution = geo_currency.resolve_company_currency(conn, ctx.tenant_id)
@@ -392,7 +622,10 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
             default_currency=currency_resolution["currency"],
         )
 
-        job_management.finalize_ingestion_job(conn, ctx.tenant_id, job_id, "COMPLETED")
+        final_status, final_error = _ingestion_job_completion(summary, promotion_summary)
+        job_management.finalize_ingestion_job(
+            conn, ctx.tenant_id, job_id, final_status, error=final_error,
+        )
         conn.commit()
 
         rag_document_status = None
@@ -432,7 +665,8 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     if getattr(promotion_summary, "rows_promoted", 0):
         _refresh_forecasts(ctx)
 
-    return _summary_response(job_id, summary, promotion_summary, currency_resolution, rag_document_status)
+    return _summary_response(job_id, summary, promotion_summary, currency_resolution, rag_document_status,
+                             import_draft=import_draft)
 
 
 def _refresh_forecasts(ctx: TenantContext) -> None:

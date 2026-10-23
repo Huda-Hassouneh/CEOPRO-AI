@@ -13,7 +13,8 @@ a live-DB integration test.
 """
 from unittest.mock import MagicMock, patch
 
-from src.ai.extraction.ingestion_pipeline import process_records
+from src.ai.core import storage_ledger
+from src.ai.extraction.ingestion_pipeline import _record_stored_result, process_records
 
 _TEMPLATE_HEADERS = ["product_name", "quantity", "unit_price", "currency", "transaction_date"]
 
@@ -38,6 +39,36 @@ def test_template_compliant_headers_are_detected_and_processed():
     assert summary.row_outcomes[0].field_errors == {}
     assert summary.is_template_compliant is True
     assert summary.data_loss_pct == 0.0
+
+
+def test_stored_result_is_removed_when_ledger_write_fails(monkeypatch):
+    conn = MagicMock()
+    cursor = MagicMock()
+    conn.cursor.return_value.__enter__.return_value = cursor
+    client = MagicMock()
+
+    monkeypatch.setattr(storage_ledger, "record", MagicMock(side_effect=RuntimeError("database write failed")))
+
+    removed = _record_stored_result(conn, client, "tenant-a", "tenant-a/job/result.json", {"rows": []})
+
+    assert removed is True
+    client.remove_object.assert_called_once()
+    assert any("ROLLBACK TO SAVEPOINT storage_ledger" in str(call) for call in cursor.execute.call_args_list)
+
+
+def test_stored_result_remains_counted_when_object_cleanup_fails(monkeypatch):
+    conn = MagicMock()
+    cursor = MagicMock()
+    conn.cursor.return_value.__enter__.return_value = cursor
+    client = MagicMock()
+    client.remove_object.side_effect = OSError("object storage unavailable")
+    record = MagicMock(side_effect=[RuntimeError("first database write failed"), None])
+    monkeypatch.setattr(storage_ledger, "record", record)
+
+    removed = _record_stored_result(conn, client, "tenant-a", "tenant-a/job/result.json", {"rows": []})
+
+    assert removed is False
+    assert record.call_count == 2
 
 
 def test_recognized_mode_synonym_headers_are_not_template_compliant():
@@ -168,6 +199,24 @@ def test_minio_upload_called_when_client_provided_and_rows_processed():
             minio_client=fake_minio,
         )
     mock_upload.assert_called_once()
+    assert summary.minio_object_key == "tenant/job/key.json"
+
+
+def test_minio_upload_receives_the_preupload_tracking_callback():
+    rows = [_template_row()]
+    fake_minio = MagicMock()
+    tracker = MagicMock()
+    with patch(
+        "src.ai.extraction.ingestion_pipeline.upload_extraction_document", return_value="tenant/job/key.json"
+    ) as mock_upload:
+        summary = process_records(
+            tenant_id="tenant-a", job_id="job-1", source_name="f.csv", headers=_TEMPLATE_HEADERS, rows=rows,
+            minio_client=fake_minio, storage_preupload_callback=tracker,
+        )
+
+    kwargs = mock_upload.call_args.kwargs
+    assert kwargs["on_pre_upload"] is tracker
+    assert kwargs["object_key"].startswith("tenant-a/job-1/")
     assert summary.minio_object_key == "tenant/job/key.json"
 
 

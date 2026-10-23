@@ -1,0 +1,12 @@
+{
+  "check": "frontend",
+  "command": [
+    "npm",
+    "test"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/frontend",
+  "exit_code": 0,
+  "seconds": 4.678,
+  "native_services": "NOT RUN",
+  "profile": "production metering defaults; no inherited service credentials; scratch TCP fence; explicit test doubles"
+}

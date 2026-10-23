@@ -12,6 +12,12 @@ stripe = pytest.importorskip("stripe")
 from src.ai.billing import store, stripe_api, webhooks  # noqa: E402
 
 
+def test_stripe_isk_and_ugx_compatibility_amounts_are_two_decimal():
+    assert store._minor_to_major(500, "isk") == 5.0
+    assert store._minor_to_major(500, "UGX") == 5.0
+    assert store._minor_to_major(500, "jpy") == 500.0
+
+
 def _subscription():
     return stripe.Subscription.construct_from({
         "id": "sub_123", "object": "subscription", "status": "active", "customer": "cus_123",

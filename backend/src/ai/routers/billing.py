@@ -11,13 +11,14 @@ catalog and usage still work and every payment action answers 503
 import logging
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.ai import db
-from src.ai.billing import config, credits, service, store, stripe_api, webhooks
-from src.ai.core import usage
+from src.ai.billing import config, credits, custom_offers, promotions, service, store, stripe_api, webhooks
+from src.ai.core import feature_rights, usage
 from src.ai.core.security import TenantContext, get_tenant_context
 
 logger = logging.getLogger("APEX_BILLING")
@@ -50,6 +51,29 @@ class PlanChoice(BaseModel):
     period_code: PeriodCode = "monthly"
 
 
+class CheckoutChoice(PlanChoice):
+    promotion_code: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class PromotionValidation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=100)
+    plan_key: str = Field(min_length=1, max_length=50)
+    period_code: PeriodCode = "monthly"
+
+
+class CustomOfferConfiguration(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    limits: dict[str, object] = Field(default_factory=dict)
+    refresh_frequency: Literal["hourly", "daily", "weekly"] | None = None
+
+
+class CustomQuoteTransition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    expected_revision: int = Field(ge=1)
+    idempotency_key: str = Field(min_length=1, max_length=200)
+
+
 def _scaled(value, factor):
     if value is None:
         return None
@@ -58,6 +82,35 @@ def _scaled(value, factor):
 
 def _iso(value):
     return value.isoformat() if isinstance(value, datetime) else (value.isoformat() if value else None)
+
+
+def _effective_rights_response(plan: dict) -> dict:
+    """Serialize version 1 of the read-only configured-rights API contract.
+
+    ``state`` is the Python plan configuration state, not an authorization
+    result; callers must also honor the existing top-level ``hasAccess``.
+    Exact established Python codes only are exposed. Limits remain in their
+    native Python units; ``None`` means unlimited only when state is
+    ``unlimited``, while absent rows carry state ``absent``.
+    """
+    projection = feature_rights.project_effective_rights(plan)
+    items = [
+        {
+            "featureCode": right["feature_code"],
+            "state": right["configured_state"],
+            "unit": right["unit"],
+            "aggregationType": right["aggregation_type"],
+            "resetCycle": right["reset_cycle"],
+            "limit": right["limit"],
+        }
+        for right in projection["rights"]
+        if right["mapping_status"] == "established_python_code"
+    ]
+    return {
+        "version": 1,
+        "basis": "configured_plan",
+        "items": items,
+    }
 
 
 def _role(conn, tenant_id: str, user_id: str) -> str:
@@ -84,6 +137,46 @@ def _provider_failure(err: Exception) -> HTTPException:
     return HTTPException(status_code=502, detail={
         "reason": "provider_error", "message": "The payment provider didn't respond. Please try again in a moment.",
     })
+
+
+def _custom_offer_error(err: custom_offers.CustomOfferError) -> HTTPException:
+    return HTTPException(err.status, detail={"reason": err.code, "message": err.message})
+
+
+@router.get("/custom-offers/configurator")
+def custom_offer_configurator(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Read-only catalog of feature quantities the existing Python contract supports."""
+    del ctx  # Authentication is required; catalog metadata is not tenant-specific.
+    conn = db.system_connection()
+    try:
+        return {
+            "version": 1,
+            "mode": "configuration_metadata_only",
+            "features": custom_offers.feature_catalog(conn),
+            "refreshFrequencies": ["hourly", "daily", "weekly"],
+            "initialCheckoutCurrency": "USD",
+            "pricingAvailable": False,
+            "unlimitedQuantityOverridesSupported": False,
+        }
+    finally:
+        conn.close()
+
+
+@router.post("/custom-offers/configuration/validate")
+def validate_custom_offer_configuration(
+    body: CustomOfferConfiguration, ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """Check known feature units without saving or changing customer rights."""
+    del ctx
+    conn = db.system_connection()
+    try:
+        return custom_offers.validate_configuration(
+            conn, limits=body.limits, refresh_frequency=body.refresh_frequency,
+        )
+    except custom_offers.CustomOfferError as exc:
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
 
 
 @router.get("/plans")
@@ -157,6 +250,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         "usage": used,
         "features": features,
         "entitlements": plan.get("entitlements", []),
+        "effectiveRights": _effective_rights_response(plan),
         # Data and AI Credits, separately: limit, used, remaining, warning
         # threshold reached and reset date. Never provider prices or costs.
         "credits": budgets,
@@ -249,14 +343,27 @@ def _company(conn, tenant_id: str, user_id: str) -> tuple:
     return (company[0] if company else ""), (user[0] if user else "")
 
 
+@router.post("/promotions/validate")
+def validate_promotion(body: PromotionValidation, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        result = promotions.validate(conn, ctx.tenant_id, body.code, body.plan_key, body.period_code)
+        conn.commit()
+        return result
+    finally:
+        conn.close()
+
+
 @router.post("/checkout")
-def start_checkout(body: PlanChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def start_checkout(body: CheckoutChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     sys_conn = db.system_connection()
     try:
         _require_billing_role(conn, ctx)
         company_name, email = _company(conn, ctx.tenant_id, ctx.user_id)
-        return service.create_checkout(conn, sys_conn, ctx.tenant_id, email, company_name, body.plan_key, body.period_code)
+        return service.create_checkout(conn, sys_conn, ctx.tenant_id, email, company_name,
+                                       body.plan_key, body.period_code, body.promotion_code, ctx.user_id)
     except service.BillingError as err:
         raise _to_http(err)
     except HTTPException:
@@ -368,3 +475,72 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(defaul
     finally:
         sys_conn.close()
     return {"received": True, **result}
+
+@router.get("/custom-offers/quotes/{quote_id}")
+def get_custom_offer_quote(quote_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Read a quote only inside the authenticated tenant; private economics stay hidden."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        result = custom_offers.quote_detail(conn, str(quote_id), include_private=False)
+        if result is None or result["tenant_id"] != ctx.tenant_id:
+            raise HTTPException(status_code=404, detail="Quote not found.")
+        conn.commit()
+        return result
+    finally:
+        conn.close()
+
+
+@router.post("/custom-offers/quotes/{quote_id}/accept")
+def accept_custom_offer_quote(quote_id: UUID, body: CustomQuoteTransition,
+                              ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.transition(conn, "accept", tenant_id=ctx.tenant_id,
+                                          quote_id=str(quote_id), expected_revision=body.expected_revision,
+                                          idempotency_key=body.idempotency_key)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+
+@router.post("/custom-offers/quotes/{quote_id}/reject")
+def reject_custom_offer_quote(quote_id: UUID, body: CustomQuoteTransition,
+                              ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.transition(conn, "reject", tenant_id=ctx.tenant_id,
+                                          quote_id=str(quote_id), expected_revision=body.expected_revision,
+                                          idempotency_key=body.idempotency_key)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+
+
+@router.post("/custom-offers/quotes/{quote_id}/checkout-attempts")
+def prepare_custom_offer_checkout_attempt(quote_id: UUID, body: CustomQuoteTransition,
+                                         ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Persist an idempotent quote identity only; no Stripe or payment call is made."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        result = custom_offers.prepare_checkout_attempt(
+            conn, tenant_id=ctx.tenant_id, quote_id=str(quote_id),
+            idempotency_key=body.idempotency_key,
+        )
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()

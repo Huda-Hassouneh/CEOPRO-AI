@@ -40,13 +40,27 @@ def build_command_center(conn, tenant_id: str, window_days: int = 30) -> dict:
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT COUNT(DISTINCT i.invoice_id), COALESCE(SUM(ii.total_price), 0), COALESCE(SUM(ii.quantity), 0), MAX(i.currency)
-            FROM invoices i JOIN invoice_items ii ON ii.tenant_id = i.tenant_id AND ii.invoice_id = i.invoice_id
-            WHERE i.tenant_id = %s AND i.issue_date >= CURRENT_DATE::timestamptz;
+            SELECT COUNT(*), COALESCE(SUM(i.total_amount), 0),
+                   COALESCE((SELECT SUM(ii.quantity)
+                             FROM invoice_items ii
+                             JOIN invoices sale ON sale.tenant_id = ii.tenant_id
+                               AND sale.invoice_id = ii.invoice_id
+                             WHERE ii.tenant_id = %s AND sale.payment_status = 'PAID'
+                               AND sale.issue_date >= CURRENT_DATE::timestamptz), 0),
+                   MAX(i.currency)
+            FROM invoices i
+            WHERE i.tenant_id = %s AND i.payment_status = 'PAID'
+              AND i.issue_date >= CURRENT_DATE::timestamptz;
             """,
-            (tenant_id,),
+            (tenant_id, tenant_id),
         )
         orders_today, revenue_today, units_today, currency_today = cursor.fetchone()
+
+        # The setup screen describes a tenant that has never imported sales.
+        # A quiet reporting window must not send an established customer back
+        # to onboarding when older canonical sales still exist.
+        cursor.execute("SELECT EXISTS (SELECT 1 FROM invoices WHERE tenant_id = %s AND payment_status = 'PAID');", (tenant_id,))
+        has_sales = cursor.fetchone()[0]
 
         cursor.execute(
             """
@@ -59,7 +73,8 @@ def build_command_center(conn, tenant_id: str, window_days: int = 30) -> dict:
             FROM invoice_items ii
             JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
             JOIN products p ON p.tenant_id = ii.tenant_id AND p.product_id = ii.product_id AND p.deleted_at IS NULL
-            WHERE ii.tenant_id = %(tenant)s AND i.issue_date >= %(previous)s
+            WHERE ii.tenant_id = %(tenant)s AND i.payment_status = 'PAID'
+              AND i.issue_date >= %(previous)s
             GROUP BY ii.product_id, p.product_name;
             """,
             {"tenant": tenant_id, "recent": window_start(conn, window_days), "previous": window_start(conn, window_days, periods=2)},
@@ -166,7 +181,7 @@ def build_command_center(conn, tenant_id: str, window_days: int = 30) -> dict:
         "price_opportunities": price_opportunities[:6],
         "actions": actions,
         "market": discovered_competitors.market_summary(conn, tenant_id),
-        "has_sales": bool(metrics["revenue"]["amount"] or products),
+        "has_sales": bool(has_sales),
         "product_count": len(demand["products"]),
     }
 

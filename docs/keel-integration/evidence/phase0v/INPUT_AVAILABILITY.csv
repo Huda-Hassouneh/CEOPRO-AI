@@ -1,0 +1,9 @@
+required_input,accessible,actual_path,sha256,note
+main-repo.zip,YES,upload/main-repo.zip,873cc27c3d98a9a061a843d4a63948ac7db178555c4c8757fbee31c59b2285e7,Current supplied/previously updated bytes; source and document manifests checked.
+my-version.zip,YES,upload/my-version.zip,c8a3bf461a36e61cba9640d6c791545349db5a3abee09425056b21b02a407788,"Node input is named my-version.zip locally; exact c8a3bf… digest matches the frozen Node reference and Task 6 report, not a substituted snapshot."
+Task 6 final report.md,YES,upload/Task 6 final report.md,fbce3f8801ca6477569c7cd5c14cf36ebd257138ee63778c96d9bd839088648a,Current supplied/previously updated bytes; source and document manifests checked.
+KEEL_UNIFIED_PYTHON_INTEGRATION_WORK_MASTER_PROMPT.md,YES,upload/KEEL_UNIFIED_PYTHON_INTEGRATION_WORK_MASTER_PROMPT.md,2f2251aa34a4cfdc1744caf95e3fa17c97601d8a141ebeeb775b3c27adf49446,Current supplied/previously updated bytes; source and document manifests checked.
+KEEL_UNIFIED_FILE_CHANGE_LEDGER_TEMPLATE.md,YES,upload/KEEL_UNIFIED_FILE_CHANGE_LEDGER_TEMPLATE.md,d58bcc0ad394da60d0a18a6322c8efa0e685587c5751d764b56f210134325ffc,Current supplied/previously updated bytes; source and document manifests checked.
+KEEL_PHASE0R_OWNER_ARCHITECTURE_DECISION_REGISTER.md,YES,upload/KEEL_PHASE0R_OWNER_ARCHITECTURE_DECISION_REGISTER.md,7ffc98334396ae8cca8219f561c2d151b25cfca5c7c9f85fcb5675e9b24d91c8,Current supplied/previously updated bytes; source and document manifests checked.
+KEEL_PHASE0V_WORK_PROMPT_20261020.md,YES,upload/KEEL_PHASE0V_WORK_PROMPT_20261020.md,3fccbbcf47717084c6897503cb048068f1aa0ae823349da066f7def1d5057899,Current supplied/previously updated bytes; source and document manifests checked.
+KEEL_Phase0R_Architecture_Review.zip,YES,deliverables/KEEL_Phase0R_Architecture_Review.zip,dd3eb1213dac47d2f2accec5c5fe53256265e70f86376cb7c387e8fb5ab524c9,Current supplied/previously updated bytes; source and document manifests checked.

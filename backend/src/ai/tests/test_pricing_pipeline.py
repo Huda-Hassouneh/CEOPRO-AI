@@ -337,3 +337,20 @@ def test_money_minor_units():
     assert (minor_units("jod"), minor_units("KWD"), minor_units("USD"), minor_units("JPY"), minor_units(None)) == (3, 3, 2, 0, 2)
     assert round_money(1.1255, "JOD") == 1.126 or round_money(1.1255, "JOD") == 1.125  # binary float tie
     assert format_money(12.5, "JOD") == "12.500" and format_money(1500, "XOF") == "1500" and format_money(9.999, "EUR") == "10.00"
+
+@pytest.mark.parametrize("confidence", [float("nan"), float("inf"), -0.01, 1.01, None, True])
+def test_invalid_confidence_is_rejected_before_evidence_persistence(fake_conn, confidence):
+    from src.ai.pricing import recommendation
+
+    rec = recommendation.PriceRecommendation(
+        action="hold", current_price=20.0, raw_suggested_price=20.0,
+        market_min=20.0, market_max=20.0, market_avg=20.0, market_median=20.0,
+        matched_competitor_count=1, confidence_score=confidence, explanation="test",
+    )
+    with patch.object(pipeline.data_access, "load_own_product", return_value=_own_product(20.0)), \
+         patch.object(pipeline.data_access, "load_competitor_prices", return_value=[_competitor_price("p1", "c1", 20.0)]), \
+         patch.object(pipeline.recommendation, "build_recommendation", return_value=rec), \
+         patch.object(pipeline.evidence, "insert_evidence_record") as insert_evidence:
+        with pytest.raises(ValueError, match="confidence"):
+            pipeline.run_price_recommendation(fake_conn, "tenant-1", "product-1")
+    insert_evidence.assert_not_called()

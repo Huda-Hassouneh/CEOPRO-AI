@@ -296,4 +296,3 @@ The check is `advisor._flag_foreign_summary`, by script (`product_guide.question
 
 **Observability.** One log line per answer (`assistant_answer mode=... summary=model|extractive|fallback|none`,
 logger `KEEL_ADVISOR`) is the source for the post-deploy numbers (PENDING_ACTIONS #151).
-

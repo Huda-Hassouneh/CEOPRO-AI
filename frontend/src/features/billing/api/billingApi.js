@@ -70,6 +70,15 @@ const SUBSCRIPTION_STATUS = Object.freeze({
   paused: 'failed', expired: 'expired', cancelled: 'expired',
 });
 
+// A return from Stripe Checkout is only navigation evidence. Activation comes
+// from the authenticated subscription read, which is reconciled from Stripe's
+// signed webhook path.
+export function checkoutConfirmationState(subscription) {
+  if (!subscription?.hasSubscription) return 'pending';
+  if (['active', 'trial'].includes(subscription.status)) return 'confirmed';
+  return 'notConfirmed';
+}
+
 export function errorReason(error) {
   return error?.response?.data?.detail?.reason || null;
 }

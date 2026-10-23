@@ -1,0 +1,5 @@
+.keel-platform{max-width:1200px;margin:auto;padding:clamp(1rem,4vw,3rem);color:var(--text-primary,inherit)}
+.keel-platform header,.keel-platform nav,.platform-actions{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.keel-platform nav{justify-content:flex-start;margin-block:1rem}.keel-platform table{width:100%;border-collapse:collapse;margin-block:1rem}.keel-platform th,.keel-platform td{padding:.8rem;text-align:start;border-bottom:1px solid var(--border-color,#8884)}
+.keel-platform td button{margin:.25rem}.platform-editor{padding:1.5rem;border:1px solid var(--border-color,#8884);border-radius:1rem;display:grid;gap:1rem;margin-block:1.5rem}.keel-platform dl{display:grid;grid-template-columns:1fr auto;gap:1rem}.keel-platform dt,.keel-platform dd{margin:0}.keel-platform select{display:block;padding:.6rem;width:100%;color:inherit;background:var(--surface-color,transparent)}
+@media(max-width:650px){.keel-platform table{display:block;overflow:auto}.keel-platform td{min-width:9rem}}

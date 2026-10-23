@@ -104,6 +104,17 @@
       "saving": "جارٍ الحفظ...",
       "cancel": "إلغاء"
     },
+    "inventory": {
+      "title": "المخزون اليدوي المعتمد",
+      "sourceBoundary": "يحدّث هذا سجل المخزون الذي تديره يدوياً في KEEL. تبقى ملاحظات Shopify وWooCommerce منفصلة ولا تتغير هنا.",
+      "quantity": "كمية المخزون الحالية",
+      "reorder": "حد إعادة الطلب",
+      "safety": "مخزون الأمان",
+      "save": "حفظ المخزون",
+      "saved": "تم حفظ المخزون",
+      "stockInvalid": "أدخل قيماً غير سالبة للمخزون حتى ٤ منازل عشرية",
+      "saveError": "تعذر حفظ المخزون"
+    },
     "form": {
       "name": "اسم المنتج",
       "brand": "العلامة التجارية",
@@ -120,9 +131,11 @@
       "errors": {
         "nameRequired": "اسم المنتج مطلوب",
         "priceInvalid": "أدخل سعرًا صحيحًا وغير سالب",
+        "stockInvalid": "أدخل كمية مخزون غير سالبة حتى ٤ منازل عشرية",
         "currencyInvalid": "أدخل رمز عملة صحيحًا من 3 أحرف"
       },
       "notFound": "المنتج غير موجود",
+      "restricted": "يقتصر تعديل المنتجات والمخزون على مالك مساحة العمل ومديرها.",
       "back": "العودة إلى المنتجات",
       "editTitle": "تعديل المنتج",
       "createTitle": "إضافة منتج",
@@ -173,6 +186,7 @@
     "list": {
       "searchPlaceholder": "ابحث بالاسم أو العلامة التجارية",
       "getRecommendation": "احصل على توصية",
+      "history": "سجل التوصيات",
       "compare": "قارن السوق",
       "loadError": "تعذر تحميل المنتجات",
       "retry": "إعادة المحاولة",
@@ -180,6 +194,34 @@
       "emptyDescription": "أضف منتجاً للبدء بمقارنة سعره وتكلفته.",
       "noResultsTitle": "لا توجد منتجات مطابقة",
       "noResultsDescription": "جرّب كلمة بحث مختلفة."
+    },
+    "history": {
+      "title": "سجل التوصيات — {{name}}",
+      "note": "هذه توصيات محفوظة والأدلة التي استندت إليها. لا يعني ذلك أن سعر المنتج قد تغيّر.",
+      "errorTitle": "تعذّر تحميل السجل",
+      "errorDescription": "لم نتمكن من تحميل سجل التوصيات.",
+      "retry": "إعادة المحاولة",
+      "emptyTitle": "لا توجد توصيات محفوظة",
+      "emptyDescription": "ستظهر توصيات هذا المنتج هنا بعد إنشائها.",
+      "incomplete": "دليل التوصية",
+      "decision": "القرار",
+      "basis": "أساس الأدلة",
+      "pagination": "صفحات سجل التوصيات",
+      "previous": "السابق",
+      "next": "التالي",
+      "page": "الصفحة {{page}}",
+      "bases": {
+        "LOCAL_MARKET": "أدلة السوق المحلية",
+        "INTERNAL_ONLY": "بيانات العمل الداخلية",
+        "REGIONAL_ESTIMATE": "تقدير إقليمي",
+        "MARKET_REFERENCE": "مرجع سوقي"
+      },
+      "decisions": {
+        "PENDING": "لم تتم المراجعة",
+        "ACCEPTED": "قبله مستخدم",
+        "REJECTED": "رفضه مستخدم",
+        "unknown": "غير مسجل"
+      }
     },
     "table": {
       "product": "المنتج",
@@ -335,6 +377,31 @@
         "demand_falling": "يسمح السوق بسعر أعلى، لكن المبيعات انخفضت {{pct}}% عن الثلاثين يومًا السابقة ({{recent}} مقابل {{previous}} وحدة). رفع السعر الآن قد يخسرك مزيدًا من المبيعات."
       }
     }
+  },
+  "marketPerception": {
+    "title": "تصوّر العملاء عن السوق",
+    "description": "حلّل آراء العملاء المراجعة والمصنفة فقط لنشاطك أو منتجاتك أو المنافسين المتابعين.",
+    "scope": "نطاق التحليل",
+    "business": "النشاط بالكامل",
+    "product": "المنتج",
+    "competitor": "منافس متابع",
+    "chooseProduct": "المنتج",
+    "chooseCompetitor": "المنافس",
+    "searchProducts": "ابحث في منتجاتك",
+    "choose": "اختر عنصرًا",
+    "refresh": "تحليل المراجعات",
+    "loading": "جارٍ التحليل…",
+    "subjectLoadError": "تعذر تحميل العناصر المتاحة. أعد تحميل الصفحة وحاول مجددًا.",
+    "denied": "ذكاء السوق غير متاح ضمن خطة مساحة العمل.",
+    "subjectMissing": "لم يعد هذا العنصر متاحًا في مساحة العمل.",
+    "error": "تعذر إكمال التحليل. حاول مجددًا.",
+    "noReviews": "لا توجد مراجعات مؤهلة ومحللة حتى الآن.",
+    "insufficient": "تتوفر {{count}} مراجعة محللة فقط؛ يلزم {{minimum}} حاليًا قبل عرض المؤشر.",
+    "index": "مؤشر تصوّر السوق",
+    "reviewCount": "المراجعات المؤهلة المحللة: {{count}}",
+    "breakdown": "إيجابي: {{positive}} · محايد: {{neutral}} · سلبي: {{negative}}",
+    "lowSampleNotice": "تم إخفاء المؤشر الرقمي لأن العينة أقل من حد الموثوقية المحدد في الخادم.",
+    "evidenceNotice": "يعتمد على المراجعات المؤهلة والمحللة. هذا ملخص للأدلة وليس إجراءً ماليًا أو تشغيليًا."
   },
   "marketScoped": {
     "common": {
@@ -958,6 +1025,7 @@
       "backToLogin": "العودة إلى تسجيل الدخول"
     },
     "invitation": {
+      "credentialsHelp": "لإنشاء حساب جديد، أدخل اسمك الكامل وكلمة مرور جديدة. إذا كان لديك حساب، اترك الحقلين فارغين؛ لن تتغير كلمة مرورك.",
       "imageAlt": "دعوة للانضمام إلى الفريق",
       "title": "لقد تمت دعوتك!",
       "subtitle": "تلقيت دعوة للانضمام إلى",
@@ -1019,6 +1087,7 @@
     "errors": {
       "generic": "حدث خطأ. حاول مرة أخرى.",
       "network": "تعذر الاتصال. تحقق من اتصالك وحاول مرة أخرى.",
+      "sessionExpired": "????? ?????? ????? ?? ?? ??? ?????. ???? ????? ?????? ??? ????.",
       "serverUnavailable": "الخدمة غير متاحة مؤقتاً. يرجى المحاولة لاحقاً.",
       "tooManyAttempts": "عدد المحاولات كبير. يرجى الانتظار ثم المحاولة مجدداً.",
       "authenticationUnavailable": "واجهة المصادقة جاهزة للربط، لكن خدمة الخادم غير مفعلة بعد.",
@@ -1026,15 +1095,17 @@
       "invalidCode": "رمز التحقق غير صحيح.",
       "expiredCode": "انتهت صلاحية رمز التحقق هذا.",
       "resendFailed": "تعذر إعادة إرسال الرمز. يرجى المحاولة مجدداً.",
-      "emailInUse": "يوجد حساب مسجل بهذا البريد الإلكتروني.",
-      "invitationUnavailable": "تعذر تحميل هذه الدعوة. يرجى المحاولة مجدداً."
+      "emailInUse": "لهذا البريد حساب أو تسجيل معلق. سجّل الدخول أو استخدم علامة التحقق الأصلية أو ابدأ من جديد بعد انتهاء الطلب.",
+      "invitationUnavailable": "تعذر تحميل هذه الدعوة. يرجى المحاولة مجدداً.",
+      "deliveryUnavailable": "تعذر إرسال بريد التحقق. حاول إعادة إرسال الرمز؛ لم يتم إنشاء شركة بعد."
     },
     "success": {
       "codeResent": "تم إرسال رمز تحقق جديد.",
       "invitationAccepted": "تم قبول الدعوة.",
       "passwordReset": "تمت إعادة تعيين كلمة المرور. يمكنك تسجيل الدخول الآن.",
       "companyDeleted": "تم حذف الشركة وجميع بياناتها.",
-      "emailVerified": "تم تأكيد بريدك الإلكتروني. يمكنك تسجيل الدخول الآن."
+      "emailVerified": "تم تأكيد بريدك الإلكتروني. يمكنك تسجيل الدخول الآن.",
+      "logoutUnconfirmed": "تم تسجيل الخروج من هذا الجهاز، لكن تعذر تأكيده على الخادم. قد يبقى الرمز السابق صالحا حتى انتهاء مدته."
     },
     "workspaces": {
       "title": "اختر الشركة",
@@ -1366,20 +1437,38 @@
         "exhausted": "نفدت هذه الميزانية لهذه الفترة.",
         "exhaustedOptions": "يتوقف العمل الجديد الذي يحتاجها حتى {{date}}. يمكنك ترقية خطتك الآن أو التواصل معنا بشأن خطة مخصصة.",
         "notIncluded": "غير مشمولة",
+        "unavailable": "بيانات الأرصدة غير متاحة مؤقتًا.",
         "competitorNote": "لا يوجد عدد ثابت من المنافسين: يكتشف KEEL المنافسين في سوقك ومنطقتك ومصادرك ويتابعهم بقدر ما تسمح به أرصدة البيانات.",
         "topUpsUnavailable": "لا يمكن شراء أرصدة إضافية بعد.",
         "historyTitle": "الاستخدام الأخير",
         "historyEmpty": "لم يستهلك أي شيء أرصدة في هذه الفترة بعد.",
-        "historyColumns": { "when": "الوقت", "what": "العملية", "budget": "الميزانية", "credits": "الأرصدة", "status": "الحالة" },
+        "historyColumns": {
+          "when": "الوقت",
+          "what": "العملية",
+          "budget": "الميزانية",
+          "credits": "الأرصدة",
+          "status": "الحالة"
+        },
         "operations": {
-          "assistant_question": "سؤال للمساعد", "competitor_analysis": "تحليل منافس", "marketing_campaign": "محتوى تسويقي",
-          "marketing_image": "صورة تسويقية", "market_discovery": "اكتشاف المنافسين", "competitor_intel": "مواقع المنافسين",
-          "competitor_enrichment": "تفاصيل المنافسين", "product_discovery": "اكتشاف المنتجات", "price_lookup": "أسعار السوق",
-          "web_research": "بحث على الويب", "other": "أخرى"
+          "assistant_question": "سؤال للمساعد",
+          "competitor_analysis": "تحليل منافس",
+          "marketing_campaign": "محتوى تسويقي",
+          "marketing_image": "صورة تسويقية",
+          "market_discovery": "اكتشاف المنافسين",
+          "competitor_intel": "مواقع المنافسين",
+          "competitor_enrichment": "تفاصيل المنافسين",
+          "product_discovery": "اكتشاف المنتجات",
+          "price_lookup": "أسعار السوق",
+          "web_research": "بحث على الويب",
+          "other": "أخرى"
         },
         "statuses": {
-          "reserved": "قيد التنفيذ", "consumed": "تم", "released": "دون رسوم", "failed_charged": "فشلت (احتسبها المزوّد)",
-          "pending_reconciliation": "بانتظار التكلفة النهائية", "reconciled": "تم"
+          "reserved": "قيد التنفيذ",
+          "consumed": "تم",
+          "released": "دون رسوم",
+          "failed_charged": "فشلت (احتسبها المزوّد)",
+          "pending_reconciliation": "بانتظار التكلفة النهائية",
+          "reconciled": "تم"
         }
       },
       "startTrial": "ابدأ تجربة مجانية لمدة {{days}} يومًا",
@@ -1539,8 +1628,10 @@
       "trialCredits": "تشمل التجربة المجانية {{data}} من أرصدة البيانات و{{ai}} من أرصدة الذكاء الاصطناعي"
     },
     "checkout": {
-      "success": "تم استلام الدفعة. ستتحدث خطتك هنا خلال ثوانٍ.",
-      "cancelled": "تم إلغاء الدفع — لم يُخصم أي مبلغ."
+      "confirmed": "?? ????? ???????? ?????? ???? ???? ?? ???.",
+      "pending": "??? ?????? ?? ???? ?????. ????? ?? ????????? ?? ????? ?????? ??? ???? ???? ??????? ???.",
+      "notConfirmed": "??? ?????? ?? ???? ?????? ??? ???????? ??? ??? ???. ?? ????? ????? ??????. ???? ???? ??????? ?? ???? ??????.",
+      "cancelled": "?????? ????? ?????. ?? ?????? ??? ??????? ????????."
     },
     "errors": {
       "generic": "لم تنجح العملية. حاول مجددًا بعد قليل.",
@@ -1636,6 +1727,22 @@
       "subtitle": "المصادر المرتبطة حالياً بمساحة عمل شركتك.",
       "count": "{{count}} مصادر"
     },
+    "providerRecords": {
+      "open": "عرض السجلات المتزامنة", "close": "إغلاق السجلات", "title": "سجلات المصدر",
+      "notice": "هذه سجلات مسترجعة من المصدر للمراجعة. الموافقة لا ترحّل المنتجات أو الطلبات، ولا تنشئ فواتير أو تحدّث المخزون.",
+      "refresh": "تحديث", "loading": "جارٍ تحميل سجلات المصدر…", "empty": "لم تُحفظ سجلات أعمال من المصدر بعد.",
+      "tableLabel": "سجلات أعمال المصدر", "type": "نوع السجل", "providerId": "مرجع المزوّد", "values": "القيم المحفوظة",
+      "validation": "التحقق", "review": "قرار المراجعة", "actions": "الإجراءات", "history": "السجل", "loadingHistory": "جارٍ تحميل سجل الإصدارات…",
+      "approve": "موافقة للمراجعة", "reject": "رفض المراجعة", "confirmApprove": "هل تسجل موافقتك على هذا السجل؟ لن يتم ترحيله إلى البيانات الأساسية.",
+      "confirmReject": "هل تسجل رفضك لهذا السجل؟", "notPosted": "الحالة الأساسية: غير مرحّل. تبقى سجلات المصدر منفصلة ومحفوظة كأدلة.",
+      "revision": "الإصدار {{number}}", "previous": "السابق", "next": "التالي", "page": "الصفحة {{page}}",
+      "loadFailed": "تعذر تحميل سجلات المصدر. حاول مجدداً.", "reviewFailed": "تعذر حفظ المراجعة. حاول مجدداً.",
+      "sessionExpired": "انتهت جلستك. سجّل الدخول مجدداً.", "forbidden": "لا تسمح صلاحيتك بمراجعة سجلات المصدر.",
+      "notFound": "سجل المصدر غير متاح في مساحة عملك.", "conflict": "هذا الإصدار قديم أو تمت مراجعته. حدّث القائمة.",
+      "entities": { "product": "منتج", "variant": "صنف", "order": "طلب", "order_line_item": "عنصر الطلب" },
+      "states": { "valid": "تم التحقق", "invalid": "غير صالح", "review_required": "يحتاج مراجعة", "notReviewed": "غير مراجع" },
+      "decisions": { "approve": "موافق عليه للمراجعة فقط", "reject": "مرفوض" }
+    },
     "upload": {
       "title": "رفع الملفات",
       "subtitle": "أضف إصداراً جديداً أو استورد بيانات أعمال إضافية.",
@@ -1652,6 +1759,115 @@
       "status": "الحالة",
       "emptyTitle": "لا يوجد نشاط بيانات حديث",
       "emptyDescription": "ستظهر عمليات الاستيراد وتحديثات الاتصال هنا."
+    },
+    "drafts": {
+      "title": "مراجعة الاستيراد",
+      "subtitle": "تحقق من السجلات المستوردة ونتائج التحقق قبل اتخاذ قرارك.",
+      "reviewIsNotPosting": "تسجل الموافقة قرار المراجعة فقط؛ ولا تعني بالضرورة ترحيل البيانات إلى KEEL.",
+      "reviewIsNotPostingTitle": "المراجعة لا تعني الترحيل",
+      "invoiceBoundary": "الموافقة على مسودة فاتورة لا تنشئ فاتورة أساسية ولا تسددها.",
+      "inventoryBoundary": "الموافقة على مسودة مخزون لا تغيّر كميات المخزون.",
+      "salesBoundary": "تمت معالجة صفوف المبيعات المرحّلة بالفعل عبر مسار الاستيراد المعتمد. المراجعة لا تعيد ترحيلها.",
+      "refresh": "تحديث",
+      "filterLabel": "نوع الاستيراد",
+      "allCategories": "كل الأنواع",
+      "categories": { "sales": "مبيعات", "invoice": "فواتير", "inventory": "مخزون" },
+      "date": "تاريخ الإنشاء",
+      "source": "المصدر",
+      "category": "النوع",
+      "validation": "التحقق",
+      "reviewLabel": "المراجعة",
+      "posting": "الترحيل إلى البيانات الأساسية",
+      "actions": "الإجراءات",
+      "invalidCount": "غير صالح",
+      "ambiguousCount": "بحاجة إلى مراجعة",
+      "open": "معاينة",
+      "closePreview": "إغلاق المعاينة",
+      "previewTitle": "معاينة الاستيراد",
+      "previewSubtitle": "راجع القيم والنتائج والقرارات وحالة الترحيل لهذه المسودة.",
+      "listLabel": "مسودات الاستيراد",
+      "paginationLabel": "صفحات مسودات الاستيراد",
+      "page": "الصفحة {{page}}",
+      "previous": "السابق",
+      "next": "التالي",
+      "emptyTitle": "لا توجد مسودات استيراد بعد",
+      "emptyDescription": "ستظهر سجلات المبيعات والفواتير والمخزون المستوردة هنا للمراجعة.",
+      "unknownSource": "رفع ملف",
+      "notAvailable": "غير متاح",
+      "ingestion": "حالة الاستيراد",
+      "revision": "الإصدار",
+      "revisionHistory": "إصدار المسودة",
+      "revisionOption": "الإصدار {{number}} · {{date}}",
+      "superseded": "إصدار أقدم",
+      "staleRevision": "هذا الإصدار للقراءة فقط. راجع أحدث إصدار لتسجيل قرار.",
+      "rowsLabel": "الصفوف المستوردة",
+      "row": "الصف",
+      "record": "القيم المستوردة",
+      "validationFindings": "التحقق ومطابقة الهوية",
+      "needsAssociationReview": "تحتاج مطابقة المنتج أو الموقع إلى مراجعة.",
+      "noRows": "لا يحتوي هذا الإصدار على صفوف.",
+      "rowsPage": "الصفوف {{from}}–{{to}} من {{count}}",
+      "reviewHistory": "سجل المراجعة",
+      "noReviewHistory": "لم يتم تسجيل أي قرارات مراجعة.",
+      "approveRow": "موافقة على الصف",
+      "rejectRow": "رفض الصف",
+      "approveBatch": "موافقة على المسودة",
+      "rejectBatch": "رفض المسودة",
+      "review": { "pending": "لم تتم المراجعة", "approved": "تمت الموافقة", "rejected": "مرفوض" },
+      "states": {
+        "draft": "مسودة",
+        "review_required": "بحاجة إلى مراجعة",
+        "approved": "تمت المراجعة · موافق عليها",
+        "rejected": "تمت المراجعة · مرفوضة",
+        "committed": "تم الترحيل",
+        "partially_committed": "تم ترحيل جزء منها",
+        "not_committed": "لم يتم الترحيل",
+        "invalid": "غير صالح",
+        "failed": "فشل الاستيراد",
+        "completed": "اكتمل الاستيراد"
+      },
+      "fields": {
+        "product_name": "المنتج", "product_id": "مرجع المنتج الأساسي", "provider_product_id": "مرجع منتج المصدر",
+        "quantity": "الكمية", "quantity_semantics": "نوع الكمية", "unit": "الوحدة",
+        "unit_price": "سعر الوحدة", "line_total": "إجمالي السطر", "amount_raw": "المبلغ",
+        "currency": "العملة", "transaction_date": "تاريخ البيع", "invoice_date": "تاريخ الفاتورة",
+        "invoice_id": "مرجع الفاتورة", "order_id": "مرجع الطلب", "barcode": "الباركود",
+        "location_id": "مرجع الموقع الأساسي", "provider_location_id": "مرجع موقع المصدر", "observed_at": "وقت الرصد"
+      },
+      "references": { "present": "المرجع موجود (تم إخفاء المعرّف)" },
+      "findings": {
+        "required": "هذه القيمة مطلوبة.",
+        "must_be_positive_number": "أدخل رقماً أكبر من صفر.",
+        "must_be_nonnegative_number": "أدخل صفراً أو مبلغاً موجباً.",
+        "invalid_currency_code": "رمز العملة غير صالح.",
+        "invalid_date": "التاريخ غير صالح.",
+        "invalid_timestamp": "الطابع الزمني غير صالح.",
+        "unsupported_semantics": "نوع الكمية غير مدعوم.",
+        "provider_identity_requires_review": "تحتاج هوية منتج المصدر إلى مراجعة.",
+        "product_identity_requires_review": "تحتاج هوية المنتج إلى مراجعة.",
+        "provider_location_requires_review": "تحتاج هوية موقع المصدر إلى مراجعة.",
+        "existing_validator_rejected": "رفض مدقق الاستيراد هذه القيمة.",
+        "existing_extractor_rejected": "تعذر استخراج هذا الصف."
+      },
+      "errors": {
+        "unauthorized": "انتهت جلستك. سجّل الدخول للمتابعة.",
+        "forbidden": "ليس لديك صلاحية مراجعة هذا الاستيراد.",
+        "notFound": "هذا الاستيراد غير متاح في مساحة عملك.",
+        "conflict": "تغيرت المسودة أثناء مراجعتها. أعد تحميل أحدث إصدار.",
+        "invalid": "تعذر حفظ المراجعة. تحقق من الصف وحاول مرة أخرى.",
+        "generic": "تعذر تحميل تفاصيل الاستيراد. حاول مرة أخرى."
+      },
+      "retry": "إعادة المحاولة",
+      "reloadCurrent": "تحميل أحدث إصدار",
+      "reasonLabel": "سبب هذا القرار",
+      "cancel": "إلغاء",
+      "confirmAction": "تأكيد القرار",
+      "submitting": "جارٍ حفظ القرار…",
+      "confirm": {
+        "approve": { "title": "هل توافق على هذه المراجعة؟", "body": "يسجل هذا أنك راجعت المسودة أو الصف المحدد. لن يرحّل فاتورة، أو يغير المخزون، أو يدمج المنتجات، أو ينفذ دفعة." },
+        "reject": { "title": "هل ترفض هذه المراجعة؟", "body": "يسجل هذا رفضك للمسودة أو الصف المحدد. ولا يلغي المبيعات التي رُحّلت بالفعل عبر مسار الاستيراد المعتمد." },
+        "notPosting": "يسجل هذا الإجراء قرار مراجعة فقط. لن يتم ترحيل بيانات أساسية أو تحديث المخزون."
+      }
     },
     "add": {
       "title": "إضافة مصدر بيانات",
@@ -1757,7 +1973,7 @@
         "PARTIAL": "مزامنة جزئية"
       }
     }
-  },
+  , "store": {"woocommerce": "WooCommerce", "shopify": "Shopify", "woocommerceIntro": "Connect with the WooCommerce store URL and REST keys you already use. KEEL verifies read access before saving the encrypted credentials.", "shopifyIntro": "Continue to Shopify to authorize read access. The connection is completed only when you return to this signed-in KEEL account.", "woocommerceTitle": "ربط WooCommerce", "shopifyTitle": "ربط Shopify", "options": {"woocommerce": {"title": "Connect WooCommerce", "description": "Use your store URL and read-only REST keys to verify and sync store records."}, "shopify": {"title": "Connect Shopify", "description": "Authorize KEEL to read products, orders, inventory and locations from your shop."}}, "url": "رابط المتجر أو نطاق myshopify.com", "consumerKey": "WooCommerce consumer key", "consumerSecret": "WooCommerce consumer secret", "frequency": "تكرار المزامنة", "consent": "أفوّض KEEL بقراءة بيانات متجري.", "woocommerceBoundary": "Use a public HTTPS store URL and read-only WooCommerce REST keys. KEEL does not write to the store.", "shopifyBoundary": "KEEL requests read-only product, order, inventory and location access. No products, orders or stock are changed.", "connect": "تحقق واتصل", "install": "المتابعة إلى Shopify", "connected": "Store connected. Its first read-only sync is queued.", "adminOnly": "يمكن لمالك المستأجر أو مديره فقط ربط متجر.", "conflict": "This store connection changed or needs review. Refresh the page or ask an owner to reconnect it.", "invalid": "Check the store URL, consent and WooCommerce REST keys.", "failed": "KEEL could not verify or save this store connection. Try again.", "finishFailed": "Shopify could not finish this connection. Start authorization again.", "sessionExpired": "Your session expired. Sign in and start the Shopify connection again.", "callbackFailed": "فشل تأكيد Shopify. ابدأ عملية الربط من جديد.", "includeTestOrders": "Include test orders (development stores only).", "capacityReached": "\u0648\u0635\u0644\u062a \u062e\u0637\u062a\u0643 \u0625\u0644\u0649 \u0627\u0644\u062d\u062f \u0627\u0644\u0623\u0642\u0635\u0649 \u0644\u0644\u0645\u062a\u0627\u062c\u0631 \u0627\u0644\u0645\u062a\u0635\u0644\u0629.", "reconnect": "\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0627\u062a\u0635\u0627\u0644", "verifiedAt": "\u062a\u0645 \u0627\u0644\u062a\u062d\u0642\u0642 \u0641\u064a {date}", "status": {"verified": "\u062a\u0645 \u0627\u0644\u062a\u062d\u0642\u0642", "verification_required": "\u0623\u0639\u062f \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0644\u0644\u062a\u062d\u0642\u0642", "disabled": "\u063a\u064a\u0631 \u0645\u062a\u0635\u0644", "active": "\u064a\u062a\u0637\u0644\u0628 \u0627\u0644\u062a\u062d\u0642\u0642", "QUEUED": "\u0641\u064a \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0627\u0646\u062a\u0638\u0627\u0631"}}},
   "demand": {
     "tabs": {
       "label": "أقسام توقع الطلب",
@@ -2019,6 +2235,7 @@
       "title": "قاعدة المعرفة",
       "subtitle": "إدارة المستندات التي يستخدمها المساعد.",
       "upload": "رفع مستند",
+      "supported": "الصيغ المدعومة: TXT وMarkdown وPDF وDOCX وXLSX (بحد أقصى 10 ميغابايت). تُفهرس هذه الملفات لأسئلة المساعد فقط ولا تنشئ سجلات أعمال.",
       "search": "البحث في المستندات...",
       "type": "نوع المستند",
       "allTypes": "جميع الأنواع",
@@ -2037,7 +2254,7 @@
       "errorDescription": "تعذر تحميل مستندات الشركة.",
       "showing": "عرض {{start}}–{{end}} من {{total}} مستندات",
       "status": {
-        "ready": "جاهز",
+        "ready": "جاهز للأسئلة",
         "processing": "قيد المعالجة",
         "failed": "فشل"
       },
@@ -2046,7 +2263,7 @@
     },
     "upload": {
       "title": "رفع مستندات للمساعد",
-      "description": "تصبح مستندات PDF قابلة للبحث من قبل المساعد. ويتم استيراد ملفات CSV وExcel كبيانات مبيعات يستخدمها المساعد أيضاً.",
+      "description": "ارفع ملفات TXT أو Markdown أو PDF أو DOCX أو XLSX للبحث في المساعد. تبقى ملفات قاعدة المعرفة منفصلة عن استيراد بيانات الأعمال.",
       "uploading": "جارٍ الرفع..."
     },
     "actions": {
@@ -2077,7 +2294,7 @@
       "planLimit": "استخدمت جميع أسئلة المساعد المتاحة في باقتك لفترة الفوترة الحالية. تتجدد بعد {{date}} — أو يمكنك ترقية باقتك من صفحة الفوترة.",
       "busy": "المساعد يجيب على أسئلة كثيرة الآن. يرجى إعادة السؤال بعد حوالي {{seconds}} ثانية.",
       "uploadFailed": "فشل رفع المستند. يرجى المحاولة مرة أخرى.",
-      "uploadSummary": "تمت إضافة {{added}} مستند إلى المساعد · تم استيراد {{data}} جدول كبيانات أعمال · تعذرت معالجة {{failed}}"
+      "uploadSummary": "{{added}} جاهزة للأسئلة · {{processing}} قيد المعالجة · {{failed}} تحتاج إلى مراجعة"
     },
     "claims": {
       "kindCalculation": "حساب",
@@ -2324,6 +2541,7 @@
     },
     "actions": {
       "refresh": "تحديث التوقعات",
+      "generateSelected": "إنشاء توقع المنتج",
       "retry": "حاول مرة أخرى",
       "addProduct": "إضافة منتج",
       "importSales": "استيراد المبيعات",
@@ -2342,7 +2560,23 @@
     "refresh": {
       "running": "جارٍ تحديث التوقعات بأحدث مبيعاتك — اكتمل {{done}} من {{total}} منتج.",
       "failed": "تعذّر تحديث التوقعات الآن. الأرقام أدناه من آخر تحديث ناجح.",
+      "generating": "جارٍ إنشاء التوقع من سجل مبيعات هذا المنتج",
+      "noHistory": "لا يوجد سجل مبيعات مؤهل لهذا المنتج بعد. لم يتم إنشاء توقع.",
+      "blocked": "تغيّر الوصول إلى توقعات الطلب. لم يتم حفظ توقع جديد.",
       "label": "تقدّم تحديث التوقعات"
+    },
+    "history": {
+      "eyebrow": "التوقعات المحفوظة",
+      "title": "سجل التوقعات",
+      "subtitle": "توقعات سابقة محفوظة لهذا المنتج. التوقع تقدير وليس نتيجة مضمونة.",
+      "generated": "تاريخ الإنشاء",
+      "target": "التوقع حتى",
+      "range": "نطاق عدم اليقين",
+      "confidence": "الثقة",
+      "empty": "لا توجد توقعات محفوظة بعد",
+      "emptyDescription": "سيظهر التوقع هنا بعد معالجة سجل المبيعات المؤهل.",
+      "error": "تعذر تحميل سجل التوقعات. بقيت النتائج المحفوظة كما هي.",
+      "buildingData": "السجل قيد التكوين ({{days}} من {{minimum}} يومًا)؛ هذا الأساس أولي."
     },
     "stats": {
       "forecast": "الطلب المتوقع · 30 يومًا القادمة",
@@ -3198,6 +3432,16 @@
     "title": "التنبيهات",
     "count": "{{count}} عناصر",
     "error": "تعذر تحميل التنبيهات.",
+    "retry": "\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629",
+    "inboxTab": "الإشعارات",
+    "smartTab": "التنبيهات الذكية",
+    "inboxEmpty": "لا توجد إشعارات حتى الآن.",
+    "markAllRead": "تحديد الكل كمقروء",
+    "showHistory": "عرض المستبعدة",
+    "hideHistory": "إخفاء المستبعدة",
+    "dismiss": "استبعاد",
+    "actionFailed": "تعذر تحديث هذا الإشعار. حاول مرة أخرى.",
+    "loadMore": "تحميل المزيد",
     "empty": "لا شيء يحتاج انتباهك الآن.",
     "competitor_price": {
       "down": "خفّض {{competitor}} سعر {{product}} بنسبة {{pct}}٪ إلى {{price}}",
@@ -3215,7 +3459,10 @@
     "payment_failed": "فشلت آخر عملية دفع - حدّث وسيلة الدفع من الفوترة",
     "credits_low": "استخدمت {{percent}}٪ من {{budget}} لهذه الفترة - تتجدد في {{date}}",
     "credits_exhausted": "نفدت {{budget}} لهذه الفترة - تتجدد في {{date}}؛ يمكنك الترقية من الفوترة",
-    "budget": { "data": "أرصدة البيانات", "ai": "أرصدة الذكاء الاصطناعي" }
+    "budget": {
+      "data": "أرصدة البيانات",
+      "ai": "أرصدة الذكاء الاصطناعي"
+    }
   },
   "intel": {
     "citation": "المصدر {{n}}: {{text}}",
@@ -3811,5 +4058,79 @@
       "open": "فتح القائمة",
       "competitorDetails": "تفاصيل المنافس"
     }
+  },
+  "platform": {
+    "title": "إدارة المنصة",
+    "searchCompanies": "\u0627\u0628\u062d\u062b \u0639\u0646 \u062c\u0645\u064a\u0639 \u0627\u0644\u0634\u0631\u0643\u0627\u062a",
+    "searchUsers": "\u0627\u0628\u062d\u062b \u0639\u0646 \u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645\u064a\u0646",
+    "searching": "\u062c\u0627\u0631\u064d \u0627\u0644\u0628\u062d\u062b...",
+    "searchResultCount": "\u0627\u0644\u0633\u062c\u0644\u0627\u062a \u0627\u0644\u0645\u0637\u0627\u0628\u0642\u0629: {{count}}",
+    "noSearchResults": "\u0644\u0627 \u062a\u0648\u062c\u062f \u0633\u062c\u0644\u0627\u062a \u0645\u0637\u0627\u0628\u0642\u0629.",
+    "noDirectoryRecords": "\u0644\u0627 \u062a\u0648\u062c\u062f \u0633\u062c\u0644\u0627\u062a \u0645\u062a\u0627\u062d\u0629.",
+    "back": "لوحة الشركة",
+    "forbidden": "ليس لديك صلاحية إدارة المنصة.",
+    "conflict": "يتعارض هذا التغيير مع سجل قائم أو محمي. حدّث الصفحة وحاول مجددا.",
+    "failed": "تعذر إكمال الطلب. حاول مجددا.",
+    "retry": "حاول مجددا",
+    "saved": "تم حفظ التغيير.",
+    "deliveryFailed": "تم حفظ الدعوة ولكن تعذر إرسال البريد. أعد الإرسال بعد استعادة الخدمة.",
+    "owner": "مالك المنصة",
+    "admin": "مسؤول المنصة",
+    "overview": "نظرة عامة",
+    "companies": "الشركات",
+    "users": "المستخدمون",
+    "active_operators": "المسؤولون النشطون",
+    "team": "فريق الإدارة",
+    "audit": "سجل التدقيق",
+    "settings": "إعدادات المنصة",
+    "approvals": "الموافقات الاستثنائية",
+    "name": "الاسم",
+    "status": "الحالة",
+    "actions": "الإجراءات",
+    "active": "نشط",
+    "suspended": "موقوف",
+    "removed": "تمت الإزالة",
+    "details": "التفاصيل",
+    "notes": "ملاحظات داخلية",
+    "metadata": "تعديل ملاحظات الشركة",
+    "changeStatus": "تغيير الحالة",
+    "companyStatus": "تغيير حالة الشركة",
+    "userStatus": "تغيير وصول الحساب إلى جميع مساحات العمل",
+    "invite": "دعوة مسؤول منصة",
+    "invitations": "الدعوات المعلقة",
+    "resend": "إعادة إرسال الدعوة",
+    "cancel": "إلغاء",
+    "remove": "إزالة المسؤول",
+    "removeMember": "إزالة المسؤول",
+    "suspendMember": "تغيير حالة المسؤول",
+    "transfer": "نقل ملكية المنصة",
+    "transferWarning": "سينقل هذا الإجراء الصلاحيات المالية الاستثنائية إلى المسؤول المحدد ويصبح دورك مسؤول منصة.",
+    "supportEmail": "بريد الدعم",
+    "edit": "تعديل",
+    "resetPassword": "إعادة تعيين كلمة مروري",
+    "previous": "السابق",
+    "next": "التالي",
+    "email": "البريد الإلكتروني",
+    "reason": "سبب التغيير",
+    "confirm": "تأكيد التغيير",
+    "approvalNotice": "يسجل هذا الإجراء موافقة المالك فقط، ولا يفعّل وصولا غير مدفوع أو يغيّر سعر عرض أو حد إنفاق مزود. تتطلب هذه التغييرات مسار العمل المعتمد الخاص بها.",
+    "kind": "نوع الاستثناء",
+    "reference": "مرجع العرض أو العقد أو المزود",
+    "terms": "الشروط والقيود المعتمدة بالتفصيل",
+    "expires": "انتهاء صلاحية الموافقة",
+    "below_floor_price": "الموافقة على سعر دون الحد الأدنى",
+    "manual_access": "الموافقة على وصول يدوي",
+    "provider_spending": "الموافقة على إنفاق مزود",
+    "inviteTitle": "دعوة لإدارة KEEL",
+    "inviteExplanation": "تمنح الموافقة صلاحية مسؤول منصة. يمكن لصاحب الحساب الحالي ترك الاسم وكلمة المرور فارغين مع الاحتفاظ بكلمة مروره. للحساب الجديد أدخل الاسم وكلمة مرور قوية.",
+    "accept": "قبول دعوة المنصة",
+    "newCredentials": "يتطلب حساب المسؤول الجديد اسما كاملا وكلمة مرور قوية.",
+    "invitationInvalid": "هذه الدعوة غير صالحة أو منتهية أو مستخدمة. اطلب دعوة جديدة من مالك المنصة.",
+    "backToLogin": "العودة لتسجيل الدخول",
+    "membershipStatus": "تغيير الوصول إلى مساحة العمل هذه",
+    "account": "حسابي",
+    "signOut": "تسجيل الخروج",
+    "expired": "منتهية",
+    "pending": "معلقة"
   }
 }

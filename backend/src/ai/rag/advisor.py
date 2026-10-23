@@ -334,7 +334,8 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
                    m.storage_bucket_path, m.uploaded_at
             FROM rag_document_chunks c
             JOIN rag_documents_metadata m ON m.tenant_id = c.tenant_id AND m.document_id = c.document_id
-            WHERE c.tenant_id = %s AND c.chunk_id = ANY(%s::uuid[]);
+            WHERE c.tenant_id = %s AND c.chunk_id = ANY(%s::uuid[])
+              AND m.processed_status = 'Processed';
             """,
             (tenant_id, chunk_ids),
         )

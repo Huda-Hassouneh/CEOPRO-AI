@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.ai.core import entitlements, usage
+from src.ai.tests.signup_helpers import create_verified_test_account
 
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -46,9 +47,9 @@ def _admin(sql, params=()):
 
 def _company(client, plan_key):
     email = f"plan+{uuid.uuid4().hex[:8]}@example.com"
-    session = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Plan Co", "email": email,
-                                                 "country_code": "JO", "primary_currency": "JOD",
-                                                 "password": "Plan!Catalog-2026"}).json()
+    session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Plan Co", "email": email,
+                                                     "country_code": "JO", "primary_currency": "JOD",
+                                                     "password": "Plan!Catalog-2026"})
     _admin("UPDATE tenant_plan_assignments SET plan_key = %s, status = 'active', source = 'manual' WHERE tenant_id = %s;",
            (plan_key, session["tenant_id"]))
     entitlements.forget(session["tenant_id"])
@@ -142,9 +143,9 @@ def test_one_companys_usage_never_reduces_anothers_allowance(client):
 
 def test_new_companies_start_on_the_growth_trial(client):
     email = f"trial+{uuid.uuid4().hex[:8]}@example.com"
-    session = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Trial Co", "email": email,
-                                                 "country_code": "JO", "primary_currency": "JOD",
-                                                 "password": "Plan!Catalog-2026"}).json()
+    session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Trial Co", "email": email,
+                                                     "country_code": "JO", "primary_currency": "JOD",
+                                                     "password": "Plan!Catalog-2026"})
     [(plan_key, status, days)] = _admin(
         "SELECT a.plan_key, a.status, (a.current_period_end - a.current_period_start) FROM tenant_plan_assignments a WHERE tenant_id = %s;",
         (session["tenant_id"],))
