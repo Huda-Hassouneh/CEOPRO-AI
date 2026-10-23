@@ -6,8 +6,8 @@ name: PR Checks
 # production build, and the browser smoke test of every screen) on every pull request and every push to main - previously nothing
 # ran automatically at all (staging-deployment.yml only fires on a push to
 # `staging` and only extracts the OpenAPI schema, it never runs a single
-# test). Zero-cost: GitHub-hosted runners + the free pgvector/pgvector:pg15
-# image used locally and in docker-compose.yml, no paid service of any kind.
+# test). Zero-cost: GitHub-hosted runners with the PostgreSQL 17 + pgvector image
+# used by the reusable verification environment and billing integration tests.
 
 on:
   pull_request:
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
@@ -227,7 +227,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
