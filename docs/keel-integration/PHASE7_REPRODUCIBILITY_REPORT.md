@@ -31,7 +31,7 @@ The platform test used DATABASE_URL and BILLING_TEST_DATABASE_URL pointing to th
 
 backend/.env.example already contains backend application, DB/role, Redis, MinIO, auth, CORS/email, billing, provider, model, image, worker and operations settings. frontend/.env.example contains VITE_API_BASE_URL, optional Spline/Sentry settings, and optional VITE_SUPPORT_EMAIL/VITE_SENTRY_RELEASE. The templates were completed with code-backed Shopify OAuth and frontend support/release variables; no credentials or app behavior were changed. Provider settings remain optional and follow existing service disable/unavailable behavior.
 
-A full fresh clone with a newly installed venv and Docker images was **not run**. The current tracked revision and reusable scripts were used; duplication would recreate existing resources. Fresh-source verification should be performed from the team repository URL after clone. Full local setup is WSL Bash through ./keel setup; PowerShell focused verification uses tools/keel-verification scripts.
+A full fresh clone with a newly installed venv and Docker images was **not run**. A clean tracked-source export at the final commit verified 17 required guide/script/template paths, all root README links, and absence of ignored backend/.env and frontend/.env files. The reusable scripts were used without duplicating existing services. Fresh-source dependency provisioning should still be completed by a teammate on their target machine. Full local setup is WSL Bash through ./keel setup; PowerShell focused verification uses tools/keel-verification scripts.
 
 ## Git and release boundary
 
