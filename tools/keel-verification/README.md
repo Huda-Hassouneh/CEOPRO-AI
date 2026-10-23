@@ -1,6 +1,6 @@
 # Reusable KEEL local verification environment
 
-This harness is for synthetic local verification only. It is not the normal KEEL development stack and never points at a shared or production database. Migrations 1-102 are applied only to the dedicated `keel_verification` database in the `keel-verification-postgres` container.
+This harness is for synthetic local verification only. It is not the normal KEEL development stack and never points at a shared or production database. Migrations 1-103 are applied only to the dedicated `keel_verification` database in the `keel-verification-postgres` container.
 
 ## First use / start
 
@@ -28,13 +28,13 @@ The database is intentionally separate from development services. Redis is volat
 .\Serve-Frontend.ps1                    # run Vite on 127.0.0.1:5178 (strict port)
 .\Prepare-BrowserFixture.ps1            # synthetic verified owner plus product, competitor and price
 .\Test-Browser.ps1                      # authenticated Chromium, English desktop + Arabic mobile RTL
-.\Test-Browser.ps1 -IncludeNotifications # persisted failed-import alert, read state, tenant isolation and retry
+.\Test-Browser.ps1 -IncludeNotifications # persisted failed-import notification, deduplication, read/dismiss/history and tenant isolation
 .\Test-Browser.ps1 -IncludeDataImport   # also runs the existing CSV import -> canonical -> Dashboard journey
-.\Test-MigrationUpgrade.ps1             # populated disposable upgrade 1-99 -> merged 1-102, rerun check
+.\Test-MigrationUpgrade.ps1             # populated disposable upgrade 1-102 -> 103, rerun check
 .\Stop.ps1                              # stop containers, preserve volumes and venv
 ```
 
-Run `Initialize.ps1` and `Install-Python.ps1` once per workstation. `Reset-Database.ps1` resets only the dedicated `keel_verification` database and reapplies all 102 current migrations; use it when test data must start clean. `Test-MigrationUpgrade.ps1` creates a uniquely named temporary database inside the task-owned container, populates it after migration 99, applies migrations 100-102, checks retained tenant/plan/product records and idempotency, then drops only its generated database. Browser fixture JSON (including its synthetic login password) is stored outside the repository with current-user-only ACLs. The backend/frontend servers run in separate PowerShell terminals and stop with Ctrl+C. Use only the `DATABASE_URL`/`AI_TEST_DATABASE_URL` injected by the scripts. Never substitute a developer `.env` URL.
+Run `Initialize.ps1` and `Install-Python.ps1` once per workstation. `Reset-Database.ps1` resets only the dedicated `keel_verification` database and reapplies all 103 current migrations; use it when test data must start clean. `Test-MigrationUpgrade.ps1` creates a uniquely named temporary database inside the task-owned container, populates it after migration 102, applies migration 103, checks retained tenant/plan/product records and idempotency, then drops only its generated database. Browser fixture JSON (including its synthetic login password) is stored outside the repository with current-user-only ACLs. The backend/frontend servers run in separate PowerShell terminals and stop with Ctrl+C. Use only the `DATABASE_URL`/`AI_TEST_DATABASE_URL` injected by the scripts. Never substitute a developer `.env` URL.
 
 ## Scope
 
