@@ -300,7 +300,7 @@ jobs:
 
       - name: Create the test company
         working-directory: backend
-        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD"
+        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD" --test-email-verification-fixture
 
       - name: Build and serve the frontend
         working-directory: frontend
