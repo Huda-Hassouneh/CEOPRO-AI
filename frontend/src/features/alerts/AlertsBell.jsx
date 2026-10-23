@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Bell, Info, PackageX, Radar, Tag, TrendingDown, TrendingUp, CreditCard, FileWarning, Gauge } from 'lucide-react';
 import { useI18n } from '../../app/providers/I18nProvider.jsx';
 import httpClient from '../../shared/lib/httpClient.js';
+import { AlertsLoadError } from './AlertsLoadError.jsx';
 
 export const ICONS = {
   competitor_price: (a) => (a.params.change_pct < 0 ? TrendingDown : TrendingUp),
@@ -35,7 +36,7 @@ export function AlertsBell({ open, onToggle, onClose }) {
   const { t, locale } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ['alerts'], queryFn: async () => (await httpClient.get('/alerts')).data, staleTime: 2 * 60_000, refetchInterval: 5 * 60_000 });
+  const query = useQuery({ queryKey: ['alerts'], queryFn: async () => (await httpClient.get('/alerts')).data, staleTime: 2 * 60_000, refetchInterval: 5 * 60_000, retry: false });
   const markRead = useMutation({
     mutationFn: async () => (await httpClient.post('/alerts/read')).data,
     onSuccess: () => queryClient.setQueryData(['alerts'], (data) => data && ({ ...data, unread: 0, alerts: data.alerts.map((a) => ({ ...a, unread: false })) })),
@@ -65,7 +66,7 @@ export function AlertsBell({ open, onToggle, onClose }) {
         <div className="apex-topnav__popover apex-alerts" role="dialog" aria-label={t('alerts.label')}>
           <header><strong>{t('alerts.title')}</strong>{query.data?.alerts?.length > 0 && <span className="apex-muted">{t('alerts.count', { count: query.data.alerts.length })}</span>}</header>
           {query.isPending ? <p className="apex-alerts__empty">{t('common.loading')}</p>
-            : query.isError ? <p className="apex-alerts__empty">{t('alerts.error')}</p>
+            : query.isError ? <AlertsLoadError onRetry={() => query.refetch()} busy={query.isFetching} t={t} />
               : !query.data.alerts.length ? <p className="apex-alerts__empty"><Info size={15} aria-hidden="true" /> {t('alerts.empty')}</p> : (
                 <ul>
                   {query.data.alerts.map((a) => {

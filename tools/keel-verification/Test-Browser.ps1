@@ -1,7 +1,8 @@
-param([switch]$IncludeDataImport)
+param([switch]$IncludeDataImport, [switch]$IncludeNotifications)
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $state = Join-Path $env:LOCALAPPDATA 'KEEL/verification'
+$env:KEEL_VERIFICATION_STATE = $state
 $fixturePath = Join-Path $state 'competitor-browser-fixture.json'
 if (-not (Test-Path $fixturePath)) { throw 'Run Prepare-BrowserFixture.ps1 after starting FastAPI first.' }
 $fixture = Get-Content $fixturePath -Raw | ConvertFrom-Json
@@ -36,6 +37,27 @@ try {
       $env:E2E_LOCALE = $locale
       node tests/browser/data-import.mjs
       if ($LASTEXITCODE -ne 0) { throw "CSV import-to-Dashboard browser workflow failed for $locale." }
+    }
+  }
+  if ($IncludeNotifications) {
+    if (-not (Test-Path -LiteralPath (Join-Path $state 'import-browser-fixture.json'))) {
+      & (Join-Path $PSScriptRoot 'Prepare-ImportFixture.ps1')
+    }
+    try {
+      foreach ($locale in @('en', 'ar')) {
+        & (Join-Path $PSScriptRoot 'Prepare-NotificationFixture.ps1')
+        $env:E2E_LOCALE = $locale
+        node tests/browser/notifications-workflow.mjs
+        if ($LASTEXITCODE -ne 0) { throw "Notification browser workflow failed for $locale." }
+      }
+    } finally {
+      $values = @{}
+      Get-Content (Join-Path $state 'compose.env') | ForEach-Object { if ($_ -match '^([^=]+)=(.*)$') { $values[$matches[1]]=$matches[2] } }
+      $env:DATABASE_URL = "postgresql://keel_verify_admin:$($values['KEEL_VERIFY_ADMIN_PASSWORD'])@127.0.0.1:55446/keel_verification"
+      $env:KEEL_VERIFICATION_STATE = $state
+      $python = Join-Path $state 'python-venv/Scripts/python.exe'
+      Push-Location (Join-Path $repo 'backend')
+      try { & $python scripts/seed_notification_browser_fixture.py --cleanup } finally { Pop-Location }
     }
   }
 } finally { Pop-Location }
