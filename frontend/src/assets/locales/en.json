@@ -3472,6 +3472,7 @@
     "title": "Alerts",
     "count": "{{count}} items",
     "error": "Alerts couldn't be loaded.",
+    "retry": "Try again",
     "empty": "Nothing needs your attention right now.",
     "competitor_price": {
       "down": "{{competitor}} cut {{product}} by {{pct}}% to {{price}}",
