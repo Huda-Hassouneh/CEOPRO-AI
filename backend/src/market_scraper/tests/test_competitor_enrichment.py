@@ -269,6 +269,14 @@ def test_site_side_outcomes_get_specific_reasons():
         assert result["reason_code"] == expected, status
 
 
+def test_a_site_that_refuses_the_reader_is_blocked_and_the_status_code_is_named():
+    refused, _l, _r = _prices(_prices_conn(0, None), {"status": "refused_by_site", "media": {}, "http_status": 403})
+    assert (refused["status"], refused["reason_code"]) == (ce.STATUS_BLOCKED, ce.ROBOTS_DISALLOWED)
+    assert refused["reason_detail"].endswith("(HTTP 403).")
+    broken, _l, _r = _prices(_prices_conn(0, None), {"status": "http_error", "media": {}, "http_status": 404})
+    assert broken["reason_code"] == ce.SITE_UNREACHABLE and broken["reason_detail"] == "The website answered with an error (HTTP 404)."
+
+
 def test_deep_reads_are_requested_through_the_collector():
     _result, _l, refresh = _prices(_prices_conn(1), {"status": "prices_found", "media": {}}, deep=True)
     collect = refresh.call_args.kwargs["collect"]

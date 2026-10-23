@@ -122,7 +122,7 @@ def refresh_competitor(conn, tenant_id: str, competitor_id: str, collect=intel.c
 
         matched = pipeline._match_prices(conn, tenant_id, [competitor_id])["prices_matched"]  # noqa: SLF001
     return {"status": status, "pages_read": len(result["pages_read"]), "facts": len(result["facts"]), "prices_matched": matched,
-            "media": result.get("media")}
+            "media": result.get("media"), "http_status": result.get("http_status")}
 
 
 @credits.metered("competitor_intel")
