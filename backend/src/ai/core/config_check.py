@@ -219,6 +219,25 @@ def check_environment() -> List[Finding]:
                                        "information (customs, taxes, prices) and discovery finds nothing; set "
                                        "TAVILY_API_KEY (free tier), BRAVE_SEARCH_API_KEY, SEARXNG_INSTANCE_URL or "
                                        "GOOGLE_CUSTOM_SEARCH_API_KEY + GOOGLE_CUSTOM_SEARCH_CX")
+
+    # --- competitor data (src/market_scraper/data_requirements.py) -------------------------
+    # Each line here is a message a business owner would otherwise first see on the Competitors screen.
+    from src.market_scraper import data_requirements
+
+    unmet: Dict[Tuple[str, ...], list] = {}
+    for facet, requirements in data_requirements.FACETS.items():
+        for need in data_requirements.missing(facet):
+            unmet.setdefault(need.names, [need, []])[1].append(requirements)
+    for names, (need, facets) in unmet.items():
+        blocked = [f.label for f in facets if not f.optional]
+        partly = [f.label for f in facets if f.optional]
+        effect = "; ".join(filter(None, [f"blocks {', '.join(blocked)}" if blocked else "",
+                                         f"limits {', '.join(partly)}" if partly else ""]))
+        add(WARNING, names[0], f"is not set ({need.why}) - competitor data: {effect} for every company. Set "
+                               f"{' or '.join(names)} on the API service and on the worker that collects competitor data")
+    if is_deployed and not _env(data_requirements.OPERATOR_SETTING):
+        add(WARNING, data_requirements.OPERATOR_SETTING, "is not set - nobody can open Settings > Service setup to see "
+                                                         "which provider keys are missing or test them")
     return out
 
 

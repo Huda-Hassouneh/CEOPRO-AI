@@ -34,6 +34,10 @@ security; one sign-in can own several companies.
 ./keel test      # all backend and frontend checks
 ```
 
+**New environment? Start with [docs/INSTALLATION.md](docs/INSTALLATION.md)**: install,
+configure by feature, and the checks to run before anyone uses it (`./keel check`,
+`./keel site-check`), with a message-to-fix troubleshooting table.
+
 Codespaces runs the same steps automatically. Full instructions, the
 configuration names and troubleshooting are in **[RUNNING_LOCALLY.md](RUNNING_LOCALLY.md)**;
 Codespaces specifics in [CODESPACES_DEVELOPMENT.md](CODESPACES_DEVELOPMENT.md);

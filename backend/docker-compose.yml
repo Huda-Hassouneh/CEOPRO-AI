@@ -362,6 +362,7 @@ services:
       PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
       # Social-post prices / offers / menu pictures (social_content.py): operator's recorded approval; unset = nothing is read.
       SOCIAL_CONTENT_APPROVAL_REFERENCE: ${SOCIAL_CONTENT_APPROVAL_REFERENCE:-}
+      OPERATOR_EMAILS: ${OPERATOR_EMAILS:-}
       # Vision-model reading of menu pictures (off | fallback | always); paid per call, refused until priced.
       DISCOVERY_VISION_OCR: ${DISCOVERY_VISION_OCR:-off}
       GEMINI_API_KEYS: ${GEMINI_API_KEYS:-}
@@ -550,6 +551,9 @@ services:
       PLACES_TERMS_APPROVAL_REFERENCE: ${PLACES_TERMS_APPROVAL_REFERENCE:-}
       # Social-post prices / offers / menu pictures (social_content.py): operator's recorded approval; unset = nothing is read.
       SOCIAL_CONTENT_APPROVAL_REFERENCE: ${SOCIAL_CONTENT_APPROVAL_REFERENCE:-}
+      # Background collection in this service records rows as this identity (an owner's Retry uses the owner).
+      SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID:-00000000-0000-0000-0000-000000000000}
+      OPERATOR_EMAILS: ${OPERATOR_EMAILS:-}
       # Vision-model reading of menu pictures (off | fallback | always); paid per call, refused until priced.
       DISCOVERY_VISION_OCR: ${DISCOVERY_VISION_OCR:-off}
       GEMINI_API_KEYS: ${GEMINI_API_KEYS:-}
