@@ -1,8 +1,8 @@
 # Phase 7 reproducibility and browser verification report
 
-**Run date:** 2026-10-23  
-**Starting revision:** 032d200e27937df12d339c5a3e2edbd1a728f600 on integration/keel-full-migration  
-**Migration chain:** 103 files  
+**Run date:** 2026-10-23
+**Starting revision:** 032d200e27937df12d339c5a3e2edbd1a728f600 on integration/keel-full-migration
+**Migration chain:** 103 files
 **Scope:** reproducibility/docs plus the three browser gaps carried from Phase 6. No business logic or migrations changed.
 
 ## Commands and evidence
