@@ -69,6 +69,8 @@ def _cleanup(admin_conn, tenants):
     if not ids:
         return
     with admin_conn.cursor() as cursor:
+        # Failed connector operations may now emit durable M103 notifications.
+        cursor.execute("DELETE FROM public.notification_outbox WHERE tenant_id=ANY(%s::uuid[]);", (ids,))
         cursor.execute("DELETE FROM public.keel_operation_receipts WHERE tenant_id=ANY(%s::uuid[]);", (ids,))
         cursor.execute("DELETE FROM public.invoice_items WHERE tenant_id=ANY(%s::uuid[]);", (ids,))
         cursor.execute("DELETE FROM public.invoices WHERE tenant_id=ANY(%s::uuid[]);", (ids,))

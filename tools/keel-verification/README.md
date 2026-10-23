@@ -30,9 +30,12 @@ The database is intentionally separate from development services. Redis is volat
 .\Test-Browser.ps1                      # authenticated Chromium, English desktop + Arabic mobile RTL
 .\Test-Browser.ps1 -IncludeNotifications # persisted failed-import notification, deduplication, read/dismiss/history and tenant isolation
 .\Test-Browser.ps1 -IncludeDataImport   # also runs the existing CSV import -> canonical -> Dashboard journey
+.\Test-Browser.ps1 -IncludeProducts     # Owner CRUD/stock, staff direct-API denial, cross-tenant product denial
 .\Test-MigrationUpgrade.ps1             # populated disposable upgrade 1-102 -> 103, rerun check
 .\Stop.ps1                              # stop containers, preserve volumes and venv
 ```
+
+The authenticated Pricing Recommendations and Market Perception browser contracts can run against the already-started FastAPI/Vite services with Chromium and the synthetic fixture in `%LOCALAPPDATA%\KEEL\verification\competitor-browser-fixture.json`. Their scripts are `frontend/tests/browser/pricing-recommendations.mjs` and `frontend/tests/browser/market-perception.mjs`; set `APP_URL`, `API_URL`, `CHROMIUM_PATH`, `E2E_EMAIL`, `E2E_PASSWORD`, `E2E_PRODUCT_MARKER`, and `E2E_LOCALE` from that fixture. They write only synthetic recommendation/review evidence in `keel_verification`.
 
 Run `Initialize.ps1` and `Install-Python.ps1` once per workstation. `Reset-Database.ps1` resets only the dedicated `keel_verification` database and reapplies all 103 current migrations; use it when test data must start clean. `Test-MigrationUpgrade.ps1` creates a uniquely named temporary database inside the task-owned container, populates it after migration 102, applies migration 103, checks retained tenant/plan/product records and idempotency, then drops only its generated database. Browser fixture JSON (including its synthetic login password) is stored outside the repository with current-user-only ACLs. The backend/frontend servers run in separate PowerShell terminals and stop with Ctrl+C. Use only the `DATABASE_URL`/`AI_TEST_DATABASE_URL` injected by the scripts. Never substitute a developer `.env` URL.
 

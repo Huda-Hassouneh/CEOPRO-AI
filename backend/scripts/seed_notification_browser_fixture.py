@@ -46,12 +46,10 @@ def main() -> None:
     source_id = str(uuid.uuid4())
     marker = f"KEEL-ALERT-{secrets.token_hex(6).upper()}.csv"
     with psycopg2.connect(os.environ["DATABASE_URL"]) as conn, conn.cursor() as cur:
-        # Remove only leftovers from this browser fixture's synthetic marker namespace.
-        cur.execute(
-            "DELETE FROM notification_outbox WHERE tenant_id=%s "
-            "AND payload #>> '{params,name}' LIKE 'KEEL-ALERT-%%'",
-            (owner["tenant"],),
-        )
+        # This is the dedicated synthetic import-browser tenant. Prior CSV
+        # browser runs can legitimately leave failed-import alerts for that
+        # same test owner, so clear its inbox before asserting one seeded row.
+        cur.execute("DELETE FROM notification_outbox WHERE tenant_id=%s", (owner["tenant"],))
         cur.execute(
             "DELETE FROM notification_reads WHERE tenant_id = %s AND user_id = %s",
             (owner["tenant"], owner["user"]),

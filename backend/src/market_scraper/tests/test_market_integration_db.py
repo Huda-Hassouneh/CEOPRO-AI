@@ -106,6 +106,7 @@ def seeded():
     first = seed_tenant(cursor, "A")
     second = seed_tenant(cursor, "B")
     yield first, second
+    cursor.execute("DELETE FROM notification_outbox WHERE tenant_id IN (%s, %s);", (first["tenant"], second["tenant"]))
     cursor.execute("DELETE FROM companies WHERE tenant_id IN (%s, %s);", (first["tenant"], second["tenant"]))
     cursor.execute("DELETE FROM users WHERE user_id IN (%s, %s);", (first["user"], second["user"]))
     connection.close()

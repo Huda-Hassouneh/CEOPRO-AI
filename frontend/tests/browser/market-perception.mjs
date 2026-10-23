@@ -22,6 +22,11 @@ try {
 
   const scope = page.getByLabel(messages.scope);
   const action = page.getByRole('button', { name: messages.refresh });
+  const waitForAnalysisReady = () => page.waitForFunction((label) => {
+    const button = [...document.querySelectorAll('button')].find((item) => item.textContent?.trim() === label);
+    return button && !button.disabled;
+  }, messages.refresh);
+  await waitForAnalysisReady();
   await action.click();
   await page.getByText(messages.reviewCount.replace('{{count}}', '1')).waitFor();
   const business = await page.request.get(`${api}/mpi/summary?subject_type=BUSINESS`, {
@@ -36,6 +41,7 @@ try {
   const productSelect = page.locator('.mpi-panel .mpi-controls select').nth(1);
   const productOption = productSelect.locator('option').filter({ hasText: `${process.env.E2E_PRODUCT_MARKER} Sample Product` }).first();
   await productSelect.selectOption(await productOption.getAttribute('value'));
+  await waitForAnalysisReady();
   await action.click();
   await page.locator('.mpi-result').waitFor();
   const lowSampleText = await page.locator('.mpi-result').innerText();
@@ -45,11 +51,13 @@ try {
 
   const emptyOption = productSelect.locator('option').filter({ hasText: `${process.env.E2E_PRODUCT_MARKER} Empty` }).first();
   await productSelect.selectOption(await emptyOption.getAttribute('value'));
+  await waitForAnalysisReady();
   await action.click();
   await page.getByText(messages.noReviews).waitFor();
 
   await scope.selectOption('COMPETITOR');
   await page.locator('.mpi-panel .mpi-controls select').nth(1).selectOption({ label: process.env.E2E_COMPETITOR_NAME });
+  await waitForAnalysisReady();
   await action.click();
   await page.getByText(new RegExp(`${messages.index}:`)).waitFor();
   assert.equal(await page.locator('html').getAttribute('dir'), locale === 'ar' ? 'rtl' : 'ltr');
@@ -61,6 +69,7 @@ try {
   assert.equal(foreign.status(), 404, 'cross-tenant subject must be hidden');
 
   await page.route('**/mpi/summary?*', async (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"unavailable"}' }), { times: 1 });
+  await waitForAnalysisReady();
   await action.click();
   await page.getByRole('alert').getByText(messages.error).waitFor();
 

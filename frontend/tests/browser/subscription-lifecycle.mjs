@@ -2,11 +2,27 @@
 import { chromium } from 'playwright-core';
 
 const base = process.env.KEEL_SUBSCRIPTION_BROWSER_BASE_URL;
-if (process.env.KEEL_SUBSCRIPTION_BROWSER_FIXTURE !== 'YES' || base !== 'http://127.0.0.1:15173') {
+if (process.env.KEEL_SUBSCRIPTION_BROWSER_FIXTURE !== 'YES' || !/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(base || '')) {
   throw new Error('Disposable subscription browser fixture required');
 }
 const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, headless: true });
-const page = await browser.newPage();
+const context = await browser.newContext();
+await context.route('https://checkout.stripe.com/**', async (route) => {
+  const sessionId = new URL(route.request().url()).pathname.split('/').pop();
+  await route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: `<!doctype html><html><body><main><h1>Stripe test checkout</h1><p>Disposable local payment fixture.</p><form method="post" action="http://127.0.0.1:15175/checkout/${sessionId}"><button type="submit">Complete test payment</button></form></main></body></html>`,
+  });
+});
+await context.route('https://billing.stripe.com/portal/session', async (route) => {
+  await route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: `<!doctype html><html><body><main><h1>Stripe customer portal test fixture</h1><a href="${base}/billing">Return to KEEL</a></main></body></html>`,
+  });
+});
+const page = await context.newPage();
 page.setDefaultTimeout(15000);
 let passed = 0;
 const pass = (name) => { passed++; console.log(`PASS ${name}`); };
@@ -36,13 +52,17 @@ try {
   await page.goto(`${base}/billing`);
   await page.getByRole('heading', { name: /subscription|billing|الاشتراك|الفوترة/i }).first().waitFor();
   await page.getByRole('button', { name: /subscribe|اشترك/i }).first().click();
-  await page.waitForURL('http://127.0.0.1:15175/checkout/**');
+  await page.waitForURL('https://checkout.stripe.com/checkout/**');
   await page.getByRole('heading', { name: 'Stripe test checkout' }).waitFor();
   pass('plan selection reaches the isolated hosted-checkout fixture');
 
   await page.getByRole('button', { name: 'Complete test payment' }).click();
   await page.waitForURL(/\/billing\?checkout=success/);
-  await page.getByText(/Subscription confirmed|تم تأكيد الاشتراك/i).waitFor();
+  try {
+    await page.getByText(/Subscription confirmed|تم تأكيد الاشتراك/i).waitFor();
+  } catch (error) {
+    throw new Error(`Checkout returned without confirmed subscription state. route=${new URL(page.url()).pathname}${new URL(page.url()).search}; visible=${(await page.locator('body').innerText()).slice(0, 1200)}; ${error.message}`);
+  }
   await page.getByRole('heading', { name: /Plus|Growth/i }).first().waitFor();
   pass('signed checkout and paid-invoice events activate the plan before confirmed UI appears');
 
@@ -51,7 +71,7 @@ try {
   pass('invoice history displays the persisted provider payment status');
 
   await page.getByRole('button', { name: /Payment method & receipts/i }).click();
-  await page.waitForURL('http://127.0.0.1:15175/portal/session');
+  await page.waitForURL('https://billing.stripe.com/portal/session');
   await page.getByRole('heading', { name: 'Stripe customer portal test fixture' }).waitFor();
   await page.getByRole('link', { name: 'Return to KEEL' }).click();
   await page.waitForURL('**/billing');
