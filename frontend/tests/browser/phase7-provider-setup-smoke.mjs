@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
@@ -67,4 +67,3 @@ try {
 } finally {
   await browser.close();
 }
-
