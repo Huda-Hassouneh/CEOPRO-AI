@@ -28,11 +28,11 @@ jobs:
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
-          POSTGRES_DB: ceopro_platform
+          POSTGRES_DB: keel_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-cmd "pg_isready -U ceopro_admin -d keel_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -56,8 +56,8 @@ jobs:
       # ceopro_admin, never the restricted ceopro_app role it creates) -
       # a throwaway password scoped to this one ephemeral CI database, not
       # a secret protecting anything real.
-      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
-      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
+      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
       APP_DB_PASSWORD: ci_test_app_password
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
       AI_TEST_REDIS_HOST: localhost
@@ -70,7 +70,7 @@ jobs:
       # 20260928000000_fix_service_actor_tenant_context.sql). Closes
       # test_connector_worker_integration_db.py's 6 always-skipped tests -
       # confirmed passing against a real local Postgres.
-      SCRAPER_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      SCRAPER_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
       SCRAPER_ACTOR_USER_ID: "00000000-0000-0000-0000-000000000000"
       # MinIO is built from source in the step below (no registry serves a prebuilt
       # image any more, so it cannot be a `services:` container). Closes the
@@ -231,11 +231,11 @@ jobs:
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
-          POSTGRES_DB: ceopro_platform
+          POSTGRES_DB: keel_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-cmd "pg_isready -U ceopro_admin -d keel_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -250,7 +250,7 @@ jobs:
           --health-retries 10
     env:
       # Throwaway values for this one ephemeral job, not secrets.
-      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
       APP_DB_PASSWORD: ci_test_app_password
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
       REDIS_URL: redis://localhost:6379/0
