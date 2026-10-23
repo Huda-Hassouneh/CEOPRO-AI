@@ -28,6 +28,7 @@ The database is intentionally separate from development services. Redis is volat
 .\Serve-Frontend.ps1                    # run Vite on 127.0.0.1:5178 (strict port)
 .\Prepare-BrowserFixture.ps1            # synthetic verified owner plus product, competitor and price
 .\Test-Browser.ps1                      # authenticated Chromium, English desktop + Arabic mobile RTL
+.\Test-Browser.ps1 -IncludeNotifications # persisted failed-import alert, read state, tenant isolation and retry
 .\Test-Browser.ps1 -IncludeDataImport   # also runs the existing CSV import -> canonical -> Dashboard journey
 .\Test-MigrationUpgrade.ps1             # populated disposable upgrade 1-99 -> merged 1-102, rerun check
 .\Stop.ps1                              # stop containers, preserve volumes and venv
