@@ -7,6 +7,7 @@ import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
+from urllib.parse import urlparse
 
 import psycopg2
 import pytest
@@ -101,7 +102,9 @@ def test_twelve_authenticated_requests_compete_for_one_source_slot(
         with admin.cursor() as cursor:
             cursor.execute("SELECT current_database(), current_setting('server_version_num')::int")
             database_name, version_num = cursor.fetchone()
-            assert database_name == "keel_billing_test"
+            configured_database = urlparse(DATABASE_URL).path.rsplit("/", 1)[-1]
+            assert configured_database.startswith("keel_")
+            assert database_name == configured_database
             assert version_num >= 170000
             cursor.execute(
                 "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname='ceopro_app'"
