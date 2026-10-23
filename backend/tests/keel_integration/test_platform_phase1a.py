@@ -35,6 +35,21 @@ def test_tenant_owner_is_not_trusted_from_the_request(api,monkeypatch,token):
     assert 'keel_platform_command'in conn.cursor.return_value.__enter__.return_value.execute.call_args[0][0]
 
 
+def test_tenant_owner_is_denied_platform_identity(api,monkeypatch,token):
+    conn=MagicMock();conn.cursor.return_value.__enter__.return_value.fetchone.return_value=({'error':'forbidden'},)
+    monkeypatch.setattr(service.db,'app_role_connection',lambda *a:conn)
+    response=api.get('/platform/me',headers=token)
+    assert response.status_code==403
+    conn.commit.assert_called_once()
+
+
+def test_platform_admin_can_read_platform_identity(api,monkeypatch,token):
+    monkeypatch.setattr(service,'command',lambda ctx,action:{'role':'admin'} if action=='me' else pytest.fail('Unexpected platform command'))
+    response=api.get('/platform/me',headers=token)
+    assert response.status_code==200
+    assert response.json()['role']=='admin'
+
+
 def test_management_contract_has_bounded_pagination(api,monkeypatch,token):
     calls=[];monkeypatch.setattr(service,'command',lambda c,a,p:(calls.append((a,p))or[]))
     assert api.get('/platform/users?limit=101',headers=token).status_code==422

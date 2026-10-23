@@ -259,6 +259,7 @@ jobs:
       NOTIFICATION_DIGEST_ENABLED: "false"
       E2E_EMAIL: ci-smoke@keel-ci.example
       E2E_PASSWORD: Ci!Smoke-Only-2026
+      E2E_EXPECT_PLATFORM_DENIAL: "true"
       APP_URL: http://localhost:5173
       API_URL: http://localhost:8000
       CHROMIUM_PATH: /usr/bin/google-chrome
