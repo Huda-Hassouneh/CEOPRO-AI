@@ -1,4 +1,4 @@
-"""Exercise a disposable populated schema upgrade from migrations 1-99 to 1-102."""
+"""Exercise a disposable populated schema upgrade from migrations 1-102 to 1-103."""
 from __future__ import annotations
 
 import os
@@ -31,8 +31,8 @@ def main() -> None:
     if not app_password:
         raise RuntimeError("APP_DB_PASSWORD is required to preserve the ceopro_app role contract.")
     paths = sorted(MIGRATIONS.glob("*.sql"))
-    if len(paths) != 102:
-        raise RuntimeError(f"Expected 102 committed SQL migrations, found {len(paths)}.")
+    if len(paths) != 103:
+        raise RuntimeError(f"Expected 103 committed SQL migrations, found {len(paths)}.")
     db_name = f"keel_verify_upgrade_{uuid.uuid4().hex[:10]}"
     created = False
     temp_dirs: list[Path] = []
@@ -46,12 +46,12 @@ def main() -> None:
         url = base_url.rsplit("/", 1)[0] + f"/{db_name}"
         os.environ["DATABASE_URL"] = url
         old_dir = apply_migrations.MIGRATIONS_DIR
-        before_dir = _subset(paths[:99])
+        before_dir = _subset(paths[:102])
         temp_dirs.append(before_dir)
         apply_migrations.MIGRATIONS_DIR = before_dir
         first = apply_migrations.run()
-        if len(first) != 99:
-            raise RuntimeError(f"Pre-merge migration stage applied {len(first)} files, expected 99.")
+        if len(first) != 102:
+            raise RuntimeError(f"Pre-notification migration stage applied {len(first)} files, expected 102.")
 
         tenant, user, product = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
         with psycopg2.connect(url) as conn, conn.cursor() as cur:
@@ -66,20 +66,20 @@ def main() -> None:
                         "VALUES(%s,%s,'{\"en\":\"Upgrade fixture product\"}'::jsonb,12.50,'JOD','MANUAL')",
                         (product, tenant))
             cur.execute("SELECT count(*) FROM schema_migrations")
-            if cur.fetchone()[0] != 99:
-                raise RuntimeError("Populated upgrade fixture was not created on the 99-migration schema.")
-        last_dir = _subset(paths[99:])
+            if cur.fetchone()[0] != 102:
+                raise RuntimeError("Populated upgrade fixture was not created on the 102-migration schema.")
+        last_dir = _subset(paths[102:])
         temp_dirs.append(last_dir)
         apply_migrations.MIGRATIONS_DIR = last_dir
         later = apply_migrations.run()
-        if len(later) != 3:
-            raise RuntimeError(f"Merged migration stage applied {len(later)} files, expected 3.")
+        if len(later) != 1:
+            raise RuntimeError(f"Notification migration stage applied {len(later)} files, expected 1.")
         if apply_migrations.run() != []:
             raise RuntimeError("Merged migration stage rerun was not idempotent.")
         with psycopg2.connect(url) as conn, conn.cursor() as cur:
             cur.execute("SELECT count(*) FROM schema_migrations")
-            if cur.fetchone()[0] != 102:
-                raise RuntimeError("Upgrade does not contain all 102 migration records.")
+            if cur.fetchone()[0] != 103:
+                raise RuntimeError("Upgrade does not contain all 103 migration records.")
             cur.execute("SELECT count(*) FROM companies WHERE tenant_id=%s", (tenant,))
             company_count = cur.fetchone()[0]
             cur.execute("SELECT count(*) FROM tenant_plan_assignments WHERE tenant_id=%s AND plan_key='growth'", (tenant,))
@@ -92,7 +92,7 @@ def main() -> None:
             restricted_role = cur.fetchone()
             if restricted_role != (False, False):
                 raise RuntimeError(f"ceopro_app authority changed unexpectedly: {restricted_role}")
-        print("PASS populated migration upgrade: migrations 1-99 applied, company/owner/active Growth assignment/product seeded, 100-102 applied, 0 applied on repeat; tenant data and restricted-role attributes preserved.")
+        print("PASS populated migration upgrade: migrations 1-102 applied, company/owner/active Growth assignment/product seeded, 103 applied, 0 applied on repeat; tenant data and restricted-role attributes preserved.")
         apply_migrations.MIGRATIONS_DIR = old_dir
     finally:
         for path in temp_dirs:
