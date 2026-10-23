@@ -14,7 +14,10 @@
 #   ./keel test      backend and frontend test suites, lint and production build
 #   ./keel llm-check the assistant's LLM provider: credential, price, model;
 #                    --tenant <id> adds one real, metered request
-#   ./keel check     settings vs backend/KEYS_AND_ACCOUNTS_NEEDED.md (names only)
+#   ./keel check     settings vs backend/KEYS_AND_ACCOUNTS_NEEDED.md (names only),
+#                    incl. which competitor data each missing key blocks
+#   ./keel site-check <url>... | --db   can competitor websites be read from
+#                    this machine? (run on the server; docs/INSTALLATION.md)
 #   ./keel rag-check the assistant end to end on the running app (needs ./keel
 #                    start): a new test company, PDF upload, embeddings, Arabic
 #                    questions, AI-written cited answers, tenant isolation
@@ -164,6 +167,13 @@ cmd_check() {
   exec python -m scripts.check_config --db
 }
 
+cmd_site_check() {
+  need_setup
+  backend_env
+  cd backend
+  exec python -m scripts.website_reader_check "$@"
+}
+
 cmd_llm_check() {
   need_setup
   backend_env
@@ -235,6 +245,7 @@ case "${1:-help}" in
   test) cmd_test ;;
   llm-check) shift; cmd_llm_check "$@" ;;
   check) cmd_check ;;
+  site-check) shift; cmd_site_check "$@" ;;
   rag-check) cmd_rag_check ;;
-  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//' ;;
 esac

@@ -4,6 +4,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from src.ai.core import config_check
+from src.market_scraper import data_requirements
 
 SETTINGS = ("JWT_SECRET", "DATABASE_URL", "APP_DB_PASSWORD", "REDIS_URL", "REDIS_HOST", "UNASSIGNED_PLAN_ACCESS",
             "CREDENTIAL_VAULT_KMS_BACKEND", "CREDENTIAL_VAULT_MASTER_KEY", "CREDENTIAL_VAULT_PREVIOUS_KEYS", "AWS_KMS_KEY_ID",
@@ -13,7 +14,7 @@ SETTINGS = ("JWT_SECRET", "DATABASE_URL", "APP_DB_PASSWORD", "REDIS_URL", "REDIS
             "LOCAL_LLM_BASE_URL", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "CLOUDFLARE_ACCOUNT_ID",
             "CLOUDFLARE_API_TOKEN", "GOOGLE_CUSTOM_SEARCH_API_KEY", "GOOGLE_CUSTOM_SEARCH_CX", "POSTGRES_PASSWORD",
             "TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "SEARXNG_INSTANCE_URL", "WEB_SEARCH_PROVIDERS",
-            *config_check.IGNORED_NAMES)
+            *config_check.IGNORED_NAMES, *data_requirements.known_names())
 
 
 @pytest.fixture
@@ -95,7 +96,8 @@ def test_a_correct_deployment_passes(env):
     for name in ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "EMAIL_FROM_ADDRESS",
                  "MINIO_ENDPOINT", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD"):
         env.setenv(name, "https://storage.example.com" if name == "MINIO_ENDPOINT" else "set")
-    env.setenv("TAVILY_API_KEY", "tvly-test")
+    for name in data_requirements.declared_names():
+        env.setenv(name, "set")
     assert config_check.check_environment() == []
 
 
@@ -123,3 +125,17 @@ def test_half_set_pairs_and_ignored_names_are_reported(env):
 def test_no_language_model_is_a_warning(env):
     env.delenv("GROQ_API_KEY")
     assert ("warning", "GROQ_API_KEY") in _by_setting(config_check.check_environment())
+
+
+def test_missing_competitor_data_settings_name_what_they_block(env):
+    env.setenv("SENTRY_ENVIRONMENT", "staging")
+    env.setenv("TAVILY_API_KEY", "tvly-test")
+    env.setenv("GOOGLE_PLACES_API_KEY", "a-places-key")
+    env.setenv("APIFY_TOKEN", "an-apify-key")  # the older name still counts
+    findings = {f.setting: f.message for f in config_check.check_environment() if f.level == config_check.WARNING}
+    assert "Video comments" in findings["YOUTUBE_API_KEY"]
+    # One line per setting, naming every facet it blocks.
+    assert "Google reviews" in findings["SCRAPER_ACTOR_USER_ID"] and "Video comments" in findings["SCRAPER_ACTOR_USER_ID"]
+    assert "GOOGLE_PLACES_API_KEY" not in findings and "APIFY_API_TOKEN" not in findings and "TAVILY_API_KEY" not in findings
+    assert "Service setup" in findings["OPERATOR_EMAILS"]
+    assert not any("a-places-key" in m or "an-apify-key" in m for m in findings.values())

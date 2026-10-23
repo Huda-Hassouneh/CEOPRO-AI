@@ -77,6 +77,7 @@ by the Windows onboarding verification.
 | Start or debug background work | [Workers](docs/WORKERS.md) |
 | Run tests | [Testing](docs/TESTING.md) |
 | Diagnose a failure | [Troubleshooting](docs/TROUBLESHOOTING.md) |
+| Check a new environment before anyone uses it | [Installation and verification checklist](docs/INSTALLATION.md) |
 
 ## Technology and source layout
 
