@@ -43,6 +43,11 @@ _PUBLIC = {
     ("GET", "/platform/invitations/{token}"),
     ("POST", "/platform/invitations/{token}/accept"),
     ("GET", "/onboarding/shopify/callback"),
+    # The static industry catalog is safe to read before login so the public
+    # workspace setup flow can render profile choices. It performs no
+    # discovery, tenant lookup, or mutation; all other onboarding operations
+    # remain authenticated.
+    ("GET", "/onboarding/industries"),
     ("GET", "/billing/plans"),
 }
 
