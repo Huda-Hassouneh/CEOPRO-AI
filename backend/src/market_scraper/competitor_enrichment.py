@@ -837,6 +837,7 @@ _PRICE_READ_OUTCOMES = {
     "blocked_by_robots": (STATUS_BLOCKED, ROBOTS_DISALLOWED, "The website does not allow automated reading."),
     "unreachable": (STATUS_FAILED, SITE_UNREACHABLE, "The website could not be reached."),
     "http_error": (STATUS_FAILED, SITE_UNREACHABLE, "The website answered with an error."),
+    "refused_by_site": (STATUS_BLOCKED, ROBOTS_DISALLOWED, "The website's firewall or bot protection turned the reader away."),
     "not_public": (STATUS_BLOCKED, SITE_UNREACHABLE, "The website address is not a public site."),
     "needs_javascript": (STATUS_FAILED, JS_RENDERED, "The prices are drawn by JavaScript and no headless browser is available to read them."),
     "no_relevant_page": (STATUS_FAILED, NO_PRICES_PUBLISHED, "No menu, price or product page was found on the website."),
@@ -879,6 +880,8 @@ def _prices_outcome(conn, tenant_id, competitor_id, competitor, deep):
                 f"The menu is published as {media['skipped_no_ocr']} picture(s) but the OCR engine is not installed on the server.", 0, None)
     if known:
         status, code, text = known
+        if outcome.get("http_status"):
+            text = f"{text[:-1]} (HTTP {outcome['http_status']})."
         return status, code, text, 0, None
     return STATUS_FAILED, NO_PRICES_PUBLISHED, "No prices were found on the website.", 0, None
 
