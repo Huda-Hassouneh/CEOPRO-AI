@@ -111,6 +111,7 @@ def test_active_principal_is_rechecked_and_unknown_db_fails_closed(monkeypatch):
 def test_legacy_token_without_jti_receives_stable_revocable_identity(monkeypatch):
     raw=jwt.encode({'tenant_id':'t','user_id':'u','exp':datetime.now(timezone.utc)+timedelta(minutes=5)},security._JWT_SECRET,algorithm='HS256')
     checked=[];monkeypatch.setattr(security,'is_token_revoked',lambda x,**kwargs:(checked.append(x)or False))
+    monkeypatch.setattr(security,'sessions_invalidated_since',lambda _user_id:0)
     monkeypatch.setattr(security,'assert_active_principal',lambda *a:None)
     ctx=security.get_tenant_context(authorization='Bearer '+raw)
     assert ctx.token_id==checked[0] and ctx.token_id.startswith('legacy:')

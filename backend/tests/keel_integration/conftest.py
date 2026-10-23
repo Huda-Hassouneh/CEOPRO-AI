@@ -5,7 +5,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from src.ai.core import security
-from src.ai.routers import auth, platform
+from src.ai.routers import auth, onboarding, platform
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ def api(monkeypatch):
     monkeypatch.setattr(auth_throttle,'ensure_allowed',lambda *a:None)
     monkeypatch.setattr(auth_throttle,'record_failure',lambda *a:False)
     monkeypatch.setattr(auth_throttle,'reset',lambda *a:None)
-    app=FastAPI();app.include_router(auth.router);app.include_router(platform.router)
+    app=FastAPI();app.include_router(auth.router);app.include_router(onboarding.router);app.include_router(platform.router)
     with TestClient(app)as client:yield client
 
 

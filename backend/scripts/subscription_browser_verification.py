@@ -9,6 +9,8 @@ import hashlib
 import hmac
 import json
 import os
+import re
+import socket
 import subprocess
 import threading
 import time
@@ -24,14 +26,21 @@ import uvicorn
 from scripts.billing_verification import validate_test_environment
 
 
+def _local_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
 def main():
     if os.getenv("KEEL_SUBSCRIPTION_BROWSER_FIXTURE") != "YES":
         raise RuntimeError("Explicit disposable subscription fixture flag required")
     database_url = validate_test_environment(dict(os.environ), database=True)
     if os.getenv("STRIPE_SECRET_KEY", "").startswith(("sk_live_", "rk_live_")):
         raise RuntimeError("Live Stripe keys are refused")
-    if os.getenv("APP_BASE_URL") != "http://127.0.0.1:15173":
-        raise RuntimeError("Frontend fixture must use the isolated local port")
+    requested_frontend = os.getenv("APP_BASE_URL", "")
+    if requested_frontend and not re.fullmatch(r"http://127\.0\.0\.1:\d{1,5}", requested_frontend):
+        raise RuntimeError("Frontend fixture must use a loopback-only HTTP URL")
 
     from src.ai.core.security import hash_password
     from src.ai.billing import store, stripe_api
@@ -45,9 +54,16 @@ def main():
     subscription_state = {"value": None}
     invoices = {}
     api_base = "http://127.0.0.1:15174"
-    frontend_base = "http://127.0.0.1:15173"
+    frontend_port = _local_port()
+    frontend_base = requested_frontend or f"http://127.0.0.1:{frontend_port}"
+    if requested_frontend:
+        frontend_port = int(requested_frontend.rsplit(":", 1)[1])
     fixture_base = "http://127.0.0.1:15175"
     os.environ.setdefault("CORS_ALLOWED_ORIGINS", frontend_base)
+    # Keep Stripe's post-checkout/cancel return URL on the exact local origin
+    # that owns the browser session. The default localhost URL is a different
+    # origin from the ephemeral 127.0.0.1 Vite port used by this fixture.
+    os.environ["APP_BASE_URL"] = frontend_base
 
     with psycopg2.connect(database_url) as conn, conn.cursor() as cur:
         cur.execute(
@@ -115,7 +131,7 @@ def main():
             body = (
                 "<!doctype html><html><head><title>Stripe test checkout fixture</title></head>"
                 "<body><main><h1>Stripe test checkout</h1><p>Disposable local payment fixture.</p>"
-                f"<form method='post' action='/checkout/{session_id}'><button type='submit'>Complete test payment</button></form>"
+                f"<form method='post' action='{fixture_base}/checkout/{session_id}'><button type='submit'>Complete test payment</button></form>"
                 "</main></body></html>"
             ).encode()
             self.send_response(200)
@@ -177,7 +193,10 @@ def main():
     def create_checkout_session(params, idempotency_key):
         session_id = f"cs_browser_{hashlib.sha256(idempotency_key.encode()).hexdigest()[:16]}"
         checkout_sessions[session_id] = {"params": copy.deepcopy(params)}
-        return {"id": session_id, "url": f"{fixture_base}/checkout/{session_id}"}
+        # The production UI intentionally redirects only to HTTPS hosted-checkout
+        # URLs. Playwright intercepts this provider hostname and serves the local
+        # contract fixture without making any external network request.
+        return {"id": session_id, "url": f"https://checkout.stripe.com/checkout/{session_id}"}
 
     def retrieve_subscription(subscription_id):
         sub = subscription_state["value"]
@@ -202,7 +221,7 @@ def main():
 
     def create_portal_session(_customer_id, return_url):
         del return_url
-        return {"url": f"{fixture_base}/portal/session"}
+        return {"url": "https://billing.stripe.com/portal/session"}
 
     stripe_api.create_customer = create_customer
     stripe_api.create_checkout_session = create_checkout_session
@@ -216,6 +235,7 @@ def main():
     api_server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=15174, log_level="info"))
     api_thread = threading.Thread(target=api_server.run, daemon=True)
     api_thread.start()
+    frontend_process = None
     try:
         for _ in range(100):
             try:
@@ -242,15 +262,40 @@ def main():
         print("FASTAPI_LOGIN_PROBE: authenticated owner received a real app token")
 
         env = dict(os.environ)
+        env["VITE_API_BASE_URL"] = "/api"
+        env["KEEL_API_PROXY_TARGET"] = api_base
         env["KEEL_SUBSCRIPTION_TEST_EMAIL"] = email
         env["KEEL_SUBSCRIPTION_TEST_PASSWORD"] = password
         env["KEEL_SUBSCRIPTION_BROWSER_BASE_URL"] = frontend_base
         env.setdefault("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH", str(Path.home() / "AppData/Local/ms-playwright/chromium-1217/chrome-win64/chrome.exe"))
+        frontend_process = subprocess.Popen(
+            ["node", "node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", str(frontend_port), "--strictPort"],
+            cwd=Path(__file__).resolve().parents[2] / "frontend", env=env,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        for _ in range(100):
+            if frontend_process.poll() is not None:
+                raise RuntimeError("Current-source Vite process exited before readiness")
+            try:
+                with urlopen(frontend_base + "/login", timeout=1) as response:
+                    if response.status == 200:
+                        break
+            except Exception:
+                time.sleep(0.2)
+        else:
+            raise RuntimeError("Current-source Vite process did not become ready")
         browser_script = Path(__file__).resolve().parents[2] / "frontend" / "tests" / "browser" / "subscription-lifecycle.mjs"
         result = subprocess.run(["node", str(browser_script)], cwd=browser_script.parents[2], env=env, check=False)
         if result.returncode:
             raise SystemExit(result.returncode)
     finally:
+        if frontend_process is not None:
+            frontend_process.terminate()
+            try:
+                frontend_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                frontend_process.kill()
+                frontend_process.wait(timeout=5)
         api_server.should_exit = True
         checkout_server.shutdown()
         checkout_server.server_close()
