@@ -1,55 +1,32 @@
 # KEEL
 
-KEEL turns a business's own sales, stock and pricing data, plus public
-information about its market, into clear daily decisions: what to restock,
-what to reprice, which competitors moved, what demand to expect and what to
-promote. It works for any kind of business (shops, restaurants, cafés,
-salons, pharmacies, B2B suppliers, services) in English and Arabic.
+KEEL helps businesses turn sales, products, stock and market evidence into practical decisions: analytics, demand forecasts, price recommendations, competitor monitoring, sentiment, campaign assets, document-grounded assistance and alerts.
 
-## What's in the product
+The unified app has one Python/FastAPI business authority. React/Vite is the customer and operator UI. PostgreSQL stores canonical tenant data and enforces row-level security. Redis supports streams, cache and rate limits; MinIO/S3-compatible storage holds uploads and assets. Python remains the authority for Stripe, subscriptions, entitlements, Credits, usage and workers.
 
-| Area | What it does |
-|---|---|
-| Command Center | Today's numbers, the next best actions, products to restock, falling sales and market moves |
-| Products & Sales | Every product with its sales, margin, stock cover and forecast; record sales; import history |
-| Demand | 30-day demand forecast per product from the company's own sales history |
-| Pricing | Prices and margins against real competitor prices, with a recommended price and its reasoning |
-| Competitors | Discovery from public listings (OpenStreetMap, Google Maps), web search and businesses' own websites; tracked competitors, price changes, leaderboard and trends |
-| Marketing | Guided campaign builder: copy and images for a chosen product, goal and audience |
-| Assistant | Questions answered from the company's own data and documents, with sources |
-| Reports | Financial summary and a sales report, exportable as CSV or JSON |
-| Data & Documents | Spreadsheet uploads, live connections to a company's own database or API, documents |
-| Alerts | Stock, sales, competitor price and market alerts, with read state |
-| Settings & Billing | Profile, company, team and roles, notifications, language and theme, security, data export and deletion; plans, usage and Stripe checkout |
+## Start here
 
-Every company is a separate workspace protected by Postgres row-level
-security; one sign-in can own several companies.
+- Contributor setup and verification: [docs/keel-integration/PHASE7_DEVELOPER_GUIDE.md](docs/keel-integration/PHASE7_DEVELOPER_GUIDE.md)
+- Feature inventory and practical tests: [docs/keel-integration/FEATURE_INVENTORY.md](docs/keel-integration/FEATURE_INVENTORY.md)
+- Teammate/reviewer handoff: [docs/keel-integration/PHASE7_TEAMMATE_HANDOFF.md](docs/keel-integration/PHASE7_TEAMMATE_HANDOFF.md)
+- Phase 6 integrated acceptance: [docs/keel-integration/PHASE6_INTEGRATED_ACCEPTANCE_REPORT.md](docs/keel-integration/PHASE6_INTEGRATED_ACCEPTANCE_REPORT.md)
+- Phase 7 reproducibility and browser evidence: [docs/keel-integration/PHASE7_REPRODUCIBILITY_REPORT.md](docs/keel-integration/PHASE7_REPRODUCIBILITY_REPORT.md)
+- Unified implementation ledger: [docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md](docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md)
+- Backend settings: [backend/.env.example](backend/.env.example)
+- Frontend settings: [frontend/.env.example](frontend/.env.example)
 
-## Run it
+## Quick start
 
-```bash
-./keel setup     # once: .env files, Python and npm dependencies
-./keel start     # databases, backend and frontend - open http://localhost:5173
-./keel seed      # optional: seven demo companies with 18 months of history
-./keel test      # all backend and frontend checks
-```
+For full Windows development, use WSL 2:
+~~~~bash
+./keel setup       # once per checkout
+./keel start       # services, migrations, FastAPI and Vite
+./keel workers     # separate terminal for market workers
+./keel seed        # optional synthetic companies; prompts for local password
+~~~~
 
-Codespaces runs the same steps automatically. Full instructions, the
-configuration names and troubleshooting are in **[RUNNING_LOCALLY.md](RUNNING_LOCALLY.md)**;
-Codespaces specifics in [CODESPACES_DEVELOPMENT.md](CODESPACES_DEVELOPMENT.md);
-staging on Render in [STAGING_DEPLOYMENT.md](STAGING_DEPLOYMENT.md).
-What is finished and what still needs an account or a key is in
-[CURRENT_STATUS.md](CURRENT_STATUS.md).
+For focused acceptance work, reuse tools/keel-verification/README.md instead of creating a venv or Docker stack. Its reset affects only the dedicated keel_verification database.
 
-## Layout
+## Verification status
 
-- `backend/` - FastAPI service (`src/ai/main.py`), market data collection and
-  competitor discovery (`src/market_scraper/`), forecasting, the assistant
-  (RAG over the company's data and documents), billing, and the Postgres
-  schema and migrations (`src/infrastructure/database/`).
-- `frontend/` - React + Vite app. The design system lives in
-  `src/styles/apex-theme.css` (tokens) and `src/styles/keel-glass.css` (the
-  glass material); translations in `src/assets/locales/`.
-- `.devcontainer/` - the Codespace definition and the setup scripts `./keel` uses.
-- `render.yaml` - staging deployment.
-- `docs/archive/` - historical reports kept for reference.
+Phase 6 passed the exercised local matrix with controlled fixtures. Live provider certification and owner-controlled commercial/security decisions remain open. Fixtures are not production certification or deployment approval; read the linked evidence.
