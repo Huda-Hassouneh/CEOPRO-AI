@@ -60,6 +60,21 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
     if not reviews:
         return {"status": "OK", "analyzed_count": 0}
 
+    # ``remaining()`` above is only a useful batch-size hint. It is not a
+    # reservation: another request or worker can consume that allowance before
+    # this classifier finishes. Reserve the selected records atomically in the
+    # same transaction as their sentiment rows, then settle to the number that
+    # was actually persisted. This keeps the existing per-record unit and
+    # releases failed/duplicate writes without charging twice.
+    try:
+        reservation = usage.reserve(
+            conn, tenant_id, usage.SENTIMENT_ANALYSIS, len(reviews)
+        )
+    except usage.PlanLimitReached as exc:
+        if exc.reason == "QUOTA_EXHAUSTED":
+            return {"status": "PLAN_LIMIT", "analyzed_count": 0}
+        raise
+
     try:
         predictions = model.classify_or_unavailable([r["review_text"] for r in reviews])
         method = "model"
@@ -72,6 +87,8 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
         method = "star_rating"
         pairs = [(r, p) for r, p in zip(reviews, predictions) if p is not None]
         if not pairs:
+            usage.settle(conn, reservation, 0)
+            conn.commit()
             return {"status": "MODEL_UNAVAILABLE", "analyzed_count": 0, "method": method}
         reviews, predictions = [r for r, _ in pairs], [p for _, p in pairs]
 
@@ -101,7 +118,7 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
             with conn.cursor() as cursor:
                 cursor.execute(f"RELEASE SAVEPOINT {_SAVEPOINT_NAME};")
             analyzed_count += 1
-    usage.record(conn, tenant_id, usage.SENTIMENT_ANALYSIS, analyzed_count)
+    usage.settle(conn, reservation, analyzed_count)
     conn.commit()
 
     logger.info(f"Classified {analyzed_count} reviews for tenant={tenant_id} ({failed_count} failed)")
