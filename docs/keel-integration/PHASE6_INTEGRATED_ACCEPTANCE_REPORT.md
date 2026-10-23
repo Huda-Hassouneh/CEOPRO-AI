@@ -1,7 +1,7 @@
 # KEEL Phase 6 — Unified Integration Acceptance
 
-**Run date:** 2026-10-23  
-**Source:** `integration/keel-full-migration` at `21472b4e3e14f4b7a9b222948150b694ace17801` plus the local verification-only commit recorded below.  
+**Run date:** 2026-10-23
+**Source:** `integration/keel-full-migration` at `21472b4e3e14f4b7a9b222948150b694ace17801`; the final evidence and verification harness are recorded in local commit `2b7f858acdee0e84a1544f6882ab341bf98bd347`.
 **Database:** reusable disposable PostgreSQL 17 / pgvector, migrations 1–103; restricted `ceopro_app`; Redis 7.4.11; MinIO; current-source FastAPI/Vite; installed Chromium. No development or production database was used.
 
 ## Acceptance matrix
@@ -71,9 +71,10 @@ No application production defect was demonstrated in the Phase 6 regressions, so
 ## Git and verdict
 
 - Starting commit: `21472b4e3e14f4b7a9b222948150b694ace17801`.
-- Local Phase 6 verification commit: see the ledger and final response; no application migration or production code change.
+- Local Phase 6 verification commit: `2b7f858acdee0e84a1544f6882ab341bf98bd347`; no application migration or production code change.
 - Migrations remain exactly **103**; no migration file changed.
 - Node reference, teammate `main`, and the Phase 1A worktree were not modified.
 
-**Unified local integration acceptance: PASS for the exercised supported workflows and documented local environment, with the exact NOT RUN/BLOCKED items above.**  
+**Unified local integration acceptance: PASS for the exercised supported workflows and documented local environment, with the exact NOT RUN/BLOCKED items above.**
+
 **Production release readiness: BLOCKED / CONDITIONAL** on owner policy decisions and live provider certification, plus the explicitly unverified UI/operator workflows. This is not production certification or deployment approval.
