@@ -1016,21 +1016,23 @@ def test_dashboard_product_forecast_requires_auth():
 
 def test_dashboard_product_forecast_returns_the_pipeline_result():
     fake_conn = MagicMock()
-    fake_result = {"product_id": "p1", "product_name": "Widget", "current_stock": 620}
+    product_id = "20000000-0000-0000-0000-000000000001"
+    fake_result = {"product_id": product_id, "product_name": "Widget", "current_stock": 620}
     with patch("src.ai.routers.dashboard.db.app_role_connection", return_value=fake_conn), \
          patch("src.ai.routers.dashboard.dashboard_forecast_detail.get_product_forecast_detail", return_value=fake_result) as mock_detail:
-        response = client.get("/dashboard/products/p1/forecast", headers=_auth())
+        response = client.get(f"/dashboard/products/{product_id}/forecast", headers=_auth())
 
     assert response.status_code == 200
     assert response.json() == fake_result
-    mock_detail.assert_called_once_with(fake_conn, "t1", "p1")
+    mock_detail.assert_called_once_with(fake_conn, "t1", product_id)
 
 
 def test_dashboard_product_forecast_returns_404_for_a_missing_product():
     fake_conn = MagicMock()
+    product_id = "20000000-0000-0000-0000-000000000002"
     with patch("src.ai.routers.dashboard.db.app_role_connection", return_value=fake_conn), \
          patch("src.ai.routers.dashboard.dashboard_forecast_detail.get_product_forecast_detail", return_value=None):
-        response = client.get("/dashboard/products/missing/forecast", headers=_auth())
+        response = client.get(f"/dashboard/products/{product_id}/forecast", headers=_auth())
 
     assert response.status_code == 404
 
