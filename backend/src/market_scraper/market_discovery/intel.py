@@ -68,6 +68,7 @@ STATUS_NO_PAGE = "no_relevant_page"
 STATUS_UNREACHABLE = "unreachable"
 STATUS_ROBOTS = "blocked_by_robots"
 STATUS_HTTP = "http_error"
+STATUS_REFUSED = "refused_by_site"  # its firewall / bot protection turned the reader away (401, 403, 429)
 STATUS_JS = "needs_javascript"
 STATUS_FAILED = "extraction_failed"
 STATUS_NOT_PUBLIC = "not_public"
@@ -206,9 +207,19 @@ _DATE_LIKE = re.compile(r"\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b(19|20)\d{2}\b")
 class PageUnavailable(Exception):
     """A page that answered with no usable HTML: reason is STATUS_*."""
 
-    def __init__(self, reason: str):
+    def __init__(self, reason: str, http_status: Optional[int] = None):
         super().__init__(reason)
         self.reason = reason
+        self.http_status = http_status
+
+
+# Answers that mean "not you", not "this page is broken": a firewall or bot protection, which a retry won't pass.
+REFUSED_HTTP_STATUSES = (401, 403, 429)
+
+
+def _refused(response: httpx.Response) -> bool:
+    return response.status_code in REFUSED_HTTP_STATUSES or (
+        response.status_code == 503 and "cf-mitigated" in response.headers)  # Cloudflare's challenge page
 
 
 def _now() -> str:
@@ -641,10 +652,10 @@ class _Site:
             raise PageUnavailable(STATUS_ROBOTS)
         response = self._get(url, "*/*")
         if response.status_code >= 400:
-            raise PageUnavailable(STATUS_HTTP)
+            raise PageUnavailable(STATUS_REFUSED if _refused(response) else STATUS_HTTP, response.status_code)
         content_type = response.headers.get("content-type", "")
         if content_type and not any(kind in content_type for kind in kinds):
-            raise PageUnavailable(STATUS_HTTP)
+            raise PageUnavailable(STATUS_HTTP, response.status_code)
         return response.text
 
     def media(self, url: str) -> Optional[Tuple[bytes, str]]:
@@ -761,6 +772,9 @@ def collect(website: str, fetch: Optional[Callable[[str], Optional[str]]] = None
             except PageUnavailable as exc:
                 if exc.reason == STATUS_ROBOTS:
                     out["pages_blocked"] += 1
+                elif target == url:  # the homepage: why nothing could be read
+                    out["refused"] = exc.reason == STATUS_REFUSED
+                    out["http_status"] = exc.http_status
                 return None
     render = render if render is not None else (_render if site is not None else (lambda _u: None))
     def fetch_any(target):
@@ -781,8 +795,10 @@ def collect(website: str, fetch: Optional[Callable[[str], Optional[str]]] = None
         if html is None:
             blocked = out["pages_blocked"] or site is None
             out["pages_blocked"] = max(out["pages_blocked"], 1)
-            out["error"] = "not_allowed" if blocked else STATUS_HTTP
-            out["status"] = STATUS_ROBOTS if blocked else STATUS_HTTP
+            if blocked:
+                out["error"], out["status"] = "not_allowed", STATUS_ROBOTS
+            else:
+                out["error"] = out["status"] = STATUS_REFUSED if out.pop("refused", False) else STATUS_HTTP
             return out
         first = read_page(html, url, country, max_items)
         if first["text_chars"] < 300 and "<script" in html.lower():

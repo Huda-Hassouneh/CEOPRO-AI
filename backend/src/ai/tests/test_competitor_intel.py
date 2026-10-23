@@ -77,6 +77,39 @@ def test_a_blocked_or_unreachable_site_adds_nothing():
     assert unreachable["facts"] == [] and unreachable["error"] == "unreachable"
 
 
+
+def _serve(monkeypatch, homepage_response):
+    """The real reader (robots.txt, status codes) against canned answers instead of the network."""
+    import httpx
+
+    def safe_get(client, url, **_kwargs):
+        if url.endswith("/robots.txt"):
+            return httpx.Response(404)
+        return homepage_response
+    monkeypatch.setattr(intel.enrich, "_safe_get", safe_get)
+    monkeypatch.setattr(intel, "PAGE_DELAY_SECONDS", 0)
+
+
+def test_a_site_whose_bot_protection_refuses_the_reader_says_so(monkeypatch):
+    import httpx
+
+    _serve(monkeypatch, httpx.Response(403, headers={"content-type": "text/html"}, text="<h1>Access denied</h1>"))
+    refused = intel.collect("https://habibah.jo")
+    assert refused["facts"] == [] and refused["status"] == intel.STATUS_REFUSED and refused["http_status"] == 403
+
+    # Cloudflare's challenge answers 503 with a cf-mitigated header: the same refusal, not a broken site.
+    _serve(monkeypatch, httpx.Response(503, headers={"cf-mitigated": "challenge"}))
+    assert intel.collect("https://habibah.jo")["status"] == intel.STATUS_REFUSED
+
+
+def test_a_real_error_page_keeps_its_status_code(monkeypatch):
+    import httpx
+
+    _serve(monkeypatch, httpx.Response(404, headers={"content-type": "text/html"}, text="Not found"))
+    missing = intel.collect("https://habibah.jo")
+    assert missing["status"] == intel.STATUS_HTTP and missing["http_status"] == 404
+
+
 def test_text_prices_need_a_name_and_a_currency():
     lines = ["Call 0790000000", "Open 9 to 5", "Kunafa 3.5 JD", "Total: JD 12", "Delivery fee 1 JD", "2026"]
     assert intel.text_prices(lines) == [{"name": "Kunafa", "price": 3.5, "currency": "JOD"}]
