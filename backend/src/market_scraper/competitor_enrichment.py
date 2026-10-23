@@ -1169,6 +1169,10 @@ _ADMIN_CODES = (NO_CREDENTIALS, CREDENTIALS_REJECTED, PLATFORM_APPROVAL_MISSING,
 _WAIT_CODES = (QUOTA_EXHAUSTED, PROVIDER_ERROR, SITE_UNREACHABLE)
 _OWNER_CODES = (TERMS_UNREVIEWED, NOT_OWN_SITE)
 _NOTHING_TO_DO_CODES = (NO_WEBSITE, SHARED_RECORD, NO_SOCIAL_LINKS, ROBOTS_DISALLOWED)
+# Trying again may find something. Listed, not just the fallback, so a new code has to be placed in one group
+# on purpose (tests/test_data_requirements.py): an unplaced admin-only code would offer the owner a useless Retry.
+_RETRY_CODES = (NO_MATCH, INCOMPLETE_LISTING, NO_PLACE_ID, NO_FEED, NO_NEWS, NO_VIDEOS, NO_POSTS, NO_PRICES_PUBLISHED,
+                JS_RENDERED, NO_PRODUCTS_MAPPED, NO_DATA_COLLECTED, NOT_ATTEMPTED)
 
 
 def next_step_for(status: Optional[str], reason_code: Optional[str]) -> str:

@@ -223,6 +223,14 @@ services:
         sync: false
       - key: SOCIAL_CONTENT_APPROVAL_REFERENCE
         sync: false
+      # Background collection in this service (scheduled refresh) records rows as the
+      # database's built-in service identity; an owner's Retry uses the owner instead.
+      - key: SCRAPER_ACTOR_USER_ID
+        value: "00000000-0000-0000-0000-000000000000"
+      # Who sees Settings > Service setup and gets the "provider key rejected" email
+      # (comma-separated addresses; not a secret). Unset: nobody does.
+      - key: OPERATOR_EMAILS
+        sync: false
       - key: DISCOVERY_VISION_OCR
         value: "off"
       - key: GEMINI_API_KEYS
@@ -328,6 +336,9 @@ services:
 #      - key: PLACES_TERMS_APPROVAL_REFERENCE
 #        sync: false
 #      - key: SOCIAL_CONTENT_APPROVAL_REFERENCE
+#        sync: false
+#      # The "provider key rejected" email is sent by the process that collected.
+#      - key: OPERATOR_EMAILS
 #        sync: false
 #      - key: DISCOVERY_VISION_OCR
 #        value: "off"
