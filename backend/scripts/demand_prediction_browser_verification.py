@@ -52,7 +52,7 @@ def main():
         "FORECAST_BROWSER_PRODUCT": product_name,
         "FORECAST_BROWSER_PRODUCT_ID": product,
         "APP_URL": f"http://127.0.0.1:{web_port}",
-        "CHROMIUM_PATH": str(Path.home() / "AppData/Local/ms-playwright/chromium-1217/chrome-win64/chrome.exe"),
+        "CHROMIUM_PATH": env.get("CHROMIUM_PATH") or str(Path.home() / "AppData/Local/ms-playwright/chromium-1217/chrome-win64/chrome.exe"),
     })
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", api_port))

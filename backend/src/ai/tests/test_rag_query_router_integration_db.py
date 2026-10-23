@@ -46,9 +46,14 @@ def _gate_on(monkeypatch):
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    from src.ai.core import notifications
     from src.ai.main import app
 
+    codes = {}
+    monkeypatch.setattr(notifications, "send_email_verification_email",
+                        lambda address, code: codes.__setitem__(address, code) or True)
+    app.state.test_verification_codes = codes
     return TestClient(app)
 
 
@@ -87,11 +92,15 @@ def _company_with_one_product(client):
     email = f"router+{uuid.uuid4().hex[:8]}@example.com"
     response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": business, "email": email,
                                                   "country_code": "JO", "primary_currency": "JOD", "password": PASSWORD})
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
+    session = client.post("/auth/email/verify", json={"email": email,
+        "registration_token": response.json()["registration_token"],
+        "code": client.app.state.test_verification_codes[email]} )
+    assert session.status_code == 200, session.text
     tenant = _admin("SELECT tenant_id FROM companies WHERE business_name = %s;", (business,))[0][0]
     _admin("INSERT INTO products (tenant_id, product_name, current_price, currency) VALUES (%s, %s, 2.5, 'JOD');",
            (tenant, json.dumps({"en": "Olive Oil 1L"})))
-    return str(tenant), {"Authorization": f"Bearer {response.json()['access_token']}"}
+    return str(tenant), {"Authorization": f"Bearer {session.json()['access_token']}"}
 
 
 def _ask(client, headers):

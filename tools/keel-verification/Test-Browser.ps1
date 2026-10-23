@@ -1,4 +1,4 @@
-param([switch]$IncludeDataImport, [switch]$IncludeNotifications)
+param([switch]$IncludeDataImport, [switch]$IncludeNotifications, [switch]$IncludeProducts)
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $state = Join-Path $env:LOCALAPPDATA 'KEEL/verification'
@@ -59,5 +59,14 @@ try {
       Push-Location (Join-Path $repo 'backend')
       try { & $python scripts/seed_notification_browser_fixture.py --cleanup } finally { Pop-Location }
     }
+  }
+  if ($IncludeProducts) {
+    & (Join-Path $PSScriptRoot 'Prepare-ProductFixture.ps1')
+    $env:KEEL_VERIFICATION_STATE = $state
+    $env:API_URL = 'http://127.0.0.1:8000'
+    $env:APP_URL = 'http://127.0.0.1:5178'
+    $env:CHROMIUM_PATH = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+    node tests/browser/products-inventory.mjs
+    if ($LASTEXITCODE -ne 0) { throw 'Products/Inventory browser workflow failed.' }
   }
 } finally { Pop-Location }
