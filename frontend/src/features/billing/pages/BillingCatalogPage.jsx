@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Link2, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useSWR from "../../../shared/lib/useSWRCompat.js";
@@ -436,7 +436,7 @@ function PromoFormModal({
       maxUsesPerUser: promo?.maxUsesPerUser ?? 1,
       startsAt: toDateTimeLocal(promo?.startsAt ?? now),
       expiresAt: toDateTimeLocal(promo?.expiresAt ?? nextMonth),
-      isActive: promo?.isActive ?? true
+      isActive: promo?.isActive ?? false
     });
   }, [isOpen, promo]);
 
@@ -1308,7 +1308,7 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
             {
               header: t("billing.catalog.customPlans.tenant"),
               render: (plan) =>
-                plan.tenant?.businessName ?? plan.tenantId ?? "—"
+                plan.tenant?.businessName ?? plan.tenantId ?? "â€”"
             },
             {
               header: tt("billing.catalog.fields.name", "Name"),
@@ -1376,12 +1376,12 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
                   ? new Intl.DateTimeFormat(locale, {
                       dateStyle: "medium"
                     }).format(new Date(plan.subscriptionEffectiveAt))
-                  : "—"
+                  : "â€”"
             },
             {
               header: t("billing.catalog.customPlans.sourceQuote"),
               render: (plan) =>
-                plan.sourceQuote?.id ? plan.sourceQuote.id.slice(0, 8) : "—"
+                plan.sourceQuote?.id ? plan.sourceQuote.id.slice(0, 8) : "â€”"
             },
             {
               header: tt("billing.catalog.actions", "Actions"),
@@ -1473,7 +1473,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
       ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
           new Date(value)
         )
-      : "—";
+      : "â€”";
 
   if (isLoading) return <Skeleton height="220px" variant="rectangular" />;
   if (error) return <SectionError error={error} />;
@@ -1529,7 +1529,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
                     </span>
                   </div>
                 ) : (
-                  "—"
+                  "â€”"
                 )
             },
             {
@@ -1551,7 +1551,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
                     )}
                   </Badge>
                 ) : (
-                  "—"
+                  "â€”"
                 )
             },
             {
@@ -1561,7 +1561,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
             {
               header: t("billing.catalog.subscriptions.billingPeriod"),
               render: (row) => {
-                if (!row.billingPeriod) return "—";
+                if (!row.billingPeriod) return "â€”";
                 if (row.billingPeriod === "monthly")
                   return t("billing.periods.monthly");
                 if (row.billingPeriod === "three-months")
@@ -1755,7 +1755,7 @@ export function BillingCatalogPage({
     {
       header: t("billing.catalog.fields.expiresAt"),
       render: (promo) =>
-        promo.expiresAt ? dateFormatter.format(new Date(promo.expiresAt)) : "—"
+        promo.expiresAt ? dateFormatter.format(new Date(promo.expiresAt)) : "â€”"
     },
     {
       header: t("billing.catalog.fields.status"),
@@ -1816,7 +1816,7 @@ export function BillingCatalogPage({
     },
     {
       header: t("billing.catalog.fields.unit"),
-      render: (feature) => feature.unit || "—"
+      render: (feature) => feature.unit || "â€”"
     },
     {
       header: t("billing.catalog.fields.resetCycle"),
@@ -2352,3 +2352,4 @@ export function BillingCatalogPage({
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+﻿import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import { routePaths } from './routePaths.js';
 import { page } from './lazyPage.jsx';
 import { ProtectedRoute } from './ProtectedRoute.jsx';
@@ -7,6 +7,7 @@ import { PublicLayout } from '../layouts/PublicLayout.jsx';
 import { AuthLayout } from '../layouts/AuthLayout.jsx';
 import { DashboardLayout } from '../layouts/DashboardLayout.jsx';
 import { AppErrorPage } from '../../shared/components/feedback/ErrorBoundary.jsx';
+import { platformAdminRoute } from '../../features/platform-admin/routes.jsx';
 
 import { LoginPage } from '../../features/auth/pages/LoginPage.jsx';
 import { SignupPage } from '../../features/auth/pages/SignupPage.jsx';
@@ -64,10 +65,9 @@ const routes = [
   // Stripe-hosted Checkout from Billing.
   ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/billing/checkout', '/onboarding/*']
     .map((path) => ({ path, element: <Navigate to={path.startsWith('/onboarding') ? '/onboarding' : '/billing'} replace /> })),
-  { path: '/admin/billing', element: <Navigate to="/platform/billing" replace /> },
-  { path: '/admin/*', element: <Navigate to="/platform" replace /> },
-  { path: '/platform', lazy: async () => ({ Component: (await import('../../features/platform/PlatformDashboard.jsx')).PlatformDashboard }) },
-  { path: '/platform/billing', lazy: async () => ({ Component: (await import('../../features/platform/PlatformBillingAdmin.jsx')).PlatformBillingAdmin }) },
+  platformAdminRoute,
+  { path: '/platform/billing', element: <Navigate to="/admin/billing" replace /> },
+  { path: '/platform', element: <Navigate to="/admin" replace /> },
   { path: '/platform/invitations/:token', lazy: async () => ({ Component: (await import('../../features/platform/PlatformInvitation.jsx')).PlatformInvitation }) },
   {
     path: routePaths.welcome,
@@ -447,3 +447,5 @@ const routes = [
 // One root route so every screen shares the same error screen instead of
 // React Router's developer error page.
 export const router = createBrowserRouter([{ errorElement: <AppErrorPage />, children: routes }]);
+
+
