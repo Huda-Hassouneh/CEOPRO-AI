@@ -1,5 +1,5 @@
 """Python-native platform management. Tenant ownership never implies platform authority."""
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
@@ -87,6 +87,52 @@ class PromotionDraft(Reason):
         import json
         if len(json.dumps(value, default=str).encode()) > 8192:
             raise ValueError("Promotion terms are too large")
+        return value
+
+
+class OwnerVendorRateSave(BaseModel):
+    """Original owner vendor-rate form mapped to immutable Python rate + draft binding."""
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    budget_kind: Literal["data", "ai"]
+    provider: str = Field(min_length=1, max_length=60)
+    operation: str = Field(min_length=1, max_length=120)
+    unit: Literal["request", "record", "page", "input_token", "output_token", "cache_read_token", "cache_write_token", "image"]
+    unit_cost_usd: Decimal = Field(ge=0, max_digits=20, decimal_places=12)
+    source: str = Field(min_length=1, max_length=2000)
+    verification_evidence: str = Field(min_length=1, max_length=4000)
+    verified_at: date
+    effective_from: datetime
+    effective_to: datetime | None = None
+    supersedes_rate_id: UUID | None = None
+    policy_version_id: UUID | None = None
+    feature_code: str | None = Field(default=None, min_length=1, max_length=100)
+    usage_basis: Literal["enabled_feature", "limit_value"] = "limit_value"
+    units_per_feature_unit: Decimal = Field(default=Decimal("1"), gt=0, max_digits=24, decimal_places=8)
+    operational_multiplier: Decimal = Field(gt=0, max_digits=18, decimal_places=8)
+    variability_reserve: Decimal = Field(ge=1, max_digits=18, decimal_places=8)
+    required_for_price: bool = True
+    usage_assumption: dict = Field(default_factory=dict)
+
+    @field_validator("effective_from", "effective_to")
+    @classmethod
+    def timezone_required(cls, value):
+        if value is not None and value.tzinfo is None:
+            raise ValueError("Effective dates must include a timezone")
+        return value
+
+    @field_validator("source", "verification_evidence")
+    @classmethod
+    def nonblank_evidence(cls, value):
+        if not value.strip():
+            raise ValueError("Source and verification evidence are required")
+        return value
+
+    @field_validator("usage_assumption")
+    @classmethod
+    def bounded_assumption(cls, value):
+        import json
+        if len(json.dumps(value, default=str).encode()) > 4096:
+            raise ValueError("Usage assumption is too large")
         return value
 
 
@@ -526,7 +572,7 @@ def create_custom_pricing_policy(body: dict, ctx: TenantContext = Depends(get_te
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -539,7 +585,7 @@ def list_custom_pricing_policies(ctx: TenantContext = Depends(get_tenant_context
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -552,7 +598,7 @@ def list_custom_pricing_cost_rates(ctx: TenantContext = Depends(get_tenant_conte
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -565,7 +611,7 @@ def list_custom_pricing_bindings(policy_id: UUID, ctx: TenantContext = Depends(g
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -578,7 +624,60 @@ def create_custom_pricing_cost_rate(body: dict, ctx: TenantContext = Depends(get
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
+    finally:
+        conn.close()
+
+@router.post("/billing/custom-plan-pricing/vendor-rates", status_code=201)
+def save_owner_vendor_rate(body: OwnerVendorRateSave, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Atomically map the original owner form to a Python rate and optional draft-policy binding."""
+    _custom_quote_operator(ctx)
+    if body.verified_at > datetime.now(timezone.utc).date():
+        raise HTTPException(status_code=422, detail={"reason": "verification_date_invalid", "message": "Verification date cannot be in the future."})
+    if body.effective_to is not None and body.effective_to <= body.effective_from:
+        raise HTTPException(status_code=422, detail={"reason": "effective_interval_invalid", "message": "Effective end must be after effective start."})
+    if body.feature_code and body.policy_version_id is None:
+        raise HTTPException(status_code=422, detail={"reason": "draft_policy_required", "message": "Choose a draft pricing policy to bind this feature cost."})
+    if body.feature_code and body.effective_from > datetime.now(timezone.utc):
+        raise HTTPException(status_code=422, detail={"reason": "future_binding_unsupported", "message": "The current Python pricing-binding contract only accepts rates effective now. Choose a current or past effective start date."})
+    if not body.feature_code and body.policy_version_id is not None:
+        raise HTTPException(status_code=422, detail={"reason": "feature_binding_required", "message": "A policy can only be selected when the rate is linked to a feature."})
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if body.supersedes_rate_id is not None:
+            custom_offers.pricing_admin_command(conn, "rate_close", {
+                "cost_rate_id": str(body.supersedes_rate_id),
+                "effective_to": body.effective_from.astimezone(timezone.utc).isoformat(),
+                "reason": "Superseded by a new immutable vendor cost-rate version",
+            })
+        rate = custom_offers.pricing_admin_command(conn, "rate_create", {
+            "budget_kind": body.budget_kind, "provider": body.provider, "operation": body.operation,
+            "unit": body.unit, "unit_cost_usd": str(body.unit_cost_usd), "source": body.source,
+            "verified_at": body.verified_at.isoformat(), "effective_from": body.effective_from.astimezone(timezone.utc).isoformat(),
+            "effective_to": body.effective_to.astimezone(timezone.utc).isoformat() if body.effective_to else None,
+            "verification_evidence": body.verification_evidence,
+        })
+        binding = None
+        if body.feature_code:
+            binding = custom_offers.pricing_admin_command(conn, "binding_create", {
+                "policy_version_id": str(body.policy_version_id), "cost_rate_id": rate["cost_rate_id"],
+                "feature_code": body.feature_code, "cost_category": "vendor",
+                "usage_basis": body.usage_basis, "units_per_feature_unit": str(body.units_per_feature_unit),
+                "operational_multiplier": str(body.operational_multiplier),
+                "variability_reserve": str(body.variability_reserve),
+                "required_for_price": body.required_for_price, "usage_assumption": body.usage_assumption,
+                "effective_from": body.effective_from.astimezone(timezone.utc).isoformat(),
+                "effective_to": body.effective_to.astimezone(timezone.utc).isoformat() if body.effective_to else None,
+                "source": body.source,
+            })
+        conn.commit()
+        return {"cost_rate": rate, "binding": binding}
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_quote_http_error(exc)
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -593,7 +692,7 @@ def close_custom_pricing_cost_rate(rate_id: UUID, body: dict,
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -606,7 +705,7 @@ def create_custom_pricing_binding(body: dict, ctx: TenantContext = Depends(get_t
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -621,7 +720,7 @@ def activate_custom_pricing_policy(policy_id: UUID, body: dict,
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -661,7 +760,7 @@ def list_custom_offer_review_queue(state: str | None = None, limit: int = 50,
         return {"quotes": result}
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -689,7 +788,7 @@ def calculate_custom_quote(quote_id: UUID, ctx: TenantContext = Depends(get_tena
         return {**preview, "pricingSnapshot": None, "quote": attached}
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     except HTTPException:
         conn.rollback()
         raise
@@ -708,7 +807,7 @@ def reject_custom_offer_by_admin(quote_id: UUID, body: CustomQuoteTransition,
         return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
-        raise _custom_offer_error(exc)
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
