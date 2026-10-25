@@ -211,6 +211,7 @@ export function ChoosePlanPage() {
         )}
 
       <div className="tab-content-fade-in">
+        {plans.length > 0 && !plans[0].paymentsEnabled && <p className="billing-inline-notice">{t('billing.management.paymentsUnavailableHint')}</p>}
         <section className="billing-management-section billing-compare-section">
           <header className="billing-compare-header">
             <SegmentedControl
@@ -260,7 +261,7 @@ export function ChoosePlanPage() {
                   onSelect={() => handlePlanSelection(plan)}
                   actionLabel={actionLabel}
                   actionDisabled={
-                    needsRecovery || current || plan.isActive === false || !coreSubResponse?.billing?.canManageBilling
+                    needsRecovery || current || plan.isActive === false || !plan.paymentsEnabled || !plan.pricingOptions?.find((option)=>option.period===billingPeriod)?.purchasable || !coreSubResponse?.billing?.canManageBilling
                   }
                 />
               );
@@ -307,7 +308,7 @@ export function ChoosePlanPage() {
           {showComparison && (
             <div id="billing-plan-comparison">
               <PlanComparisonTable
-                plans={[...plans, customPlan]}
+                plans={[...plans.filter((plan) => plan.id !== 'custom'), customPlan]}
                 currentPlanId={currentPlan?.id}
               />
             </div>

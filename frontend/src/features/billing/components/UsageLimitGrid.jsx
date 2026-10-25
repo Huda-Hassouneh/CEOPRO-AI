@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { getUsageState } from "../utils/subscriptionRecommendations.js";
+import { featureDisplayName } from '../utils/featurePresentation.js';
 
 function toFiniteNumber(value) {
   if (typeof value === "boolean" || value === null || value === undefined) {
@@ -261,9 +262,7 @@ export function UsageLimitGrid({
         const featureData = features?.[key];
 
         const label =
-          locale === "ar" && featureData?.name_ar
-            ? featureData.name_ar
-            : featureData?.name || t(`billing.management.usageLabels.${key}`);
+          featureDisplayName(key, featureData, locale, t);
 
         const description =
           locale === "ar" && featureData?.description_ar

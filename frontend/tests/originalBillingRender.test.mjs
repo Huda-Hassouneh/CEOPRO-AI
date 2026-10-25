@@ -20,6 +20,14 @@ async function render(locale, file, name, props) {
   } finally { if(original===undefined)delete globalThis.window;else globalThis.window=original; }
 }
 for(const locale of ['en','ar']) {
+  test(`subscription review renders the tenant-scoped backend preview and its payment policy in ${locale}`,async()=>{
+    const html=await render(locale,'PlanChangePreview.jsx','PlanChangePreview',{
+      subscription:{hasStripeSubscription:true},preview:{data:{timing:'period_end',payment_policy:'next_period_price',feature_changes:[{feature_code:'tracked_products',before:250,after:100,over_limit:true}],effective_at:'2026-11-25T12:00:00Z'}},
+    });
+    assert.match(html,/250/);assert.match(html,/100/);
+    assert.ok(!html.includes('billing.customPlan.featureNames.'));
+    assert.ok(!html.includes('$0'));
+  });
   test(`original invoice table renders historical amounts and safe documents in ${locale}`,async()=>{
     const {translations,translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
     const t=(key)=>translate(locale,key);

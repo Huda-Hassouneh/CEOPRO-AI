@@ -6,7 +6,10 @@ export function getApiError(error) {
   return { status: error?.response?.status, code: detail?.reason || error?.code,
     message: detail?.message || (typeof detail === 'string' ? detail : error?.message) || 'Request failed.' };
 }
-const plans = async () => (await python.getPlans()).plans.map(toOriginalPlan);
+const plans = async () => {
+  const result = await python.getPlans();
+  return result.plans.map((plan) => toOriginalPlan({ ...plan, paymentsEnabled: result.paymentsEnabled }));
+};
 export const billingApi = Object.freeze({
   cancelPendingCheckout: async () => (await httpClient.post('/billing/checkout/cancel-pending')).data,
   getPlans: async () => ({ data: await plans() }),

@@ -1,4 +1,5 @@
 import { translate } from '../../../shared/lib/i18n.js';
+import { featureDisplayName } from '../utils/featurePresentation.js';
 import { Check, Crown, SlidersHorizontal, Sprout } from 'lucide-react';
 import Button from '../../../shared/components/ui/Button.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -33,8 +34,7 @@ const FEATURE_PRIORITY = [
 const normalizePlanName = (plan) => String(plan?.name || '').trim().toLowerCase();
 
 const getFeatureLabel = (featureCode, feature, locale) => {
-  if (locale === 'ar' && feature?.name_ar) return feature.name_ar;
-  return feature?.name || featureCode;
+  return featureDisplayName(featureCode, feature, locale, (key) => translate(locale, key));
 };
 
 const getFeatureRank = (featureCode) => {

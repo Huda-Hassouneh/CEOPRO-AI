@@ -4,6 +4,16 @@ import { mapPlan } from '../src/features/billing/api/billingApi.js';
 import { toOriginalPlan, toOriginalSubscription, toOriginalUsage, toOriginalInvoice } from '../src/features/billing/api/originalBillingModel.js';
 import { billingApi } from '../src/features/billing/api/customerBillingApi.js';
 import httpClient from '../src/shared/lib/httpClient.js';
+import { featureDisplayName } from '../src/features/billing/utils/featurePresentation.js';
+
+test('canonical fallback labels are translated without replacing configured owner labels', () => {
+  const en = () => 'Tracked products';
+  const ar = () => 'المنتجات المتتبعة';
+  assert.equal(featureDisplayName('tracked_products',{name:'tracked products'},'en',en),'Tracked products');
+  assert.equal(featureDisplayName('tracked_products',{name:'Inventory capacity'},'en'),'Inventory capacity');
+  assert.equal(featureDisplayName('tracked_products',{name_ar:'سعة المنتجات'},'ar'),'سعة المنتجات');
+  assert.notEqual(featureDisplayName('tracked_products',{name:'tracked products'},'ar',ar),'tracked products');
+});
 
 test('original cards receive exact backend quantities, units and effective prices', () => {
   const plan = toOriginalPlan(mapPlan({ plan_key:'growth',name:{en:'Growth',ar:'النمو'},self_serve:true,tier_level:2,
