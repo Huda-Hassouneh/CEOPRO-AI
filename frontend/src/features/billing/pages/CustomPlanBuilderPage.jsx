@@ -1,14 +1,14 @@
 import { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import Button from '../../../shared/components/ui/Button.jsx';
 import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
-import Input from '../../../shared/components/ui/Input.jsx';
+import { CustomPlanBuilder } from "../components/CustomPlanBuilder.jsx";
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
-import Select from '../../../shared/components/ui/Select.jsx';
+
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 import Toast from '../../../shared/components/ui/Toast.jsx';
 import { customOffersApi, buildCustomOfferConfiguration, createIdempotencyKey } from '../api/customOffersApi.js';
@@ -37,7 +37,6 @@ export function CustomPlanBuilderPage() {
   const [validating, setValidating] = useState(false);
   const idempotency = useRef(null);
   const catalog = catalogQuery.data;
-  const modules = catalog?.modules || [];
   const features = catalog?.features || [];
   const trackedCompetitorsSelected = Boolean(selectedLimits.tracked_competitors);
   const competitorEnabled = enabledFeatures.includes('competitor_management');
@@ -58,14 +57,6 @@ export function CustomPlanBuilderPage() {
     onError: (cause) => setError(cause?.response?.data?.detail?.message || t('billing.customPlan.requestFailed')),
   });
 
-  const toggleModule = (code) => {
-    setEnabledFeatures((current) => current.includes(code) ? current.filter((item) => item !== code) : [...current, code]);
-    setValidation(null); setPreview(null);
-  };
-  const toggleLimit = (code, checked) => {
-    setSelectedLimits((current) => ({ ...current, [code]: checked }));
-    setValidation(null); setPreview(null);
-  };
   const formatFeature = (feature) => {
     const name = t('billing.customPlan.featureNames.' + feature.featureCode);
     const unit = feature.unit ? t('billing.customPlan.unitNames.' + feature.unit) : '';
@@ -106,40 +97,29 @@ export function CustomPlanBuilderPage() {
     {error && <p className="billing-provider-note is-warning" role="alert">{error}</p>}
     {notice && <div className="billing-management-toast"><Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} /></div>}
 
-    <div className="custom-plan-layout">
+    <div className="ceopro-custom-plan-layout">
       <section className="billing-management-section custom-plan-options" aria-labelledby="custom-modules-title">
-        <header><h2 id="custom-modules-title"><SlidersHorizontal size={18} />{t('billing.customPlan.modulesTitle')}</h2><p>{t('billing.customPlan.modulesDescription')}</p></header>
-        <div className="custom-plan-module-grid">{modules.map((module) => {
-          const code = module.featureCode;
-          const checked = enabledFeatures.includes(code);
-          return <label className={'custom-plan-option' + (checked ? ' is-selected' : '')} key={code}>
-            <input type="checkbox" checked={checked} onChange={() => toggleModule(code)} />
-            <span className="custom-plan-option__check">{checked && <Check size={15} />}</span>
-            <span><strong>{t('billing.modules.' + code)}</strong><small>{t('billing.customPlan.moduleHelp.' + code)}</small></span>
-          </label>;
-        })}</div>
-
-        <div className="custom-plan-allowances">
-          <h2>{t('billing.customPlan.allowancesTitle')}</h2>
-          <p>{t('billing.customPlan.allowancesDescription')}</p>
-          {features.map((feature) => {
-            const code = feature.featureCode;
-            const label = formatFeature(feature);
-            const checked = Boolean(selectedLimits[code]);
-            return <div className="custom-plan-allowance" key={code}>
-              <label><input type="checkbox" checked={checked} onChange={(event) => toggleLimit(code, event.target.checked)} /><span><strong>{t('billing.customPlan.featureNames.' + code) === 'billing.customPlan.featureNames.' + code ? label.name : t('billing.customPlan.featureNames.' + code)}</strong><small>{label.unit || feature.resetCycle || ''}</small></span></label>
-              {checked && <Input type="number" min="0" step="1" inputMode="numeric" aria-label={t('billing.customPlan.quantityFor', { feature: label.name })} value={limitValues[code] ?? 0} onChange={(event) => { const value = event.target.value; if (/^\d*$/.test(value)) { setLimitValues((current) => ({ ...current, [code]: value === '' ? 0 : Number(value) })); setValidation(null); setPreview(null); } }} />}
-            </div>;
-          })}
-        </div>
-
-        {competitorEnabled && <div className="custom-plan-cadence">
-          <Select label={t('billing.customPlan.monitoringCadence')} value={refreshFrequency} onChange={(event) => { setRefreshFrequency(event.target.value); setValidation(null); setPreview(null); }} options={[{ value: '', label: t('billing.customPlan.chooseCadence') }, ...(catalog.refreshFrequencies || []).map((value) => ({ value, label: t('billing.customPlan.cadences.' + value) }))]} />
-          {trackedCompetitorsSelected && Number(limitValues.tracked_competitors) <= 0 && <small role="alert">{t('billing.customPlan.competitorLimitRequired')}</small>}
-        </div>}
+        <CustomPlanBuilder features={[
+          ...(catalog.includedFeatures || []).map((item) => ({ id:item.featureCode,code:item.featureCode,type:'boolean',name:t('billing.modules.'+item.featureCode),
+            ...(item.featureCode === 'competitor_management' ? { configuration:{monitoringCadence:{defaultMinutes:1440,options:(catalog.refreshFrequencies||[]).map((value)=>({minutes:({hourly:60,daily:1440,weekly:10080})[value],code:value}))}} } : {}) })),
+          ...features.map((item) => ({ id:item.featureCode,code:item.featureCode,type:'limit',name:formatFeature(item).name,unit:formatFeature(item).unit,min:0,step:1 })),
+        ]} configuration={Object.fromEntries([
+          ...(catalog.includedFeatures||[]).map((item)=>[item.featureCode,{selected:enabledFeatures.includes(item.featureCode),configuration:{monitoringFrequencyMinutes:({hourly:60,daily:1440,weekly:10080})[refreshFrequency]||1440}}]),
+          ...features.map((item)=>[item.featureCode,{selected:Boolean(selectedLimits[item.featureCode]),limitValue:limitValues[item.featureCode]??0}]),
+        ])} onChange={(code,value)=>{
+          if ((catalog.includedFeatures||[]).some((item)=>item.featureCode===code)) {
+            setEnabledFeatures((current)=>value.selected?[...new Set([...current,code])]:current.filter((item)=>item!==code));
+            if(code==='competitor_management')setRefreshFrequency(({60:'hourly',1440:'daily',10080:'weekly'})[value.configuration?.monitoringFrequencyMinutes]||'daily');
+          } else {
+            setSelectedLimits((current)=>({...current,[code]:value.selected}));
+            setLimitValues((current)=>({...current,[code]:value.limitValue}));
+          }
+          setValidation(null);setPreview(null);
+        }} />
+        {trackedCompetitorsSelected && Number(limitValues.tracked_competitors)<=0 && <p role="alert">{t('billing.customPlan.competitorLimitRequired')}</p>}
       </section>
 
-      <aside className="custom-plan-summary" aria-live="polite">
+      <aside className="ceopro-plan-summary" aria-live="polite">
         <h2>{t('billing.customPlan.summaryTitle')}</h2>
         <p>{t('billing.customPlan.summaryDescription')}</p>
         <ul>{configuration.enabled_features.map((code) => <li key={code}><Check size={15} />{t('billing.modules.' + code)}</li>)}{Object.entries(configuration.limits).map(([code, value]) => <li key={code}><Check size={15} />{t('billing.customPlan.featureNames.' + code)}: {new Intl.NumberFormat(locale).format(value)}</li>)}</ul>
