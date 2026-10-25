@@ -247,18 +247,15 @@ def test_actor_deletion_anonymizes_event_and_tenant_deletion_cascades_events(
 
 
 def test_platform_owner_draft_management_is_audited_and_never_activates(
-    owner_db, tenant, test_price
+    owner_db, tenant, test_price, platform_owner_context
 ):
     code = "DRAFT_" + uuid.uuid4().hex[:12].upper()
     promotion_id = None
     conn = _system_connection()
     try:
-        with owner_db.cursor() as cur:
-            cur.execute("INSERT INTO public.keel_platform_members(user_id,role_key,status) VALUES(%s,'owner','active')",
-                        (tenant[1],))
-        owner_db.commit()
+        actor_user_id = platform_owner_context[1]
         created = promotions.save_draft(
-            conn, actor_user_id=tenant[1], code=code, name="Synthetic draft", description="",
+            conn, actor_user_id=actor_user_id, code=code, name="Synthetic draft", description="",
             terms={"discount_type": "percent", "discount_value": 10}, plan_keys=[test_price[0]],
             reason="native draft-only test",
         )
@@ -268,13 +265,13 @@ def test_platform_owner_draft_management_is_audited_and_never_activates(
         assert created["eligible"] is False
         assert {"max_uses", "starts_at", "stripe_promotion_code_id"} <= set(created["missing_terms"])
         updated = promotions.save_draft(
-            conn, actor_user_id=tenant[1], promotion_id=created["promotion_id"], code=code,
+            conn, actor_user_id=actor_user_id, promotion_id=created["promotion_id"], code=code,
             name="Updated synthetic draft", description="updated", terms={"currency": "USD"},
             plan_keys=[test_price[0]], reason="native update test",
         )
         conn.commit()
         assert updated["status"] == "draft"
-        disabled = promotions.disable(conn, actor_user_id=tenant[1], promotion_id=created["promotion_id"],
+        disabled = promotions.disable(conn, actor_user_id=actor_user_id, promotion_id=created["promotion_id"],
                                       reason="synthetic disable test")
         conn.commit()
         assert disabled["status"] == "disabled"
@@ -289,26 +286,20 @@ def test_platform_owner_draft_management_is_audited_and_never_activates(
         conn.commit()
     finally:
         conn.close()
-        with owner_db.cursor() as cur:
-            cur.execute("DELETE FROM public.keel_platform_members WHERE user_id=%s", (tenant[1],))
-        owner_db.commit()
 
 
 def test_owner_promotion_activation_creates_and_verifies_mocked_test_provider_objects(
-    owner_db, tenant, test_price, monkeypatch
+    owner_db, tenant, test_price, monkeypatch, platform_owner_context
 ):
     code = "ACTIVATE_" + uuid.uuid4().hex[:12].upper()
     promotion_id = None
     conn = _system_connection()
     try:
-        with owner_db.cursor() as cur:
-            cur.execute("INSERT INTO public.keel_platform_members(user_id,role_key,status) VALUES(%s,'owner','active')",
-                        (tenant[1],))
-        owner_db.commit()
+        actor_user_id = platform_owner_context[1]
         monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
         monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
         created = promotions.save_draft(
-            conn, actor_user_id=tenant[1], code=code, name="Synthetic promotion",
+            conn, actor_user_id=actor_user_id, code=code, name="Synthetic promotion",
             description="SYNTHETIC_TEST_ONLY", terms={
                 "discount_type": "percent", "discount_value": 10, "currency": "USD",
                 "starts_at": None, "expires_at": None, "max_uses": 4,
@@ -329,7 +320,7 @@ def test_owner_promotion_activation_creates_and_verifies_mocked_test_provider_ob
                 "max_redemptions": 4, "promotion": {"coupon": "coupon_test_synthetic"},
             }
         ))
-        result = promotions.activate(conn, actor_user_id=tenant[1], promotion_id=promotion_id,
+        result = promotions.activate(conn, actor_user_id=actor_user_id, promotion_id=promotion_id,
                                      approval_reference="SYNTHETIC_TEST_ONLY: approved fixture",
                                      reason="SYNTHETIC_TEST_ONLY: test activation")
         conn.commit()
@@ -337,6 +328,10 @@ def test_owner_promotion_activation_creates_and_verifies_mocked_test_provider_ob
         assert [call[0] for call in provider_calls] == ["coupon", "promotion_code"]
         assert provider_calls[0][2].startswith("keel-promo-coupon-")
         assert provider_calls[1][2].startswith("keel-promo-code-")
+        assert provider_calls[1][1]["promotion"] == {
+            "type": "coupon", "coupon": "coupon_test_synthetic"
+        }
+        assert "coupon" not in provider_calls[1][1]
         with conn.cursor() as cur:
             cur.execute("SELECT status,stripe_coupon_id,stripe_promotion_code_id,approval_reference FROM public.billing_promotions WHERE promotion_id=%s",
                         (promotion_id,))
@@ -352,9 +347,6 @@ def test_owner_promotion_activation_creates_and_verifies_mocked_test_provider_ob
                 cur.execute("DELETE FROM public.billing_promotions WHERE promotion_id=%s", (promotion_id,))
             conn.commit()
         conn.close()
-        with owner_db.cursor() as cur:
-            cur.execute("DELETE FROM public.keel_platform_members WHERE user_id=%s", (tenant[1],))
-        owner_db.commit()
 
 def test_active_promotion_constraint_rejects_null_required_terms(owner_db, tenant):
     promotion_id = str(uuid.uuid4())

@@ -361,7 +361,11 @@ def activate(conn, *, actor_user_id: str, promotion_id: str, approval_reference:
             if status == "disabled" and not stripe_promo.get("active"):
                 stripe_promo = stripe_api.activate_promotion_code(promotion_code_id)
         else:
-            promo_params = {"coupon": coupon_id, "code": code}
+            # Stripe's current API version models coupon association through
+            # the nested promotion object. The legacy top-level `coupon`
+            # parameter is rejected by the approved TEST account's current
+            # API version (2026-08-26.dahlia).
+            promo_params = {"promotion": {"type": "coupon", "coupon": coupon_id}, "code": code}
             if normalized.get("max_uses") is not None:
                 promo_params["max_redemptions"] = normalized["max_uses"]
             if normalized.get("expires_at"):
