@@ -173,6 +173,7 @@ def test_payment_actions_say_payments_are_not_configured(sys_conn, monkeypatch):
 def test_checkout_reuses_the_customer_and_sends_the_expected_session(sys_conn, stripe_prices, monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
     monkeypatch.setenv("APP_BASE_URL", "https://app.example")
+    monkeypatch.setenv("PUBLIC_FRONTEND_ORIGIN", "https://app.example")
     tenant = _company(sys_conn)
     calls = {"customers": 0}
 
@@ -182,15 +183,20 @@ def test_checkout_reuses_the_customer_and_sends_the_expected_session(sys_conn, s
 
     def fake_session(params, idempotency_key):
         calls["params"], calls["key"] = params, idempotency_key
-        return {"id": "cs_1", "url": "https://checkout.stripe.com/c/cs_1"}
+        calls["sessions"] = calls.get("sessions", 0) + 1
+        return {"id": "cs_" + tenant, "url": "https://checkout.stripe.com/c/cs_" + tenant}
 
     monkeypatch.setattr(stripe_api, "create_customer", fake_customer)
     monkeypatch.setattr(stripe_api, "create_checkout_session", fake_session)
+    monkeypatch.setattr(stripe_api, "retrieve_checkout_session", lambda sid: {
+        "id": sid, "url": "https://checkout.stripe.com/c/" + sid, "status": "open",
+    })
     result = service.create_checkout(sys_conn, sys_conn, tenant, "owner@example.com", "Co", "growth", "six-months")
     service.create_checkout(sys_conn, sys_conn, tenant, "owner@example.com", "Co", "growth", "six-months")
 
     assert result["url"].startswith("https://checkout.stripe.com/")
     assert calls["customers"] == 1  # stored and reused, never looked up by email
+    assert calls["sessions"] == 1
     params = calls["params"]
     assert params["mode"] == "subscription" and params["customer"] == calls["cid"]
     assert params["line_items"] == [{"price": stripe_prices[("growth", "six-months")], "quantity": 1}]
@@ -502,9 +508,11 @@ def test_subscription_effective_rights_are_tenant_isolated_and_read_only(billing
             "canManageBilling", "paymentsEnabled", "limits", "usage", "features", "entitlements",
             "credits", "trialAvailable", "trialEndsAtExact",
         }
-        expected_top_level = legacy_fields | {"effectiveRights"}
+        expected_top_level = legacy_fields | {"effectiveRights", "currentPrice"}
         for response in (response_a.json(), response_b.json()):
             assert set(response) == expected_top_level
+            if response["currentPrice"] is not None:
+                assert set(response["currentPrice"]) == {"amount", "currency", "intervalUnit", "intervalCount"}
             rights = response["effectiveRights"]
             assert set(rights) == {"version", "basis", "items"}
             assert rights["version"] == 1 and rights["basis"] == "configured_plan"
