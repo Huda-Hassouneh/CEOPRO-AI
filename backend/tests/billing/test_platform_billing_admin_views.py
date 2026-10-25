@@ -280,6 +280,8 @@ def test_vendor_rate_save_uses_owner_guard_and_one_atomic_rate_binding_transacti
     connection = _Connection(None)
     calls = []
     monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    monkeypatch.setattr(platform.custom_offers, "feature_catalog", lambda _conn: [{"featureCode": "document_storage_mb"}])
+    monkeypatch.setattr(platform.custom_offers, "module_catalog", lambda: [])
     def command(_conn, action, payload):
         calls.append((action, payload))
         if action == "rate_create":
@@ -341,3 +343,137 @@ def test_vendor_rate_with_feature_requires_a_selected_draft_policy(monkeypatch):
         response = client.post("/platform/billing/custom-plan-pricing/vendor-rates", json=_vendor_rate_body(policy_version_id=None))
     assert response.status_code == 422
     assert response.json()["detail"]["reason"] == "draft_policy_required"
+
+
+def _infrastructure_rate_body(**overrides):
+    body = {
+        "policy_version_id": "00000000-0000-0000-0000-000000000001",
+        "feature_code": "document_storage_mb", "provider": "synthetic-storage",
+        "operation": "object-storage", "unit": "GB-month", "unit_cost_usd": "0.0002",
+        "source": "Synthetic fixture only; not a commercial rate", "verified_at": "2026-10-24",
+        "effective_from": "2026-10-25T00:00:00Z", "usage_basis": "estimated_usage",
+        "units_per_feature_unit": "0.001", "operational_multiplier": "1.1",
+        "variability_reserve": "1.2", "required_for_price": True, "usage_assumption": {},
+    }
+    body.update(overrides)
+    return body
+
+
+def test_infrastructure_rate_save_reuses_owner_pricing_commands_atomically(monkeypatch):
+    connection = _Connection(None)
+    calls = []
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    monkeypatch.setattr(platform.custom_offers, "feature_catalog", lambda _conn: [{"featureCode": "document_storage_mb"}])
+    monkeypatch.setattr(platform.custom_offers, "module_catalog", lambda: [])
+    def command(_conn, action, payload):
+        calls.append((action, payload))
+        if action == "rate_create":
+            return {"cost_rate_id": "infra-rate", "status": "verified"}
+        if action == "binding_create":
+            return {"binding_id": "infra-binding", "status": "draft"}
+        raise AssertionError(action)
+    monkeypatch.setattr(platform.custom_offers, "pricing_admin_command", command)
+    with _client(monkeypatch, "owner") as client:
+        response = client.post("/platform/billing/custom-plan-pricing/infrastructure-rates", json=_infrastructure_rate_body())
+    assert response.status_code == 201
+    assert [action for action, _ in calls] == ["rate_create", "binding_create"]
+    assert calls[0][1]["budget_kind"] == "infrastructure"
+    assert calls[1][1]["cost_category"] == "infrastructure"
+    assert calls[1][1]["usage_basis"] == "estimated_usage"
+    assert response.json()["binding"]["binding_id"] == "infra-binding"
+    assert connection.committed and connection.closed
+
+
+def test_infrastructure_rate_binding_failure_rolls_back_rate(monkeypatch):
+    connection = _Connection(None)
+    calls = []
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    monkeypatch.setattr(platform.custom_offers, "feature_catalog", lambda _conn: [{"featureCode": "document_storage_mb"}])
+    monkeypatch.setattr(platform.custom_offers, "module_catalog", lambda: [])
+    def command(_conn, action, _payload):
+        calls.append(action)
+        if action == "rate_create":
+            return {"cost_rate_id": "infra-rate", "status": "verified"}
+        raise platform.custom_offers.CustomOfferError(422, "pricing_configuration_invalid", "invalid synthetic binding")
+    monkeypatch.setattr(platform.custom_offers, "pricing_admin_command", command)
+    with _client(monkeypatch, "owner") as client:
+        response = client.post("/platform/billing/custom-plan-pricing/infrastructure-rates", json=_infrastructure_rate_body())
+    assert response.status_code == 422
+    assert calls == ["rate_create", "binding_create"]
+    assert not connection.committed and connection.closed
+
+
+def test_infrastructure_rate_catalog_lists_only_python_bound_infrastructure_costs(monkeypatch):
+    connection = _Connection(None)
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    def command(_conn, action, payload):
+        if action == "rate_list":
+            return {"cost_rates": [{"cost_rate_id": "infra-rate", "provider": "storage", "operation": "object-storage", "unit": "GB-month", "unit_cost_usd": "0.0002", "source": "fixture", "verified_at": "2026-10-24", "effective_from": "2026-10-25T00:00:00Z", "effective_to": None, "verification_evidence": "fixture"}]}
+        if action == "policy_list":
+            return {"policies": [{"policy_version_id": "policy-1", "version_number": 2, "status": "draft"}]}
+        if action == "binding_list":
+            return {"bindings": [
+                {"binding_id": "binding-1", "policy_version_id": "policy-1", "cost_rate_id": "infra-rate", "feature_code": "document_storage_mb", "cost_category": "infrastructure", "usage_basis": "estimated_usage", "units_per_feature_unit": "0.001", "operational_multiplier": "1.1", "variability_reserve": "1.2"},
+                {"binding_id": "binding-2", "policy_version_id": "policy-1", "cost_rate_id": "vendor-rate", "feature_code": "rag_assistant", "cost_category": "vendor"},
+            ]}
+        raise AssertionError(action)
+    monkeypatch.setattr(platform.custom_offers, "pricing_admin_command", command)
+    with _client(monkeypatch, "owner") as client:
+        response = client.get("/platform/billing/custom-plan-pricing/infrastructure-rates")
+    assert response.status_code == 200
+    assert len(response.json()["items"]) == 1
+    row = response.json()["items"][0]
+    assert row["id"] == "infra-rate"
+    assert row["featureId"] == "document_storage_mb"
+    assert row["policy_status"] == "draft"
+    assert connection.committed and connection.closed
+
+
+def test_infrastructure_rate_requires_a_supported_python_feature_before_writes(monkeypatch):
+    connection = _Connection(None)
+    calls = []
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    monkeypatch.setattr(platform.custom_offers, "feature_catalog", lambda _conn: [{"featureCode": "document_storage_mb"}])
+    monkeypatch.setattr(platform.custom_offers, "module_catalog", lambda: [])
+    monkeypatch.setattr(platform.custom_offers, "pricing_admin_command", lambda *_args: calls.append(_args))
+    with _client(monkeypatch, "owner") as client:
+        response = client.post("/platform/billing/custom-plan-pricing/infrastructure-rates", json=_infrastructure_rate_body(feature_code="not_executable"))
+    assert response.status_code == 422
+    assert response.json()["detail"]["reason"] == "unsupported_feature"
+    assert calls == []
+    assert not connection.committed and connection.closed
+
+
+def test_infrastructure_rate_requires_owner_and_timezone_safe_unit(monkeypatch):
+    def forbidden(*_args):
+        raise AssertionError("Non-owner cannot access infrastructure cost data")
+    monkeypatch.setattr(platform.db, "app_role_connection", forbidden)
+    with _client(monkeypatch, "admin") as client:
+        denied = client.post("/platform/billing/custom-plan-pricing/infrastructure-rates", json=_infrastructure_rate_body())
+        bad_unit = client.post("/platform/billing/custom-plan-pricing/infrastructure-rates", json=_infrastructure_rate_body(unit="../secrets"))
+    assert denied.status_code == 403
+    assert bad_unit.status_code == 422
+
+
+def test_feature_catalog_is_platform_owner_only_and_metadata_update_is_audited(monkeypatch):
+    connection = _Connection({"features": [{"feature_code": "team_seats", "display_name": "Team seats"}]})
+    calls = []
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    class Cursor(_Cursor):
+        def execute(self, query, params=None):
+            self.query, self.params = query, params
+            calls.append((query, params))
+        def fetchone(self):
+            return ({"feature_code": "team_seats", "display_name": "Seats", "display_name_ar": "المقاعد"},)
+    connection.cursor_instance = Cursor(None)
+    with _client(monkeypatch, "owner") as client:
+        response = client.patch("/platform/billing/feature-catalog/team_seats", json={
+            "name": "Seats", "name_ar": "المقاعد", "description": "Available seats",
+            "description_ar": "المقاعد المتاحة", "reason": "Synthetic metadata test",
+        })
+    assert response.status_code == 200
+    assert calls[0][1][0] == "update_metadata"
+    assert connection.committed
+    with _client(monkeypatch, "admin") as client:
+        denied = client.get("/platform/billing/feature-catalog")
+    assert denied.status_code == 403
