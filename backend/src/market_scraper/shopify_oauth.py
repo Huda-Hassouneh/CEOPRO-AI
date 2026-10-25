@@ -35,7 +35,11 @@ def _settings() -> tuple[str, str, str, str, str]:
     client_id = os.getenv("SHOPIFY_CLIENT_ID", "").strip()
     secret = os.getenv("SHOPIFY_CLIENT_SECRET", "").strip()
     callback = os.getenv("SHOPIFY_REDIRECT_URI", "").strip()
-    frontend = os.getenv("FRONTEND_URL", "").strip()
+    from src.infrastructure.public_urls import frontend_origin
+    try:
+        frontend = frontend_origin()
+    except ValueError:
+        raise HTTPException(status_code=503, detail='Frontend origin is not configured safely.') from None
     if not client_id or not secret or not callback or not frontend:
         raise HTTPException(status_code=503, detail="Shopify installation is not configured on this server.")
     from urllib.parse import urlsplit

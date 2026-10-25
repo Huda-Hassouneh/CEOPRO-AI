@@ -95,7 +95,7 @@ def test_percentage_promotion_is_currency_agnostic_but_fixed_amount_requires_cur
     assert not missing  # provider activation adds the explicit refusal for fixed amount
 
 
-def test_managed_checkout_uses_stripe_discount_without_hosted_code_stacking(monkeypatch):
+def test_managed_checkout_uses_stripe_discount_without_hosted_code_stacking(monkeypatch, memory_checkout_reservations):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setenv("APP_BASE_URL", "https://keel.example.test")
     monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
@@ -149,7 +149,7 @@ def test_managed_checkout_uses_stripe_discount_without_hosted_code_stacking(monk
     assert calls[0][1] == "apex-promo-checkout-1c6125e7-352e-49cf-9f93-7f095f8d5e3e"
 
 
-def test_uncertain_stripe_outcome_is_quarantined_without_retry(monkeypatch):
+def test_uncertain_stripe_outcome_is_quarantined_without_retry(monkeypatch, memory_checkout_reservations):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
     monkeypatch.setattr(store, "current_subscription", lambda *args: None)
@@ -184,7 +184,7 @@ def test_uncertain_stripe_outcome_is_quarantined_without_retry(monkeypatch):
     assert unknown == [{"tenant_id": "tenant", "redemption_id": "1c6125e7-352e-49cf-9f93-7f095f8d5e3e"}]
 
 
-def test_retried_managed_checkout_reuses_existing_session_without_creating_another(monkeypatch):
+def test_retried_managed_checkout_reuses_existing_session_without_creating_another(monkeypatch, memory_checkout_reservations):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
     monkeypatch.setattr(store, "current_subscription", lambda *args: None)

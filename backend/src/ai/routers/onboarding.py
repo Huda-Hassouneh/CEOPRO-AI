@@ -1,3 +1,4 @@
+from src.infrastructure.public_urls import frontend_origin
 from typing import Optional
 import json
 import os
@@ -366,11 +367,11 @@ def onboarding_shopify_callback(request: Request) -> RedirectResponse:
     from urllib.parse import urlencode
     try:
         ticket = create_callback_ticket(dict(pairs))
-        destination = os.getenv("FRONTEND_URL", "").rstrip("/") + "/connect-data#" + urlencode(
+        destination = frontend_origin() + "/connect-data#" + urlencode(
             {"shopify_ticket": ticket["ticket"], "shopify_state": ticket["state"]}
         )
     except HTTPException:
-        frontend = os.getenv("FRONTEND_URL", "").rstrip("/")
+        frontend = frontend_origin()
         if not frontend:
             raise
         destination = frontend + "/connect-data?shopify=error"

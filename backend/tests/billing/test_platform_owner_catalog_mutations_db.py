@@ -4,6 +4,7 @@ All values created here are synthetic and the test runner only targets a fresh
 disposable database. No Stripe/provider operations are performed.
 """
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
@@ -37,10 +38,13 @@ def test_owner_catalog_http_mutations_persist_rate_binding_and_audit(
         feature = cur.fetchone()
     assert feature
     feature_code, *old_metadata = feature
+    with owner_db.cursor() as cur:
+        cur.execute("SELECT count(*) FROM public.keel_platform_audit WHERE action='feature_catalog_metadata_update' AND subject=%s", (feature_code,))
+        audit_before = cur.fetchone()[0]
 
     body = {
         "policy_version_id": policy["policy_version_id"], "feature_code": feature_code,
-        "provider": "synthetic-infra-provider", "operation": "synthetic-storage",
+        "provider": "synthetic-infra-" + uuid4().hex[:12], "operation": "synthetic-storage",
         "unit": "GB-month", "unit_cost_usd": "0.0002",
         "source": "SYNTHETIC_TEST_ONLY: generated fixture", "verified_at": "2026-10-24",
         "effective_from": "2026-10-25T00:00:00Z", "usage_basis": "estimated_usage",
@@ -80,7 +84,7 @@ def test_owner_catalog_http_mutations_persist_rate_binding_and_audit(
             cur.execute("SELECT count(*) FROM public.entitlement_audit_log WHERE action='custom_pricing_rate_created' AND new_value->>'cost_rate_id'=%s", (rate_id,))
             assert cur.fetchone()[0] == 1
             cur.execute("SELECT count(*) FROM public.keel_platform_audit WHERE action='feature_catalog_metadata_update' AND subject=%s", (feature_code,))
-            assert cur.fetchone()[0] == 1
+            assert cur.fetchone()[0] == audit_before + 1
     finally:
         # Restore presentation metadata only; synthetic pricing objects remain
         # in the disposable test DB so their immutable audit evidence is intact.

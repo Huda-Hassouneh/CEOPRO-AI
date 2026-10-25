@@ -44,6 +44,14 @@ def retrieve_checkout_session(session_id: str):
     return _plain(_client().checkout.Session.retrieve(session_id))
 
 
+def customer_subscriptions(customer_id: str):
+    return [_plain(item) for item in _client().Subscription.list(customer=customer_id, status="all", limit=100).auto_paging_iter()]
+
+
+def open_customer_checkouts(customer_id: str):
+    return [_plain(item) for item in _client().checkout.Session.list(customer=customer_id, status="open", limit=100).auto_paging_iter()]
+
+
 def create_portal_session(customer_id: str, return_url: str):
     return _plain(_client().billing_portal.Session.create(customer=customer_id, return_url=return_url))
 
@@ -133,3 +141,7 @@ def deactivate_promotion_code(promotion_code_id: str):
 
 def activate_promotion_code(promotion_code_id: str):
     return _plain(_client().PromotionCode.modify(promotion_code_id, active=True))
+
+
+def expire_checkout_session(session_id: str):
+    return _plain(_client().checkout.Session.expire(session_id))

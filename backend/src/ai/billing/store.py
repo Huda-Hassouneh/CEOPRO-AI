@@ -50,10 +50,14 @@ def catalog(conn) -> list:
             """
         )
         prices = cursor.fetchall()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT feature_code,unit,aggregation_type,reset_cycle,display_name,display_name_ar,description,description_ar FROM usage_features")
+        feature_catalog = {row[0]: dict(zip(('unit','aggregation_type','reset_cycle','name','name_ar','description','description_ar'),row[1:])) for row in cursor.fetchall()}
     out = []
     for key, name, name_ar, monthly, currency, trial_days, tier, self_serve in plans:
         out.append({
             "plan_key": key,
+            "feature_catalog": feature_catalog,
             "name": {"en": name, "ar": name_ar or name},
             "monthly_price": float(monthly) if monthly is not None else None,
             "currency": currency,
@@ -498,3 +502,24 @@ def finish_event(sys_conn, event_id: str, tenant_id: Optional[str], error: Optio
             """,
             (error, error, tenant_id, event_id),
         )
+
+
+def subscription_price_snapshot(conn, tenant_id: str) -> dict:
+    with conn.cursor() as cur:
+        cur.execute("""SELECT p.amount,p.currency,p.interval_months FROM billing_subscriptions s
+          LEFT JOIN billing_plan_prices p ON p.stripe_price_id=s.stripe_price_id
+          WHERE s.tenant_id=%s AND s.status=ANY(%s) ORDER BY s.updated_at DESC LIMIT 1""",
+          (tenant_id,list(config.CURRENT_STATUSES)))
+        row=cur.fetchone()
+    return {'amount':float(row[0]) if row and row[0] is not None else None,
+            'currency':row[1] if row and row[1] else 'USD','intervalUnit':'month',
+            'intervalCount':row[2] if row and row[2] else 1}
+
+
+def checkout_subscription_ended(conn, tenant_id, subscription_id):
+    if not subscription_id:
+        return False
+    with conn.cursor() as cur:
+        cur.execute("SELECT status FROM billing_subscriptions WHERE tenant_id=%s AND stripe_subscription_id=%s",(tenant_id,subscription_id))
+        row=cur.fetchone()
+    return bool(row and row[0] in ('cancelled','expired'))
