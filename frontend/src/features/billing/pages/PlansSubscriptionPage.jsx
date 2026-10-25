@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { routePaths } from '../../../app/router/routePaths.js';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useAuthStore } from '../../auth/store/authStore.js';
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
@@ -12,6 +13,7 @@ import { CurrentPlanCard } from '../components/CurrentPlanCard.jsx';
 import { UsageLimitGrid } from '../components/UsageLimitGrid.jsx';
 import { UpgradeRecommendation } from '../components/UpgradeRecommendation.jsx';
 import { PlanCard } from '../components/PlanCard.jsx';
+import { CustomPlanCard } from '../components/CustomPlanCard.jsx';
 import { PlanComparisonTable } from '../components/PlanComparisonTable.jsx';
 import { PeriodSelector } from '../components/PeriodSelector.jsx';
 import { InvoiceList } from '../components/InvoiceList.jsx';
@@ -19,9 +21,10 @@ import { CreditBudgets, UsageHistory } from '../components/CreditBudgets.jsx';
 import { usePlans } from '../hooks/usePlans.js';
 import { useSubscription } from '../hooks/useSubscription.js';
 import { useBillingAction, useInvoices, useUsageHistory } from '../hooks/useBillingActions.js';
-import { checkoutConfirmationState, errorReason } from '../api/billingApi.js';
+import { errorReason } from '../api/billingApi.js';
 import { getUpgradeRecommendation } from '../utils/subscriptionRecommendations.js';
 import { formatMoney } from '../utils/money.js';
+import { getOnboardingReturnPath, hasActivePlanAccess, ONBOARDING_RETURN_PATH_KEY } from '../utils/onboardingRouting.js';
 import '../styles/Billing.css';
 import '../styles/PlansSubscription.css';
 
@@ -35,6 +38,7 @@ const KNOWN_ERRORS = new Set([
 
 export function PlansSubscriptionPage() {
   const { t, locale, dir } = useI18n();
+  const navigate = useNavigate();
   const companyId = useAuthStore((state) => state.tenantId);
   const [searchParams, setSearchParams] = useSearchParams();
   const checkoutResult = searchParams.get('checkout');
@@ -43,6 +47,7 @@ export function PlansSubscriptionPage() {
   // poll briefly so the new plan shows without a manual reload.
   const subscriptionQuery = useSubscription(companyId, { refetchInterval: checkoutResult === 'success' ? 3000 : false });
   const subscription = subscriptionQuery.data;
+  const checkoutConfirmed = hasActivePlanAccess(subscription);
   const invoicesQuery = useInvoices(Boolean(subscription?.canManageBilling && subscription?.hasBillingAccount));
   const checkout = useBillingAction('checkout');
   const changePlan = useBillingAction('changePlan');
@@ -59,27 +64,33 @@ export function PlansSubscriptionPage() {
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   const formatDate = (value) => dateFormatter.format(new Date(value));
-  const checkoutConfirmation = checkoutConfirmationState({
-    hasSubscription: subscription?.hasSubscription,
-    status: subscription?.status,
-  });
 
   useEffect(() => {
     if (subscription?.hasSubscription && subscription.billingPeriod) setBillingPeriod(subscription.billingPeriod);
   }, [subscription?.hasSubscription, subscription?.billingPeriod]);
   useEffect(() => {
     if (checkoutResult === 'success') {
-      const key = checkoutConfirmation === 'confirmed' ? 'confirmed' : checkoutConfirmation === 'notConfirmed' ? 'notConfirmed' : 'pending';
-      const variant = checkoutConfirmation === 'confirmed' ? 'success' : checkoutConfirmation === 'notConfirmed' ? 'error' : 'info';
-      setNotice({ variant, message: t(`billing.checkout.${key}`) });
+      setNotice({ variant: checkoutConfirmed ? 'success' : 'info', message: t(checkoutConfirmed ? 'billing.onboarding.checkoutConfirmed' : 'billing.onboarding.confirmationPending') });
     }
-    if (checkoutResult === 'cancelled') setNotice({ variant: 'info', message: t('billing.checkout.cancelled') });
+    if (checkoutResult === 'cancelled') {
+      sessionStorage.removeItem('keel.onboarding.checkoutPending');
+      setNotice({ variant: 'info', message: t('billing.checkout.cancelled') });
+    }
     if (checkoutResult) {
       const timer = window.setTimeout(() => setSearchParams({}, { replace: true }), 30000);
       return () => window.clearTimeout(timer);
     }
     return undefined;
-  }, [checkoutConfirmation, checkoutResult, setSearchParams, t]);
+  }, [checkoutConfirmed, checkoutResult, setSearchParams, t]);
+
+  useEffect(() => {
+    if (checkoutResult !== 'success' || !hasActivePlanAccess(subscription)) return;
+    if (sessionStorage.getItem('keel.onboarding.checkoutPending') !== '1') return;
+    sessionStorage.removeItem('keel.onboarding.checkoutPending');
+    const destination = getOnboardingReturnPath();
+    sessionStorage.removeItem(ONBOARDING_RETURN_PATH_KEY);
+    navigate(destination, { replace: true });
+  }, [checkoutResult, navigate, subscription]);
 
   if (plansQuery.isPending || subscriptionQuery.isPending) return <div className="billing-management-loading" aria-busy="true"><Skeleton height="78px" variant="rectangular" /><Skeleton height="190px" variant="rectangular" /><div>{[0, 1, 2].map((item) => <Skeleton key={item} height="150px" variant="rectangular" />)}</div></div>;
   if (plansQuery.isError || subscriptionQuery.isError) return <EmptyState title={t('billing.management.errorTitle')} description={t('billing.management.errorDescription')} action={<Button size="sm" onClick={() => { plansQuery.refetch(); subscriptionQuery.refetch(); }}>{t('billing.management.retry')}</Button>} />;
@@ -112,6 +123,7 @@ export function PlansSubscriptionPage() {
 
   const planAction = (plan) => {
     const isCurrent = plan.id === currentPlan.id && (!subscription.hasSubscription || billingPeriod === subscription.billingPeriod);
+    if (plan.id === 'custom') return { label: t('billing.customPlan.buildAction'), onAction: () => navigate(routePaths.customPlanBuilder + '?returnTo=' + encodeURIComponent(routePaths.billing)) };
     if (!plan.selfServe) return { label: t('billing.management.contactSales'), disabled: !SUPPORT_EMAIL, hint: SUPPORT_EMAIL ? null : t('billing.management.contactTeam'), onAction: () => { window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('KEEL Custom plan')}`; } };
     if (!canManage) return { label: isCurrent && subscription.hasSubscription ? t('billing.management.currentPlan') : t('billing.management.askOwner'), disabled: true };
     // A company that never had a trial can start one (no payment; checked again on the server).
@@ -154,10 +166,10 @@ export function PlansSubscriptionPage() {
 
     <section ref={compareRef} className="billing-management-section billing-compare-section" aria-labelledby="compare-title">
       <header className="billing-compare-header"><div><h2 id="compare-title">{t('billing.management.compareTitle')}</h2><p>{t('billing.management.compareSubtitle')}</p></div><PeriodSelector plans={plans} value={billingPeriod} onChange={setBillingPeriod} name="in-app-billing-period" /></header>
-      <div className="ceopro-plan-grid billing-management-plans">{plans.map((plan) => {
+      <div className="ceopro-plan-grid billing-management-plans custom-plan-grid">{plans.filter((plan) => plan.id !== 'custom').map((plan) => {
         const action = planAction(plan);
         return <PlanCard key={plan.id} plan={plan} billingPeriod={billingPeriod} currentPlan={plan.id === currentPlan.id} onAction={action.onAction} actionLabel={action.label} actionDisabled={action.disabled || busy} actionHint={action.hint} />;
-      })}</div>
+      })}<CustomPlanCard returnTo={routePaths.billing} /></div>
     </section>
 
     <section className="billing-management-section" aria-labelledby="comparison-title"><header><h2 id="comparison-title">{t('billing.management.comparison.title')}</h2><p>{t('billing.management.comparison.subtitle')}</p></header><PlanComparisonTable plans={plans} currentPlanId={currentPlan.id} /></section>

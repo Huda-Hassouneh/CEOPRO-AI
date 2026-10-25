@@ -27,3 +27,26 @@ test('plans show reports, seats and both credit budgets, with the trial allowanc
   assert.deepEqual(plan.trialLimits, { dataCredits: 278, aiCredits: 278 });
   assert.equal(plan.trialDays, 7);
 });
+import httpClient from '../src/shared/lib/httpClient.js';
+
+test('checkout sends only server-verifiable plan and period fields to the Python billing API', async () => {
+  const original = httpClient.defaults.adapter; const calls = [];
+  httpClient.defaults.adapter = async (config) => { calls.push(config); return { data: { url: 'https://checkout.example.test/session' }, status: 200, statusText: 'OK', config, headers: {} }; };
+  try {
+    const { billingApi } = await import('../src/features/billing/api/billingApi.js');
+    await billingApi.checkout({ planId: 'growth', billingPeriod: 'monthly' });
+    assert.equal(calls[0].url, '/billing/checkout');
+    assert.deepEqual(JSON.parse(calls[0].data), { plan_key: 'growth', period_code: 'monthly' });
+  } finally { httpClient.defaults.adapter = original; }
+});
+
+test('trial selection uses the Python trial endpoint and sends no client-controlled price', async () => {
+  const original = httpClient.defaults.adapter; const calls = [];
+  httpClient.defaults.adapter = async (config) => { calls.push(config); return { data: { plan_key: 'growth' }, status: 200, statusText: 'OK', config, headers: {} }; };
+  try {
+    const { billingApi } = await import('../src/features/billing/api/billingApi.js');
+    await billingApi.startTrial({ planId: 'growth' });
+    assert.equal(calls[0].url, '/billing/trial');
+    assert.deepEqual(JSON.parse(calls[0].data), { plan_key: 'growth' });
+  } finally { httpClient.defaults.adapter = original; }
+});
