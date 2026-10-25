@@ -1,4 +1,5 @@
 import httpClient from '../../../shared/lib/httpClient.js';
+import { customOffersApi } from './customOffersApi.js';
 
 // Real billing: the plan catalog, the company's subscription and usage come
 // from the backend (/billing/*); payment happens on Stripe-hosted pages.
@@ -101,4 +102,13 @@ export const billingApi = Object.freeze({
   resume: async () => (await httpClient.post('/billing/resume')).data,
   getUsageHistory: async () => (await httpClient.get('/billing/usage-history')).data.items || [],
   startTrial: async ({ planId }) => (await httpClient.post('/billing/trial', { plan_key: planId })).data,
+  getCustomOfferConfigurator: customOffersApi.getConfigurator,
+  validateCustomOfferConfiguration: customOffersApi.validateConfiguration,
+  previewCustomOfferPricing: customOffersApi.previewPricing,
+  requestCustomOfferQuote: customOffersApi.requestQuote,
+  listCustomOfferQuotes: customOffersApi.listQuotes,
+  getCustomOfferQuote: customOffersApi.getQuote,
+  acceptCustomOfferQuote: customOffersApi.acceptQuote,
+  rejectCustomOfferQuote: customOffersApi.rejectQuote,
+  createCustomOfferCheckoutAttempt: customOffersApi.createCheckoutAttempt,
 });
