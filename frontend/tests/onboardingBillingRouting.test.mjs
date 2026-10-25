@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   getOnboardingReturnPath,
   getPostSetupPath,
@@ -8,6 +9,14 @@ import {
 } from '../src/features/billing/utils/onboardingRouting.js';
 
 const storage = (value) => ({ getItem: () => value });
+
+test('subscription review has one live route and is not shadowed by a legacy redirect', () => {
+  const router = readFileSync(new URL('../src/app/router/index.jsx', import.meta.url), 'utf8');
+  assert.equal((router.match(/path: routePaths\.billingCheckout/g) || []).length, 1);
+  const redirects = router.match(/\.\.\.\[([^\]]+)\]\s*\.map\(\(path\)/)?.[1] || '';
+  assert.ok(redirects.includes("'/checkout'"));
+  assert.ok(!redirects.includes("'/billing/checkout'"));
+});
 
 test('only an assigned active or trialing plan with backend-confirmed access completes onboarding', () => {
   assert.equal(hasActivePlanAccess({ assigned: true, hasAccess: true, billingStatus: 'active' }), true);

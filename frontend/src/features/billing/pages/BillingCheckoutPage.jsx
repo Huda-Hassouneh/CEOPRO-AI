@@ -285,7 +285,7 @@ export function BillingCheckoutPage() {
       <div className="billing-checkout-layout">
         <Card className="billing-upgrade-review">
           <h2>{t("billing.checkoutInApp.summaryTitle")}</h2>
-          <PlanChangePreview planId={selectedPlan.id} billingPeriod={requestedPeriod} subscription={subscription} />
+          <PlanChangePreview subscription={subscription} preview={previewQuery} />
           <dl>
             {hasCurrentSubscription && (
               <div>
@@ -369,7 +369,7 @@ export function BillingCheckoutPage() {
             }
             loading={isSubmitting}
             loadingLabel={t("billing.checkoutInApp.preparing")}
-            disabled={(!planChangeResult && hasCurrentSubscription && !previewQuery.data?.eligible) || !(subscription?.canManageBilling ?? subResponse?.billing?.canManageBilling)}
+            disabled={(!planChangeResult && hasCurrentSubscription && !previewQuery.data?.eligible) || !selectedPlan.paymentsEnabled || !pricingOption?.purchasable || !(subscription?.canManageBilling ?? subResponse?.billing?.canManageBilling)}
             onClick={handlePrimaryAction}
           >
             {planChangeRecoveryLabel

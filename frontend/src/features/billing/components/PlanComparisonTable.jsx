@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { featureDisplayName } from '../utils/featurePresentation.js';
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 
 export function PlanComparisonTable({ plans, currentPlanId }) {
@@ -39,10 +40,7 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
           {featureKeys.map((key) => {
             const sampleFeature = plans.find((plan) => plan.features?.[key])
               ?.features[key];
-            const featureName =
-              locale === "ar" && sampleFeature?.name_ar
-                ? sampleFeature.name_ar
-                : sampleFeature?.name || t(`billing.management.usageLabels.${key}`);
+            const featureName = featureDisplayName(key, sampleFeature, locale, t);
             const featureDesc =
               locale === "ar" && sampleFeature?.description_ar
                 ? sampleFeature.description_ar
