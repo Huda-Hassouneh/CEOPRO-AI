@@ -12,6 +12,7 @@ summary is claimed in notification_digests before it is sent, so several API
 instances never send it twice; a failed send releases the claim to retry on
 the next pass. NOTIFICATION_DIGEST_ENABLED=false turns it off.
 """
+from src.infrastructure.public_urls import frontend_origin
 import logging
 import os
 import threading
@@ -190,7 +191,7 @@ def send_due(now: Optional[datetime] = None, system_connection=None, tenant_conn
     system_connection = system_connection or db.system_connection
     tenant_connection = tenant_connection or db.dedicated_tenant_connection
     send = send or notifications.send_email
-    base_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip("/")
+    base_url = frontend_origin()
     conn = system_connection()
     try:
         rows = candidates(conn)

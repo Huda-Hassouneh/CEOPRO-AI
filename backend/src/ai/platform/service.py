@@ -1,4 +1,5 @@
 """Platform management through restricted SQL functions; never uses the billing/system connection."""
+from src.infrastructure.public_urls import frontend_origin
 import os
 from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
@@ -129,7 +130,7 @@ def invite(ctx, payload, invitation_id=None):
     try:
         sent = notifications.send_email(result["email"], "KEEL platform invitation",
             "You have been invited to administer KEEL. Open the platform invitation page: "
-            + os.getenv("FRONTEND_BASE_URL", "http://localhost:5173").rstrip('/') + '/platform/invitations/' + raw)
+            + frontend_origin() + '/platform/invitations/' + raw)
     except Exception:
         sent = False
     if not sent:

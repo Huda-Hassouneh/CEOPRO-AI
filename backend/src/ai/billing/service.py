@@ -20,7 +20,7 @@ with a live subscription can't open a second checkout.
 import hashlib
 import time
 from decimal import Decimal, InvalidOperation
-from src.ai.billing import config, promotions, store, stripe_api
+from src.ai.billing import checkout_attempts, config, promotions, store, stripe_api
 from src.ai.billing.stripe_api import PaymentsNotConfigured
 from src.ai.core import usage
 
@@ -62,9 +62,88 @@ def _ensure_customer(conn, sys_conn, tenant_id: str, email: str, company_name: s
     return customer["id"]
 
 
+def _check_legacy_provider_contracts(conn,sys_conn,tenant_id,attempt):
+    if attempt:
+        return
+    customer_id=store.customer_id(conn,tenant_id)
+    if not customer_id:
+        return
+    remote=stripe_api.customer_subscriptions(customer_id)
+    if any(item.get('status') in ('active','trialing','past_due','unpaid','incomplete','paused') for item in remote):
+        raise BillingError(409,'checkout_reconciling','Stripe already has a current subscription. Wait for billing reconciliation; do not pay again.')
+    pending=[item for item in stripe_api.open_customer_checkouts(customer_id) if item.get('mode')=='subscription']
+    if len(pending)>1:
+        raise BillingError(409,'checkout_reconciling','Several earlier Checkouts need billing review before another purchase.')
+    if pending:
+        metadata=pending[0].get('metadata') or {}
+        adopted=checkout_attempts.reserve(sys_conn,tenant_id,'legacy:'+pending[0]['id'],metadata.get('plan_key','legacy_unknown'),metadata.get('period_code','legacy_unknown'))
+        checkout_attempts.opened(sys_conn,adopted,pending[0])
+        raise BillingError(409,'checkout_pending','An earlier Checkout is still open. Close it before selecting a new contract.')
+
+
 def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
                     plan_key: str, period_code: str, promotion_code: str | None = None,
                     actor_user_id: str | None = None) -> dict:
+    _require_payments()
+    try:
+        origin = config.app_base_url()
+    except ValueError as exc:
+        raise BillingError(503, 'frontend_origin_not_configured', str(exc)) from None
+    if store.current_subscription(conn, tenant_id):
+        raise BillingError(409, 'subscription_exists', 'Your company already has a subscription. Use Change Plan or payment recovery.')
+    _price_or_error(conn, plan_key, period_code)
+    request_key = hashlib.sha256(f'{plan_key}:{period_code}:{(promotion_code or "").strip().upper()}:{origin}'.encode()).hexdigest()
+    with checkout_attempts.tenant_lock(sys_conn, tenant_id):
+        if store.current_subscription(conn, tenant_id):
+            raise BillingError(409, 'subscription_exists', 'Your company already has a subscription. Use its plan-change or recovery action.')
+        if store.has_custom_contract(conn, tenant_id):
+            raise BillingError(409, 'plan_transition_conflict', 'Review the existing Custom contract before starting another subscription.')
+        attempt = checkout_attempts.active(sys_conn, tenant_id)
+        _check_legacy_provider_contracts(conn,sys_conn,tenant_id,attempt)
+        if attempt and attempt['session_id']:
+            session = stripe_api.retrieve_checkout_session(attempt['session_id'])
+            if session.get('status') == 'expired':
+                checkout_attempts.expire(sys_conn, attempt)
+                attempt = None
+            elif session.get('status') == 'complete':
+                if store.checkout_subscription_ended(conn, tenant_id, session.get('subscription')):
+                    checkout_attempts.expire(sys_conn, attempt)
+                    attempt = None
+                else:
+                    raise BillingError(409, 'checkout_reconciling', 'Payment confirmation is being reconciled. Do not start another Checkout.')
+            elif attempt['request_key'] == request_key and session.get('status') == 'open':
+                return {'url':session['url'], 'session_id':session['id']}
+            else:
+                raise BillingError(409, 'checkout_pending', 'Another Checkout is pending. Complete or cancel it before selecting a different contract.')
+        if attempt and attempt['request_key'] != request_key:
+            raise BillingError(409, 'checkout_pending', 'Another Checkout request is pending. Reconcile it before changing the selection.')
+        if attempt and not attempt['session_id'] and time.time()-attempt['created_at'].timestamp()>23*3600:
+            raise BillingError(409, 'checkout_reconciling', 'The previous provider request needs reconciliation before it can be retried safely.')
+        attempt = attempt or checkout_attempts.reserve(sys_conn, tenant_id, request_key, plan_key, period_code)
+        result = _create_checkout(conn, sys_conn, tenant_id, email, company_name, plan_key, period_code,
+                                  promotion_code, actor_user_id, _attempt=attempt)
+        if result.get('session_id'):
+            checkout_attempts.opened(sys_conn, attempt, {'id':result['session_id']})
+        return result
+
+
+def checkout_status(conn, tenant_id: str, session_id: str) -> dict:
+    if not session_id.startswith('cs_') or len(session_id)>255:
+        raise BillingError(400,'invalid_checkout_session','Invalid Checkout reference.')
+    session = stripe_api.retrieve_checkout_session(session_id)
+    metadata = session.get('metadata') or {}
+    if metadata.get('tenant_id') != tenant_id or session.get('customer') != store.customer_id(conn,tenant_id):
+        raise BillingError(404,'checkout_not_found','This Checkout is not available to your company.')
+    sub = store.current_subscription(conn,tenant_id)
+    confirmed = bool(sub and sub['stripe_subscription_id']==session.get('subscription')
+                     and sub['status'] in config.ACCESS_STATUSES and session.get('status')=='complete'
+                     and session.get('payment_status') in ('paid','no_payment_required'))
+    return {'state':'confirmed' if confirmed else 'pending', 'subscription_status':sub['status'] if sub else None}
+
+
+def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
+                    plan_key: str, period_code: str, promotion_code: str | None = None,
+                    actor_user_id: str | None = None, _attempt=None) -> dict:
     _require_payments()
     if store.current_subscription(conn, tenant_id):
         raise BillingError(409, "subscription_exists", "Your company already has a subscription. Change plan instead.")
@@ -112,6 +191,8 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
     bucket = int(time.time() // 600)
     promotion_id = promotion["promotion_id"] if promotion else "legacy"
     key = hashlib.sha256(f"{tenant_id}:{plan_key}:{period_code}:{promotion_id}:{bucket}".encode()).hexdigest()[:40]
+    if _attempt:
+        key = str(_attempt["attempt_id"])
     if promotion:
         reservation_key = "checkout:" + key
         try:
@@ -147,7 +228,11 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
         params["subscription_data"]["metadata"]["keel_promotion_redemption_id"] = reservation["redemption_id"]
     try:
         provider_key = f"apex-promo-checkout-{reservation['redemption_id']}" if reservation else f"apex-checkout-{key}"
+        if _attempt:
+            params = checkout_attempts.freeze(sys_conn, _attempt, params)
         session = stripe_api.create_checkout_session(params, idempotency_key=provider_key)
+        if _attempt:
+            checkout_attempts.opened(sys_conn, _attempt, session)
     except Exception:
         if reservation:
             try:
@@ -183,6 +268,51 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
 
 def create_custom_quote_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
                                 quote_id: str, idempotency_key: str) -> dict:
+    _require_payments()
+    key=f"custom:{quote_id}:{config.app_base_url()}"
+    with checkout_attempts.tenant_lock(sys_conn,tenant_id):
+        if store.current_subscription(conn,tenant_id):
+            raise BillingError(409,'subscription_exists','Your company already has a subscription.')
+        shared=checkout_attempts.active(sys_conn,tenant_id)
+        _check_legacy_provider_contracts(conn,sys_conn,tenant_id,shared)
+        if shared and shared['request_key']!=key:
+            raise BillingError(409,'checkout_pending','Another fixed or Custom Checkout is pending for your company.')
+        if shared and shared['session_id']:
+            prior=stripe_api.retrieve_checkout_session(shared['session_id'])
+            if prior.get('status')=='complete':
+                raise BillingError(409,'checkout_reconciling','This Custom Checkout is awaiting verified reconciliation.')
+            if prior.get('status')=='expired':
+                checkout_attempts.expire(sys_conn,shared)
+                raise BillingError(409,'checkout_expired','This Custom Checkout expired. Request a new quote-bound attempt.')
+        if shared and not shared['session_id'] and time.time()-shared['created_at'].timestamp()>23*3600:
+            raise BillingError(409,'checkout_reconciling','The previous provider request needs reconciliation.')
+        # Validate terms before reserving: the existing quote authority owns revision and acceptance checks.
+        from src.ai.billing import custom_offers
+        prepared=custom_offers.custom_checkout_prepare(conn,quote_id=quote_id,idempotency_key=idempotency_key)
+        terms=prepared.get('commercial_terms') or {}
+        if terms.get('currency')!='USD' or str(terms.get('billingPeriodMonths'))!='1':
+            raise BillingError(409,'custom_terms_unsupported','This offer has unsupported billing terms.')
+        shared=shared or checkout_attempts.reserve(sys_conn,tenant_id,key,'custom','monthly')
+        return _create_custom_quote_checkout(conn,sys_conn,tenant_id,email,company_name,quote_id,idempotency_key,_shared=shared)
+
+
+def cancel_pending_checkout(conn,sys_conn,tenant_id):
+    with checkout_attempts.tenant_lock(sys_conn,tenant_id):
+        attempt=checkout_attempts.active(sys_conn,tenant_id)
+        if not attempt:return {'state':'no_pending_checkout'}
+        if not attempt['session_id']:
+            raise BillingError(409,'checkout_reconciling','The previous provider request must be reconciled first.')
+        session=stripe_api.retrieve_checkout_session(attempt['session_id'])
+        if session.get('status')=='complete':
+            raise BillingError(409,'checkout_reconciling','Checkout completed; verify the subscription instead of cancelling it.')
+        if session.get('status')=='open':
+            stripe_api.expire_checkout_session(attempt['session_id'])
+        checkout_attempts.expire(sys_conn,attempt)
+        return {'state':'checkout_cancelled'}
+
+
+def _create_custom_quote_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
+                                quote_id: str, idempotency_key: str, _shared=None) -> dict:
     """Start a recurring USD Checkout for an accepted, current Custom offer.
 
     Price, quote revision and customer identity come from the database; the
@@ -224,7 +354,13 @@ def create_custom_quote_checkout(conn, sys_conn, tenant_id: str, email: str, com
         "cancel_url": f"{base}/billing?checkout=cancelled",
     }
     try:
+        if _shared:
+            params = checkout_attempts.freeze(sys_conn, _shared, params)
+            if params['metadata']['custom_quote_revision_id'] != str(prepared['revision_id']):
+                raise BillingError(409,'checkout_pending','The previous revision Checkout must be reconciled first.')
         session = stripe_api.create_checkout_session(params, idempotency_key=f"keel-custom-checkout-{attempt_id}")
+        if _shared:
+            checkout_attempts.opened(sys_conn,_shared,session)
         custom_offers.record_custom_checkout_session(conn, attempt_id=attempt_id, session_id=session["id"])
     except Exception:
         # The prepared attempt remains durable. Repeating the same request uses
@@ -295,7 +431,7 @@ def _classify_rights_change(current: dict, target: dict) -> tuple[str, tuple[str
     return "unchanged", ()
 
 
-def change_plan(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str) -> dict:
+def _plan_change_context(conn, tenant_id: str, plan_key: str, period_code: str) -> dict:
     """Upgrade now (to a higher tier, or the same tier with a longer period)
     or downgrade at the end of the paid period."""
     _require_payments()
@@ -357,6 +493,36 @@ def change_plan(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str)
         )
     )
 
+    return sub, price, is_upgrade, current_rights, target_rights
+
+
+def preview_plan_change(conn, tenant_id: str, plan_key: str, period_code: str) -> dict:
+    sub, price, upgrade, current, target = _plan_change_context(conn, tenant_id, plan_key, period_code)
+    used = {item['feature_code']: item['current_usage'] for item in usage.current_usage(conn, tenant_id, current)}
+    changes = []
+    for code in sorted(set(current['features']) | set(target['features'])):
+        if code in ('web_searches','rag_assistant','tracked_competitors'):
+            continue
+        before = current['features'].get(code, {}).get('limit', 'not_included')
+        after = target['features'].get(code, {}).get('limit', 'not_included')
+        if before != after:
+            changes.append({'feature_code':code,'before':before,'after':after,
+                            'unit':target['features'].get(code,{}).get('unit'),
+                            'over_limit':isinstance(after,(int,float)) and used.get(code,0)>after})
+    for code in sorted(set(current.get('entitlements',[])) ^ set(target.get('entitlements',[]))):
+        changes.append({'feature_code':code,'before':code in current.get('entitlements',[]),'after':code in target.get('entitlements',[]),'over_limit':False})
+    trial = sub['status']=='trialing'
+    return {'eligible':True, 'direction':'upgrade' if upgrade else 'downgrade',
+            'timing':'immediate' if upgrade else 'period_end',
+            'effective_at':None if upgrade else sub['current_period_end'].isoformat(),
+            'trial_end':sub.get('trial_end').isoformat() if sub.get('trial_end') else None,
+            'payment_policy':'preserve_trial' if upgrade and trial else 'stripe_proration' if upgrade else 'next_period_price',
+            'immediate_amount':None, 'currency':price['currency'], 'new_period_price':price['amount'],
+            'feature_changes':changes, 'activation':'verified_webhook', 'deletes_data':False}
+
+
+def change_plan(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str) -> dict:
+    sub, price, is_upgrade, _current, _target = _plan_change_context(conn, tenant_id, plan_key, period_code)
     stripe_sub = stripe_api.retrieve_subscription(sub["stripe_subscription_id"])
     item_id = stripe_sub["items"]["data"][0]["id"]
     schedule_id = stripe_sub.get("schedule")

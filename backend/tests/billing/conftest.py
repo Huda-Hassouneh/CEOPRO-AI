@@ -18,6 +18,11 @@ def no_external_network(monkeypatch):
     """Offline provider doubles are explicit; genuine Stripe traffic is refused."""
     from src.ai.billing import stripe_api
 
+    # Baseline provider fixtures have no pre-existing remote subscriptions or legacy sessions.
+    # Dedicated reconciliation tests supply actual provider-state contract responses.
+    monkeypatch.setattr(stripe_api, "customer_subscriptions", lambda customer: [])
+    monkeypatch.setattr(stripe_api, "open_customer_checkouts", lambda customer: [])
+
     monkeypatch.setattr(
         stripe_api,
         "_client",
@@ -236,3 +241,36 @@ def billing_connections(monkeypatch, owner_db):
     monkeypatch.setattr(db, "system_connection", system)
     monkeypatch.setattr(db, "app_role_connection", scoped)
     return scoped
+
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from src.ai.billing import checkout_attempts, store, stripe_api
+
+@pytest.fixture
+def memory_checkout_reservations(monkeypatch):
+    """Explicit unit DB double; public service still performs all reservation decisions."""
+    rows = {}
+    @contextmanager
+    def lock(conn, tenant):
+        yield
+    def reserve(conn, tenant, key, plan, period):
+        rows[tenant] = {'attempt_id':str(uuid.uuid4()),'request_key':key,'session_id':None,
+                        'params':None,'created_at':datetime.now(timezone.utc)}
+        return rows[tenant]
+    def opened(conn, attempt, session):
+        attempt['session_id']=session['id']
+        attempt['session']={**attempt.get('session',{}),**session,'status':'open'}
+        attempt['session'].setdefault('url','https://checkout.stripe.test')
+    def freeze(conn, attempt, params):
+        attempt['params']=attempt['params'] or params
+        return attempt['params']
+    monkeypatch.setattr(checkout_attempts,'tenant_lock',lock)
+    monkeypatch.setattr(checkout_attempts,'reserve',reserve)
+    monkeypatch.setattr(checkout_attempts,'active',lambda conn,tenant:rows.get(tenant))
+    monkeypatch.setattr(checkout_attempts,'freeze',freeze)
+    monkeypatch.setattr(checkout_attempts,'opened',opened)
+    monkeypatch.setattr(checkout_attempts,'expire',lambda conn,attempt:rows.clear())
+    monkeypatch.setattr(store,'has_custom_contract',lambda *args:False)
+    monkeypatch.setattr(store,'customer_id',lambda *args:None)
+    monkeypatch.setattr(stripe_api,'retrieve_checkout_session',lambda sid:next(row['session'] for row in rows.values() if row['session_id']==sid))
+    return rows
