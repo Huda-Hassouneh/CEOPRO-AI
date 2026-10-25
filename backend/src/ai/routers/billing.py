@@ -582,6 +582,10 @@ def checkout_status(session_id: str, ctx: TenantContext = Depends(get_tenant_con
         return service.checkout_status(conn, ctx.tenant_id, session_id)
     except service.BillingError as err:
         raise _to_http(err)
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise _provider_failure(err)
     finally:
         conn.close()
 
@@ -595,6 +599,10 @@ def cancel_pending_checkout(ctx: TenantContext = Depends(get_tenant_context)) ->
         return service.cancel_pending_checkout(conn,sys_conn,ctx.tenant_id)
     except service.BillingError as err:
         raise _to_http(err)
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise _provider_failure(err)
     finally:
         conn.close()
         sys_conn.close()
