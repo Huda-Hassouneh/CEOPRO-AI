@@ -1,0 +1,29 @@
+import httpClient from '../../shared/lib/httpClient.js';
+
+const unwrap = (promise) => promise.then((response) => response.data);
+const enc = encodeURIComponent;
+const root = '/platform/billing';
+
+export function createPlatformBillingApi(client) {
+  return Object.freeze({
+    view: (name, limit = 100, offset = 0) => unwrap(client.get(`${root}/admin-views/${enc(name)}`, { params: { limit, offset } })),
+    quotes: (state = '') => unwrap(client.get(`${root}/custom-quotes`, { params: { limit: 100, ...(state ? { state } : {}) } })),
+    quote: (id) => unwrap(client.get(`${root}/custom-quotes/${enc(id)}`)),
+    calculateQuote: (id) => unwrap(client.post(`${root}/custom-quotes/${enc(id)}/calculate`)),
+    submitQuote: (id, body) => unwrap(client.post(`${root}/custom-quotes/${enc(id)}/submit`, body)),
+    reviseQuote: (id, body) => unwrap(client.post(`${root}/custom-quotes/${enc(id)}/revisions`, body)),
+    approveQuote: (id, body) => unwrap(client.post(`${root}/custom-quotes/${enc(id)}/approve`, body)),
+    rejectQuote: (id, body) => unwrap(client.post(`${root}/custom-quotes/${enc(id)}/reject`, body)),
+    policies: () => unwrap(client.get(`${root}/custom-plan-pricing/policies`)),
+    createPolicy: (body) => unwrap(client.post(`${root}/custom-plan-pricing/policies`, body)),
+    activatePolicy: (id, body) => unwrap(client.post(`${root}/custom-plan-pricing/policies/${enc(id)}/activate`, body)),
+    rates: () => unwrap(client.get(`${root}/custom-plan-pricing/cost-rates`)),
+    createRate: (body) => unwrap(client.post(`${root}/custom-plan-pricing/cost-rates`, body)),
+    closeRate: (id, body) => unwrap(client.post(`${root}/custom-plan-pricing/cost-rates/${enc(id)}/close`, body)),
+    bindings: (id) => unwrap(client.get(`${root}/custom-plan-pricing/policies/${enc(id)}/bindings`)),
+    createBinding: (body) => unwrap(client.post(`${root}/custom-plan-pricing/bindings`, body)),
+    assignContract: (body) => unwrap(client.post(`${root}/custom-contracts`, body)),
+  });
+}
+
+export const platformBillingApi = createPlatformBillingApi(httpClient);

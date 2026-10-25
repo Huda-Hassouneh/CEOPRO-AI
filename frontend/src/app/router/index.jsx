@@ -64,8 +64,10 @@ const routes = [
   // Stripe-hosted Checkout from Billing.
   ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/billing/checkout', '/onboarding/*']
     .map((path) => ({ path, element: <Navigate to={path.startsWith('/onboarding') ? '/onboarding' : '/billing'} replace /> })),
+  { path: '/admin/billing', element: <Navigate to="/platform/billing" replace /> },
   { path: '/admin/*', element: <Navigate to="/platform" replace /> },
   { path: '/platform', lazy: async () => ({ Component: (await import('../../features/platform/PlatformDashboard.jsx')).PlatformDashboard }) },
+  { path: '/platform/billing', lazy: async () => ({ Component: (await import('../../features/platform/PlatformBillingAdmin.jsx')).PlatformBillingAdmin }) },
   { path: '/platform/invitations/:token', lazy: async () => ({ Component: (await import('../../features/platform/PlatformInvitation.jsx')).PlatformInvitation }) },
   {
     path: routePaths.welcome,

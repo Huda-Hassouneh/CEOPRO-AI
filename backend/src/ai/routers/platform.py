@@ -1,5 +1,6 @@
 """Python-native platform management. Tenant ownership never implies platform authority."""
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -7,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.ai import db
-from src.ai.billing import custom_offers, custom_plan_pricing_service, promotions
+from src.ai.billing import admin as billing_admin, custom_offers, custom_plan_pricing_service, promotions
 from src.ai.core import auth_throttle, security
 from src.ai.core.authorization import require_platform_permission
 from src.ai.core.security import TenantContext, get_tenant_context
@@ -364,6 +365,38 @@ class CustomQuoteApproval(CustomQuoteTransition):
     approval_reference: str = Field(min_length=1, max_length=200)
 
 
+class CustomContractAssignment(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    tenant_id: UUID
+    contract_ref: str = Field(min_length=1, max_length=120)
+    approval_reference: str = Field(min_length=1, max_length=200)
+    reason: str = Field(min_length=1, max_length=2000)
+    limits: dict[str, int]
+    monthly_price: Decimal | None = Field(default=None, ge=0)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
+    trial_days: int = Field(default=0, ge=0, le=90)
+    data_sources: list[str] = Field(default_factory=list, max_length=50)
+    included_features: list[str] | None = None
+    refresh_frequency: Literal["hourly", "daily", "weekly"] | None = None
+    support_level: str | None = Field(default=None, max_length=40)
+    period_months: int = Field(default=1, ge=1, le=36)
+
+    @field_validator("limits")
+    @classmethod
+    def strict_limits(cls, value):
+        if any(isinstance(item, bool) or not isinstance(item, int) or item < 0 for item in value.values()):
+            raise ValueError("Contract allowances must be nonnegative integers.")
+        return value
+
+    @field_validator("currency")
+    @classmethod
+    def uppercase_currency(cls, value):
+        value = value.upper()
+        if not value.isalpha():
+            raise ValueError("Currency must be a three-letter code.")
+        return value
+
+
 def _custom_quote_operator(ctx: TenantContext) -> None:
     result = service.command(ctx, "me")
     if result.get("role") != "owner":
@@ -592,6 +625,32 @@ def activate_custom_pricing_policy(policy_id: UUID, body: dict,
     finally:
         conn.close()
 
+@router.get("/billing/admin-views/{view}")
+def platform_billing_admin_view(view: Literal["quotes", "plans", "subscriptions", "contracts", "audit"],
+                                ctx: TenantContext = Depends(get_tenant_context),
+                                limit: int = Query(100, ge=1, le=200),
+                                offset: int = Query(0, ge=0, le=1000000)) -> dict:
+    """Owner-only, read-only billing portfolio views. Database function repeats the owner check."""
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_platform_owner_read(%s,%s,%s);", (view, limit, offset))
+            result = cursor.fetchone()[0]
+        conn.commit()
+        return result
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        if getattr(exc, "pgcode", None) == "42501":
+            raise HTTPException(status_code=403, detail="Only the Platform Owner can view global billing administration.") from None
+        raise
+    finally:
+        conn.close()
+
+
 @router.get("/billing/custom-quotes")
 def list_custom_offer_review_queue(state: str | None = None, limit: int = 50,
                                    ctx: TenantContext = Depends(get_tenant_context)) -> dict:
@@ -650,5 +709,60 @@ def reject_custom_offer_by_admin(quote_id: UUID, body: CustomQuoteTransition,
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
         raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+
+@router.post("/billing/custom-contracts", status_code=201)
+def assign_custom_contract(body: CustomContractAssignment, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Apply an audited manual contract only when no current Stripe subscription can conflict with it."""
+    _custom_quote_operator(ctx)
+    conn = db.system_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT set_config('app.current_tenant_id',%s,true),set_config('app.current_user_id',%s,true);",
+                           (str(ctx.tenant_id), str(ctx.user_id)))
+            cursor.execute(
+                """SELECT public.keel_active_principal(%s,%s) AND EXISTS(
+                     SELECT 1 FROM public.keel_platform_members m JOIN public.keel_platform_workspace w ON w.tenant_id=%s
+                     WHERE m.user_id=%s AND m.status='active' AND m.role_key='owner') AND NOT EXISTS(
+                     SELECT 1 FROM public.users u WHERE u.user_id=%s AND u.platform_disabled_at IS NOT NULL);""",
+                (str(ctx.user_id), str(ctx.tenant_id), str(ctx.tenant_id), str(ctx.user_id), str(ctx.user_id)),
+            )
+            if not cursor.fetchone()[0]:
+                raise HTTPException(status_code=403, detail="Only an active Platform Owner may assign custom contracts.")
+            cursor.execute("SELECT tenant_id FROM public.companies WHERE tenant_id=%s FOR UPDATE;", (str(body.tenant_id),))
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="Tenant not found.")
+            cursor.execute(
+                """SELECT status FROM public.billing_subscriptions WHERE tenant_id=%s
+                   AND status IN ('trialing','active','past_due','pending','payment_failed','paused') FOR UPDATE;""",
+                (str(body.tenant_id),),
+            )
+            if cursor.fetchone():
+                raise HTTPException(status_code=409, detail={
+                    "reason": "provider_subscription_transition_required",
+                    "message": "A current Stripe subscription exists. Use the verified billing transition workflow before assigning a manual contract.",
+                })
+        billing_admin.set_custom_contract(
+            conn, tenant_id=str(body.tenant_id), contract_ref=body.contract_ref,
+            approved_by=str(ctx.user_id), reason=f"{body.approval_reference}: {body.reason}",
+            limits=body.limits, monthly_price=body.monthly_price, currency=body.currency,
+            trial_days=body.trial_days, data_sources=body.data_sources,
+            included_features=body.included_features, refresh_frequency=body.refresh_frequency,
+            support_level=body.support_level, period_months=body.period_months,
+        )
+        conn.commit()
+        return {"tenant_id": str(body.tenant_id), "contract_ref": body.contract_ref, "state": "assigned",
+                "approved_by": str(ctx.user_id), "approval_reference": body.approval_reference}
+    except billing_admin.AdminError as exc:
+        conn.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
