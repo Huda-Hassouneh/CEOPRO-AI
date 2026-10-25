@@ -17,6 +17,7 @@ export function createPlatformBillingApi(client) {
     activatePolicy: (id, body) => unwrap(client.post(`${root}/custom-plan-pricing/policies/${enc(id)}/activate`, body)),
     rates: () => unwrap(client.get(`${root}/custom-plan-pricing/cost-rates`)),
     createRate: (body) => unwrap(client.post(`${root}/custom-plan-pricing/cost-rates`, body)),
+    saveVendorRate: (body) => unwrap(client.post(`${root}/custom-plan-pricing/vendor-rates`, body)),
     closeRate: (id, body) => unwrap(client.post(`${root}/custom-plan-pricing/cost-rates/${enc(id)}/close`, body)),
     bindings: (id) => unwrap(client.get(`${root}/custom-plan-pricing/policies/${enc(id)}/bindings`)),
     createBinding: (body) => unwrap(client.post(`${root}/custom-plan-pricing/bindings`, body)),

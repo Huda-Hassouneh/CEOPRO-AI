@@ -187,3 +187,86 @@ def test_custom_contract_rejects_non_integer_allowances():
             "reason": "test", "limits": {"tracked_products": 1.5},
         })
     assert response.status_code == 422
+
+
+def _vendor_rate_body(**overrides):
+    body = {
+        "budget_kind": "ai", "provider": "synthetic-provider", "operation": "inference",
+        "unit": "input_token", "unit_cost_usd": "0.00002", "source": "synthetic invoice reference",
+        "verification_evidence": "Synthetic test fixture; no real rate is asserted",
+        "verified_at": "2026-10-24", "effective_from": "2026-10-25T00:00:00Z",
+        "policy_version_id": "00000000-0000-0000-0000-000000000001",
+        "feature_code": "rag_assistant", "usage_basis": "limit_value",
+        "units_per_feature_unit": "4", "operational_multiplier": "1.2",
+        "variability_reserve": "1.1", "required_for_price": True,
+        "usage_assumption": {},
+    }
+    body.update(overrides)
+    return body
+
+
+def test_vendor_rate_save_uses_owner_guard_and_one_atomic_rate_binding_transaction(monkeypatch):
+    connection = _Connection(None)
+    calls = []
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    def command(_conn, action, payload):
+        calls.append((action, payload))
+        if action == "rate_create":
+            return {"cost_rate_id": "rate-synthetic", "status": "verified"}
+        if action == "binding_create":
+            return {"binding_id": "binding-synthetic", "status": "draft"}
+        raise AssertionError(action)
+    monkeypatch.setattr(platform.custom_offers, "pricing_admin_command", command)
+    with _client(monkeypatch, "owner") as client:
+        response = client.post("/platform/billing/custom-plan-pricing/vendor-rates", json=_vendor_rate_body())
+    assert response.status_code == 201
+    assert response.json()["cost_rate"]["cost_rate_id"] == "rate-synthetic"
+    assert response.json()["binding"]["binding_id"] == "binding-synthetic"
+    assert [call[0] for call in calls] == ["rate_create", "binding_create"]
+    assert calls[1][1]["cost_rate_id"] == "rate-synthetic"
+    assert calls[1][1]["cost_category"] == "vendor"
+    assert connection.committed and connection.closed
+
+
+def test_vendor_rate_save_rolls_back_rate_when_binding_creation_fails(monkeypatch):
+    connection = _Connection(None)
+    calls = []
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    def command(_conn, action, payload):
+        calls.append(action)
+        if action == "rate_create":
+            return {"cost_rate_id": "rate-synthetic", "status": "verified"}
+        raise platform.custom_offers.CustomOfferError(422, "pricing_configuration_invalid", "invalid synthetic binding")
+    monkeypatch.setattr(platform.custom_offers, "pricing_admin_command", command)
+    with _client(monkeypatch, "owner") as client:
+        response = client.post("/platform/billing/custom-plan-pricing/vendor-rates", json=_vendor_rate_body())
+    assert response.status_code == 422
+    assert calls == ["rate_create", "binding_create"]
+    assert not connection.committed and connection.closed
+
+
+def test_vendor_rate_save_denies_non_owner_before_database_access(monkeypatch):
+    def forbidden(*_args):
+        raise AssertionError("Tenant/platform admin cannot mutate owner cost data")
+    monkeypatch.setattr(platform.db, "app_role_connection", forbidden)
+    with _client(monkeypatch, "admin") as client:
+        response = client.post("/platform/billing/custom-plan-pricing/vendor-rates", json=_vendor_rate_body())
+    assert response.status_code == 403
+
+
+def test_vendor_rate_save_rejects_invalid_units_and_future_verification_dates(monkeypatch):
+    connection = _Connection(None)
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda *_args: connection)
+    with _client(monkeypatch, "owner") as client:
+        invalid_unit = client.post("/platform/billing/custom-plan-pricing/vendor-rates", json=_vendor_rate_body(unit="credits"))
+        future_verification = client.post("/platform/billing/custom-plan-pricing/vendor-rates", json=_vendor_rate_body(verified_at="2999-01-01"))
+    assert invalid_unit.status_code == 422
+    assert future_verification.status_code == 422
+    assert not connection.committed
+
+
+def test_vendor_rate_with_feature_requires_a_selected_draft_policy(monkeypatch):
+    with _client(monkeypatch, "owner") as client:
+        response = client.post("/platform/billing/custom-plan-pricing/vendor-rates", json=_vendor_rate_body(policy_version_id=None))
+    assert response.status_code == 422
+    assert response.json()["detail"]["reason"] == "draft_policy_required"

@@ -27,8 +27,46 @@ const promoPayload = (p, planKeys = []) => ({
 });
 export function createPlatformBillingCatalogApi({ billing = platformBillingApi, offers = customOffersApi } = {}) {
   const plans = async () => list(await billing.view('plans'), 'plans').map((p) => ({ ...p, id: p.plan_key, name: p.display_name, name_ar: p.display_name_ar, tier_level: p.tier_level, basePrice: p.monthly_price, currency: p.currency || 'USD', trialPeriodValue: p.trial_days, isActive: p.is_active, pricingOptions: (p.prices || []).map((price) => ({ period: price.period_code, intervalCount: price.interval_months, price: price.unit_amount, currency: price.currency })) }));
-  const rates = async () => list(await billing.rates(), 'cost_rates').map((r) => ({ ...r, id: r.cost_rate_id, vendor: r.provider, service: r.operation, billingUnit: r.unit, unitCost: r.unit_cost_usd, currency: r.currency || 'USD', verificationStatus: r.verification_status || (r.verified_at && r.verification_evidence ? 'confirmed' : 'unconfirmed'), source: r.source }));
+  const rates = async () => {
+    const rows = list(await billing.rates(), 'cost_rates');
+    const { policies = [] } = await billing.policies();
+    const bindings = [];
+    for (const policy of policies) {
+      const result = await billing.bindings(policy.policy_version_id);
+      bindings.push(...list(result, 'bindings').map((binding) => ({ ...binding, policy_version_id: policy.policy_version_id, policy_status: policy.status })));
+    }
+    return rows.map((rate) => {
+      const binding = bindings.find((item) => item.cost_rate_id === rate.cost_rate_id);
+      return { ...rate, id: rate.cost_rate_id, vendor: rate.provider, service: rate.operation,
+        billingUnit: rate.unit, unitCost: rate.unit_cost_usd, currency: 'USD',
+        budgetKind: rate.budget_kind, verifiedAt: rate.verified_at,
+        effectiveFrom: rate.effective_from, effectiveTo: rate.effective_to,
+        verificationStatus: rate.verification_evidence ? 'confirmed' : 'unconfirmed', source: rate.source,
+        ...(binding ? { featureId: binding.feature_code, policyVersionId: binding.policy_status === 'draft' ? binding.policy_version_id : '',
+          usageBasis: binding.usage_basis, unitsPerFeatureUnit: binding.units_per_feature_unit,
+          operationalMultiplier: binding.operational_multiplier, variabilityReserve: binding.variability_reserve,
+          metadata: { usageAssumption: binding.usage_assumption || {} } } : {}),
+      };
+    });
+  };
   const promotions = async () => { if (typeof billing.promotions !== 'function') return unavailable('promotion-code administration'); return list(await billing.promotions(), 'items').map(promoForUi); };
+  const saveVendorRate = async (payload) => {
+    if (String(payload.currency || '').toUpperCase() !== 'USD') throw new Error('Python Custom Plan cost schedules currently require USD rates; no currency conversion was applied.');
+    if (payload.verificationStatus !== 'confirmed') throw new Error('A verified provider rate is required. Select Confirmed only when the source evidence supports it.');
+    const unit = String(payload.billingUnit || '').trim().toLowerCase();
+    const validUnits = new Set(['request', 'record', 'page', 'input_token', 'output_token', 'cache_read_token', 'cache_write_token', 'image']);
+    if (!validUnits.has(unit)) throw new Error(`Unsupported Python cost unit: ${unit || '(empty)'}. Use request, record, page, input_token, output_token, cache_read_token, cache_write_token, or image.`);
+    return billing.saveVendorRate({
+      budget_kind: payload.budgetKind, provider: payload.vendor, operation: payload.service, unit,
+      unit_cost_usd: Number(payload.unitCost), source: payload.source, verification_evidence: payload.source,
+      verified_at: payload.verifiedAt, effective_from: payload.effectiveFrom, effective_to: payload.effectiveTo || null,
+      supersedes_rate_id: payload.supersedesRateId || null,
+      policy_version_id: payload.featureId ? payload.policyVersionId : null, feature_code: payload.featureId || null,
+      usage_basis: payload.usageBasis, units_per_feature_unit: Number(payload.unitsPerFeatureUnit ?? payload.unitsPerCompetitorCheck ?? 1),
+      operational_multiplier: Number(payload.operationalMultiplier), variability_reserve: Number(payload.variabilityReserve),
+      usage_assumption: payload.metadata?.usageAssumption || {}, required_for_price: true,
+    });
+  };
   return Object.freeze({
     getPlans: async () => wrap(await plans()),
     getFeatures: async () => { const catalog = await offers.getConfigurator(); return wrap((catalog.features || []).map((f) => ({ id: f.featureCode, code: f.featureCode, name: f.featureCode, type: 'limit', unit: f.unit, aggregation: f.aggregationType, resetCycle: f.resetCycle }))); },
@@ -83,7 +121,7 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
     approveCustomPlanQuote: (id, body) => billing.approveQuote(id, body), calculateCustomPlanQuote: (id) => billing.calculateQuote(id), rejectCustomPlanQuote: (id, body) => billing.rejectQuote(id, body),
     sendCustomPlanQuote: () => unavailable('email quote delivery; offers are available in-app'),
     updateCustomPlanPricingPolicy: () => unavailable('mutable legacy pricing; use versioned Python policy administration'),
-    createVendorRate: () => unavailable('legacy vendor rate mutation; use versioned Python cost rates'), updateVendorRate: () => unavailable('legacy vendor rate mutation; use versioned Python cost rates'),
+    createVendorRate: (payload) => saveVendorRate(payload), updateVendorRate: (rateId, payload) => saveVendorRate({ ...payload, supersedesRateId: rateId }),
   });
 }
 export const platformBillingCatalogApi = createPlatformBillingCatalogApi();

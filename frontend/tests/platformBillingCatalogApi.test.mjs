@@ -34,3 +34,26 @@ test('unsupported Node-only catalog mutations fail explicitly instead of hitting
   await assert.rejects(api.updatePlan('growth', {}), { code: 'BACKEND_CAPABILITY_UNAVAILABLE' });
   await assert.rejects(api.updateCustomPlanPricingPolicy({}), { code: 'BACKEND_CAPABILITY_UNAVAILABLE' });
 });
+
+
+test('original vendor-rate form maps to the versioned Python rate and draft binding contract', async () => {
+  let captured;
+  const api = createPlatformBillingCatalogApi({ billing: { saveVendorRate: async (body) => { captured = body; return { cost_rate: { cost_rate_id: 'r-1' }, binding: { binding_id: 'b-1' } }; } } });
+  const result = await api.createVendorRate({ budgetKind: 'ai', vendor: 'provider-a', service: 'inference', billingUnit: 'input_token', unitCost: '0.00002', currency: 'USD', verificationStatus: 'confirmed', source: 'invoice reference INV-SYNTH-01', verifiedAt: '2026-10-20', effectiveFrom: '2026-10-25T00:00:00.000Z', featureId: 'rag_assistant', policyVersionId: 'policy-draft-1', usageBasis: 'limit_value', unitsPerFeatureUnit: '4', operationalMultiplier: '1.2', variabilityReserve: '1.1', metadata: {} });
+  assert.equal(captured.budget_kind, 'ai');
+  assert.equal(captured.unit_cost_usd, 0.00002);
+  assert.equal(captured.feature_code, 'rag_assistant');
+  assert.equal(captured.policy_version_id, 'policy-draft-1');
+  assert.equal(captured.verification_evidence, 'invoice reference INV-SYNTH-01');
+  assert.equal(result.binding.binding_id, 'b-1');
+});
+
+test('vendor-rate adapter refuses unsupported currency, unit, and unverified status before the API call', async () => {
+  let calls = 0;
+  const api = createPlatformBillingCatalogApi({ billing: { saveVendorRate: async () => { calls += 1; } } });
+  const base = { budgetKind: 'data', vendor: 'provider-a', service: 'lookup', billingUnit: 'request', unitCost: 1, currency: 'USD', verificationStatus: 'confirmed', source: 'test source', verifiedAt: '2026-10-20', effectiveFrom: '2026-10-25T00:00:00.000Z', operationalMultiplier: 1, variabilityReserve: 1 };
+  await assert.rejects(api.createVendorRate({ ...base, currency: 'EUR' }), /require USD/);
+  await assert.rejects(api.createVendorRate({ ...base, billingUnit: 'credits' }), /Unsupported Python cost unit/);
+  await assert.rejects(api.createVendorRate({ ...base, verificationStatus: 'estimated' }), /verified provider rate is required/);
+  assert.equal(calls, 0);
+});
