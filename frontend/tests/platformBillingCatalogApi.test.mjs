@@ -90,6 +90,64 @@ test('vendor-rate adapter refuses unsupported currency, unit, and unverified sta
   assert.equal(calls, 0);
 });
 
+test('infrastructure rate card maps to the immutable infrastructure pricing API', async () => {
+  let saved;
+  const api = createPlatformBillingCatalogApi({ billing: {
+    saveInfrastructureRate: async (body) => { saved = body; return { cost_rate: { cost_rate_id: 'infra-rate' }, binding: { binding_id: 'infra-binding' } }; },
+  } });
+  const result = await api.createInfrastructureRate({
+    featureId: 'document_storage_mb', policyVersionId: 'draft-policy', costDriver: 'object-storage',
+    usageBasis: 'estimated_usage', billingUnit: 'GB-month', billingUnitsPerFeatureUnit: 0.001,
+    unitCost: '0.0002', currency: 'USD', verificationStatus: 'confirmed', source: 'synthetic invoice fixture',
+    verifiedAt: '2026-10-20', effectiveFrom: '2026-10-25T00:00:00.000Z', operationalMultiplier: 1.1,
+    variabilityReserve: 1.2,
+  });
+  assert.equal(saved.budget_kind, undefined);
+  assert.equal(saved.feature_code, 'document_storage_mb');
+  assert.equal(saved.policy_version_id, 'draft-policy');
+  assert.equal(saved.usage_basis, 'estimated_usage');
+  assert.equal(saved.unit, 'GB-month');
+  assert.equal(saved.unit_cost_usd, '0.0002');
+  assert.equal(saved.units_per_feature_unit, '0.001');
+  assert.equal(result.binding.binding_id, 'infra-binding');
+});
+
+test('infrastructure rate form refuses unverified or unbound cost data', async () => {
+  let calls = 0;
+  const api = createPlatformBillingCatalogApi({ billing: { saveInfrastructureRate: async () => { calls += 1; } } });
+  const valid = { featureId: 'document_storage_mb', policyVersionId: 'draft-policy', costDriver: 'storage',
+    billingUnit: 'GB-month', unitCost: 1, currency: 'USD', verificationStatus: 'confirmed', source: 'fixture',
+    verifiedAt: '2026-10-20', effectiveFrom: '2026-10-25T00:00:00.000Z', usageBasis: 'estimated_usage',
+    operationalMultiplier: 1, variabilityReserve: 1 };
+  await assert.rejects(api.createInfrastructureRate({ ...valid, verificationStatus: 'estimated' }), /confirmed rate requires/);
+  await assert.rejects(api.createInfrastructureRate({ ...valid, policyVersionId: '' }), /draft pricing policy/);
+  assert.equal(calls, 0);
+});
+
+test('infrastructure rate list adapter uses owner-only Python rate cards', async () => {
+  const api = createPlatformBillingCatalogApi({ billing: {
+    infrastructureRates: async () => ({ items: [{ id: 'infra-1', costDriver: 'storage', featureId: 'document_storage_mb', unitCost: '0.0002', currency: 'USD', verificationStatus: 'confirmed' }] }),
+  } });
+  const result = await api.getInfrastructureRates();
+  assert.equal(result.data[0].id, 'infra-1');
+  assert.equal(result.data[0].featureId, 'document_storage_mb');
+});
+
+test('canonical feature metadata maps to owner API while executable semantics stay fixed', async () => {
+  let saved;
+  const api = createPlatformBillingCatalogApi({ billing: {
+    featureCatalog: async () => ({ features: [{ feature_code: 'team_seats', unit: 'seats', aggregation_type: 'max', reset_cycle: 'lifetime', display_name: 'Team seats', display_name_ar: 'مقاعد الفريق' }] }),
+    updateFeatureMetadata: async (code, body) => { saved = [code, body]; return { display_name: body.name }; },
+  }, offers: { getConfigurator: async () => ({ features: [{ featureCode: 'team_seats', unit: 'seats', aggregationType: 'max', resetCycle: 'lifetime' }], modules: [] }) } });
+  const [feature] = (await api.getFeatures()).data;
+  assert.equal(feature.name, 'Team seats');
+  await api.updateFeature('team_seats', { name: 'Seats', name_ar: 'المقاعد', description: 'Seat count', type: 'limit', unit: 'seats', aggregation_type: 'max', reset_cycle: 'lifetime' });
+  assert.equal(saved[0], 'team_seats');
+  assert.equal(saved[1].name_ar, 'المقاعد');
+  await assert.rejects(api.updateFeature('team_seats', { name: 'Seats', name_ar: 'المقاعد', type: 'boolean' }), /semantics are fixed/);
+  await assert.rejects(api.createFeature({ code: 'new_ai_feature' }), /executable usage\/enforcement contract/);
+});
+
 test('owner quote composer uses Python draft, submit, and server pricing contracts', async () => {
   const calls = [];
   const api = createPlatformBillingCatalogApi({

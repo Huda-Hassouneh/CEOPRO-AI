@@ -15,6 +15,8 @@ const swrOptions = { shouldRetryOnError: false, revalidateOnFocus: false };
 const tr = (t, key, fallback) => { const value = t(key); return value === key ? fallback : value; };
 const blank = (rate = null) => ({
   featureId: rate?.featureId ?? "", costDriver: rate?.costDriver ?? "",
+  policyVersionId: rate?.policyVersionId ?? "",
+  verifiedAt: rate?.verified_at ? String(rate.verified_at).slice(0, 10) : "",
   usageBasis: rate?.usageBasis ?? "limit_value", billingUnit: rate?.billingUnit ?? "",
   billingUnitsPerFeatureUnit: rate?.billingUnitsPerFeatureUnit ?? 1,
   unitCost: rate?.unitCost ?? "", currency: rate?.currency ?? "USD",
@@ -24,23 +26,29 @@ const blank = (rate = null) => ({
   effectiveFrom: rate?.effectiveFrom ? String(rate.effectiveFrom).slice(0, 16) : "",
   effectiveTo: rate?.effectiveTo ? String(rate.effectiveTo).slice(0, 16) : "",
 });
-const number = (value) => Number(value);
-
 function RateModal({ rate, open, onClose, features, api, onSaved, t }) {
   const [form, setForm] = useState(blank(rate));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const { data: policyResponse } = useSWR(open ? "platform-infrastructure-rate-draft-policies" : null, api.getCustomPlanPricingPolicy, swrOptions);
+  const policies = policyResponse?.data?.policies ?? policyResponse?.policies ?? [];
+  const draftPolicies = policies.filter((policy) => policy.status === "draft" && policy.policy_version_id !== rate?.policyVersionId);
   useEffect(() => { if (open) setForm(blank(rate)); }, [open, rate]);
+  useEffect(() => {
+    if (open && !rate?.policyVersionId && !form.policyVersionId && draftPolicies.length)
+      setForm((previous) => ({ ...previous, policyVersionId: draftPolicies[0].policy_version_id }));
+  }, [open, rate, form.policyVersionId, draftPolicies]);
   const set = (key) => (event) => setForm((previous) => ({ ...previous, [key]: event.target.value }));
   const submit = async (event) => {
     event.preventDefault(); setSaving(true); setError("");
     try {
       const payload = {
-        featureId: form.featureId || null, costDriver: form.costDriver.trim(), usageBasis: form.usageBasis,
-        billingUnit: form.billingUnit.trim(), billingUnitsPerFeatureUnit: number(form.billingUnitsPerFeatureUnit),
-        unitCost: number(form.unitCost), currency: form.currency.trim().toUpperCase(),
-        operationalMultiplier: number(form.operationalMultiplier), variabilityReserve: number(form.variabilityReserve),
+        featureId: form.featureId, policyVersionId: form.policyVersionId, costDriver: form.costDriver.trim(), usageBasis: form.usageBasis,
+        billingUnit: form.billingUnit.trim(), billingUnitsPerFeatureUnit: form.billingUnitsPerFeatureUnit,
+        unitCost: form.unitCost, currency: form.currency.trim().toUpperCase(),
+        operationalMultiplier: form.operationalMultiplier, variabilityReserve: form.variabilityReserve,
         verificationStatus: form.verificationStatus, source: form.source.trim() || undefined,
+        verifiedAt: form.verifiedAt,
         effectiveFrom: form.effectiveFrom ? new Date(form.effectiveFrom).toISOString() : undefined,
         effectiveTo: form.effectiveTo ? new Date(form.effectiveTo).toISOString() : null,
       };
@@ -52,7 +60,8 @@ function RateModal({ rate, open, onClose, features, api, onSaved, t }) {
     title={tr(t, rate ? "billing.catalog.customPlans.infrastructureRates.edit" : "billing.catalog.customPlans.infrastructureRates.create", rate ? "Edit infrastructure rate" : "Add infrastructure rate")}
     maxWidth="760px" footer={<><Button variant="outline" onClick={onClose} disabled={saving}>{tr(t, "common.cancel", "Cancel")}</Button><Button type="submit" form="infrastructure-rate-form" loading={saving}>{tr(t, "common.save", "Save")}</Button></>}>
     <form id="infrastructure-rate-form" className="billing-catalog-form" onSubmit={submit}><div className="billing-catalog-form-grid">
-      <Select label={tr(t, "billing.catalog.fields.feature", "Feature")} value={form.featureId} onChange={set("featureId")} options={[{ value: "", label: tr(t, "billing.catalog.customPlans.infrastructureRates.unassigned", "Not tied to a feature") }, ...features.map((feature) => ({ value: feature.id, label: feature.name }))]} />
+      <Select label={tr(t, "billing.catalog.fields.feature", "Feature")} value={form.featureId} onChange={set("featureId")} options={(features || []).map((feature) => ({ value: feature.id, label: feature.name }))} />
+      <Select label={tr(t, "billing.catalog.customPlans.infrastructureRates.policy", "Draft pricing policy")} value={form.policyVersionId} onChange={set("policyVersionId")} options={draftPolicies.map((policy) => ({ value: policy.policy_version_id, label: `v${policy.version_number} · ${policy.status}` }))} />
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.costDriver", "Cost driver")} value={form.costDriver} onChange={set("costDriver")} required />
       <Select label={tr(t, "billing.catalog.customPlans.infrastructureRates.usageBasis", "Usage basis")} value={form.usageBasis} onChange={set("usageBasis")} options={["limit_value", "estimated_usage", "enabled_feature"].map((value) => ({ value, label: tr(t, `billing.catalog.customPlans.infrastructureRates.usageBasisValues.${value}`, value) }))} />
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.billingUnit", "Billing unit")} value={form.billingUnit} onChange={set("billingUnit")} required />
@@ -62,9 +71,11 @@ function RateModal({ rate, open, onClose, features, api, onSaved, t }) {
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.multiplier", "Operational multiplier")} type="number" min="0.0001" step="0.01" value={form.operationalMultiplier} onChange={set("operationalMultiplier")} required />
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.reserve", "Variability reserve")} type="number" min="1" step="0.01" value={form.variabilityReserve} onChange={set("variabilityReserve")} required />
       <Select label={tr(t, "billing.catalog.fields.status", "Status")} value={form.verificationStatus} onChange={set("verificationStatus")} options={["confirmed", "estimated", "unconfirmed", "deprecated"].map((value) => ({ value, label: tr(t, `billing.catalog.customPlans.infrastructureRates.status.${value}`, value) }))} />
-      <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.effectiveFrom", "Effective from")} type="datetime-local" value={form.effectiveFrom} onChange={set("effectiveFrom")} />
+      <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.verifiedAt", "Verified on")} type="date" value={form.verifiedAt || ""} onChange={set("verifiedAt")} required />
+      <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.effectiveFrom", "Effective from")} type="datetime-local" value={form.effectiveFrom} onChange={set("effectiveFrom")} required />
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.effectiveTo", "Effective to")} type="datetime-local" value={form.effectiveTo} onChange={set("effectiveTo")} />
-      <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.source", "Source / evidence")} value={form.source} onChange={set("source")} />
+      <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.source", "Source / evidence")} value={form.source} onChange={set("source")} required />
+      {!draftPolicies.length && <p className="billing-inline-error">{tr(t, "billing.catalog.customPlans.infrastructureRates.noDraftPolicy", "Create a new draft pricing policy before adding or revising an infrastructure rate.")}</p>}
     </div>{error && <p className="billing-inline-error">{error}</p>}</form>
   </Modal>;
 }
@@ -74,7 +85,7 @@ export default function InfrastructureRateCards({ features, t, locale, api, canM
   const { data, error, isLoading, mutate } = useSWR("platform-infrastructure-rates", api.getInfrastructureRates, swrOptions);
   const rates = data?.data ?? [];
   const columns = [
-    { header: tr(t, "billing.catalog.fields.feature", "Feature"), render: (rate) => rate.feature?.name ?? "-" },
+    { header: tr(t, "billing.catalog.fields.feature", "Feature"), render: (rate) => rate.feature?.name ?? (features || []).find((feature) => feature.id === rate.featureId || feature.code === rate.feature_code)?.name ?? rate.featureId ?? "-" },
     { header: tr(t, "billing.catalog.customPlans.infrastructureRates.costDriver", "Cost driver"), accessor: "costDriver" },
     { header: tr(t, "billing.catalog.customPlans.infrastructureRates.usageBasis", "Usage basis"), render: (rate) => tr(t, `billing.catalog.customPlans.infrastructureRates.usageBasisValues.${rate.usageBasis}`, rate.usageBasis) },
     { header: tr(t, "billing.catalog.customPlans.infrastructureRates.unitCost", "Unit cost"), render: (rate) => new Intl.NumberFormat(locale, { style: "currency", currency: rate.currency }).format(rate.unitCost) },

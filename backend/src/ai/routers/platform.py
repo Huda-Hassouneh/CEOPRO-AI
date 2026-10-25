@@ -117,6 +117,15 @@ class PlanStatusMutation(BaseModel):
     reason: str = Field(default="Owner plan availability update through Platform Billing Portal.", min_length=1, max_length=2000)
 
 
+class FeatureMetadataMutation(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=100)
+    name_ar: str = Field(min_length=1, max_length=100)
+    description: str | None = Field(default=None, max_length=4000)
+    description_ar: str | None = Field(default=None, max_length=4000)
+    reason: str = Field(min_length=1, max_length=2000)
+
+
 class OwnerVendorRateSave(BaseModel):
     """Original owner vendor-rate form mapped to immutable Python rate + draft binding."""
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -157,6 +166,58 @@ class OwnerVendorRateSave(BaseModel):
     @field_validator("usage_assumption")
     @classmethod
     def bounded_assumption(cls, value):
+        import json
+        if len(json.dumps(value, default=str).encode()) > 4096:
+            raise ValueError("Usage assumption is too large")
+        return value
+
+
+class OwnerInfrastructureRateSave(BaseModel):
+    """Original infrastructure card mapped to an immutable rate and policy binding."""
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    policy_version_id: UUID
+    feature_code: str = Field(min_length=1, max_length=60)
+    provider: str = Field(min_length=1, max_length=60)
+    operation: str = Field(min_length=1, max_length=120)
+    unit: str = Field(min_length=1, max_length=60)
+    unit_cost_usd: Decimal = Field(ge=0, max_digits=20, decimal_places=12)
+    source: str = Field(min_length=1, max_length=2000)
+    verified_at: date
+    effective_from: datetime
+    effective_to: datetime | None = None
+    supersedes_rate_id: UUID | None = None
+    usage_basis: Literal["enabled_feature", "limit_value", "estimated_usage"] = "estimated_usage"
+    units_per_feature_unit: Decimal = Field(default=Decimal("1"), gt=0, max_digits=24, decimal_places=8)
+    operational_multiplier: Decimal = Field(gt=0, max_digits=18, decimal_places=8)
+    variability_reserve: Decimal = Field(ge=1, max_digits=18, decimal_places=8)
+    required_for_price: bool = True
+    usage_assumption: dict = Field(default_factory=dict)
+
+    @field_validator("unit")
+    @classmethod
+    def safe_unit(cls, value):
+        import re
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_./-]{0,59}", value):
+            raise ValueError("Unit must be a short identifier beginning with a letter")
+        return value
+
+    @field_validator("effective_from", "effective_to")
+    @classmethod
+    def timezone_required(cls, value):
+        if value is not None and value.tzinfo is None:
+            raise ValueError("Effective dates must include a timezone")
+        return value
+
+    @field_validator("source")
+    @classmethod
+    def nonblank_source(cls, value):
+        if not value.strip():
+            raise ValueError("Rate source and verification evidence are required")
+        return value
+
+    @field_validator("usage_assumption")
+    @classmethod
+    def bounded_infrastructure_assumption(cls, value):
         import json
         if len(json.dumps(value, default=str).encode()) > 4096:
             raise ValueError("Usage assumption is too large")
@@ -716,6 +777,116 @@ def save_owner_vendor_rate(body: OwnerVendorRateSave, ctx: TenantContext = Depen
     finally:
         conn.close()
 
+
+@router.get("/billing/custom-plan-pricing/infrastructure-rates")
+def list_owner_infrastructure_rates(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """List internal infrastructure rate cards through the owner-checked pricing authority."""
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        rates = custom_offers.pricing_admin_command(conn, "rate_list", {}).get("cost_rates", [])
+        policies = custom_offers.pricing_admin_command(conn, "policy_list", {}).get("policies", [])
+        bindings = []
+        for policy in policies:
+            bindings.extend(custom_offers.pricing_admin_command(
+                conn, "binding_list", {"policy_version_id": policy["policy_version_id"]}
+            ).get("bindings", []))
+        rows = []
+        for binding in bindings:
+            if binding.get("cost_category") != "infrastructure":
+                continue
+            rate = next((item for item in rates if item.get("cost_rate_id") == binding.get("cost_rate_id")), None)
+            if rate is None:
+                continue
+            rows.append({**rate, **binding, "id": rate["cost_rate_id"],
+                         "policy_status": next((p["status"] for p in policies
+                                                 if p["policy_version_id"] == binding["policy_version_id"]), None),
+                         "featureId": binding["feature_code"], "costDriver": rate["operation"],
+                         "billingUnit": rate["unit"], "unitCost": rate["unit_cost_usd"],
+                         "currency": "USD", "verificationStatus": "confirmed",
+                         "effectiveFrom": rate["effective_from"], "effectiveTo": rate["effective_to"],
+                         "billingUnitsPerFeatureUnit": binding["units_per_feature_unit"],
+                         "operationalMultiplier": binding["operational_multiplier"],
+                         "variabilityReserve": binding["variability_reserve"],
+                         "usageBasis": binding["usage_basis"],
+                         "policyVersionId": binding["policy_version_id"],
+                         "bindingId": binding["binding_id"]})
+        conn.commit()
+        return {"items": rows}
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_quote_http_error(exc)
+    finally:
+        conn.close()
+
+
+@router.post("/billing/custom-plan-pricing/infrastructure-rates", status_code=201)
+def save_owner_infrastructure_rate(body: OwnerInfrastructureRateSave,
+                                   ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Atomically create an immutable infra rate and bind it to an owner draft policy."""
+    _custom_quote_operator(ctx)
+    now = datetime.now(timezone.utc)
+    if body.verified_at > now.date():
+        raise HTTPException(422, detail={"reason": "verification_date_invalid", "message": "Verification date cannot be in the future."})
+    if body.effective_from > now:
+        raise HTTPException(422, detail={"reason": "future_binding_unsupported", "message": "The current pricing contract accepts infrastructure rates effective now or earlier."})
+    if body.effective_to is not None and body.effective_to <= body.effective_from:
+        raise HTTPException(422, detail={"reason": "effective_interval_invalid", "message": "Effective end must be after effective start."})
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        supported_features = {item["featureCode"] for item in custom_offers.feature_catalog(conn)}
+        supported_features.update(item["featureCode"] for item in custom_offers.module_catalog())
+        if body.feature_code not in supported_features:
+            raise HTTPException(422, detail={"reason": "unsupported_feature", "message": "Infrastructure rates must bind to an existing Python-supported feature."})
+        if body.supersedes_rate_id is not None:
+            known = custom_offers.pricing_admin_command(conn, "rate_list", {}).get("cost_rates", [])
+            old = next((rate for rate in known if rate.get("cost_rate_id") == str(body.supersedes_rate_id)), None)
+            if old is None:
+                raise HTTPException(404, detail="Infrastructure rate not found.")
+            if old.get("effective_to") is None:
+                old_start = old["effective_from"]
+                if isinstance(old_start, str):
+                    old_start = datetime.fromisoformat(old_start.replace("Z", "+00:00"))
+                if body.effective_from <= old_start:
+                    raise HTTPException(422, detail={"reason": "effective_interval_invalid", "message": "A replacement rate must start after its predecessor."})
+                custom_offers.pricing_admin_command(conn, "rate_close", {
+                    "cost_rate_id": str(body.supersedes_rate_id),
+                    "effective_to": body.effective_from.astimezone(timezone.utc).isoformat(),
+                    "reason": "Superseded by an immutable infrastructure rate version",
+                })
+        rate = custom_offers.pricing_admin_command(conn, "rate_create", {
+            "budget_kind": "infrastructure", "provider": body.provider, "operation": body.operation,
+            "unit": body.unit, "unit_cost_usd": str(body.unit_cost_usd), "source": body.source,
+            "verified_at": body.verified_at.isoformat(),
+            "effective_from": body.effective_from.astimezone(timezone.utc).isoformat(),
+            "effective_to": body.effective_to.astimezone(timezone.utc).isoformat() if body.effective_to else None,
+            "verification_evidence": body.source,
+        })
+        binding = custom_offers.pricing_admin_command(conn, "binding_create", {
+            "policy_version_id": str(body.policy_version_id), "cost_rate_id": rate["cost_rate_id"],
+            "feature_code": body.feature_code, "cost_category": "infrastructure",
+            "usage_basis": body.usage_basis, "units_per_feature_unit": str(body.units_per_feature_unit),
+            "operational_multiplier": str(body.operational_multiplier),
+            "variability_reserve": str(body.variability_reserve),
+            "required_for_price": body.required_for_price, "usage_assumption": body.usage_assumption,
+            "effective_from": body.effective_from.astimezone(timezone.utc).isoformat(),
+            "effective_to": body.effective_to.astimezone(timezone.utc).isoformat() if body.effective_to else None,
+            "source": body.source,
+        })
+        conn.commit()
+        return {"cost_rate": rate, "binding": binding, "policy_version_id": str(body.policy_version_id)}
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_quote_http_error(exc)
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 @router.post("/billing/custom-plan-pricing/cost-rates/{rate_id}/close")
 def close_custom_pricing_cost_rate(rate_id: UUID, body: dict,
                                    ctx: TenantContext = Depends(get_tenant_context)) -> dict:
@@ -825,6 +996,55 @@ def update_platform_plan_status(plan_key: str, body: PlanStatusMutation, ctx: Ct
         raise HTTPException(status_code=422, detail={"reason": "invalid_plan_status_change", "message": str(exc)}) from None
     except Exception:
         conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.get("/billing/feature-catalog")
+def platform_feature_catalog(ctx: Ctx):
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_platform_feature_catalog_command('list','{}'::jsonb);")
+            result = cursor.fetchone()[0]
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.patch("/billing/feature-catalog/{feature_code}")
+def update_platform_feature_metadata(feature_code: str, body: FeatureMetadataMutation, ctx: Ctx):
+    _custom_quote_operator(ctx)
+    if not feature_code or len(feature_code) > 60:
+        raise HTTPException(422, detail="Invalid canonical feature code.")
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        from psycopg2.extras import Json
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_platform_feature_catalog_command(%s,%s::jsonb);", (
+                "update_metadata", Json({
+                    "feature_code": feature_code, "display_name": body.name, "display_name_ar": body.name_ar,
+                    "description": body.description, "description_ar": body.description_ar, "reason": body.reason,
+                })
+            ))
+            result = cursor.fetchone()[0]
+        conn.commit()
+        return result
+    except Exception as exc:
+        conn.rollback()
+        code = getattr(exc, "pgcode", None)
+        if code == "42501":
+            raise HTTPException(403, detail="Platform Owner permission is required.") from None
+        if code == "P0002":
+            raise HTTPException(404, detail="Canonical feature not found.") from None
+        if code == "22023":
+            raise HTTPException(422, detail="Localized feature names are required.") from None
         raise
     finally:
         conn.close()

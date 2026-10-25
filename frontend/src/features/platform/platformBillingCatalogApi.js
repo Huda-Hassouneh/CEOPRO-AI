@@ -100,18 +100,76 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
       usage_assumption: payload.metadata?.usageAssumption || {}, required_for_price: true,
     });
   };
+  const saveInfrastructureRate = async (payload) => {
+    if (String(payload.currency || '').toUpperCase() !== 'USD')
+      throw new Error('The Python Custom Plan pricing contract currently accepts USD cost schedules only.');
+    if (payload.verificationStatus !== 'confirmed' || !String(payload.source || '').trim())
+      throw new Error('A confirmed rate requires source and verification evidence.');
+    if (!payload.policyVersionId || !payload.featureId)
+      throw new Error('Choose a supported feature and a draft pricing policy before saving this rate.');
+    const effectiveFrom = payload.effectiveFrom || new Date().toISOString();
+    return billing.saveInfrastructureRate({
+      policy_version_id: payload.policyVersionId,
+      feature_code: payload.featureId,
+      provider: payload.costDriver,
+      operation: payload.costDriver,
+      unit: payload.billingUnit,
+      unit_cost_usd: String(payload.unitCost),
+      source: payload.source,
+      verified_at: payload.verifiedAt || new Date().toISOString().slice(0, 10),
+      effective_from: effectiveFrom,
+      effective_to: payload.effectiveTo || null,
+      supersedes_rate_id: payload.supersedesRateId || null,
+      usage_basis: payload.usageBasis,
+      units_per_feature_unit: String(payload.billingUnitsPerFeatureUnit ?? 1),
+      operational_multiplier: String(payload.operationalMultiplier),
+      variability_reserve: String(payload.variabilityReserve),
+      required_for_price: true,
+      usage_assumption: payload.metadata?.usageAssumption || {},
+    });
+  };
+  const featureRows = async () => {
+    const [catalog, canonical] = await Promise.all([offers.getConfigurator(),
+      typeof billing.featureCatalog === 'function' ? billing.featureCatalog() : Promise.resolve({ features: [] })]);
+    const metadata = new Map(list(canonical, 'features').map((feature) => [feature.feature_code, feature]));
+    const numeric = (catalog.features || []).map((f) => {
+      const row = metadata.get(f.featureCode) || {};
+      return { id: f.featureCode, code: f.featureCode, name: row.display_name || f.featureCode,
+        name_ar: row.display_name_ar || f.featureCode, description: row.description || '',
+        description_ar: row.description_ar || '', type: 'limit', unit: f.unit,
+        aggregationType: f.aggregationType, resetCycle: f.resetCycle };
+    });
+    const modules = (catalog.modules || []).map((f) => {
+      const row = metadata.get(f.featureCode) || {};
+      return { id: f.featureCode, code: f.featureCode, name: row.display_name || f.featureCode,
+        name_ar: row.display_name_ar || f.featureCode, description: row.description || '',
+        description_ar: row.description_ar || '', type: 'boolean', unit: '',
+        aggregationType: 'max', resetCycle: 'lifetime' };
+    });
+    return [...numeric, ...modules];
+  };
   return Object.freeze({
     getPlans: async () => wrap(await plans()),
-    getFeatures: async () => {
-      const catalog = await offers.getConfigurator();
-      const numeric = (catalog.features || []).map((f) => ({ id: f.featureCode, code: f.featureCode, name: f.featureCode, type: 'limit', unit: f.unit, aggregationType: f.aggregationType, resetCycle: f.resetCycle }));
-      const modules = (catalog.modules || []).map((f) => ({ id: f.featureCode, code: f.featureCode, name: f.featureCode, type: 'boolean', unit: '', aggregationType: 'max', resetCycle: 'lifetime' }));
-      return wrap([...numeric, ...modules]);
+    getFeatures: async () => wrap(await featureRows()),
+    getFeature: async (featureId) => {
+      const data = await featureRows();
+      const feature = data.find((item) => item.id === featureId);
+      if (!feature) throw new Error('Canonical feature not found.');
+      return wrap(feature);
     },
     getPlanFeatures: async (planId) => {
-      const plan = (await plans()).find((item) => item.id === planId);
-      const numeric = (plan?.feature_limits || []).map((item) => ({ id: `${planId}:${item.feature_code}`, feature_id: item.feature_code, planId, featureId: item.feature_code, limit_value: item.limit_value, limitValue: item.limit_value, feature: { id: item.feature_code, code: item.feature_code, name: item.feature_code, type: 'limit', unit: item.unit } }));
-      const modules = (plan?.entitlements || []).map((code) => ({ id: `${planId}:${code}`, feature_id: code, planId, featureId: code, limit_value: null, limitValue: null, feature: { id: code, code, name: code, type: 'boolean', unit: '' } }));
+      const [planList, catalogFeatures] = await Promise.all([plans(),
+        typeof billing.featureCatalog === 'function' ? featureRows() : Promise.resolve([])]);
+      const plan = planList.find((item) => item.id === planId);
+      const labels = new Map(catalogFeatures.map((feature) => [feature.id, feature]));
+      const featureLabel = (code, unit, type) => {
+        const item = labels.get(code) || {};
+        return { id: code, code, name: item.name || code, name_ar: item.name_ar || code,
+          description: item.description || '', description_ar: item.description_ar || '',
+          type, unit: unit ?? item.unit };
+      };
+      const numeric = (plan?.feature_limits || []).map((item) => ({ id: `${planId}:${item.feature_code}`, feature_id: item.feature_code, planId, featureId: item.feature_code, limit_value: item.limit_value, limitValue: item.limit_value, feature: featureLabel(item.feature_code, item.unit, 'limit') }));
+      const modules = (plan?.entitlements || []).map((code) => ({ id: `${planId}:${code}`, feature_id: code, planId, featureId: code, limit_value: null, limitValue: null, feature: featureLabel(code, '', 'boolean') }));
       return wrap([...numeric, ...modules]);
     },
     getPromoCodes: async () => wrap(await promotions()),
@@ -166,6 +224,12 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
     },
     getCustomPlanPricingPolicy: async () => ({ data: await billing.policies() }),
     getVendorRates: async () => wrap(await rates()),
+    getInfrastructureRates: async () => {
+      const response = await billing.infrastructureRates();
+      return wrap(list(response, 'items'));
+    },
+    createInfrastructureRate: (payload) => saveInfrastructureRate(payload),
+    updateInfrastructureRate: (rateId, payload) => saveInfrastructureRate({ ...payload, supersedesRateId: rateId }),
     getTenants: async () => wrap(list(await billing.companies(100, 0), 'items').map((tenant) => ({ ...tenant, id: tenant.tenant_id, businessName: tenant.business_name }))),
     createPlan: () => unavailable('plan creation'),
     updatePlan: (planKey, payload = {}) => {
@@ -225,7 +289,24 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
       if (current.status !== 'draft') throw new Error('Only draft promotions can be edited.');
       return billing.updatePromotionDraft(promoCodeId, promoPayload(current, [...new Set([...current.planKeys, planId])]));
     },
-    createFeature: () => unavailable('canonical feature catalog mutation'), updateFeature: () => unavailable('canonical feature catalog mutation'), removeFeature: () => unavailable('canonical feature catalog mutation'),
+    createFeature: () => unavailable('new feature creation; Python needs an executable usage/enforcement contract before a new code can be enabled'),
+    updateFeature: async (featureId, payload) => {
+      const data = await featureRows();
+      const current = data.find((item) => item.id === featureId);
+      if (!current) throw new Error('Canonical feature not found.');
+      const semanticChanges = (payload.type && payload.type !== current.type)
+        || (payload.unit !== undefined && String(payload.unit || '') !== String(current.unit || ''))
+        || (payload.aggregation_type && payload.aggregation_type !== current.aggregationType)
+        || (payload.reset_cycle && payload.reset_cycle !== current.resetCycle);
+      if (semanticChanges)
+        throw new Error('Feature code, unit, aggregation, and reset semantics are fixed by Python usage enforcement. Only localized labels and descriptions can be edited safely.');
+      return billing.updateFeatureMetadata(featureId, {
+        name: payload.name, name_ar: payload.name_ar,
+        description: payload.description || null, description_ar: payload.description_ar || null,
+        reason: 'Platform Owner updated canonical feature presentation metadata.',
+      });
+    },
+    removeFeature: () => unavailable('canonical feature removal; Python canonical codes are referenced by usage and entitlement enforcement'),
     linkFeatureToPlan: (planId, body) => billing.updatePlanFeature(planId, { feature_code: body.feature_id, included: true, limit_value: body.limit_value, reason: 'Owner added a supported feature to a plan.' }),
     unlinkFeatureFromPlan: ({ planId, featureId }) => billing.updatePlanFeature(planId, { feature_code: featureId, included: false, limit_value: null, reason: 'Owner removed a supported feature from a plan.' }),
     updatePlanFeatureLimit: ({ planId, featureId, limitValue }) => billing.updatePlanFeature(planId, { feature_code: featureId, included: true, limit_value: limitValue, reason: 'Owner changed a supported plan feature allowance.' }),
