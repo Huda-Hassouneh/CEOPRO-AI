@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import psycopg2
 import pytest
 
-from src.ai.billing import promotions
+from src.ai.billing import promotions, stripe_api
 
 
 def _terms(**overrides):
