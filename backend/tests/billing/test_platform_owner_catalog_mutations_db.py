@@ -4,6 +4,7 @@ All values created here are synthetic and the test runner only targets a fresh
 disposable database. No Stripe/provider operations are performed.
 """
 import uuid
+from decimal import Decimal
 
 import pytest
 from fastapi import FastAPI
@@ -114,7 +115,7 @@ def test_owner_catalog_http_mutations_persist_rate_binding_and_audit(
 
         with owner_db.cursor() as cur:
             cur.execute("SELECT budget_kind,unit,unit_cost_usd FROM public.billing_custom_cost_rates WHERE cost_rate_id=%s", (rate_id,))
-            assert cur.fetchone() == ("infrastructure", "GB-month", 0.0002)
+            assert cur.fetchone() == ("infrastructure", "GB-month", Decimal("0.0002"))
             cur.execute("SELECT cost_category,budget_kind,usage_basis FROM public.billing_custom_cost_bindings WHERE binding_id=%s", (binding_id,))
             assert cur.fetchone() == ("infrastructure", "infrastructure", "estimated_usage")
             cur.execute("SELECT count(*) FROM public.entitlement_audit_log WHERE action='custom_pricing_rate_created' AND new_value->>'cost_rate_id'=%s", (rate_id,))
