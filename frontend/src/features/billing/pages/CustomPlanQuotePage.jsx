@@ -11,6 +11,7 @@ import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 import Toast from '../../../shared/components/ui/Toast.jsx';
 import { customOffersApi, createIdempotencyKey } from '../api/customOffersApi.js';
 import { usePlans } from '../hooks/usePlans.js';
+import { quoteHasVerifiedActivation } from '../utils/customQuoteState.js';
 import '../styles/Billing.css';
 import '../styles/PlansSubscription.css';
 import '../styles/CustomPlan.css';
@@ -42,6 +43,7 @@ export function CustomPlanQuotePage() {
   const quote = quoteQuery.data;
   const isApproved = quote?.state === 'approved' && quote?.revision_state === 'approved';
   const isAccepted = quote?.state === 'accepted' && quote?.revision_state === 'accepted';
+  const wasPaid = quoteHasVerifiedActivation(quote);
   const terms = quote?.commercial_terms || {};
   const checkoutSupported = terms.currency === 'USD' && String(terms.billingPeriodMonths) === '1' && Number(terms.monthlyPriceUsd) > 0;
   const checkoutAvailable = Boolean(checkoutSupported && plansQuery.data?.paymentsEnabled && isAccepted);
@@ -77,7 +79,7 @@ export function CustomPlanQuotePage() {
       <LockKeyhole size={25} aria-hidden="true" />
       <h2>{t('billing.customPlan.status.' + (quote.state || 'submitted'))}</h2>
       {isApproved && <p>{t('billing.customPlan.offerReady')}</p>}
-      {isAccepted && <p>{t('billing.customPlan.acceptedNotActivated')}</p>}
+      {isAccepted && <p>{t(wasPaid ? 'billing.customPlan.paymentConfirmed' : 'billing.customPlan.acceptedNotActivated')}</p>}
       {quote.state === 'submitted' && <p>{t('billing.customPlan.reviewPending')}</p>}
       {quote.state === 'rejected' && <p>{t('billing.customPlan.offerRejected')}</p>}
       {quote.state === 'expired' && <p>{t('billing.customPlan.offerExpired')}</p>}
@@ -86,14 +88,15 @@ export function CustomPlanQuotePage() {
     <section className="billing-management-section custom-plan-offer-terms">
       <header><h2>{t('billing.customPlan.offerTerms')}</h2></header>
       <ul>{included.map((code) => <li key={code}><Check size={15} />{displayCode(code)}</li>)}{Object.entries(quantities).map(([code, value]) => <li key={code}><Check size={15} />{displayCode(code)}: {new Intl.NumberFormat(locale).format(value)}</li>)}</ul>
-      {isApproved && terms.currency && terms.monthlyPriceUsd && <div className="custom-plan-price"><span>{t('billing.customPlan.approvedPrice')}</span><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: terms.currency }).format(Number(terms.monthlyPriceUsd))}{terms.billingPeriodMonths ? ' / ' + t('billing.customPlan.month') : ''}</strong></div>}
-      {isApproved && <p className="billing-provider-note" role="note">{t('billing.customPlan.priceIsApprovedOffer')}</p>}
+      {(isApproved || isAccepted) && terms.currency && terms.monthlyPriceUsd && <div className="custom-plan-price"><span>{t('billing.customPlan.approvedPrice')}</span><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: terms.currency }).format(Number(terms.monthlyPriceUsd))}{terms.billingPeriodMonths ? ' / ' + t('billing.customPlan.month') : ''}</strong></div>}
+      {(isApproved || isAccepted) && <p className="billing-provider-note" role="note">{t('billing.customPlan.priceIsApprovedOffer')}</p>}
     </section>
     {(isApproved || isAccepted) && <div className="custom-plan-offer-actions">
       {isApproved && <Button variant="primary" loading={transition.isPending} disabled={transition.isPending} onClick={() => runTransition('accept')}><Check size={15} />{t('billing.customPlan.acceptOffer')}</Button>}
       {isApproved && <Button variant="outline" loading={transition.isPending} disabled={transition.isPending} onClick={() => runTransition('reject')}><X size={15} />{t('billing.customPlan.rejectOffer')}</Button>}
-      {isAccepted && <Button variant="primary" loading={checkout.isPending} disabled={!checkoutAvailable || checkout.isPending} onClick={() => checkout.mutate()}>{t(checkoutAvailable ? 'billing.customPlan.continueCheckout' : 'billing.customPlan.checkoutUnavailable')}</Button>}
-      {isAccepted && !checkoutAvailable && <p className="billing-provider-note" role="note">{!plansQuery.data?.paymentsEnabled ? t('billing.customPlan.checkoutPaymentsDisabled') : !checkoutSupported ? t('billing.customPlan.checkoutTermsUnsupported') : t('billing.customPlan.checkoutUnavailable')}</p>}
+      {isAccepted && !wasPaid && <Button variant="primary" loading={checkout.isPending} disabled={!checkoutAvailable || checkout.isPending} onClick={() => checkout.mutate()}>{t(checkoutAvailable ? 'billing.customPlan.continueCheckout' : 'billing.customPlan.checkoutUnavailable')}</Button>}
+      {isAccepted && wasPaid && <Link className="billing-link-button" to={routePaths.billing}>{t('billing.customPlan.manageSubscription')}</Link>}
+      {isAccepted && !wasPaid && !checkoutAvailable && <p className="billing-provider-note" role="note">{!plansQuery.data?.paymentsEnabled ? t('billing.customPlan.checkoutPaymentsDisabled') : !checkoutSupported ? t('billing.customPlan.checkoutTermsUnsupported') : t('billing.customPlan.checkoutUnavailable')}</p>}
     </div>}
     {quote.state !== 'approved' && quote.state !== 'accepted' && <Button variant="outline" onClick={() => navigate(backToBuilder)}>{t('billing.customPlan.backToRequests')}</Button>}
     <p className="custom-plan-no-access" role="note">{t('billing.customPlan.noActivationNotice')}</p>
