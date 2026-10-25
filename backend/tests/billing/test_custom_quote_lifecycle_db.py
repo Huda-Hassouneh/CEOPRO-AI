@@ -1,5 +1,7 @@
 """Native PostgreSQL checks for the Phase 2C quote lifecycle."""
 import uuid
+import hashlib
+import json
 
 import psycopg2
 import pytest
@@ -72,15 +74,43 @@ def _draft(conn, actors, *, key=None, terms=None, economics=None):
         conn,
         tenant_id=actors["tenant_a"], customer_user_id=actors["user_a"],
         idempotency_key=key or "quote-" + uuid.uuid4().hex,
-        configuration={"mode": "test_fixture"}, feature_quantities={},
+        configuration={"mode": "SYNTHETIC_TEST_ONLY"}, feature_quantities={"tracked_products": 1},
         commercial_terms=terms or {}, economic_inputs=economics or {}, fx_evidence={},
     )
 
 
-def _approve_and_accept(platform_conn, customer_conn, actors, quote):
-    custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(quote["quote_id"]),
-                             expected_revision=1, idempotency_key="submit-" + uuid.uuid4().hex)
+def _active_synthetic_policy(platform_conn):
+    policy = custom_offers.pricing_admin_command(platform_conn, "policy_create", {
+        "target_gross_margin": "0.25", "enforce_vendor_cost_ratio_floor": False,
+        "fixed_platform_fee_usd": "0", "upward_rounding_increment_usd": "0",
+        "monthly_shared_infrastructure_cost_usd": "0", "active_paying_tenant_count": 1,
+        "approval_evidence": "SYNTHETIC_TEST_ONLY: not a commercial policy",
+    })
+    custom_offers.pricing_admin_command(platform_conn, "policy_activate", {
+        "policy_version_id": policy["policy_version_id"],
+        "approval_evidence": "SYNTHETIC_TEST_ONLY: disposable database fixture",
+    })
+    return str(policy["policy_version_id"])
+
+
+def _submit_and_price(platform_conn, quote, *, submit=True):
+    if submit:
+        custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(quote["quote_id"]),
+                                 expected_revision=int(quote.get("revision_number", 1)),
+                                 idempotency_key="submit-" + uuid.uuid4().hex)
+        platform_conn.commit()
+    policy_id = _active_synthetic_policy(platform_conn)
+    payload = {"pricingStatus": "calculated", "pricingPolicyVersionId": policy_id,
+               "calculation": {"recommendedPrice": "12.00"}, "configuration": {"testFixture": "SYNTHETIC_TEST_ONLY"},
+               "featureQuantities": {"tracked_products": 1}, "rates": []}
+    payload["calculationHash"] = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    custom_offers.attach_pricing_snapshot(platform_conn, quote_id=str(quote["quote_id"]), snapshot=payload)
     platform_conn.commit()
+
+
+def _approve_and_accept(platform_conn, customer_conn, actors, quote):
+    _submit_and_price(platform_conn, quote)
     custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(quote["quote_id"]),
                              expected_revision=1, idempotency_key="approve-" + uuid.uuid4().hex,
                              approval_reference="synthetic-test-approval")
@@ -106,6 +136,7 @@ def test_quote_lifecycle_is_tenant_scoped_immutable_and_non_activating(quote_act
                                                expected_revision=1, idempotency_key="submit-1")
         platform_conn.commit()
         assert submitted["state"] == "submitted"
+        _submit_and_price(platform_conn, quote, submit=False)
         approved = custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(quote["quote_id"]),
                                               expected_revision=1, idempotency_key="approve-1",
                                               approval_reference="synthetic-test-approval")
@@ -130,7 +161,7 @@ def test_quote_lifecycle_is_tenant_scoped_immutable_and_non_activating(quote_act
         assert accepted["state"] == "accepted" and accepted["access_activated"] is False
         assert accepted_again["idempotent"] is True and accepted_again["access_activated"] is False
         detail = custom_offers.quote_detail(owner_db, str(quote["quote_id"]), include_private=True)
-        assert [event["action"] for event in detail["events"]] == ["draft_created", "submitted", "approved", "accepted"]
+        assert [event["action"] for event in detail["events"]] == ["draft_created", "submitted", "pricing_calculated", "approved", "accepted"]
         with owner_db.cursor() as cur:
             for table in before:
                 cur.execute(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (actors["tenant_a"],))
@@ -169,12 +200,115 @@ def test_quote_tenant_isolation_direct_writes_and_secret_rejection(quote_actors,
             custom_offers.create_draft(
                 platform_conn, tenant_id=actors["tenant_a"], customer_user_id=actors["user_a"],
                 idempotency_key="secret-reject", configuration={"nested": [{"access_token": "forbidden"}]},
-                feature_quantities={}, commercial_terms={}, economic_inputs={}, fx_evidence={},
+                feature_quantities={"tracked_products": 1}, commercial_terms={}, economic_inputs={}, fx_evidence={},
             )
         platform_conn.rollback()
     finally:
         platform_conn.close()
         other_conn.close()
+
+
+def test_customer_request_operator_offer_revision_and_acceptance_are_non_activating(
+    quote_actors, owner_db, billing_connections
+):
+    actors = quote_actors
+    customer_conn = _conn(billing_connections, actors, "tenant_a")
+    platform_conn = _conn(billing_connections, actors)
+    try:
+        before = {}
+        with owner_db.cursor() as cur:
+            for table in ("billing_subscriptions", "billing_payments", "tenant_plan_assignments", "usage_ledger", "tenant_credit_balances"):
+                cur.execute(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (actors["tenant_a"],))
+                before[table] = cur.fetchone()[0]
+
+        request = custom_offers.request_quote(
+            customer_conn, tenant_id=actors["tenant_a"], customer_user_id=actors["user_a"],
+            idempotency_key="customer-request-1",
+            configuration={"refreshFrequency": "daily", "enabledFeatures": ["competitor_management"]},
+            feature_quantities={"tracked_competitors": 2},
+        )
+        customer_conn.commit()
+        replay = custom_offers.request_quote(
+            customer_conn, tenant_id=actors["tenant_a"], customer_user_id=actors["user_a"],
+            idempotency_key="customer-request-1",
+            configuration={"refreshFrequency": "daily", "enabledFeatures": ["competitor_management"]},
+            feature_quantities={"tracked_competitors": 2},
+        )
+        customer_conn.commit()
+        assert request["state"] == "submitted" and request["price_calculated"] is False
+        assert replay["idempotent"] is True
+
+        customer_view = custom_offers.quote_detail(customer_conn, str(request["quote_id"]))
+        assert customer_view["state"] == "submitted"
+        assert "economic_inputs" not in customer_view
+        assert [str(row["quote_id"]) for row in custom_offers.quote_list(customer_conn, actors["tenant_a"])] == [request["quote_id"]]
+        other_customer_conn = _conn(billing_connections, actors, "tenant_b")
+        try:
+            assert custom_offers.quote_list(other_customer_conn, actors["tenant_b"]) == []
+        finally:
+            other_customer_conn.close()
+
+        queue = custom_offers.admin_quote_list(platform_conn, state="submitted")
+        platform_conn.commit()
+        assert any(row["quoteId"] == str(request["quote_id"]) for row in queue)
+
+        revision = custom_offers.create_revision(
+            platform_conn, quote_id=str(request["quote_id"]), expected_revision=1,
+            idempotency_key="offer-revision-2",
+            configuration={"refreshFrequency": "daily", "enabledFeatures": ["competitor_management"]},
+            feature_quantities={"tracked_competitors": 2}, commercial_terms={"test_only": "SYNTHETIC_TEST_ONLY"},
+            economic_inputs={"source": "synthetic-test-contract"}, fx_evidence={},
+        )
+        platform_conn.commit()
+        assert revision["revision_number"] == 2
+        _submit_and_price(platform_conn, {"quote_id": request["quote_id"], "revision_number": 2}, submit=False)
+        approved = custom_offers.transition(
+            platform_conn, "approve", tenant_id=None, quote_id=str(request["quote_id"]),
+            expected_revision=2, idempotency_key="approve-request-2",
+            approval_reference="synthetic-test-approval-only",
+        )
+        platform_conn.commit()
+        assert approved["state"] == "approved"
+
+        accepted = custom_offers.transition(
+            customer_conn, "accept", tenant_id=actors["tenant_a"],
+            quote_id=str(request["quote_id"]), expected_revision=2,
+            idempotency_key="accept-request-2",
+        )
+        customer_conn.commit()
+        assert accepted["state"] == "accepted" and accepted["access_activated"] is False
+
+        detail = custom_offers.quote_detail(owner_db, str(request["quote_id"]), include_private=True)
+        assert [event["action"] for event in detail["events"]] == ["submitted", "revision_created", "pricing_calculated", "approved", "accepted"]
+        with owner_db.cursor() as cur:
+            for table, count in before.items():
+                cur.execute(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (actors["tenant_a"],))
+                assert cur.fetchone()[0] == count
+
+        staff_id = str(uuid.uuid4())
+        with owner_db.cursor() as cur:
+            cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES(%s,%s,'test-only')",
+                        (staff_id, f"quote-staff-{staff_id}@example.test"))
+            cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'staff')",
+                        (actors["tenant_a"], staff_id))
+        owner_db.commit()
+        staff_conn = billing_connections(actors["tenant_a"], staff_id)
+        try:
+            with pytest.raises(custom_offers.CustomOfferError) as error:
+                custom_offers.request_quote(
+                    staff_conn, tenant_id=actors["tenant_a"], customer_user_id=staff_id,
+                    idempotency_key="staff-request-denied", configuration={}, feature_quantities={"tracked_products": 1},
+                )
+            assert error.value.status == 403
+        finally:
+            staff_conn.close()
+            with owner_db.cursor() as cur:
+                cur.execute("DELETE FROM tenant_users WHERE tenant_id=%s AND user_id=%s", (actors["tenant_a"], staff_id))
+                cur.execute("DELETE FROM users WHERE user_id=%s", (staff_id,))
+            owner_db.commit()
+    finally:
+        customer_conn.close()
+        platform_conn.close()
 
 
 def test_quote_idempotency_revision_conflicts_and_checkout_identity_only(quote_actors, billing_connections):
@@ -193,13 +327,13 @@ def test_quote_idempotency_revision_conflicts_and_checkout_identity_only(quote_a
         platform_conn.rollback()
         revision = custom_offers.create_revision(
             platform_conn, quote_id=str(quote["quote_id"]), expected_revision=1, idempotency_key="revision-1",
-            configuration={"new": True}, feature_quantities={}, commercial_terms={"test_only": True},
+            configuration={"new": True}, feature_quantities={"tracked_products": 1}, commercial_terms={"test_only": True},
             economic_inputs={"test_fixture": True}, fx_evidence={},
         )
         platform_conn.commit()
         replay_revision = custom_offers.create_revision(
             platform_conn, quote_id=str(quote["quote_id"]), expected_revision=1, idempotency_key="revision-1",
-            configuration={"new": True}, feature_quantities={}, commercial_terms={"test_only": True},
+            configuration={"new": True}, feature_quantities={"tracked_products": 1}, commercial_terms={"test_only": True},
             economic_inputs={"test_fixture": True}, fx_evidence={},
         )
         assert replay_revision["revision_id"] == revision["revision_id"] and replay_revision["idempotent"]
@@ -211,7 +345,7 @@ def test_quote_idempotency_revision_conflicts_and_checkout_identity_only(quote_a
                 result = custom_offers.create_revision(
                     conn, quote_id=str(quote["quote_id"]), expected_revision=2,
                     idempotency_key="revision-concurrent", configuration={"concurrent": True},
-                    feature_quantities={}, commercial_terms={"test_only": True},
+                    feature_quantities={"tracked_products": 1}, commercial_terms={"test_only": True},
                     economic_inputs={"test_fixture": True}, fx_evidence={},
                 )
                 conn.commit()
@@ -227,8 +361,8 @@ def test_quote_idempotency_revision_conflicts_and_checkout_identity_only(quote_a
             try:
                 result = custom_offers.create_draft(
                     conn, tenant_id=actors["tenant_a"], customer_user_id=actors["user_a"],
-                    idempotency_key=key, configuration={"mode": "test_fixture"},
-                    feature_quantities={}, commercial_terms={"test_only": True},
+                    idempotency_key=key, configuration={"mode": "SYNTHETIC_TEST_ONLY"},
+                    feature_quantities={"tracked_products": 1}, commercial_terms={"test_only": True},
                     economic_inputs={"test_fixture": True}, fx_evidence={},
                 )
                 conn.commit()
@@ -241,7 +375,7 @@ def test_quote_idempotency_revision_conflicts_and_checkout_identity_only(quote_a
         with pytest.raises(custom_offers.CustomOfferError):
             custom_offers.create_revision(
                 platform_conn, quote_id=str(quote["quote_id"]), expected_revision=1, idempotency_key="revision-stale",
-                configuration={}, feature_quantities={}, commercial_terms={}, economic_inputs={}, fx_evidence={},
+                configuration={}, feature_quantities={"tracked_products": 1}, commercial_terms={}, economic_inputs={}, fx_evidence={},
             )
         platform_conn.rollback()
         accepted_quote = _draft(platform_conn, actors, key="accepted-" + uuid.uuid4().hex,
@@ -269,8 +403,8 @@ def test_quote_idempotency_revision_conflicts_and_checkout_identity_only(quote_a
         customer_conn.close()
 
 
-def test_quote_rejection_and_expiry_are_non_activating(quote_actors, billing_connections):
-    from datetime import datetime, timedelta, timezone
+def test_quote_rejection_and_owner_approval_enforces_fourteen_day_offer(quote_actors, billing_connections):
+    from datetime import timedelta
 
     actors = quote_actors
     platform_conn = _conn(billing_connections, actors)
@@ -278,9 +412,7 @@ def test_quote_rejection_and_expiry_are_non_activating(quote_actors, billing_con
     try:
         rejected = _draft(platform_conn, actors, terms={"test_only": True}, economics={"test_fixture": True})
         platform_conn.commit()
-        custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(rejected["quote_id"]),
-                                 expected_revision=1, idempotency_key="reject-submit")
-        platform_conn.commit()
+        _submit_and_price(platform_conn, rejected)
         custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(rejected["quote_id"]),
                                  expected_revision=1, idempotency_key="reject-approve",
                                  approval_reference="synthetic-test-approval")
@@ -297,25 +429,15 @@ def test_quote_rejection_and_expiry_are_non_activating(quote_actors, billing_con
                 quote_id=str(rejected["quote_id"]), expected_revision=1, idempotency_key="reject-accept")
         customer_conn.rollback()
 
-        expired = custom_offers.create_draft(
-            platform_conn, tenant_id=actors["tenant_a"], customer_user_id=actors["user_a"],
-            idempotency_key="expiry-" + uuid.uuid4().hex, configuration={"mode": "test_fixture"},
-            feature_quantities={}, commercial_terms={"test_only": True},
-            economic_inputs={"test_fixture": True}, fx_evidence={},
-            valid_until=datetime.now(timezone.utc)-timedelta(seconds=1),
-        )
+        expiring = _draft(platform_conn, actors, key="expiry-" + uuid.uuid4().hex)
         platform_conn.commit()
-        custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(expired["quote_id"]),
-                                 expected_revision=1, idempotency_key="expiry-submit")
-        platform_conn.commit()
-        custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(expired["quote_id"]),
+        _submit_and_price(platform_conn, expiring)
+        custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(expiring["quote_id"]),
                                  expected_revision=1, idempotency_key="expiry-approve",
                                  approval_reference="synthetic-test-approval")
         platform_conn.commit()
-        result = custom_offers.transition(customer_conn, "accept", tenant_id=actors["tenant_a"],
-            quote_id=str(expired["quote_id"]), expected_revision=1, idempotency_key="expiry-accept")
-        customer_conn.commit()
-        assert result["state"] == "expired" and result["access_activated"] is False
+        detail = custom_offers.quote_detail(customer_conn, str(expiring["quote_id"]))
+        assert detail["valid_until"] - detail["approved_at"] == timedelta(days=14)
     finally:
         platform_conn.close()
         customer_conn.close()
@@ -423,3 +545,54 @@ def test_checkout_identity_requires_verified_processed_event_and_billing_authori
         platform_conn.close()
         customer_conn.close()
         service_conn.close()
+
+def test_quote_rejection_and_expiry_are_non_activating(quote_actors, billing_connections):
+    from datetime import datetime, timedelta, timezone
+
+    actors = quote_actors
+    platform_conn = _conn(billing_connections, actors)
+    customer_conn = _conn(billing_connections, actors, "tenant_a")
+    try:
+        rejected = _draft(platform_conn, actors, terms={"test_only": True}, economics={"test_fixture": True})
+        platform_conn.commit()
+        custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(rejected["quote_id"]),
+                                 expected_revision=1, idempotency_key="reject-submit")
+        platform_conn.commit()
+        custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(rejected["quote_id"]),
+                                 expected_revision=1, idempotency_key="reject-approve",
+                                 approval_reference="synthetic-test-approval")
+        platform_conn.commit()
+        rejected_result = custom_offers.transition(customer_conn, "reject", tenant_id=actors["tenant_a"],
+            quote_id=str(rejected["quote_id"]), expected_revision=1, idempotency_key="reject-once")
+        customer_conn.commit()
+        replay = custom_offers.transition(customer_conn, "reject", tenant_id=actors["tenant_a"],
+            quote_id=str(rejected["quote_id"]), expected_revision=1, idempotency_key="reject-replay")
+        customer_conn.commit()
+        assert rejected_result["state"] == "rejected" and replay["idempotent"] is True
+        with pytest.raises(custom_offers.CustomOfferError):
+            custom_offers.transition(customer_conn, "accept", tenant_id=actors["tenant_a"],
+                quote_id=str(rejected["quote_id"]), expected_revision=1, idempotency_key="reject-accept")
+        customer_conn.rollback()
+
+        expired = custom_offers.create_draft(
+            platform_conn, tenant_id=actors["tenant_a"], customer_user_id=actors["user_a"],
+            idempotency_key="expiry-" + uuid.uuid4().hex, configuration={"mode": "test_fixture"},
+            feature_quantities={}, commercial_terms={"test_only": True},
+            economic_inputs={"test_fixture": True}, fx_evidence={},
+            valid_until=datetime.now(timezone.utc)-timedelta(seconds=1),
+        )
+        platform_conn.commit()
+        custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(expired["quote_id"]),
+                                 expected_revision=1, idempotency_key="expiry-submit")
+        platform_conn.commit()
+        custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(expired["quote_id"]),
+                                 expected_revision=1, idempotency_key="expiry-approve",
+                                 approval_reference="synthetic-test-approval")
+        platform_conn.commit()
+        result = custom_offers.transition(customer_conn, "accept", tenant_id=actors["tenant_a"],
+            quote_id=str(expired["quote_id"]), expected_revision=1, idempotency_key="expiry-accept")
+        customer_conn.commit()
+        assert result["state"] == "expired" and result["access_activated"] is False
+    finally:
+        platform_conn.close()
+        customer_conn.close()

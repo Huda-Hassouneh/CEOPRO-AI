@@ -66,9 +66,9 @@ def test_zero_is_explicit_and_omitted_feature_is_not_converted_to_zero(connectio
     assert result["rightsChanged"] is False
     assert result["operatorReviewRequired"] is True
 
-    omitted = custom_offers.validate_configuration(conn, limits={}, refresh_frequency=None)
-    assert omitted["configuration"]["limits"] == {}
-    assert omitted["limitStates"] == {}
+    with pytest.raises(custom_offers.CustomOfferError) as omitted:
+        custom_offers.validate_configuration(conn, limits={}, refresh_frequency=None)
+    assert omitted.value.code == "empty_configuration"
 
 
 def test_unlimited_is_not_inferred_or_accepted_by_existing_override_contract(connection):
@@ -97,13 +97,54 @@ def test_quantities_require_nonnegative_integers(connection, value):
     assert error.value.code == "invalid_quantity"
 
 
-def test_refresh_frequency_reuses_only_existing_contract_values(connection):
+def test_refresh_frequency_reuses_only_existing_contract_values(connection, monkeypatch):
     conn, _allowed = connection
+    monkeypatch.setattr(custom_offers, "feature_catalog", lambda _conn: [
+        {"featureCode": "tracked_competitors"},
+    ])
+    limits = {"tracked_competitors": 2}
     for cadence in ("hourly", "daily", "weekly"):
-        assert custom_offers.validate_configuration(conn, limits={}, refresh_frequency=cadence)["valid"]
+        assert custom_offers.validate_configuration(
+            conn, limits=limits, enabled_features=["competitor_management"],
+            refresh_frequency=cadence)["valid"]
     with pytest.raises(custom_offers.CustomOfferError) as error:
-        custom_offers.validate_configuration(conn, limits={}, refresh_frequency="every_5_minutes")
+        custom_offers.validate_configuration(
+            conn, limits=limits, enabled_features=["competitor_management"],
+            refresh_frequency="every_5_minutes")
     assert error.value.code == "invalid_refresh_frequency"
+
+
+def test_competitor_allowance_and_cadence_require_module_entitlement(connection, monkeypatch):
+    conn, _allowed = connection
+    monkeypatch.setattr(custom_offers, "feature_catalog", lambda _conn: [
+        {"featureCode": "tracked_competitors"},
+    ])
+    with pytest.raises(custom_offers.CustomOfferError) as error:
+        custom_offers.validate_configuration(conn, limits={"tracked_competitors": 3}, refresh_frequency=None)
+    assert error.value.code == "feature_dependency"
+
+
+def test_module_entitlement_is_separate_from_numeric_allowance(connection, monkeypatch):
+    conn, _allowed = connection
+    monkeypatch.setattr(custom_offers, "feature_catalog", lambda _conn: [
+        {"featureCode": "tracked_competitors"},
+    ])
+    result = custom_offers.validate_configuration(
+        conn, limits={"tracked_competitors": 4},
+        enabled_features=["competitor_management"], refresh_frequency="daily")
+    assert result["configuration"] == {
+        "limits": {"tracked_competitors": 4},
+        "enabledFeatures": ["competitor_management"],
+        "refreshFrequency": "daily",
+    }
+    with pytest.raises(custom_offers.CustomOfferError) as error:
+        custom_offers.validate_configuration(
+            conn, limits={}, enabled_features=["unlisted_module"], refresh_frequency=None)
+    assert error.value.code == "unsupported_enabled_feature"
+    with pytest.raises(custom_offers.CustomOfferError) as error:
+        custom_offers.validate_configuration(
+            conn, limits={"tracked_competitors": 3}, enabled_features=["competitor_management"], refresh_frequency=None)
+    assert error.value.code == "feature_dependency"
 
 
 def test_configuration_endpoints_require_an_authenticated_tenant(client):
@@ -130,7 +171,7 @@ def test_authenticated_configuration_endpoint_is_informational_only(monkeypatch)
         catalog = client.get("/billing/custom-offers/configurator")
         validated = client.post(
             "/billing/custom-offers/configuration/validate",
-            json={"limits": {allowed[0]: 0}},
+            json={"limits": {allowed[0]: 1}},
         )
 
     assert catalog.status_code == 200
@@ -140,4 +181,4 @@ def test_authenticated_configuration_endpoint_is_informational_only(monkeypatch)
     body = validated.json()
     assert body["rightsChanged"] is False
     assert body["priceCalculated"] is False
-    assert body["configuration"]["limits"] == {allowed[0]: 0}
+    assert body["configuration"]["limits"] == {allowed[0]: 1}
