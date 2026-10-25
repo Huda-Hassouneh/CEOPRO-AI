@@ -546,53 +546,35 @@ def test_checkout_identity_requires_verified_processed_event_and_billing_authori
         customer_conn.close()
         service_conn.close()
 
-def test_quote_rejection_and_expiry_are_non_activating(quote_actors, billing_connections):
-    from datetime import datetime, timedelta, timezone
-
+def test_unpriced_quote_cannot_be_approved_and_rejection_is_non_activating(quote_actors, billing_connections):
     actors = quote_actors
     platform_conn = _conn(billing_connections, actors)
     customer_conn = _conn(billing_connections, actors, "tenant_a")
     try:
-        rejected = _draft(platform_conn, actors, terms={"test_only": True}, economics={"test_fixture": True})
+        quote = _draft(platform_conn, actors, terms={"test_only": True}, economics={"test_fixture": True})
         platform_conn.commit()
-        custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(rejected["quote_id"]),
-                                 expected_revision=1, idempotency_key="reject-submit")
+        custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(quote["quote_id"]),
+                                 expected_revision=1, idempotency_key="unpriced-submit")
         platform_conn.commit()
-        custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(rejected["quote_id"]),
-                                 expected_revision=1, idempotency_key="reject-approve",
-                                 approval_reference="synthetic-test-approval")
-        platform_conn.commit()
-        rejected_result = custom_offers.transition(customer_conn, "reject", tenant_id=actors["tenant_a"],
-            quote_id=str(rejected["quote_id"]), expected_revision=1, idempotency_key="reject-once")
+
+        with pytest.raises(custom_offers.CustomOfferError) as refusal:
+            custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(quote["quote_id"]),
+                                     expected_revision=1, idempotency_key="unpriced-approve",
+                                     approval_reference="synthetic-test-approval")
+        assert refusal.value.status == 409
+        platform_conn.rollback()
+
+        rejected = custom_offers.transition(customer_conn, "reject", tenant_id=actors["tenant_a"],
+            quote_id=str(quote["quote_id"]), expected_revision=1, idempotency_key="unpriced-reject")
         customer_conn.commit()
         replay = custom_offers.transition(customer_conn, "reject", tenant_id=actors["tenant_a"],
-            quote_id=str(rejected["quote_id"]), expected_revision=1, idempotency_key="reject-replay")
+            quote_id=str(quote["quote_id"]), expected_revision=1, idempotency_key="unpriced-reject-replay")
         customer_conn.commit()
-        assert rejected_result["state"] == "rejected" and replay["idempotent"] is True
+        assert rejected["state"] == "rejected" and replay["idempotent"] is True
         with pytest.raises(custom_offers.CustomOfferError):
             custom_offers.transition(customer_conn, "accept", tenant_id=actors["tenant_a"],
-                quote_id=str(rejected["quote_id"]), expected_revision=1, idempotency_key="reject-accept")
+                quote_id=str(quote["quote_id"]), expected_revision=1, idempotency_key="unpriced-reject-accept")
         customer_conn.rollback()
-
-        expired = custom_offers.create_draft(
-            platform_conn, tenant_id=actors["tenant_a"], customer_user_id=actors["user_a"],
-            idempotency_key="expiry-" + uuid.uuid4().hex, configuration={"mode": "test_fixture"},
-            feature_quantities={}, commercial_terms={"test_only": True},
-            economic_inputs={"test_fixture": True}, fx_evidence={},
-            valid_until=datetime.now(timezone.utc)-timedelta(seconds=1),
-        )
-        platform_conn.commit()
-        custom_offers.transition(platform_conn, "submit", tenant_id=None, quote_id=str(expired["quote_id"]),
-                                 expected_revision=1, idempotency_key="expiry-submit")
-        platform_conn.commit()
-        custom_offers.transition(platform_conn, "approve", tenant_id=None, quote_id=str(expired["quote_id"]),
-                                 expected_revision=1, idempotency_key="expiry-approve",
-                                 approval_reference="synthetic-test-approval")
-        platform_conn.commit()
-        result = custom_offers.transition(customer_conn, "accept", tenant_id=actors["tenant_a"],
-            quote_id=str(expired["quote_id"]), expected_revision=1, idempotency_key="expiry-accept")
-        customer_conn.commit()
-        assert result["state"] == "expired" and result["access_activated"] is False
     finally:
         platform_conn.close()
         customer_conn.close()
