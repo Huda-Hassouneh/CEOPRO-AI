@@ -182,6 +182,12 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
         rows = cursor.fetchall()
         cursor.execute("SELECT feature_code FROM usage_plan_entitlements WHERE plan_key = %s;", (plan_key,))
         entitlements = sorted(r[0] for r in cursor.fetchall())
+        if plan_key == "custom" and source == "contract":
+            cursor.execute("SELECT included_features FROM tenant_custom_contracts WHERE tenant_id = %s;", (tenant_id,))
+            custom_entitlements = cursor.fetchone()
+            # NULL preserves legacy catalog behavior; [] is an explicit no-modules contract.
+            if custom_entitlements and custom_entitlements[0] is not None:
+                entitlements = sorted(set(custom_entitlements[0]))
     if not (period_start and period_end and period_start <= today <= period_end):
         period_start, period_end = _month_bounds(today)
     trialing = status == "trialing"
