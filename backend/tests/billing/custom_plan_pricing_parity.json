@@ -1,0 +1,36 @@
+{
+  "name": "vendor-infrastructure-competitor-margin-floor-rounding-usd",
+  "input": {
+    "quoteCurrency": "USD",
+    "features": [
+      {"featureId": "feature_a", "estimatedUsage": 10},
+      {"featureId": "competitor_management", "featureCode": "competitor_management", "estimatedUsage": 1, "limitValue": 1, "configuration": {"monitoringFrequencyMinutes": 1440}},
+      {"featureId": "tracked_competitors", "featureCode": "tracked_competitors", "estimatedUsage": 4, "limitValue": 4},
+      {"featureId": "storage", "featureCode": "document_storage_mb", "estimatedUsage": 10, "limitValue": 10}
+    ],
+    "vendorRates": [
+      {"id": "rate_api", "featureId": "feature_a", "vendor": "provider", "service": "request", "billingUnit": "request", "unitCost": "0.125", "currency": "USD", "operationalMultiplier": "1.2", "variabilityReserve": "1.1", "verificationStatus": "confirmed"},
+      {"id": "rate_competitor", "featureId": "competitor_management", "vendor": "provider", "service": "monitor", "billingUnit": "request", "unitCost": "0.01", "currency": "USD", "operationalMultiplier": "1.2", "variabilityReserve": "1.1", "verificationStatus": "confirmed", "feature": {"code": "competitor_management"}, "metadata": {"usageAssumption": {"model": "competitor_monitoring", "unitsPerCompetitorCheck": "2"}}}
+    ],
+    "infrastructureRates": [
+      {"id": "infra_storage", "featureId": "storage", "costDriver": "storage", "usageBasis": "limit_value", "billingUnit": "MB-month", "billingUnitsPerFeatureUnit": "1", "unitCost": "0.03", "currency": "USD", "operationalMultiplier": "1.1", "variabilityReserve": "1", "verificationStatus": "confirmed"}
+    ],
+    "monthlyInfrastructureCost": "10",
+    "activePayingTenants": 5,
+    "estimatedOtherCost": "0",
+    "targetGrossMargin": "0.25",
+    "maxVendorCostRevenueRatio": "0.5",
+    "enforceVendorCostRatioFloor": true,
+    "fixedPlatformFee": "2",
+    "roundingIncrement": "1",
+    "vendorCostRequiredFeatureIds": ["feature_a", "competitor_management"]
+  },
+  "expected": {
+    "estimatedVendorCost": "4.82",
+    "estimatedInfrastructureCost": "2.33",
+    "estimatedTotalCost": "7.15",
+    "grossMarginFloor": "9.53",
+    "vendorCostRatioFloor": "9.64",
+    "recommendedPrice": "12.00"
+  }
+}
