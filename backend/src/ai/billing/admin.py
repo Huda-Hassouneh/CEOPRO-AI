@@ -28,6 +28,72 @@ class AdminError(ValueError):
     pass
 
 
+
+def set_plan_feature(conn, *, plan_key: str, feature_code: str, included: bool,
+                     limit_value: Optional[int], approved_by: str, reason: str) -> dict:
+    """Change the latest plan allowance. Existing assignments keep their
+    immutable catalog_snapshot; new assignments receive the new catalog terms.
+    """
+    plan_key, feature_code = _require(plan_key, "plan_key"), _require(feature_code, "feature_code")
+    approved_by, reason = _require(approved_by, "approved_by"), _require(reason, "reason")
+    if not isinstance(included, bool):
+        raise AdminError("included must be boolean")
+    if limit_value is not None and (isinstance(limit_value, bool) or not isinstance(limit_value, int) or limit_value < 0):
+        raise AdminError("limit_value must be a nonnegative integer or null")
+
+    numeric = set(_NUMERIC_CONTRACT_FEATURES)
+    modules = set(_CUSTOM_CONTRACT_ENTITLEMENTS)
+    if feature_code not in numeric | modules:
+        raise AdminError("feature is not supported by the Python plan entitlement catalog")
+    if feature_code in modules and limit_value is not None:
+        raise AdminError("module entitlements do not accept a numeric limit")
+
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT plan_key FROM public.usage_plans WHERE plan_key=%s FOR UPDATE;", (plan_key,))
+        if cursor.fetchone() is None:
+            raise AdminError("plan not found")
+        cursor.execute("SELECT feature_code FROM public.usage_features WHERE feature_code=%s;", (feature_code,))
+        if cursor.fetchone() is None:
+            raise AdminError("feature is not present in the canonical feature catalog")
+
+        if feature_code in numeric:
+            cursor.execute("SELECT limit_value FROM public.usage_plan_limits WHERE plan_key=%s AND feature_code=%s FOR UPDATE;",
+                           (plan_key, feature_code))
+            old = cursor.fetchone()
+            old_value = {"included": old is not None, "limit_value": old[0] if old else None}
+            if included:
+                cursor.execute("""
+                    INSERT INTO public.usage_plan_limits(plan_key,feature_code,limit_value)
+                    VALUES(%s,%s,%s)
+                    ON CONFLICT(plan_key,feature_code) DO UPDATE SET limit_value=EXCLUDED.limit_value;
+                """, (plan_key, feature_code, limit_value))
+                new_value = {"included": True, "limit_value": limit_value}
+            else:
+                cursor.execute("DELETE FROM public.usage_plan_limits WHERE plan_key=%s AND feature_code=%s;",
+                               (plan_key, feature_code))
+                new_value = {"included": False, "limit_value": None}
+        else:
+            cursor.execute("SELECT 1 FROM public.usage_plan_entitlements WHERE plan_key=%s AND feature_code=%s FOR UPDATE;",
+                           (plan_key, feature_code))
+            old_value = {"included": cursor.fetchone() is not None, "limit_value": None}
+            if included:
+                cursor.execute("""
+                    INSERT INTO public.usage_plan_entitlements(plan_key,feature_code) VALUES(%s,%s)
+                    ON CONFLICT(plan_key,feature_code) DO NOTHING;
+                """, (plan_key, feature_code))
+            else:
+                cursor.execute("DELETE FROM public.usage_plan_entitlements WHERE plan_key=%s AND feature_code=%s;",
+                               (plan_key, feature_code))
+            new_value = {"included": included, "limit_value": None}
+
+        cursor.execute("""
+            INSERT INTO public.keel_platform_audit(actor_user_id,actor_role,action,subject,old_value,new_value,reason,outcome)
+            VALUES(%s,'owner','plan_feature_update',%s,%s::jsonb,%s::jsonb,%s,'succeeded');
+        """, (approved_by, f"plan:{plan_key}:{feature_code}", json.dumps(old_value), json.dumps(new_value), reason))
+    return {"plan_key": plan_key, "feature_code": feature_code, **new_value,
+            "catalog_versioned": True, "existing_assignments_preserved": True}
+
+
 def _require(value: Optional[str], name: str) -> str:
     if not value or not str(value).strip():
         raise AdminError(f"{name} is required")

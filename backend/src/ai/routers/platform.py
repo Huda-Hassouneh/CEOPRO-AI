@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, field_validator
 
 from src.ai import db
 from src.ai.billing import admin as billing_admin, custom_offers, custom_plan_pricing_service, promotions
@@ -101,6 +101,14 @@ class PromotionActivation(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     approval_reference: str = Field(min_length=1, max_length=255)
     reason: str = Field(min_length=1, max_length=2000)
+
+
+class PlanFeatureMutation(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    feature_code: str = Field(min_length=1, max_length=60)
+    included: StrictBool
+    limit_value: StrictInt | None = None
+    reason: str = Field(default="Owner plan feature update through Platform Billing Portal.", min_length=1, max_length=2000)
 
 
 class OwnerVendorRateSave(BaseModel):
@@ -766,6 +774,30 @@ def platform_billing_admin_view(view: Literal["quotes", "plans", "subscriptions"
         conn.rollback()
         if getattr(exc, "pgcode", None) == "42501":
             raise HTTPException(status_code=403, detail="Only the Platform Owner can view global billing administration.") from None
+        raise
+    finally:
+        conn.close()
+
+
+
+
+@router.patch("/billing/plans/{plan_key}/features")
+def update_platform_plan_feature(plan_key: str, body: PlanFeatureMutation, ctx: Ctx):
+    """Update the latest catalog feature contract; existing tenant assignments remain snapshotted."""
+    _custom_quote_operator(ctx)
+    conn = db.system_connection()
+    try:
+        result = billing_admin.set_plan_feature(
+            conn, plan_key=plan_key, feature_code=body.feature_code, included=body.included,
+            limit_value=body.limit_value, approved_by=ctx.user_id, reason=body.reason,
+        )
+        conn.commit()
+        return result
+    except billing_admin.AdminError as exc:
+        conn.rollback()
+        raise HTTPException(status_code=422, detail={"reason": "invalid_plan_feature_change", "message": str(exc)}) from None
+    except Exception:
+        conn.rollback()
         raise
     finally:
         conn.close()
