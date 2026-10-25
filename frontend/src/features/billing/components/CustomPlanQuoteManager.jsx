@@ -146,10 +146,16 @@ function QuoteFormModal({
 
   useEffect(() => {
     if (!open) return;
-    setForm(formFromQuote(quote));
+    const initial = formFromQuote(quote);
+    if (platformMode) {
+      initial.currency = quote?.currency || "USD";
+      initial.trialPeriodValue = 0;
+      initial.billingOptions = [{ period: "monthly", months: 1, discountPercent: 0 }];
+    }
+    setForm(initial);
     setStep(1);
     setError("");
-  }, [open, quote]);
+  }, [open, quote, platformMode]);
 
   const reset = () => {
     setStep(1);
@@ -236,7 +242,7 @@ function QuoteFormModal({
         "Select the customer tenant for this quote.",
       );
     }
-    if (step === 1 && (!form.name.trim() || !form.name_ar.trim())) {
+    if (step === 1 && !platformMode && (!form.name.trim() || !form.name_ar.trim())) {
       return tr(
         t,
         "billing.catalog.customPlans.validation.names",
@@ -244,7 +250,7 @@ function QuoteFormModal({
       );
     }
     if (step === 1) {
-      const invalidOption =
+      const invalidOption = !platformMode && (
         !form.billingOptions.length ||
         form.billingOptions.some(
           (option) =>
@@ -253,7 +259,7 @@ function QuoteFormModal({
             numeric(option.months, 0) <= 0 ||
             numeric(option.discountPercent, -1) < 0 ||
             numeric(option.discountPercent, 101) > 100,
-        );
+        ));
       if (invalidOption)
         return tr(
           t,
@@ -321,7 +327,7 @@ function QuoteFormModal({
         );
       }
     }
-    if (step === 3) {
+    if (step === 3 && !platformMode) {
       const gross = numeric(form.targetGrossMarginPercent, -1);
       const ratio = numeric(form.maxVendorCostRevenueRatioPercent, -1);
       if (gross < 0 || gross >= 100 || ratio <= 0 || ratio > 100) {
@@ -504,28 +510,29 @@ function QuoteFormModal({
               />
             )}
             <Input
-              label={tr(t, "billing.catalog.fields.name", "Name")}
+              label={platformMode ? tr(t, "billing.catalog.customPlans.requestLabel", "Internal request label") : tr(t, "billing.catalog.fields.name", "Name")}
               value={form.name}
               maxLength={50}
               onChange={(event) =>
                 setForm({ ...form, name: event.target.value })
               }
-              required
+              required={!platformMode}
             />
             <Input
-              label={tr(t, "billing.catalog.fields.nameAr", "Arabic name")}
+              label={platformMode ? tr(t, "billing.catalog.customPlans.requestLabelAr", "Internal request label (Arabic)") : tr(t, "billing.catalog.fields.nameAr", "Arabic name")}
               value={form.name_ar}
               maxLength={50}
               dir="rtl"
               onChange={(event) =>
                 setForm({ ...form, name_ar: event.target.value })
               }
-              required
+              required={!platformMode}
             />
             <Input
               label={tr(t, "billing.catalog.fields.currency", "Currency")}
               value={form.currency}
               maxLength={3}
+              disabled={platformMode}
               onChange={(event) =>
                 setForm({ ...form, currency: event.target.value.toUpperCase() })
               }
@@ -535,6 +542,7 @@ function QuoteFormModal({
               type="number"
               min="0"
               value={form.trialPeriodValue}
+              disabled={platformMode}
               onChange={(event) =>
                 setForm({ ...form, trialPeriodValue: event.target.value })
               }
@@ -571,11 +579,11 @@ function QuoteFormModal({
               />
             </label>
           </div>
-          <BillingOptionsEditor
+          {platformMode ? <p className="billing-catalog-permission-note">{tr(t, "billing.catalog.customPlans.pythonMonthlyUsdTerms", "Custom quote pricing is calculated by Python in USD on a monthly basis. Trial and term changes are not part of this quote request.")}</p> : <BillingOptionsEditor
             options={form.billingOptions}
             onChange={(billingOptions) => setForm({ ...form, billingOptions })}
             t={t}
-          />
+          />}
         </div>
       )}
 
@@ -684,7 +692,9 @@ function QuoteFormModal({
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && (platformMode ? <div className="billing-catalog-form billing-custom-plan-step">
+        <p className="billing-catalog-permission-note">{tr(t, "billing.catalog.customPlans.pythonPricingAuthority", "Python uses the active approved pricing policy and verified cost schedules. Values entered in the historical client-side cost form cannot set price, margin, FX, or provider costs.")}</p>
+      </div> : (
         <div className="billing-catalog-form billing-custom-plan-step">
           <div className="billing-catalog-form-grid">
             <Input
@@ -839,7 +849,7 @@ function QuoteFormModal({
             </div>
           </div>
         </div>
-      )}
+      ))}
 
       {step === 4 && (
         <div className="billing-custom-plan-review">
@@ -854,7 +864,7 @@ function QuoteFormModal({
               )}
             </p>
           </Card>
-          <dl className="billing-custom-plan-review-grid">
+          {platformMode ? <p className="billing-catalog-permission-note">{tr(t, "billing.catalog.customPlans.pythonPricingAuthority", "Python uses the active approved pricing policy and verified cost schedules. Values entered in the historical client-side cost form cannot set price, margin, FX, or provider costs.")}</p> : <dl className="billing-custom-plan-review-grid">
             <div>
               <dt>
                 {tr(
@@ -897,7 +907,7 @@ function QuoteFormModal({
               </dt>
               <dd>{numeric(form.activePayingTenants, 1)}</dd>
             </div>
-          </dl>
+          </dl>}
           <p className="billing-catalog-permission-note">
             {tr(
               t,
@@ -1952,13 +1962,13 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
                     () => api.sendCustomPlanQuote(quote.id),
                     tr(
                       t,
-                      "billing.catalog.customPlans.sent",
-                      "Quote marked ready for customer review.",
+                      "billing.catalog.customPlans.inAppOfferAvailable",
+                      "The approved offer is available in the customer portal.",
                     ),
                   )
                 }
               >
-                {tr(t, "billing.catalog.customPlans.send", "Send")}
+                  {tr(t, "billing.catalog.customPlans.inAppOfferAvailable", "Available in customer portal")}
               </Button>
             )}
             {canManage && ["approved", "sent"].includes(quote.status) && (

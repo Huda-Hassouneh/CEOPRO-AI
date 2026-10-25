@@ -1867,7 +1867,10 @@
         "linked": "Promo code linked to plan successfully.",
         "deactivateDescription": "Deactivate this promo code so it can no longer be applied to new checkouts.",
         "deactivateTitle": "Deactivate Promo Code",
-        "deactivated": "Promo code deactivated successfully."
+        "deactivated": "Promo code deactivated successfully.",
+        "activationApprovalRequired": "Enter an approval reference and reason before activating a promotion.",
+        "activationRequiresPlan": "Choose at least one eligible plan before activating this promotion.",
+        "activePromotionImmutable": "Active promotion terms are immutable. Deactivate the promotion and create a new version to change its terms."
       },
       "features": {
         "title": "Features",
@@ -2067,7 +2070,12 @@
         "title": "Custom Plan Quotes",
         "toggleDescription": "This changes whether the accepted custom plan is available for use. It does not replace or duplicate the tenant's current subscription.",
         "updateQuote": "Update & calculate quote",
-        "configuration": "Requested configuration"
+        "configuration": "Requested configuration",
+        "inAppOfferAvailable": "The approved offer is available in the customer portal.",
+        "pythonMonthlyUsdTerms": "Custom quote pricing is calculated by Python in USD on a monthly basis. Trial and term changes are not part of this quote request.",
+        "pythonPricingAuthority": "Python uses the active approved pricing policy and verified cost schedules. Values entered in the historical client-side cost form cannot set price, margin, FX, or provider costs.",
+        "requestLabel": "Internal request label",
+        "requestLabelAr": "Internal request label (Arabic)"
       },
       "fields": {
         "name": "Name",
@@ -2103,7 +2111,9 @@
         "feature": "Feature",
         "limit": "Limit",
         "unitAr": "Arabic Unit",
-        "details": "Details"
+        "details": "Details",
+        "approvalReference": "Approval reference",
+        "auditReason": "Reason for this change"
       },
       "intervalUnits": {
         "day": "Day",
