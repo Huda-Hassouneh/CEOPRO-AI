@@ -52,6 +52,8 @@ export function mapPlan(plan) {
   }]));
   return {
     id: plan.plan_key,
+    rawLimits: plan.limits || {},
+    feature_catalog: plan.feature_catalog || {},
     name: plan.name,
     monthlyPrice: plan.monthly_price,
     currency: plan.currency,

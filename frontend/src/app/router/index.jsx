@@ -44,6 +44,8 @@ const MarketingStudioPage = page(() => import('../../features/marketing/pages/Ma
 const SettingsPage = page(() => import('../../features/settings/pages/SettingsPage.jsx'));
 const ConnectDataPage = page(() => import('../../features/data-connections/pages/ConnectDataPage.jsx').then((m) => ({ default: m.ConnectDataPage })));
 const UnifiedReportsCenterPage = page(() => import('../../features/reports/pages/UnifiedReportsCenterPage.jsx'));
+const ChoosePlanPage = page(() => import('../../features/billing/pages/ChoosePlanPage.jsx').then((m) => ({ default: m.ChoosePlanPage })));
+const BillingCheckoutPage = page(() => import('../../features/billing/pages/BillingCheckoutPage.jsx').then((m) => ({ default: m.BillingCheckoutPage })));
 const PlansSubscriptionPage = page(() => import('../../features/billing/pages/PlansSubscriptionPage.jsx').then((m) => ({ default: m.PlansSubscriptionPage })));
 const OnboardingPlanSelectionPage = page(() => import('../../features/billing/pages/OnboardingPlanSelectionPage.jsx').then((m) => ({ default: m.OnboardingPlanSelectionPage })));
 const OnboardingPaymentPage = page(() => import('../../features/billing/pages/OnboardingPaymentPage.jsx').then((m) => ({ default: m.OnboardingPaymentPage })));
@@ -172,6 +174,11 @@ const routes = [
   { path: routePaths.onboardingPlanPayment, element: <ProtectedRoute><DashboardLayout><OnboardingPaymentPage /></DashboardLayout></ProtectedRoute> },
   { path: routePaths.customPlanBuilder, element: <ProtectedRoute><DashboardLayout><CustomPlanBuilderPage /></DashboardLayout></ProtectedRoute> },
   { path: routePaths.customPlanQuote, element: <ProtectedRoute><DashboardLayout><CustomPlanQuotePage /></DashboardLayout></ProtectedRoute> },
+  {
+    path: routePaths.billingPlans,
+    element: <ProtectedRoute><DashboardLayout><ChoosePlanPage /></DashboardLayout></ProtectedRoute>,
+  },
+  { path: routePaths.billingCheckout, element: <ProtectedRoute><DashboardLayout><BillingCheckoutPage /></DashboardLayout></ProtectedRoute> },
   {
     path: routePaths.billing,
     element: (
