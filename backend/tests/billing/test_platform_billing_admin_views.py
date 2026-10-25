@@ -118,6 +118,48 @@ def test_billing_read_migration_repeats_platform_owner_check_and_only_grants_exe
     assert "GRANT SELECT ON" not in source
 
 
+def test_plan_feature_mutation_requires_platform_owner_before_admin_database(monkeypatch):
+    def forbidden(*_args):
+        raise AssertionError("Non-owner must be rejected before opening the administrative connection")
+
+    monkeypatch.setattr(platform.db, "system_connection", forbidden)
+    with _client(monkeypatch, "admin") as client:
+        response = client.patch("/platform/billing/plans/standard/features", json={
+            "feature_code": "team_seats", "included": True, "limit_value": 12,
+            "reason": "synthetic authorization regression",
+        })
+    assert response.status_code == 403
+
+
+def test_plan_feature_mutation_uses_audited_catalog_service_and_commits(monkeypatch):
+    connection = _Connection(None)
+    calls = {}
+    monkeypatch.setattr(platform.db, "system_connection", lambda: connection)
+    monkeypatch.setattr(platform.billing_admin, "set_plan_feature", lambda _conn, **kwargs: calls.update(kwargs) or {
+        "plan_key": kwargs["plan_key"], "feature_code": kwargs["feature_code"], "included": kwargs["included"],
+        "limit_value": kwargs["limit_value"], "catalog_versioned": True, "existing_assignments_preserved": True,
+    })
+    monkeypatch.setattr(platform.service, "command", lambda *_args, **_kwargs: {"role": "owner"})
+    with _client(monkeypatch, "owner") as client:
+        response = client.patch("/platform/billing/plans/standard/features", json={
+            "feature_code": "team_seats", "included": True, "limit_value": 12,
+            "reason": "synthetic owner catalog test",
+        })
+    assert response.status_code == 200
+    assert response.json()["existing_assignments_preserved"] is True
+    assert calls == {"plan_key": "standard", "feature_code": "team_seats", "included": True,
+                     "limit_value": 12, "approved_by": "owner-user", "reason": "synthetic owner catalog test"}
+    assert connection.committed and connection.closed
+
+
+def test_plan_feature_mutation_rejects_boolean_as_numeric_limit(monkeypatch):
+    with _client(monkeypatch, "owner") as client:
+        response = client.patch("/platform/billing/plans/standard/features", json={
+            "feature_code": "team_seats", "included": True, "limit_value": True,
+        })
+    assert response.status_code == 422
+
+
 def test_custom_contract_assignment_is_denied_to_tenant_admin_before_privileged_connection(monkeypatch):
     def forbidden(*_args):
         raise AssertionError("Non-owner must be rejected before opening the administrative connection")

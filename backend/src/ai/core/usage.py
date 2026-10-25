@@ -147,7 +147,7 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
         cursor.execute(
             """
             SELECT a.plan_key, a.status, a.current_period_start, a.current_period_end, a.source, a.period_code,
-                   t.ends_at
+                   t.ends_at, a.catalog_snapshot
             FROM tenant_plan_assignments a LEFT JOIN billing_trials t ON t.tenant_id = a.tenant_id
             WHERE a.tenant_id = %s;
             """,
@@ -155,33 +155,49 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
         )
         row = cursor.fetchone()
         if row:
-            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = row
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = row
         elif _unassigned_access() == "default":
-            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = (
-                DEFAULT_PLAN_KEY, "active", None, None, None, "monthly", None)
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = (
+                DEFAULT_PLAN_KEY, "active", None, None, None, "monthly", None, None)
         else:
-            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = (
-                DEFAULT_PLAN_KEY, "none", None, None, None, "monthly", None)
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = (
+                DEFAULT_PLAN_KEY, "none", None, None, None, "monthly", None, None)
         # A free trial ends at its exact end time unless a paid subscription took over.
         trial_over = (trial_ends_at <= now) if trial_ends_at is not None else bool(period_end and period_end < today)
         if status == "trialing" and ((source == "trial" and trial_over)
                                      or (source == "contract" and period_end and period_end < today)):
             status = "expired"
-        cursor.execute(
-            """
-            SELECT p.display_name, f.feature_code, f.unit, f.aggregation_type, f.reset_cycle, l.limit_value,
-                   l.trial_limit_value, o.limit_value
-            FROM usage_plans p
-            JOIN usage_plan_limits l ON l.plan_key = p.plan_key
-            JOIN usage_features f ON f.feature_code = l.feature_code
-            LEFT JOIN tenant_entitlement_overrides o ON o.tenant_id = %s AND o.feature_code = l.feature_code
-            WHERE p.plan_key = %s;
-            """,
-            (tenant_id, plan_key),
-        )
-        rows = cursor.fetchall()
-        cursor.execute("SELECT feature_code FROM usage_plan_entitlements WHERE plan_key = %s;", (plan_key,))
-        entitlements = sorted(r[0] for r in cursor.fetchall())
+        if isinstance(catalog_snapshot, str):
+            import json
+            catalog_snapshot = json.loads(catalog_snapshot)
+        if isinstance(catalog_snapshot, dict):
+            snapshot_features = catalog_snapshot.get("features") or []
+            cursor.execute("SELECT feature_code, limit_value FROM tenant_entitlement_overrides WHERE tenant_id=%s;", (tenant_id,))
+            overrides = {code: value for code, value in cursor.fetchall()}
+            display_name = catalog_snapshot.get("display_name") or plan_key
+            rows = [
+                (display_name, feature["feature_code"], feature["unit"], feature["aggregation_type"],
+                 feature["reset_cycle"], feature.get("limit_value"), feature.get("trial_limit_value"),
+                 overrides.get(feature["feature_code"]))
+                for feature in snapshot_features
+            ]
+            entitlements = sorted(catalog_snapshot.get("entitlements") or [])
+        else:
+            cursor.execute(
+                """
+                SELECT p.display_name, f.feature_code, f.unit, f.aggregation_type, f.reset_cycle, l.limit_value,
+                       l.trial_limit_value, o.limit_value
+                FROM usage_plans p
+                JOIN usage_plan_limits l ON l.plan_key = p.plan_key
+                JOIN usage_features f ON f.feature_code = l.feature_code
+                LEFT JOIN tenant_entitlement_overrides o ON o.tenant_id = %s AND o.feature_code = l.feature_code
+                WHERE p.plan_key = %s;
+                """,
+                (tenant_id, plan_key),
+            )
+            rows = cursor.fetchall()
+            cursor.execute("SELECT feature_code FROM usage_plan_entitlements WHERE plan_key = %s;", (plan_key,))
+            entitlements = sorted(r[0] for r in cursor.fetchall())
         if plan_key == "custom" and source == "contract":
             cursor.execute("SELECT included_features FROM tenant_custom_contracts WHERE tenant_id = %s;", (tenant_id,))
             custom_entitlements = cursor.fetchone()

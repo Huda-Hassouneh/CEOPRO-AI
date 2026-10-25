@@ -108,7 +108,12 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
       const modules = (catalog.modules || []).map((f) => ({ id: f.featureCode, code: f.featureCode, name: f.featureCode, type: 'boolean', unit: '', aggregationType: 'max', resetCycle: 'lifetime' }));
       return wrap([...numeric, ...modules]);
     },
-    getPlanFeatures: async (planId) => { const plan = (await plans()).find((item) => item.id === planId); return wrap((plan?.feature_limits || []).map((item) => ({ id: `${planId}:${item.feature_code}`, planId, featureId: item.feature_code, limitValue: item.limit_value, feature: { id: item.feature_code, code: item.feature_code, name: item.feature_code, type: 'limit', unit: item.unit } }))); },
+    getPlanFeatures: async (planId) => {
+      const plan = (await plans()).find((item) => item.id === planId);
+      const numeric = (plan?.feature_limits || []).map((item) => ({ id: `${planId}:${item.feature_code}`, feature_id: item.feature_code, planId, featureId: item.feature_code, limit_value: item.limit_value, limitValue: item.limit_value, feature: { id: item.feature_code, code: item.feature_code, name: item.feature_code, type: 'limit', unit: item.unit } }));
+      const modules = (plan?.entitlements || []).map((code) => ({ id: `${planId}:${code}`, feature_id: code, planId, featureId: code, limit_value: null, limitValue: null, feature: { id: code, code, name: code, type: 'boolean', unit: '' } }));
+      return wrap([...numeric, ...modules]);
+    },
     getPromoCodes: async () => wrap(await promotions()),
     getSubscriptions: async () => wrap(list(await billing.view('subscriptions'), 'subscriptions')),
     getCustomPlans: async () => wrap(list(await billing.view('contracts'), 'contracts').map((c) => ({ ...c, id: c.tenant_id, tenant: { businessName: c.business_name }, name: c.contract_ref, isActive: c.assignment_status === 'active', features: c.included_features }))),
@@ -216,7 +221,9 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
       return billing.updatePromotionDraft(promoCodeId, promoPayload(current, [...new Set([...current.planKeys, planId])]));
     },
     createFeature: () => unavailable('canonical feature catalog mutation'), updateFeature: () => unavailable('canonical feature catalog mutation'), removeFeature: () => unavailable('canonical feature catalog mutation'),
-    linkFeatureToPlan: () => unavailable('plan quota mutation'), unlinkFeatureFromPlan: () => unavailable('plan quota mutation'), updatePlanFeatureLimit: () => unavailable('plan quota mutation'),
+    linkFeatureToPlan: (planId, body) => billing.updatePlanFeature(planId, { feature_code: body.feature_id, included: true, limit_value: body.limit_value, reason: 'Owner added a supported feature to a plan.' }),
+    unlinkFeatureFromPlan: ({ planId, featureId }) => billing.updatePlanFeature(planId, { feature_code: featureId, included: false, limit_value: null, reason: 'Owner removed a supported feature from a plan.' }),
+    updatePlanFeatureLimit: ({ planId, featureId, limitValue }) => billing.updatePlanFeature(planId, { feature_code: featureId, included: true, limit_value: limitValue, reason: 'Owner changed a supported plan feature allowance.' }),
     setCustomPlanActive: () => unavailable('custom-contract status mutation; contract status is driven by approved billing and entitlement authorities'),
     calculateCustomPlanQuote: (id) => billing.calculateQuote(id),
     updateCustomPlanPricingPolicy: () => unavailable('mutable legacy pricing; use versioned Python policy administration'),
