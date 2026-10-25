@@ -54,6 +54,47 @@ def test_promotion_terms_reject_unknown_invoice_scope():
         promotions._validate_terms(_complete_terms(invoice_scope="renewal"))
 
 
+def test_percentage_provider_objects_are_verified_against_owner_terms():
+    terms = {**_complete_terms(), "discount_value": "10", "stripe_coupon_id": "coupon_test_only",
+             "stripe_promotion_code_id": "promo_test_only"}
+    coupon = {"id": "coupon_test_only", "duration": "once", "percent_off": 10}
+    code = {"id": "promo_test_only", "code": "SAVE", "active": True, "max_redemptions": 1,
+            "promotion": {"coupon": "coupon_test_only"}}
+    promotions._verify_provider_objects(terms, coupon, code, "SAVE")
+    with pytest.raises(promotions.PromotionError) as error:
+        promotions._verify_provider_objects(terms, {**coupon, "percent_off": 15}, code, "SAVE")
+    assert error.value.code == "promotion_coupon_mismatch"
+
+
+def test_fixed_amount_provider_coupon_checks_minor_units_and_currency():
+    terms = {**_complete_terms(discount_type="fixed_amount", discount_value="12.50", currency="USD"),
+             "stripe_coupon_id": "coupon_test_only", "stripe_promotion_code_id": "promo_test_only"}
+    coupon = {"id": "coupon_test_only", "duration": "once", "amount_off": 1250, "currency": "usd"}
+    code = {"id": "promo_test_only", "code": "SAVE", "active": True, "max_redemptions": 1,
+            "promotion": {"coupon": "coupon_test_only"}}
+    promotions._verify_provider_objects(terms, coupon, code, "SAVE")
+    with pytest.raises(promotions.PromotionError):
+        promotions._verify_provider_objects(terms, {**coupon, "amount_off": 1251}, code, "SAVE")
+
+
+def test_promotion_provider_mutations_are_test_mode_only(monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_live_test_placeholder")
+    assert promotions._provider_mutations_allowed() is False
+    monkeypatch.setenv("KEEL_ALLOW_LIVE_PROMOTION_PROVIDER_MUTATIONS", "true")
+    assert promotions._provider_mutations_allowed() is False
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
+    assert promotions._provider_mutations_allowed() is True
+
+
+def test_percentage_promotion_is_currency_agnostic_but_fixed_amount_requires_currency():
+    percent, missing = promotions._validate_terms(_complete_terms(currency=None))
+    assert "currency" not in percent
+    assert not missing
+    fixed, missing = promotions._validate_terms(_complete_terms(discount_type="fixed_amount", currency=None))
+    assert "currency" not in fixed
+    assert not missing  # provider activation adds the explicit refusal for fixed amount
+
+
 def test_managed_checkout_uses_stripe_discount_without_hosted_code_stacking(monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setenv("APP_BASE_URL", "https://keel.example.test")

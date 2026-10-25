@@ -16,14 +16,14 @@ from uuid import UUID
 
 from psycopg2.extras import Json
 
-from src.ai.billing import store, stripe_api
+from src.ai.billing import catalog_sync, config, store, stripe_api
 
 TERMS_REQUIRED = frozenset({
-    "discount_type", "discount_value", "currency", "starts_at", "expires_at",
+    "discount_type", "discount_value", "starts_at", "expires_at",
     "max_uses", "max_uses_per_tenant", "invoice_scope", "stripe_coupon_id",
     "stripe_promotion_code_id",
 })
-TERMS_ALLOWED = TERMS_REQUIRED
+TERMS_ALLOWED = TERMS_REQUIRED | {"currency"}
 
 
 class PromotionError(ValueError):
@@ -34,6 +34,13 @@ class PromotionError(ValueError):
 
 def enabled() -> bool:
     return os.getenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "false").strip().lower() in {"1", "true", "yes"}
+
+
+def _provider_mutations_allowed() -> bool:
+    key = config.stripe_secret_key()
+    # Owner controls may never mutate Stripe LIVE. This guard is deliberately
+    # independent of frontend configuration and remains in the service layer.
+    return key.startswith("sk_test_")
 
 
 def normalize_code(value: str) -> str:
@@ -65,10 +72,15 @@ def _validate_terms(terms: dict) -> tuple[dict, list[str]]:
         if not value.is_finite() or value <= 0 or (out.get("discount_type") == "percent" and value > 100):
             raise PromotionError(422, "invalid_promotion_terms", "Discount value is outside the supported range.")
         out["discount_value"] = str(value)
-    if "currency" in out and (not isinstance(out["currency"], str) or not re.fullmatch(r"[A-Za-z]{3}", out["currency"])):
+    if out.get("currency") is not None and (not isinstance(out["currency"], str) or not re.fullmatch(r"[A-Za-z]{3}", out["currency"])):
         raise PromotionError(422, "invalid_promotion_terms", "Currency must be a three-letter code.")
-    if "currency" in out:
+    if out.get("currency") is not None:
         out["currency"] = out["currency"].upper()
+    if ((out.get("discount_type") == "fixed_amount" and not out.get("currency"))
+            or (out.get("discount_type") == "percent" and out.get("currency") is None)):
+        # Fixed-amount coupons require currency at Stripe's API boundary;
+        # percentage coupons are currency agnostic.
+        out.pop("currency", None)
     for key in ("starts_at", "expires_at"):
         if key in out and out[key] is not None:
             try:
@@ -227,18 +239,161 @@ def save_draft(conn, *, actor_user_id: str, code: str, name: str, description: s
 def disable(conn, *, actor_user_id: str, promotion_id: str, reason: str) -> dict:
     role = _operator_lock(conn, actor_user_id)
     with conn.cursor() as cur:
-        cur.execute("SELECT status,code FROM public.billing_promotions WHERE promotion_id=%s FOR UPDATE;", (promotion_id,))
+        cur.execute("SELECT status,code,stripe_promotion_code_id FROM public.billing_promotions WHERE promotion_id=%s FOR UPDATE;", (promotion_id,))
         old = cur.fetchone()
         if not old:
             raise PromotionError(404, "promotion_not_found", "Promotion definition not found.")
         if old[0] == "disabled":
             return {"promotion_id": promotion_id, "status": "disabled"}
+        if old[0] == "active" and old[2]:
+            if not _provider_mutations_allowed():
+                raise PromotionError(503, "promotion_provider_mode_blocked",
+                                     "Provider deactivation requires a Stripe TEST key or explicit live-mode authorization.")
+            try:
+                stripe_api.deactivate_promotion_code(old[2])
+            except stripe_api.PaymentsNotConfigured as exc:
+                raise PromotionError(503, "payments_not_configured", "Stripe is not configured for promotion deactivation.") from exc
+            except Exception as exc:
+                raise PromotionError(502, "promotion_provider_error", "Stripe could not deactivate this promotion. No local status change was saved.") from exc
         cur.execute("UPDATE public.billing_promotions SET status='disabled',updated_by=%s,updated_at=NOW() "
                     "WHERE promotion_id=%s RETURNING status;", (actor_user_id, promotion_id))
         status = cur.fetchone()[0]
         _platform_audit(conn, actor_user_id, role, "promotion_disable", promotion_id,
                         {"status": old[0]}, {"status": status}, reason)
     return {"promotion_id": promotion_id, "status": status}
+
+
+def _object_id(value):
+    if isinstance(value, dict):
+        return value.get("id")
+    return value
+
+
+def _verify_provider_objects(terms: dict, coupon: dict, code: dict, expected_code: str) -> None:
+    if not isinstance(coupon, dict) or coupon.get("deleted"):
+        raise PromotionError(422, "promotion_coupon_invalid", "The Stripe coupon is unavailable or deleted.")
+    discount_type = terms["discount_type"]
+    if coupon.get("duration") != "once":
+        raise PromotionError(422, "promotion_coupon_mismatch", "Only one-time Stripe coupons are supported.")
+    if discount_type == "percent":
+        if Decimal(str(coupon.get("percent_off") or 0)) != Decimal(terms["discount_value"]):
+            raise PromotionError(422, "promotion_coupon_mismatch", "The Stripe coupon percentage does not match the requested discount.")
+    else:
+        expected_amount = catalog_sync.minor_units(float(Decimal(terms["discount_value"])), terms["currency"])
+        if int(coupon.get("amount_off") or 0) != expected_amount or str(coupon.get("currency") or "").upper() != terms["currency"]:
+            raise PromotionError(422, "promotion_coupon_mismatch", "The Stripe coupon amount or currency does not match the requested discount.")
+    if not isinstance(code, dict) or not code.get("active") or code.get("code") != expected_code:
+        raise PromotionError(422, "promotion_code_invalid", "The Stripe promotion code is inactive or does not match the requested code.")
+    promo = code.get("promotion") or {}
+    provider_coupon = _object_id(promo.get("coupon") if isinstance(promo, dict) else None) or _object_id(code.get("coupon"))
+    if provider_coupon != coupon.get("id"):
+        raise PromotionError(422, "promotion_code_mismatch", "The Stripe promotion code is linked to a different coupon.")
+    if terms.get("max_uses") is not None and code.get("max_redemptions") != terms["max_uses"]:
+        raise PromotionError(422, "promotion_code_mismatch", "The Stripe promotion code redemption limit does not match the request.")
+
+
+def activate(conn, *, actor_user_id: str, promotion_id: str, approval_reference: str, reason: str) -> dict:
+    """Create/retrieve and verify TEST Stripe objects, then publish an audited
+    in-app promotion. Stripe remains the discount authority; no DB activation
+    occurs until provider objects match every financial term.
+    """
+    role = _operator_lock(conn, actor_user_id)
+    if not enabled():
+        raise PromotionError(503, "promotions_unavailable", "Managed promotions are disabled by configuration.")
+    if not _provider_mutations_allowed():
+        raise PromotionError(503, "promotion_provider_mode_blocked",
+                             "Promotion activation requires a Stripe TEST key. Live mode needs explicit configuration authorization.")
+    approval_reference = (approval_reference or "").strip()
+    reason = (reason or "").strip()
+    if not approval_reference or len(approval_reference) > 255 or not reason or len(reason) > 2000:
+        raise PromotionError(422, "promotion_approval_required", "An approval reference and audit reason are required.")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT code,name,status,terms,stripe_coupon_id,stripe_promotion_code_id "
+            "FROM public.billing_promotions WHERE promotion_id=%s FOR UPDATE;", (promotion_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            raise PromotionError(404, "promotion_not_found", "Promotion definition not found.")
+        code, name, status, stored_terms, coupon_id, promotion_code_id = row
+        if status == "active":
+            return {"promotion_id": promotion_id, "code": code, "status": "active", "reused": True}
+        if status not in {"draft", "disabled"}:
+            raise PromotionError(409, "promotion_not_editable", "This promotion cannot be activated from its current state.")
+        terms = stored_terms if isinstance(stored_terms, dict) else json.loads(stored_terms or "{}")
+        terms = {**terms, "stripe_coupon_id": coupon_id or terms.get("stripe_coupon_id"),
+                 "stripe_promotion_code_id": promotion_code_id or terms.get("stripe_promotion_code_id")}
+        normalized, missing = _validate_terms(terms)
+        required_before_provider = TERMS_REQUIRED - {"stripe_coupon_id", "stripe_promotion_code_id"}
+        missing = sorted(set(missing) - {"stripe_coupon_id", "stripe_promotion_code_id"})
+        if missing or not required_before_provider.issubset(normalized):
+            raise PromotionError(422, "promotion_terms_incomplete", "Complete the promotion terms before activation: " + ", ".join(missing or sorted(required_before_provider - normalized.keys())))
+        if normalized.get("discount_type") == "fixed_amount" and not normalized.get("currency"):
+            raise PromotionError(422, "promotion_terms_incomplete", "A currency is required for a fixed-amount promotion.")
+        if normalized.get("starts_at") and datetime.fromisoformat(normalized["starts_at"]) <= datetime.now(timezone.utc):
+            pass
+        if normalized.get("expires_at") and datetime.fromisoformat(normalized["expires_at"]) <= datetime.now(timezone.utc):
+            raise PromotionError(422, "promotion_expired", "An already-expired promotion cannot be activated.")
+        cur.execute("SELECT plan_key FROM public.billing_promotion_plans WHERE promotion_id=%s ORDER BY plan_key;", (promotion_id,))
+        plan_keys = [item[0] for item in cur.fetchall()]
+        if not plan_keys:
+            raise PromotionError(422, "promotion_plans_required", "Link this promotion to at least one active plan before activation.")
+
+    try:
+        discount = Decimal(normalized["discount_value"])
+        fingerprint = hashlib.sha256(json.dumps({"code": code, "terms": normalized, "plans": plan_keys}, sort_keys=True).encode()).hexdigest()[:32]
+        if coupon_id:
+            coupon = stripe_api.retrieve_coupon(coupon_id)
+        else:
+            coupon_params = {"duration": "once", "name": name}
+            if normalized["discount_type"] == "percent":
+                coupon_params["percent_off"] = float(discount)
+            else:
+                coupon_params["amount_off"] = catalog_sync.minor_units(float(discount), normalized["currency"])
+                coupon_params["currency"] = normalized["currency"].lower()
+            coupon = stripe_api.create_coupon(coupon_params, "keel-promo-coupon-" + fingerprint)
+            coupon_id = coupon.get("id")
+        if not coupon_id:
+            raise PromotionError(502, "promotion_provider_error", "Stripe did not return a coupon identity.")
+        if promotion_code_id:
+            stripe_promo = stripe_api.retrieve_promotion_code(promotion_code_id)
+            if status == "disabled" and not stripe_promo.get("active"):
+                stripe_promo = stripe_api.activate_promotion_code(promotion_code_id)
+        else:
+            promo_params = {"coupon": coupon_id, "code": code}
+            if normalized.get("max_uses") is not None:
+                promo_params["max_redemptions"] = normalized["max_uses"]
+            if normalized.get("expires_at"):
+                promo_params["expires_at"] = int(datetime.fromisoformat(normalized["expires_at"]).timestamp())
+            stripe_promo = stripe_api.create_promotion_code(promo_params, "keel-promo-code-" + fingerprint)
+            promotion_code_id = stripe_promo.get("id")
+        normalized["stripe_coupon_id"] = coupon_id
+        normalized["stripe_promotion_code_id"] = promotion_code_id
+        _verify_provider_objects(normalized, coupon, stripe_promo, code)
+    except PromotionError:
+        raise
+    except stripe_api.PaymentsNotConfigured as exc:
+        raise PromotionError(503, "payments_not_configured", "Stripe is not configured for test-mode promotion activation.") from exc
+    except Exception as exc:
+        raise PromotionError(502, "promotion_provider_error", "Stripe could not create or verify the promotion. No local activation was saved.") from exc
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE public.billing_promotions SET status='active',terms=%s::jsonb,stripe_coupon_id=%s,"
+            "stripe_promotion_code_id=%s,approval_reference=%s,approved_by=%s,approved_at=NOW(),updated_by=%s,updated_at=NOW() "
+            "WHERE promotion_id=%s AND status IN ('draft','disabled') RETURNING status;",
+            (json.dumps(normalized), coupon_id, promotion_code_id, approval_reference, actor_user_id, actor_user_id, promotion_id),
+        )
+        saved = cur.fetchone()
+        if not saved:
+            raise PromotionError(409, "promotion_state_changed", "Promotion state changed during activation; refresh and retry.")
+        _platform_audit(conn, actor_user_id, role, "promotion_activate", promotion_id,
+                        {"status": status, "terms": terms, "plan_keys": plan_keys},
+                        {"status": "active", "terms": normalized, "plan_keys": plan_keys,
+                         "stripe_coupon_id": coupon_id, "stripe_promotion_code_id": promotion_code_id,
+                         "approval_reference": approval_reference}, reason)
+    return {"promotion_id": promotion_id, "code": code, "status": "active", "reused": False}
 
 
 def _load_active(conn, code: str):
@@ -275,7 +430,8 @@ def _eligibility(conn, tenant_id: str, code: str, plan_key: str, period_code: st
         if not cur.fetchone():
             return None, "not_eligible"
     price = store.current_price(conn, plan_key, period_code)
-    if not price or not price["is_active"] or not price.get("self_serve") or price["currency"].upper() != terms["currency"]:
+    if (not price or not price["is_active"] or not price.get("self_serve")
+            or (terms.get("currency") and price["currency"].upper() != terms["currency"])):
         return None, "not_eligible"
     if check_custom_contract and store.has_custom_contract(conn, tenant_id):
         # Existing private-contract rows do not classify a contract as discounted.
@@ -297,7 +453,9 @@ def validate(conn, tenant_id: str, code: str, plan_key: str, period_code: str) -
         return {"valid": False, "reason": "not_available"}
     return {"valid": bool(promo), "reason": reason,
             "promotion": ({"code": promo["code"], "discount_type": promo["terms"]["discount_type"],
-                           "discount_value": promo["terms"]["discount_value"], "currency": promo["terms"]["currency"]}
+                           "discount_value": promo["terms"]["discount_value"],
+                           "currency": promo["terms"].get("currency") or store.current_price(
+                               conn, plan_key, period_code)["currency"]}
                           if promo else None)}
 
 

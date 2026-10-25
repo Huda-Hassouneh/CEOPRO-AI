@@ -291,11 +291,70 @@ def test_platform_owner_draft_management_is_audited_and_never_activates(
         conn.close()
         with owner_db.cursor() as cur:
             cur.execute("DELETE FROM public.keel_platform_members WHERE user_id=%s", (tenant[1],))
-            if promotion_id:
-                cur.execute("DELETE FROM public.billing_promotion_plans WHERE promotion_id=%s", (promotion_id,))
-                cur.execute("DELETE FROM public.billing_promotions WHERE promotion_id=%s", (promotion_id,))
         owner_db.commit()
 
+
+def test_owner_promotion_activation_creates_and_verifies_mocked_test_provider_objects(
+    owner_db, tenant, test_price, monkeypatch
+):
+    code = "ACTIVATE_" + uuid.uuid4().hex[:12].upper()
+    promotion_id = None
+    conn = _system_connection()
+    try:
+        with owner_db.cursor() as cur:
+            cur.execute("INSERT INTO public.keel_platform_members(user_id,role_key,status) VALUES(%s,'owner','active')",
+                        (tenant[1],))
+        owner_db.commit()
+        monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
+        monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
+        created = promotions.save_draft(
+            conn, actor_user_id=tenant[1], code=code, name="Synthetic promotion",
+            description="SYNTHETIC_TEST_ONLY", terms={
+                "discount_type": "percent", "discount_value": 10, "currency": "USD",
+                "starts_at": None, "expires_at": None, "max_uses": 4,
+                "max_uses_per_tenant": 1, "invoice_scope": "initial_subscription",
+            }, plan_keys=[test_price[0]], reason="SYNTHETIC_TEST_ONLY: promotion activation",
+        )
+        conn.commit()
+        promotion_id = created["promotion_id"]
+        provider_calls = []
+        monkeypatch.setattr(stripe_api, "create_coupon", lambda params, key: (
+            provider_calls.append(("coupon", params, key)) or {
+                "id": "coupon_test_synthetic", "duration": "once", "percent_off": 10,
+            }
+        ))
+        monkeypatch.setattr(stripe_api, "create_promotion_code", lambda params, key: (
+            provider_calls.append(("promotion_code", params, key)) or {
+                "id": "promo_test_synthetic", "code": code, "active": True,
+                "max_redemptions": 4, "promotion": {"coupon": "coupon_test_synthetic"},
+            }
+        ))
+        result = promotions.activate(conn, actor_user_id=tenant[1], promotion_id=promotion_id,
+                                     approval_reference="SYNTHETIC_TEST_ONLY: approved fixture",
+                                     reason="SYNTHETIC_TEST_ONLY: test activation")
+        conn.commit()
+        assert result["status"] == "active"
+        assert [call[0] for call in provider_calls] == ["coupon", "promotion_code"]
+        assert provider_calls[0][2].startswith("keel-promo-coupon-")
+        assert provider_calls[1][2].startswith("keel-promo-code-")
+        with conn.cursor() as cur:
+            cur.execute("SELECT status,stripe_coupon_id,stripe_promotion_code_id,approval_reference FROM public.billing_promotions WHERE promotion_id=%s",
+                        (promotion_id,))
+            assert cur.fetchone() == ("active", "coupon_test_synthetic", "promo_test_synthetic",
+                                      "SYNTHETIC_TEST_ONLY: approved fixture")
+            cur.execute("SELECT count(*) FROM public.keel_platform_audit WHERE subject=%s AND action='promotion_activate'",
+                        (promotion_id,))
+            assert cur.fetchone()[0] == 1
+    finally:
+        if promotion_id:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM public.billing_promotion_plans WHERE promotion_id=%s", (promotion_id,))
+                cur.execute("DELETE FROM public.billing_promotions WHERE promotion_id=%s", (promotion_id,))
+            conn.commit()
+        conn.close()
+        with owner_db.cursor() as cur:
+            cur.execute("DELETE FROM public.keel_platform_members WHERE user_id=%s", (tenant[1],))
+        owner_db.commit()
 
 def test_active_promotion_constraint_rejects_null_required_terms(owner_db, tenant):
     promotion_id = str(uuid.uuid4())

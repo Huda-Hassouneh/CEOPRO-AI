@@ -73,6 +73,13 @@ class Approval(Reason):
             raise ValueError("Approval terms are too large")
         return value
 
+    @field_validator("expires_at")
+    @classmethod
+    def future(cls, value):
+        if value.tzinfo is None or value <= datetime.now(timezone.utc):
+            raise ValueError("A future expiry with timezone is required")
+        return value
+
 
 class PromotionDraft(Reason):
     code: str = Field(min_length=1, max_length=100)
@@ -88,6 +95,12 @@ class PromotionDraft(Reason):
         if len(json.dumps(value, default=str).encode()) > 8192:
             raise ValueError("Promotion terms are too large")
         return value
+
+
+class PromotionActivation(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    approval_reference: str = Field(min_length=1, max_length=255)
+    reason: str = Field(min_length=1, max_length=2000)
 
 
 class OwnerVendorRateSave(BaseModel):
@@ -220,13 +233,21 @@ def disable_promotion(promotion_id: UUID, body: Reason, ctx: Ctx):
     finally:
         conn.close()
 
-    @field_validator("expires_at")
-    @classmethod
-    def future(cls, value):
-        if value.tzinfo is None or value <= datetime.now(timezone.utc):
-            raise ValueError("A future expiry with timezone is required")
-        return value
 
+@router.post("/billing/promotions/{promotion_id}/activate")
+def activate_promotion(promotion_id: UUID, body: PromotionActivation, ctx: Ctx):
+    _promotion_operator(ctx)
+    conn = db.system_connection()
+    try:
+        result = promotions.activate(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id),
+                                     approval_reference=body.approval_reference, reason=body.reason)
+        conn.commit()
+        return result
+    except promotions.PromotionError as exc:
+        conn.rollback()
+        raise _promotion_error(exc)
+    finally:
+        conn.close()
 
 @router.get("/me")
 def me(ctx: Ctx):

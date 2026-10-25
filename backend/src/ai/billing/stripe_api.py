@@ -106,3 +106,30 @@ def list_prices(product_id: str, active: bool = True):
 
 def retrieve_price(price_id: str):
     return _plain(_client().Price.retrieve(price_id))
+
+
+# Managed promotion administration uses the same SDK/client authority as
+# checkout. Stable idempotency keys are supplied by the promotions service so
+# retries after a partial provider response do not create duplicate objects.
+def create_coupon(params: dict, idempotency_key: str):
+    return _plain(_client().Coupon.create(**params, idempotency_key=idempotency_key))
+
+
+def retrieve_coupon(coupon_id: str):
+    return _plain(_client().Coupon.retrieve(coupon_id))
+
+
+def create_promotion_code(params: dict, idempotency_key: str):
+    return _plain(_client().PromotionCode.create(**params, idempotency_key=idempotency_key))
+
+
+def retrieve_promotion_code(promotion_code_id: str):
+    return _plain(_client().PromotionCode.retrieve(promotion_code_id))
+
+
+def deactivate_promotion_code(promotion_code_id: str):
+    return _plain(_client().PromotionCode.modify(promotion_code_id, active=False))
+
+
+def activate_promotion_code(promotion_code_id: str):
+    return _plain(_client().PromotionCode.modify(promotion_code_id, active=True))
