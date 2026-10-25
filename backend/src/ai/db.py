@@ -32,7 +32,7 @@ close()) exactly as before.
 
 import os
 from typing import Optional
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 from minio import Minio
 
@@ -63,7 +63,9 @@ def _app_database_url() -> str:
     # DATABASE_URL already includes ":5432" explicitly, which is why this
     # never surfaced against the local Postgres instance.
     port = parsed.port or 5432
-    netloc = f"ceopro_app:{app_password}@{parsed.hostname}:{port}"
+    # Passwords are arbitrary secrets; encode URL-reserved characters before rebuilding the DSN.
+    encoded_password = quote(app_password, safe="")
+    netloc = f"ceopro_app:{encoded_password}@{parsed.hostname}:{port}"
     return urlunparse(parsed._replace(netloc=netloc))
 
 
