@@ -67,7 +67,7 @@ def test_owner_plan_quota_edit_is_audited_and_does_not_rewrite_existing_assignme
         new_snapshot = cur.fetchone()[0]
         cur.execute(
             "SELECT count(*) FROM public.keel_platform_audit WHERE actor_user_id=%s "
-            "AND action='plan_feature_update' AND reason LIKE 'SYNTHETIC_TEST_ONLY:%'", (tenant[1],),
+            "AND action='plan_feature_update' AND reason LIKE 'SYNTHETIC_TEST_ONLY:%%'", (tenant[1],),
         )
         audit_count = cur.fetchone()[0]
     assert any(item["feature_code"] == "team_seats" and item["limit_value"] == 9
