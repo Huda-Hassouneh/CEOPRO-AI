@@ -5,6 +5,7 @@ const root = '/platform/billing';
 export function createPlatformBillingApi(client) {
   return Object.freeze({
     view: (name, limit = 100, offset = 0) => unwrap(client.get(`${root}/admin-views/${enc(name)}`, { params: { limit, offset } })),
+    updatePlanStatus: (planKey, body) => unwrap(client.patch(`${root}/plans/${enc(planKey)}/status`, body)),
     updatePlanFeature: (planKey, body) => unwrap(client.patch(`${root}/plans/${enc(planKey)}/features`, body)),
     companies: (limit = 100, offset = 0) => unwrap(client.get('/platform/companies', { params: { limit, offset } })),
     quotes: (state = '') => unwrap(client.get(`${root}/custom-quotes`, { params: { limit: 100, ...(state ? { state } : {}) } })),

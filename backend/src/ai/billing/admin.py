@@ -28,6 +28,26 @@ class AdminError(ValueError):
     pass
 
 
+def set_plan_active(conn, *, plan_key: str, active: bool, approved_by: str, reason: str) -> dict:
+    """Enable or hide a plan from new purchases without changing current assignments."""
+    plan_key = _require(plan_key, "plan_key")
+    approved_by, reason = _require(approved_by, "approved_by"), _require(reason, "reason")
+    if not isinstance(active, bool):
+        raise AdminError("active must be boolean")
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT is_active FROM public.usage_plans WHERE plan_key=%s FOR UPDATE;", (plan_key,))
+        row = cursor.fetchone()
+        if row is None:
+            raise AdminError("plan not found")
+        old_value = {"is_active": bool(row[0])}
+        cursor.execute("UPDATE public.usage_plans SET is_active=%s WHERE plan_key=%s;", (active, plan_key))
+        cursor.execute("""
+            INSERT INTO public.keel_platform_audit(actor_user_id,actor_role,action,subject,old_value,new_value,reason,outcome)
+            VALUES(%s,'owner','plan_status_update',%s,%s::jsonb,%s::jsonb,%s,'succeeded');
+        """, (approved_by, f"plan:{plan_key}", json.dumps(old_value), json.dumps({"is_active": active}), reason))
+    return {"plan_key": plan_key, "is_active": active, "existing_assignments_preserved": True}
+
+
 
 def set_plan_feature(conn, *, plan_key: str, feature_code: str, included: bool,
                      limit_value: Optional[int], approved_by: str, reason: str) -> dict:
