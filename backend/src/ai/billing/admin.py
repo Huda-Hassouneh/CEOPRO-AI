@@ -17,7 +17,10 @@ PER_MILLION_UNITS = ("input_token", "output_token", "cache_read_token", "cache_w
 _NUMERIC_CONTRACT_FEATURES = (
     usage.TRACKED_PRODUCTS, usage.MONTHLY_REPORTS, usage.TEAM_SEATS, usage.DATA_CREDITS, usage.AI_CREDITS,
     usage.DOCUMENT_STORAGE_MB, usage.CONNECTED_DATA_SOURCES, usage.IMAGE_GENERATION, usage.SENTIMENT_ANALYSIS,
-    usage.DOCUMENT_EXTRACTION, usage.RAG_ASSISTANT, usage.WEB_SEARCHES,
+    usage.DOCUMENT_EXTRACTION, usage.RAG_ASSISTANT, usage.WEB_SEARCHES, usage.TRACKED_COMPETITORS,
+)
+_CUSTOM_CONTRACT_ENTITLEMENTS = (
+    usage.MARKET_INTELLIGENCE, usage.DEMAND_PREDICTION, usage.COMPETITOR_MANAGEMENT,
 )
 
 
@@ -109,10 +112,10 @@ def set_control(conn, *, provider: str, approved_by: str, reason: str, monthly_c
                None if not old else {"monthly_cap_usd": old[0], "kill_switch": old[1]},
                {"monthly_cap_usd": cap, "kill_switch": kill}, approved_by, reason)
 
-
 def set_custom_contract(conn, *, tenant_id: str, contract_ref: str, approved_by: str, reason: str,
                         limits: Dict[str, int], monthly_price: Optional[Decimal] = None, currency: str = "USD",
                         trial_days: int = 0, data_sources: Optional[list] = None,
+                        included_features: Optional[list[str]] = None,
                         refresh_frequency: Optional[str] = None, support_level: Optional[str] = None,
                         period_months: int = 1, today: Optional[date] = None) -> None:
     """Puts a company on an approved Custom contract: its terms, its own
@@ -123,6 +126,10 @@ def set_custom_contract(conn, *, tenant_id: str, contract_ref: str, approved_by:
     unknown = [f for f in limits if f not in _NUMERIC_CONTRACT_FEATURES]
     if unknown:
         raise AdminError(f"unknown contract limits: {', '.join(unknown)}")
+    if included_features is not None:
+        unknown_features = sorted(set(included_features) - set(_CUSTOM_CONTRACT_ENTITLEMENTS))
+        if unknown_features:
+            raise AdminError(f"unknown custom contract entitlements: {', '.join(unknown_features)}")
     if any(int(v) < 0 for v in limits.values()):
         raise AdminError("contract limits can't be negative")
     if not 0 <= int(trial_days) <= 90:
@@ -133,28 +140,32 @@ def set_custom_contract(conn, *, tenant_id: str, contract_ref: str, approved_by:
         if not cursor.fetchone():
             raise AdminError("no company with that id")
         cursor.execute(
-            "SELECT contract_ref, monthly_price, trial_days, refresh_frequency, support_level FROM tenant_custom_contracts "
+            "SELECT contract_ref, monthly_price, trial_days, refresh_frequency, support_level, included_features FROM tenant_custom_contracts "
             "WHERE tenant_id = %s;", (tenant_id,),
         )
         old_contract = cursor.fetchone()
         cursor.execute(
             """
             INSERT INTO tenant_custom_contracts (tenant_id, contract_ref, monthly_price, currency, trial_days, data_sources,
-                                                 refresh_frequency, support_level, approved_by, reason)
-            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+                                                 included_features, refresh_frequency, support_level, approved_by, reason)
+            VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s, %s, %s, %s)
             ON CONFLICT (tenant_id) DO UPDATE SET contract_ref = EXCLUDED.contract_ref, monthly_price = EXCLUDED.monthly_price,
                 currency = EXCLUDED.currency, trial_days = EXCLUDED.trial_days, data_sources = EXCLUDED.data_sources,
+                included_features = COALESCE(EXCLUDED.included_features, tenant_custom_contracts.included_features),
                 refresh_frequency = EXCLUDED.refresh_frequency, support_level = EXCLUDED.support_level,
                 approved_by = EXCLUDED.approved_by, reason = EXCLUDED.reason, approved_at = NOW();
             """,
             (tenant_id, contract_ref, monthly_price, currency, int(trial_days), json.dumps(data_sources or []),
+             None if included_features is None else json.dumps(sorted(set(included_features))),
              refresh_frequency, support_level, approved_by, reason),
         )
         _audit(cursor, tenant_id, "set_contract", contract_ref,
                None if not old_contract else dict(zip(("contract_ref", "monthly_price", "trial_days", "refresh_frequency",
-                                                         "support_level"), old_contract)),
+                                                         "support_level", "included_features"), old_contract)),
                {"monthly_price": monthly_price, "currency": currency, "trial_days": trial_days,
-                "data_sources": data_sources or [], "refresh_frequency": refresh_frequency, "support_level": support_level},
+                "data_sources": data_sources or [],
+                "included_features": None if included_features is None else sorted(set(included_features)),
+                "refresh_frequency": refresh_frequency, "support_level": support_level},
                approved_by, reason, contract_ref)
         for feature, value in sorted(limits.items()):
             cursor.execute("SELECT limit_value FROM tenant_entitlement_overrides WHERE tenant_id = %s AND feature_code = %s;",
