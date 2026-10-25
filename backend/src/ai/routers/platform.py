@@ -111,6 +111,12 @@ class PlanFeatureMutation(BaseModel):
     reason: str = Field(default="Owner plan feature update through Platform Billing Portal.", min_length=1, max_length=2000)
 
 
+class PlanStatusMutation(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    active: StrictBool
+    reason: str = Field(default="Owner plan availability update through Platform Billing Portal.", min_length=1, max_length=2000)
+
+
 class OwnerVendorRateSave(BaseModel):
     """Original owner vendor-rate form mapped to immutable Python rate + draft binding."""
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -796,6 +802,27 @@ def update_platform_plan_feature(plan_key: str, body: PlanFeatureMutation, ctx: 
     except billing_admin.AdminError as exc:
         conn.rollback()
         raise HTTPException(status_code=422, detail={"reason": "invalid_plan_feature_change", "message": str(exc)}) from None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.patch("/billing/plans/{plan_key}/status")
+def update_platform_plan_status(plan_key: str, body: PlanStatusMutation, ctx: Ctx):
+    """Change plan availability for new purchases; current paid assignments are not changed."""
+    _custom_quote_operator(ctx)
+    conn = db.system_connection()
+    try:
+        result = billing_admin.set_plan_active(
+            conn, plan_key=plan_key, active=body.active, approved_by=ctx.user_id, reason=body.reason,
+        )
+        conn.commit()
+        return result
+    except billing_admin.AdminError as exc:
+        conn.rollback()
+        raise HTTPException(status_code=422, detail={"reason": "invalid_plan_status_change", "message": str(exc)}) from None
     except Exception:
         conn.rollback()
         raise

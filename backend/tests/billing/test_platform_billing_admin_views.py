@@ -160,6 +160,35 @@ def test_plan_feature_mutation_rejects_boolean_as_numeric_limit(monkeypatch):
     assert response.status_code == 422
 
 
+def test_plan_status_mutation_requires_platform_owner_and_calls_audited_service(monkeypatch):
+    connection = _Connection(None)
+    calls = {}
+    monkeypatch.setattr(platform.db, "system_connection", lambda: connection)
+    monkeypatch.setattr(platform.billing_admin, "set_plan_active", lambda _conn, **kwargs: calls.update(kwargs) or {
+        "plan_key": kwargs["plan_key"], "is_active": kwargs["active"], "existing_assignments_preserved": True,
+    })
+    monkeypatch.setattr(platform.service, "command", lambda *_args, **_kwargs: {"role": "owner"})
+    with _client(monkeypatch, "owner") as client:
+        response = client.patch("/platform/billing/plans/growth/status", json={
+            "active": False, "reason": "synthetic availability regression",
+        })
+    assert response.status_code == 200
+    assert response.json()["existing_assignments_preserved"] is True
+    assert calls == {"plan_key": "growth", "active": False, "approved_by": "owner-user",
+                     "reason": "synthetic availability regression"}
+    assert connection.committed and connection.closed
+
+
+def test_plan_status_mutation_rejects_tenant_admin_before_admin_database(monkeypatch):
+    def forbidden(*_args):
+        raise AssertionError("Non-owner must be rejected before opening the administrative connection")
+
+    monkeypatch.setattr(platform.db, "system_connection", forbidden)
+    with _client(monkeypatch, "admin") as client:
+        response = client.patch("/platform/billing/plans/growth/status", json={"active": False})
+    assert response.status_code == 403
+
+
 def test_custom_contract_assignment_is_denied_to_tenant_admin_before_privileged_connection(monkeypatch):
     def forbidden(*_args):
         raise AssertionError("Non-owner must be rejected before opening the administrative connection")

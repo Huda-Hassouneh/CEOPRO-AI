@@ -35,6 +35,18 @@ test('plan quota controls map numeric and module terms to the versioned Python e
   ]);
 });
 
+test('original plan availability toggle maps to Python status; price and commercial edits remain guarded', async () => {
+  const calls = [];
+  const api = createPlatformBillingCatalogApi({ billing: {
+    updatePlanStatus: async (planKey, body) => { calls.push([planKey, body]); return { is_active: body.active }; },
+  } });
+  const result = await api.updatePlan('growth', { isActive: false });
+  assert.equal(result.is_active, false);
+  assert.equal(calls[0][0], 'growth');
+  assert.equal(calls[0][1].active, false);
+  await assert.rejects(api.updatePlan('growth', { price: 60, currency: 'USD' }), /Stripe price versioning/);
+});
+
 test('original quote list reflects Python tenant/revision data and never fabricates a quote price', async () => {
   const api = createPlatformBillingCatalogApi({
     billing: { quotes: async () => ({ quotes: [{ quoteId: 'q-1', tenantId: 't-1', businessName: 'Synthetic Co', state: 'submitted', updatedAt: '2026-10-25T00:00:00Z', currentRevision: { revisionNumber: 2, configuration: { enabledFeatures: ['market_intelligence'] }, featureQuantities: { team_seats: 4 }, commercialTerms: {} } }] }) },

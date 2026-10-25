@@ -1,7 +1,7 @@
 """Native tests for versioned plan mutations and frozen tenant terms."""
 import uuid
 
-from src.ai.billing import admin as billing_admin
+from src.ai.billing import admin as billing_admin, store
 from src.ai.core import usage
 
 
@@ -97,3 +97,27 @@ def test_plan_feature_mutation_rejects_unsupported_or_invalid_values(owner_db, t
             owner_db.rollback()
         else:
             raise AssertionError(f"invalid plan feature mutation was accepted: {feature_code}/{limit_value}")
+
+
+def test_plan_deactivation_hides_new_purchase_option_without_revoking_current_assignment(
+    owner_db, tenant, test_price
+):
+    plan_key = test_price[0]
+    with owner_db.cursor() as cur:
+        cur.execute("INSERT INTO public.tenant_plan_assignments(tenant_id,plan_key,status,source) "
+                    "VALUES(%s,%s,'active','stripe')", (tenant[0], plan_key))
+    owner_db.commit()
+
+    changed = billing_admin.set_plan_active(
+        owner_db, plan_key=plan_key, active=False, approved_by=tenant[1],
+        reason="SYNTHETIC_TEST_ONLY: plan availability regression",
+    )
+    owner_db.commit()
+    assert changed["existing_assignments_preserved"] is True
+    assert plan_key not in {plan["plan_key"] for plan in store.catalog(owner_db)}
+    assert usage.get_plan(owner_db, tenant[0])["status"] == "active"
+    with owner_db.cursor() as cur:
+        cur.execute("SELECT count(*) FROM public.keel_platform_audit WHERE actor_user_id=%s "
+                    "AND action='plan_status_update' AND subject=%s "
+                    "AND reason LIKE 'SYNTHETIC_TEST_ONLY:%%'", (tenant[1], f"plan:{plan_key}"))
+        assert cur.fetchone()[0] == 1

@@ -167,7 +167,12 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
     getCustomPlanPricingPolicy: async () => ({ data: await billing.policies() }),
     getVendorRates: async () => wrap(await rates()),
     getTenants: async () => wrap(list(await billing.companies(100, 0), 'items').map((tenant) => ({ ...tenant, id: tenant.tenant_id, businessName: tenant.business_name }))),
-    createPlan: () => unavailable('plan creation'), updatePlan: () => unavailable('plan mutation'),
+    createPlan: () => unavailable('plan creation'),
+    updatePlan: (planKey, payload = {}) => {
+      if (Object.keys(payload).length === 1 && typeof payload.isActive === 'boolean')
+        return billing.updatePlanStatus(planKey, { active: payload.isActive, reason: 'Owner changed plan availability for new purchases.' });
+      return unavailable('plan price/term mutation; Stripe price versioning and customer transition handling are required');
+    },
     createPromoCode: async (payload) => {
       if (payload.discountType === 'fixed_amount' && !payload.currency) {
         const catalog = await plans();
