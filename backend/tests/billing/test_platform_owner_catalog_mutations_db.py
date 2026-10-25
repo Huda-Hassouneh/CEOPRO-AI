@@ -3,7 +3,6 @@
 All values created here are synthetic and the test runner only targets a fresh
 disposable database. No Stripe/provider operations are performed.
 """
-import uuid
 from decimal import Decimal
 
 import pytest
@@ -13,46 +12,6 @@ from fastapi.testclient import TestClient
 from src.ai.billing import custom_offers
 from src.ai.core.security import TenantContext
 from src.ai.routers import platform
-
-
-@pytest.fixture
-def platform_owner_context(owner_db):
-    """Use the seeded disposable Platform Owner or create a temporary one."""
-    tenant_id = user_id = None
-    created_workspace = False
-    with owner_db.cursor() as cur:
-        cur.execute("SELECT tenant_id FROM public.keel_platform_workspace WHERE singleton=TRUE")
-        workspace = cur.fetchone()
-        if workspace:
-            tenant_id = str(workspace[0])
-            cur.execute("SELECT user_id FROM public.keel_platform_members WHERE role_key='owner' AND status='active'")
-            member = cur.fetchone()
-            if member:
-                user_id = str(member[0])
-        if not user_id:
-            tenant_id, user_id = str(uuid.uuid4()), str(uuid.uuid4())
-            cur.execute("INSERT INTO public.companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,'Synthetic Platform Owner','US','USD')", (tenant_id,))
-            cur.execute("INSERT INTO public.users(user_id,email,password_hash) VALUES(%s,%s,'test-only')", (user_id, f"owner-catalog-{user_id}@example.test"))
-            cur.execute("INSERT INTO public.tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')", (tenant_id,user_id))
-            if workspace:
-                cur.execute("INSERT INTO public.keel_platform_members(user_id,role_key,status) VALUES(%s,'owner','active')", (user_id,))
-            else:
-                cur.execute("INSERT INTO public.keel_platform_workspace(singleton,tenant_id) VALUES(TRUE,%s)", (tenant_id,))
-                cur.execute("INSERT INTO public.keel_platform_members(user_id,role_key,status) VALUES(%s,'owner','active')", (user_id,))
-                created_workspace = True
-        else:
-            cur.execute("SELECT 1 FROM public.tenant_users WHERE tenant_id=%s AND user_id=%s AND removed_at IS NULL", (tenant_id,user_id))
-            if not cur.fetchone():
-                cur.execute("INSERT INTO public.tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')", (tenant_id,user_id))
-    owner_db.commit()
-    yield tenant_id, user_id
-    if created_workspace:
-        with owner_db.cursor() as cur:
-            cur.execute("DELETE FROM public.keel_platform_workspace WHERE tenant_id=%s", (tenant_id,))
-            cur.execute("DELETE FROM public.keel_platform_members WHERE user_id=%s", (user_id,))
-            cur.execute("DELETE FROM public.companies WHERE tenant_id=%s", (tenant_id,))
-            cur.execute("DELETE FROM public.users WHERE user_id=%s", (user_id,))
-        owner_db.commit()
 
 
 def test_owner_catalog_http_mutations_persist_rate_binding_and_audit(
