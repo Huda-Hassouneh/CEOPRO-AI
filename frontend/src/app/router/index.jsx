@@ -44,6 +44,10 @@ const SettingsPage = page(() => import('../../features/settings/pages/SettingsPa
 const ConnectDataPage = page(() => import('../../features/data-connections/pages/ConnectDataPage.jsx').then((m) => ({ default: m.ConnectDataPage })));
 const UnifiedReportsCenterPage = page(() => import('../../features/reports/pages/UnifiedReportsCenterPage.jsx'));
 const PlansSubscriptionPage = page(() => import('../../features/billing/pages/PlansSubscriptionPage.jsx').then((m) => ({ default: m.PlansSubscriptionPage })));
+const OnboardingPlanSelectionPage = page(() => import('../../features/billing/pages/OnboardingPlanSelectionPage.jsx').then((m) => ({ default: m.OnboardingPlanSelectionPage })));
+const OnboardingPaymentPage = page(() => import('../../features/billing/pages/OnboardingPaymentPage.jsx').then((m) => ({ default: m.OnboardingPaymentPage })));
+const CustomPlanBuilderPage = page(() => import('../../features/billing/pages/CustomPlanBuilderPage.jsx').then((m) => ({ default: m.CustomPlanBuilderPage })));
+const CustomPlanQuotePage = page(() => import('../../features/billing/pages/CustomPlanQuotePage.jsx').then((m) => ({ default: m.CustomPlanQuotePage })));
 
 const LegacyForecastProductRedirect = () => {
   const { productId } = useParams();
@@ -159,6 +163,13 @@ const routes = [
     path: routePaths.newWorkspace,
     element: <ProtectedRoute><CreateWorkspacePage /></ProtectedRoute>,
   },
+  {
+    path: routePaths.onboardingPlan,
+    element: <ProtectedRoute><DashboardLayout><OnboardingPlanSelectionPage /></DashboardLayout></ProtectedRoute>,
+  },
+  { path: routePaths.onboardingPlanPayment, element: <ProtectedRoute><DashboardLayout><OnboardingPaymentPage /></DashboardLayout></ProtectedRoute> },
+  { path: routePaths.customPlanBuilder, element: <ProtectedRoute><DashboardLayout><CustomPlanBuilderPage /></DashboardLayout></ProtectedRoute> },
+  { path: routePaths.customPlanQuote, element: <ProtectedRoute><DashboardLayout><CustomPlanQuotePage /></DashboardLayout></ProtectedRoute> },
   {
     path: routePaths.billing,
     element: (
