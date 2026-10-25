@@ -14,3 +14,4 @@
 .keel-platform-billing details{margin:.4rem 0}
 .keel-platform-json{max-width:min(80vw,900px);max-height:28rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:.75rem;border-radius:.5rem;background:var(--surface-color,rgba(0,0,0,.04));direction:ltr;text-align:left;font-size:.85rem}
 .keel-platform-billing form label{display:grid;gap:.4rem}
+.platform-billing-authority-link{max-width:1200px;margin:0 auto;padding:1rem 1rem 0;text-align:end}.platform-billing-authority-link a,.original-python-admin-links a{color:var(--accent-color,#5b63ff);font-weight:600;text-decoration:underline}.original-python-admin-links>div{display:flex;gap:1rem;flex-wrap:wrap}
