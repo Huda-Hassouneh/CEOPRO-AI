@@ -606,7 +606,7 @@ def test_owner_vendor_rate_route_persists_verified_rate_binding_and_audit_under_
         unit_cost_usd="0.00002", source="SYNTHETIC_TEST_ONLY: owner route fixture",
         verification_evidence="SYNTHETIC_TEST_ONLY: not a provider cost assertion",
         verified_at=now.date(), effective_from=now, policy_version_id=draft["policy_version_id"],
-        feature_code="rag_assistant", usage_basis="limit_value", units_per_feature_unit="4",
+        feature_code="tracked_products", usage_basis="limit_value", units_per_feature_unit="4",
         operational_multiplier="1.2", variability_reserve="1.1", usage_assumption={},
     )
     result = platform.save_owner_vendor_rate(
@@ -619,11 +619,13 @@ def test_owner_vendor_rate_route_persists_verified_rate_binding_and_audit_under_
 
     with owner_db.cursor() as cur:
         cur.execute("SELECT provider,operation,unit,unit_cost_usd,source,verification_evidence,verified_by FROM billing_custom_cost_rates WHERE cost_rate_id=%s", (rate_id,))
-        assert cur.fetchone() == (provider, "inference", "input_token", 0.00002,
-            "SYNTHETIC_TEST_ONLY: owner route fixture",
+        rate_row = cur.fetchone()
+        assert rate_row[:3] == (provider, "inference", "input_token")
+        assert str(rate_row[3]) == "0.000020000000"
+        assert rate_row[4:] == ("SYNTHETIC_TEST_ONLY: owner route fixture",
             "SYNTHETIC_TEST_ONLY: not a provider cost assertion", actors["platform_user"])
         cur.execute("SELECT feature_code,cost_category,policy_version_id,cost_rate_id FROM billing_custom_cost_bindings WHERE binding_id=%s", (binding_id,))
-        assert cur.fetchone() == ("rag_assistant", "vendor", draft["policy_version_id"], rate_id)
+        assert cur.fetchone() == ("tracked_products", "vendor", draft["policy_version_id"], rate_id)
         cur.execute("SELECT count(*) FROM entitlement_audit_log WHERE tenant_id=%s AND action IN ('custom_pricing_rate_created','custom_pricing_binding_created')", (actors["platform_tenant"],))
         assert cur.fetchone()[0] >= 2
 
