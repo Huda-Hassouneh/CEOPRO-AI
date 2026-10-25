@@ -5,8 +5,10 @@ const root = '/platform/billing';
 export function createPlatformBillingApi(client) {
   return Object.freeze({
     view: (name, limit = 100, offset = 0) => unwrap(client.get(`${root}/admin-views/${enc(name)}`, { params: { limit, offset } })),
+    companies: (limit = 100, offset = 0) => unwrap(client.get('/platform/companies', { params: { limit, offset } })),
     quotes: (state = '') => unwrap(client.get(`${root}/custom-quotes`, { params: { limit: 100, ...(state ? { state } : {}) } })),
     quote: (id) => unwrap(client.get(`${root}/custom-quotes/${enc(id)}`)),
+    createQuote: (body) => unwrap(client.post(`${root}/custom-quotes`, body)),
     calculateQuote: (id) => unwrap(client.post(`${root}/custom-quotes/${enc(id)}/calculate`)),
     submitQuote: (id, body) => unwrap(client.post(`${root}/custom-quotes/${enc(id)}/submit`, body)),
     reviseQuote: (id, body) => unwrap(client.post(`${root}/custom-quotes/${enc(id)}/revisions`, body)),
@@ -25,6 +27,7 @@ export function createPlatformBillingApi(client) {
     promotions: () => unwrap(client.get(`${root}/promotions`)),
     createPromotionDraft: (body) => unwrap(client.post(`${root}/promotions`, body)),
     updatePromotionDraft: (id, body) => unwrap(client.patch(`${root}/promotions/${enc(id)}`, body)),
+    activatePromotion: (id, body) => unwrap(client.post(`${root}/promotions/${enc(id)}/activate`, body)),
     disablePromotion: (id, reason) => unwrap(client.post(`${root}/promotions/${enc(id)}/disable`, { reason })),
   });
 }

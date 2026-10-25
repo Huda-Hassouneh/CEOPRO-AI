@@ -57,3 +57,64 @@ test('vendor-rate adapter refuses unsupported currency, unit, and unverified sta
   await assert.rejects(api.createVendorRate({ ...base, verificationStatus: 'estimated' }), /verified provider rate is required/);
   assert.equal(calls, 0);
 });
+
+test('owner quote composer uses Python draft, submit, and server pricing contracts', async () => {
+  const calls = [];
+  const api = createPlatformBillingCatalogApi({
+    billing: {
+      createQuote: async (body) => { calls.push(['create', body]); return { quote_id: 'q-synthetic', state: 'draft' }; },
+      submitQuote: async (id, body) => { calls.push(['submit', id, body]); return { quote_id: id, state: 'submitted' }; },
+      companies: async () => ({ items: [{ tenant_id: 't-synthetic', business_name: 'Synthetic tenant' }] }),
+    },
+    offers: { getConfigurator: async () => ({
+      features: [{ featureCode: 'team_seats', unit: 'seats', aggregationType: 'max', resetCycle: 'lifetime' }],
+      modules: [{ featureCode: 'competitor_management', selectionKind: 'included_feature' }],
+    }) },
+  });
+  const tenants = (await api.getTenants()).data;
+  assert.equal(tenants[0].id, 't-synthetic');
+  const features = (await api.getFeatures()).data;
+  assert.equal(features.find((item) => item.id === 'competitor_management').type, 'boolean');
+  const result = await api.createCustomPlanQuote({
+    tenantId: 't-synthetic', currency: 'JOD', targetGrossMarginPercent: 99,
+    fxRate: 3.5, monthlyInfrastructureCost: 5000,
+    features: [
+      { featureId: 'competitor_management', limitValue: null, configuration: { monitoringFrequencyMinutes: 1440 } },
+      { featureId: 'team_seats', limitValue: 8, estimatedUsage: 400 },
+    ],
+  });
+  assert.equal(result.data.id, 'q-synthetic');
+  assert.deepEqual(calls[0][1].feature_quantities, { team_seats: 8 });
+  assert.deepEqual(calls[0][1].configuration, { enabledFeatures: ['competitor_management'], refreshFrequency: 'daily' });
+  assert.deepEqual(calls[0][1].commercial_terms, {});
+  assert.deepEqual(calls[0][1].economic_inputs, {});
+  assert.deepEqual(calls[0][1].fx_evidence, {});
+  assert.equal(calls[1][2].expected_revision, 1);
+});
+
+test('owner quote composer rejects unsupported cadence before creating a Python quote', async () => {
+  let calls = 0;
+  const api = createPlatformBillingCatalogApi({
+    billing: { createQuote: async () => { calls += 1; } },
+    offers: { getConfigurator: async () => ({ features: [], modules: [{ featureCode: 'competitor_management' }] }) },
+  });
+  await assert.rejects(api.createCustomPlanQuote({ tenantId: 't', features: [
+    { featureId: 'competitor_management', configuration: { monitoringFrequencyMinutes: 30 } },
+  ] }), /hourly, daily, or weekly/);
+  assert.equal(calls, 0);
+});
+
+
+test('disabled promotions cannot be reactivated with silently ignored term edits', async () => {
+  let activations = 0;
+  const api = createPlatformBillingCatalogApi({
+    billing: {
+      promotions: async () => ({ items: [{ promotion_id: 'promo-1', status: 'disabled', code: 'SYNTHETIC',
+        terms: { discount_type: 'percent', discount_value: '10', max_uses: 4, max_uses_per_tenant: 1,
+          starts_at: null, expires_at: null }, plan_keys: ['starter'] }] }),
+      activatePromotion: async () => { activations += 1; },
+    },
+  });
+  await assert.rejects(api.updatePromoCode('promo-1', { isActive: true, discountValue: 20, approvalReference: 'TEST', approvalReason: 'fixture' }), /terms are immutable/);
+  assert.equal(activations, 0);
+});
