@@ -89,7 +89,7 @@ def test_owner_catalog_http_mutations_persist_rate_binding_and_audit(
         "usage_assumption": {"fixture": "test-only"},
     }
     try:
-    with TestClient(app) as client:
+        with TestClient(app) as client:
             catalog = client.get("/platform/billing/feature-catalog")
             assert catalog.status_code == 200
             assert any(row["feature_code"] == feature_code for row in catalog.json()["features"])
