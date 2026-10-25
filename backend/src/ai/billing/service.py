@@ -19,6 +19,7 @@ with a live subscription can't open a second checkout.
 """
 import hashlib
 import time
+from decimal import Decimal, InvalidOperation
 from src.ai.billing import config, promotions, store, stripe_api
 from src.ai.billing.stripe_api import PaymentsNotConfigured
 from src.ai.core import usage
@@ -178,6 +179,58 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
             raise
     return {"url": session["url"], "session_id": session["id"]}
 
+
+
+def create_custom_quote_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
+                                quote_id: str, idempotency_key: str) -> dict:
+    """Start a recurring USD Checkout for an accepted, current Custom offer.
+
+    Price, quote revision and customer identity come from the database; the
+    caller supplies only the quote ID and retry key. Activation remains owned
+    by the signed webhook path.
+    """
+    _require_payments()
+    from src.ai.billing import custom_offers
+    if store.current_subscription(conn, tenant_id):
+        raise BillingError(409, "subscription_exists", "Your company already has a subscription.")
+    prepared = custom_offers.custom_checkout_prepare(
+        conn, quote_id=quote_id, idempotency_key=idempotency_key)
+    terms = prepared.get("commercial_terms") or {}
+    if terms.get("currency") != "USD" or str(terms.get("billingPeriodMonths")) != "1":
+        raise BillingError(409, "custom_terms_unsupported", "This Custom offer cannot be checked out with the supported billing terms.")
+    try:
+        amount = Decimal(str(terms["monthlyPriceUsd"]))
+    except (KeyError, InvalidOperation, ValueError):
+        raise BillingError(409, "custom_terms_unpriced", "This Custom offer has no valid approved price.") from None
+    if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.01")):
+        raise BillingError(409, "custom_terms_unpriced", "This Custom offer has no valid approved price.")
+    customer = _ensure_customer(conn, sys_conn, tenant_id, email, company_name)
+    attempt_id = str(prepared["attempt_id"])
+    base = config.app_base_url()
+    params = {
+        "mode": "subscription", "customer": customer,
+        "line_items": [{"price_data": {"currency": "usd", "unit_amount": int(amount * 100),
+            "product_data": {"name": "KEEL Custom Plan"},
+            "recurring": {"interval": "month", "interval_count": 1}}, "quantity": 1}],
+        "client_reference_id": attempt_id,
+        "metadata": {"tenant_id": tenant_id, "custom_quote_id": quote_id,
+                     "custom_quote_revision_id": str(prepared["revision_id"]),
+                     "quote_attempt_id": attempt_id, "billing_kind": "custom_quote"},
+        "subscription_data": {"metadata": {"tenant_id": tenant_id,
+            "custom_quote_id": quote_id, "custom_quote_revision_id": str(prepared["revision_id"]),
+            "quote_attempt_id": attempt_id, "billing_kind": "custom_quote"}},
+        "payment_method_collection": "always", "allow_promotion_codes": False,
+        "success_url": f"{base}/billing?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
+        "cancel_url": f"{base}/billing?checkout=cancelled",
+    }
+    try:
+        session = stripe_api.create_checkout_session(params, idempotency_key=f"keel-custom-checkout-{attempt_id}")
+        custom_offers.record_custom_checkout_session(conn, attempt_id=attempt_id, session_id=session["id"])
+    except Exception:
+        # The prepared attempt remains durable. Repeating the same request uses
+        # Stripe's stable idempotency key and can safely persist the same session.
+        raise
+    return {"url": session["url"], "session_id": session["id"], "attempt_id": attempt_id}
 
 def create_portal(conn, tenant_id: str) -> dict:
     _require_payments()

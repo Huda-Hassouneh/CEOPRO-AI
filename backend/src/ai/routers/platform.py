@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.ai import db
-from src.ai.billing import custom_offers, promotions
+from src.ai.billing import custom_offers, custom_plan_pricing_service, promotions
 from src.ai.core import auth_throttle, security
 from src.ai.core.authorization import require_platform_permission
 from src.ai.core.security import TenantContext, get_tenant_context
@@ -480,5 +480,175 @@ def approve_custom_quote(quote_id: UUID, body: CustomQuoteApproval, ctx: Ctx):
     except Exception:
         conn.rollback()
         raise
+    finally:
+        conn.close()
+
+
+@router.post("/billing/custom-plan-pricing/policies", status_code=201)
+def create_custom_pricing_policy(body: dict, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.pricing_admin_command(conn, "policy_create", body)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.get("/billing/custom-plan-pricing/policies")
+def list_custom_pricing_policies(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.pricing_admin_command(conn, "policy_list", {})
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.get("/billing/custom-plan-pricing/cost-rates")
+def list_custom_pricing_cost_rates(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.pricing_admin_command(conn, "rate_list", {})
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.get("/billing/custom-plan-pricing/policies/{policy_id}/bindings")
+def list_custom_pricing_bindings(policy_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.pricing_admin_command(conn, "binding_list", {"policy_version_id": str(policy_id)})
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.post("/billing/custom-plan-pricing/cost-rates", status_code=201)
+def create_custom_pricing_cost_rate(body: dict, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.pricing_admin_command(conn, "rate_create", body)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.post("/billing/custom-plan-pricing/cost-rates/{rate_id}/close")
+def close_custom_pricing_cost_rate(rate_id: UUID, body: dict,
+                                   ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.pricing_admin_command(conn, "rate_close",
+            {**body, "cost_rate_id": str(rate_id)})
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.post("/billing/custom-plan-pricing/bindings", status_code=201)
+def create_custom_pricing_binding(body: dict, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.pricing_admin_command(conn, "binding_create", body)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.post("/billing/custom-plan-pricing/policies/{policy_id}/activate")
+def activate_custom_pricing_policy(policy_id: UUID, body: dict,
+                                   ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.pricing_admin_command(conn, "policy_activate",
+            {**body, "policy_version_id": str(policy_id)})
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.get("/billing/custom-quotes")
+def list_custom_offer_review_queue(state: str | None = None, limit: int = 50,
+                                   ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.admin_quote_list(conn, state=state, limit=limit)
+        conn.commit()
+        return {"quotes": result}
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    finally:
+        conn.close()
+
+@router.post("/billing/custom-quotes/{quote_id}/calculate")
+def calculate_custom_quote(quote_id: UUID, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Calculate only the current submitted revision; client cannot choose economics."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        quote = custom_offers.admin_quote_detail(conn, str(quote_id))
+        if not quote:
+            raise HTTPException(status_code=404, detail="Quote not found.")
+        revision = quote.get("currentRevision") or {}
+        quantities = revision.get("featureQuantities") or {}
+        configuration = revision.get("configuration") or {}
+        preview = custom_plan_pricing_service.calculate_preview(
+            conn, limits=quantities,
+            enabled_features=configuration.get("enabledFeatures") or [],
+            refresh_frequency=configuration.get("refreshFrequency") or configuration.get("refresh_frequency"))
+        if not preview.get("pricingAvailable") or not preview.get("pricingSnapshot"):
+            conn.commit()
+            return preview
+        attached = custom_offers.attach_pricing_snapshot(
+            conn, quote_id=str(quote_id), snapshot=preview["pricingSnapshot"])
+        conn.commit()
+        return {**preview, "pricingSnapshot": None, "quote": attached}
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+@router.post("/billing/custom-quotes/{quote_id}/reject")
+def reject_custom_offer_by_admin(quote_id: UUID, body: CustomQuoteTransition,
+                                  ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        result = custom_offers.transition(conn, "admin_reject", tenant_id=None,
+            quote_id=str(quote_id), expected_revision=body.expected_revision,
+            idempotency_key=body.idempotency_key)
+        conn.commit()
+        return result
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
     finally:
         conn.close()
