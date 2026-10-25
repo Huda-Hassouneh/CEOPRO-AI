@@ -47,6 +47,7 @@ PeriodCode = Literal["monthly", "three-months", "six-months", "yearly"]
 
 
 class PlanChoice(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     plan_key: str
     period_code: PeriodCode = "monthly"
 
@@ -376,6 +377,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         plan = usage.get_plan(conn, ctx.tenant_id)
         features = usage.current_usage(conn, ctx.tenant_id, plan)
         subscription = store.current_subscription(conn, ctx.tenant_id)
+        price_snapshot = store.subscription_price_snapshot(conn, ctx.tenant_id) if subscription else None
         trial = store.trial(conn, ctx.tenant_id)
         has_customer = store.customer_id(conn, ctx.tenant_id) is not None
         can_manage = _role(conn, ctx.tenant_id, ctx.user_id) in _BILLING_ROLES
@@ -422,6 +424,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
             "effectiveAt": _iso(subscription["current_period_end"]),
         } if subscription and subscription["scheduled_plan_key"] else None,
         "hasSubscription": subscription is not None,
+        "currentPrice": price_snapshot,
         "hasBillingAccount": has_customer,
         "canManageBilling": can_manage,
         "paymentsEnabled": config.payments_enabled(),
@@ -566,6 +569,45 @@ def open_portal(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         raise
     except Exception as err:  # noqa: BLE001
         raise _provider_failure(err)
+    finally:
+        conn.close()
+
+
+
+@router.get("/checkout-status")
+def checkout_status(session_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        return service.checkout_status(conn, ctx.tenant_id, session_id)
+    except service.BillingError as err:
+        raise _to_http(err)
+    finally:
+        conn.close()
+
+
+@router.post("/checkout/cancel-pending")
+def cancel_pending_checkout(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    sys_conn=db.system_connection()
+    try:
+        _require_billing_role(conn,ctx)
+        return service.cancel_pending_checkout(conn,sys_conn,ctx.tenant_id)
+    except service.BillingError as err:
+        raise _to_http(err)
+    finally:
+        conn.close()
+        sys_conn.close()
+
+
+@router.post("/change-plan/preview")
+def preview_plan_change(body: PlanChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        _require_billing_role(conn, ctx)
+        return service.preview_plan_change(conn, ctx.tenant_id, body.plan_key, body.period_code)
+    except service.BillingError as err:
+        raise _to_http(err)
     finally:
         conn.close()
 

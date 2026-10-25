@@ -1,7 +1,7 @@
 from src.ai.billing import custom_offers, service, store, stripe_api
 
 
-def test_custom_quote_checkout_uses_database_terms_and_stable_provider_identity(monkeypatch):
+def test_custom_quote_checkout_uses_database_terms_and_stable_provider_identity(monkeypatch, memory_checkout_reservations):
     captured = {}
     monkeypatch.setattr(service.config, "payments_enabled", lambda: True)
     monkeypatch.setattr(service.config, "app_base_url", lambda: "https://local.test")
@@ -30,7 +30,7 @@ def test_custom_quote_checkout_uses_database_terms_and_stable_provider_identity(
     assert result["session_id"] == "cs_test_contract"
 
 
-def test_custom_quote_checkout_refuses_non_usd_or_invalid_terms_before_provider(monkeypatch):
+def test_custom_quote_checkout_refuses_non_usd_or_invalid_terms_before_provider(monkeypatch, memory_checkout_reservations):
     monkeypatch.setattr(service.config, "payments_enabled", lambda: True)
     monkeypatch.setattr(store, "current_subscription", lambda *_: None)
     monkeypatch.setattr(custom_offers, "custom_checkout_prepare", lambda *_, **__: {

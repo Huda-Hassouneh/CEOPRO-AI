@@ -88,9 +88,10 @@ def test_existing_billing_routes_require_authentication(client, method, path):
     assert "detail" in response.json()
 
 
-def test_checkout_preserves_existing_contract_and_provider_idempotency(monkeypatch):
+def test_checkout_preserves_existing_contract_and_provider_idempotency(monkeypatch, memory_checkout_reservations):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setenv("APP_BASE_URL", "https://keel.example.test")
+    monkeypatch.setenv("PUBLIC_FRONTEND_ORIGIN", "https://keel.example.test")
     monkeypatch.setattr(store, "current_subscription", lambda *args: None)
     monkeypatch.setattr(
         store,
@@ -139,7 +140,7 @@ def test_checkout_preserves_existing_contract_and_provider_idempotency(monkeypat
             "session_id": "cs_test_offline",
         }
     )
-    assert calls[0] == calls[1]
+    assert len(calls) == 1, "A repeated action reuses the durable session without a second provider creation"
     params = calls[0][0]
     assert params["customer"] == "cus_existing"
     assert params["subscription_data"]["metadata"]["tenant_id"] == "tenant-existing"

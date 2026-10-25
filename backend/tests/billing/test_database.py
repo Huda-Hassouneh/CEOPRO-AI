@@ -102,11 +102,15 @@ def test_checkout_links_existing_tenant_and_reuses_customer(
     first = service.create_checkout(
         owner_db, owner_db, tid, "owner@example.test", "Fixture", plan, "monthly"
     )
+    monkeypatch.setattr(stripe_api, "retrieve_checkout_session", lambda session_id: {
+        "id": session_id, "url": "https://checkout.stripe.com/test", "status": "open",
+    })
     second = service.create_checkout(
         owner_db, owner_db, tid, "owner@example.test", "Fixture", plan, "monthly"
     )
     assert first == second
     assert len(calls) == 1
+    assert len(requests) == 1, "Retry must reuse the persisted Checkout session"
     assert store.customer_id(owner_db, tid) == "cus_test_" + tid
     assert requests[0][0]["client_reference_id"] == tid
     assert requests[0][0]["line_items"] == [{"price": price, "quantity": 1}]
