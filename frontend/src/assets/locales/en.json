@@ -11,7 +11,8 @@
     "close": "Close",
     "notAvailable": "Not available",
     "cancel": "Cancel",
-    "scrollableTable": "Table (scrolls sideways)"
+    "scrollableTable": "Table (scrolls sideways)",
+    "remove": "Remove"
   },
   "businessShell": {
     "navigation": {
@@ -1804,6 +1805,356 @@
       "action": "See plans",
       "inactiveTitle": "Your plan isn't active",
       "inactiveBody": "Choose a plan in Billing to keep using this part of KEEL."
+    },
+    "catalog": {
+      "title": "Subscription Catalog",
+      "subtitle": "Manage the plans, promo codes, features, and plan limits supported by the subscription API.",
+      "back": "Back to Plans & Subscription",
+      "manageAction": "Manage Catalog",
+      "actions": "Actions",
+      "readOnly": "Read only",
+      "tabs": {
+        "subscriptions": "subscriptions",
+        "customQuotes": "Custom Quotas",
+        "plans": "Plans",
+        "promos": "Promo Codes",
+        "features": "Features",
+        "planFeatures": "Plan Features",
+        "customPlans": "Custom Plans"
+      },
+      "permissions": {
+        "title": "Catalog access unavailable",
+        "none": "Your current tenant permissions do not allow catalog management.",
+        "allRequired": "This area requires the backend 'all' permission for the current tenant.",
+        "catalogRequired": "This area requires the backend 'manage_catalog' permission for the current tenant.",
+        "planWrite": "Plan creation and editing require the backend 'all' permission.",
+        "ownerDescription": "Only the tenant owner or a member with the required catalog permission can manage plans, features, promo codes, and billing configuration.",
+        "ownerTitle": "Billing catalog access required",
+        "platformBillingDescription": "Your platform role does not have permission to manage the global billing catalog.",
+        "platformBillingTitle": "Platform billing access required"
+      },
+      "plans": {
+        "title": "Plans",
+        "subtitle": "Active plans exposed by the subscription backend.",
+        "create": "Create Plan",
+        "createTitle": "Create Subscription Plan",
+        "editTitle": "Edit Subscription Plan",
+        "billingOptions": "Billing Options",
+        "billingOptionsHelp": "Your base price covers the billing interval above. Set each option's renewal interval and discount. Existing subscribers keep their original Stripe price.",
+        "addBillingOption": "Add Billing Option",
+        "created": "Plan created successfully.",
+        "updated": "Plan updated successfully.",
+        "emptyTitle": "No active plans",
+        "emptyDescription": "Create an active plan before linking features.",
+        "activateDescription": "Activate this plan so it can be offered where the billing catalog allows it.",
+        "activateTitle": "Activate Plan",
+        "activated": "Plan activated successfully.",
+        "deactivateDescription": "Deactivate this plan to stop offering it to new customers. Existing subscriptions are not automatically cancelled.",
+        "deactivateTitle": "Deactivate Plan",
+        "deactivated": "Plan deactivated successfully."
+      },
+      "promos": {
+        "title": "Promo Codes",
+        "subtitle": "Create and manage promo codes, then link them to eligible plans.",
+        "create": "Create Promo Code",
+        "createTitle": "Create Promo Code",
+        "editTitle": "Edit Promo Code",
+        "created": "Promo code created successfully.",
+        "updated": "Promo code updated successfully.",
+        "linkTitle": "Link Promo Code to Plan",
+        "linkAction": "Link to Plan",
+        "linkHelp": "Choose the plan that should accept promo code {{code}}.",
+        "linked": "Promo code linked to plan successfully.",
+        "deactivateDescription": "Deactivate this promo code so it can no longer be applied to new checkouts.",
+        "deactivateTitle": "Deactivate Promo Code",
+        "deactivated": "Promo code deactivated successfully."
+      },
+      "features": {
+        "title": "Features",
+        "subtitle": "Manage feature definitions used by plan entitlements and usage limits.",
+        "create": "Create Feature",
+        "createTitle": "Create Feature",
+        "editTitle": "Edit Feature",
+        "created": "Feature created successfully.",
+        "updated": "Feature updated successfully.",
+        "removeDescription": "Remove this feature from the catalog? Existing plan links or usage dependencies may prevent removal.",
+        "removeTitle": "Remove Feature",
+        "removed": "Feature removed successfully.",
+        "unitHint": "Use the business unit shown to customers, such as token, KB, MB, or competitor."
+      },
+      "planFeatures": {
+        "title": "Plan Feature Limits",
+        "subtitle": "Link existing features to plans and maintain the configured quota for each link.",
+        "link": "Link Feature",
+        "unlink": "Un-Link",
+        "linked": "Feature linked to plan successfully.",
+        "updated": "Feature limit updated successfully.",
+        "noAvailable": "All features are already linked",
+        "notApplicable": "Not applicable",
+        "unlinkDescription": "Remove this feature from the selected plan? Customers on that plan will no longer receive this configured entitlement once the backend change takes effect.",
+        "unlinkTitle": "Unlink Feature from Plan",
+        "unlinked": "Feature unlinked from plan successfully."
+      },
+      "customPlans": {
+        "validation": {
+          "monitoringCadence": "Select a monitoring cadence for competitor management.",
+          "trackedCompetitors": "Select tracked competitors with a positive limit when competitor management is enabled.",
+          "feature": "Select at least one feature.",
+          "limit": "Feature limits cannot be negative.",
+          "names": "English and Arabic plan names are required.",
+          "policy": "Gross margin must be 0–99.99% and vendor cost ratio must be above 0 and at most 100%.",
+          "tenant": "Select the customer tenant for this quote."
+        },
+        "vendorRates": {
+          "edit": "Edit vendor rate",
+          "unitsPerCompetitorCheck": "Units per competitor check",
+          "unitsPerCompetitorCheckHelp": "Rate-specific quantity in the billing unit above, such as CU or credits.",
+          "usageAssumption": "Usage assumption",
+          "perCompetitorCheck": "{{units}} {{unit}} per competitor check",
+          "create": "Add vendor rate",
+          "operationalMultiplier": "Operational multiplier",
+          "permission": "Vendor rates require the strongest catalog permission because they are global internal cost inputs.",
+          "service": "Service",
+          "source": "Source / evidence",
+          "status": {
+            "confirmed": "Confirmed",
+            "estimated": "Estimated",
+            "unconfirmed": "Unconfirmed",
+            "deprecated": "Deprecated"
+          },
+          "subtitle": "Internal cost inputs used by the backend pricing service. These are never customer prices.",
+          "title": "Vendor Rate Cards",
+          "unassigned": "Not tied to a feature",
+          "unit": "Billing unit",
+          "unitCost": "Unit cost",
+          "variabilityReserve": "Variability reserve",
+          "vendor": "Vendor"
+        },
+        "infrastructureRates": {
+          "title": "Infrastructure Rate Cards",
+          "subtitle": "Internal platform cost drivers used only by authoritative backend pricing.",
+          "create": "Add infrastructure rate",
+          "edit": "Edit infrastructure rate",
+          "unassigned": "Not tied to a feature",
+          "costDriver": "Cost driver",
+          "usageBasis": "Usage basis",
+          "billingUnit": "Billing unit",
+          "conversion": "Billing units per feature unit",
+          "conversionHint": "For MB to GB-month, configure 0.0009765625.",
+          "unitCost": "Unit cost",
+          "multiplier": "Operational multiplier",
+          "reserve": "Variability reserve",
+          "effectiveFrom": "Effective from",
+          "effectiveTo": "Effective to",
+          "source": "Source / evidence",
+          "usageBasisValues": {
+            "limit_value": "Configured limit",
+            "estimated_usage": "Estimated usage",
+            "enabled_feature": "Enabled feature"
+          },
+          "status": {
+            "confirmed": "Confirmed",
+            "estimated": "Estimated",
+            "unconfirmed": "Unconfirmed",
+            "deprecated": "Deprecated"
+          }
+        },
+        "acceptedSubtitle": "Accepted quotes become immutable tenant-specific plan definitions. Enabled does not mean the tenant is currently subscribed; the subscription relationship is shown separately.",
+        "acceptedTitle": "Accepted Custom Plans",
+        "activeTenants": "Active paying tenants",
+        "approve": "Approve",
+        "approveTitle": "Approve Custom Plan Price",
+        "belowFloor": "This price is below the backend-calculated safe floor. Only an authorized override can approve it.",
+        "calculate": "Calculate",
+        "calculated": "Pricing recalculated.",
+        "commercialTermsImmutable": "Commercial terms are immutable after acceptance.",
+        "create": "Create Quote",
+        "createQuote": "Create & calculate quote",
+        "createTitle": "Create Custom Plan Quote",
+        "currentPlan": "Current plan",
+        "disableTitle": "Disable Custom Plan",
+        "disabledMessage": "Custom plan disabled.",
+        "editTitle": "Edit Custom Plan Quote",
+        "effectiveDate": "Effective date",
+        "emptyAcceptedDescription": "Accepted tenant-specific plans will appear here after a custom quote is accepted.",
+        "emptyAcceptedTitle": "No accepted custom plans",
+        "emptyDescription": "Create a quote to calculate cost-aware pricing for this tenant.",
+        "emptyTitle": "No custom quotes yet",
+        "enableTitle": "Enable Custom Plan",
+        "enabledMessage": "Custom plan enabled.",
+        "estimatedTotal": "Estimated cost",
+        "estimatedUsage": "Estimated monthly usage",
+        "featuresSelected": "features selected",
+        "finalPrice": "Final customer price",
+        "fxFrom": "From currency",
+        "fxHelp": "Required when an active vendor rate uses a different currency from the quote.",
+        "fxRate": "FX rate",
+        "fxSource": "FX source",
+        "fxTitle": "Optional FX snapshot",
+        "fxTo": "To currency",
+        "infrastructure": "Shared infrastructure cost / month",
+        "maxVendorRatio": "Max vendor-cost / revenue %",
+        "minimumSafePrice": "Minimum safe price",
+        "openOffer": "Offer",
+        "otherCost": "Other included monthly cost",
+        "overrideReason": "Authorized override reason",
+        "planState": "Plan state",
+        "pricingPolicy": {
+          "enforceVendorCostRatioFloor": "Enforce vendor-cost/revenue floor before sale (optional conservative guardrail)",
+          "featureLimitsHelp": "Leave a value blank to use the global default. Requests above a configured maximum become manual-review quotes instead of failing.",
+          "featureLimitsTitle": "Per-feature instant-checkout limits",
+          "fixedPlatformFee": "Fixed platform fee",
+          "maxAutomaticMonthlyPrice": "Maximum instant monthly price",
+          "maxAutomaticQuotaPerFeature": "Default max instant quota / feature",
+          "maximum": "Maximum",
+          "minimum": "Minimum",
+          "monthlyInfrastructure": "Monthly shared infrastructure",
+          "otherEstimatedCostPerTenant": "Other estimated cost / tenant",
+          "permission": "Pricing policy requires the strongest owner permission because it controls internal margins and costs.",
+          "roundingIncrement": "Round price up to increment",
+          "save": "Save policy",
+          "saved": "Automated custom-plan pricing policy saved.",
+          "step": "Step",
+          "subtitle": "Internal-only inputs used by self-service previews and recalculated again at checkout. Vendor-cost ratio enforcement is optional.",
+          "title": "Automated Custom Pricing Policy",
+          "vendorCostRevenueThreshold": "Vendor cost/revenue threshold %",
+          "pythonAuthority": "Versioned pricing policies and cost evidence are managed by the Python billing authority.",
+          "openPolicies": "Open pricing policies",
+          "openCosts": "Open provider costs",
+          "openOwnerBilling": "Open Python billing administration"
+        },
+        "recommendedAutomatedPrice": "Recommended automated price",
+        "recommendedPrice": "Recommended price",
+        "reject": "Reject",
+        "rejected": "Quote rejected.",
+        "relationship": {
+          "current": "Current subscription",
+          "notSubscribed": "Not subscribed",
+          "scheduled": "Scheduled subscription"
+        },
+        "selectTenant": "Select tenant",
+        "send": "Send",
+        "sent": "Quote marked ready for customer review.",
+        "serverPricingNotice": "The backend calculates all authoritative vendor costs and pricing floors after this draft is created.",
+        "sourceQuote": "Source quote",
+        "status": {
+          "draft": "Draft",
+          "calculated": "Calculated",
+          "approved": "Approved",
+          "sent": "Sent",
+          "accepted": "Accepted",
+          "rejected": "Rejected",
+          "expired": "Expired"
+        },
+        "steps": {
+          "costs": "Cost assumptions",
+          "details": "Plan",
+          "features": "Features",
+          "review": "Review"
+        },
+        "subscriptionRelationship": "Subscription relationship",
+        "subtitle": "Build tenant-private offers. Backend pricing is authoritative; accepted offers become normal plans.",
+        "targetMargin": "Target gross margin %",
+        "tenant": "Customer tenant",
+        "title": "Custom Plan Quotes",
+        "toggleDescription": "This changes whether the accepted custom plan is available for use. It does not replace or duplicate the tenant's current subscription.",
+        "updateQuote": "Update & calculate quote",
+        "configuration": "Requested configuration"
+      },
+      "fields": {
+        "name": "Name",
+        "nameAr": "Arabic Name",
+        "tier": "Tier Level",
+        "price": "Base Price",
+        "currency": "Currency",
+        "trialDays": "Trial Days",
+        "intervalValue": "Billing Interval Value",
+        "intervalUnit": "Billing Interval Unit",
+        "description": "Description",
+        "descriptionAr": "Arabic Description",
+        "periodCode": "Period Code",
+        "months": "Months",
+        "discountPercent": "Discount %",
+        "billingOptions": "Billing Options",
+        "code": "Code",
+        "discountType": "Discount Type",
+        "discountValue": "Discount Value",
+        "maxUses": "Maximum Uses",
+        "maxUsesPerUser": "Maximum Uses per Tenant",
+        "status": "Status",
+        "startsAt": "Starts At",
+        "expiresAt": "Expires At",
+        "discount": "Discount",
+        "usage": "Usage",
+        "plan": "Plan",
+        "featureCode": "Feature Code",
+        "type": "Type",
+        "unit": "Unit",
+        "aggregation": "Aggregation",
+        "resetCycle": "Reset Cycle",
+        "feature": "Feature",
+        "limit": "Limit",
+        "unitAr": "Arabic Unit",
+        "details": "Details"
+      },
+      "intervalUnits": {
+        "day": "Day",
+        "week": "Week",
+        "month": "Month",
+        "year": "Year"
+      },
+      "discountTypes": {
+        "percentage": "Percentage",
+        "fixedAmount": "Fixed Amount"
+      },
+      "featureTypes": {
+        "boolean": "Boolean",
+        "limit": "Limit"
+      },
+      "aggregation": {
+        "sum": "Sum",
+        "max": "Maximum"
+      },
+      "resetCycles": {
+        "billing_period": "Billing Period",
+        "lifetime": "Lifetime",
+        "billingPeriod": "Billing Period"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "validation": {
+        "planNames": "English and Arabic plan names are required.",
+        "tier": "Tier level must be a positive integer.",
+        "price": "Price must be zero or greater.",
+        "currency": "Currency must be exactly three uppercase letters.",
+        "billingOptions": "At least one billing option is required.",
+        "billingOption": "Each option needs a unique period code and valid interval (up to 3 years). Day intervals cannot be mixed with month/year intervals.",
+        "discount": "Discount must be within the range supported by the backend.",
+        "promoCode": "Promo code is required.",
+        "usageLimits": "Usage limits must be positive and the per-tenant limit cannot exceed the total limit.",
+        "dates": "Expiration must be later than the start date.",
+        "featureNames": "Required feature names are missing.",
+        "featureCode": "Feature code must be 3-50 lowercase letters, numbers, or underscores."
+      },
+      "subscriptions": {
+        "billingPeriod": "Billing period",
+        "cancelAtPeriodEnd": "Cancels at period end",
+        "currentPeriodEnd": "Current period end",
+        "currentPlan": "Current plan",
+        "emptyDescription": "Customer subscriptions will appear here when tenants subscribe to a plan.",
+        "emptyTitle": "No subscriptions yet",
+        "scheduledChange": "Scheduled plan",
+        "subtitle": "Review each tenant's current subscription, scheduled plan changes, billing period, and renewal state.",
+        "title": "Customer Subscriptions",
+        "transition": "Plan transition",
+        "transitionTypes": {
+          "upgrade": "Upgrade",
+          "downgrade": "Downgrade",
+          "mixed": "Mixed change"
+        }
+      }
     }
   },
   "connectData": {
@@ -1854,20 +2205,53 @@
       "count": "{{count}} sources"
     },
     "providerRecords": {
-      "open": "View synced records", "close": "Close records", "title": "Provider records",
+      "open": "View synced records",
+      "close": "Close records",
+      "title": "Provider records",
       "notice": "These are fetched source records for review. Review approval does not post canonical products or orders, create invoices, or update stock.",
-      "refresh": "Refresh", "loading": "Loading provider records…", "empty": "No provider business records have been staged yet.",
-      "tableLabel": "Provider business records", "type": "Record type", "providerId": "Provider reference", "values": "Staged values",
-      "validation": "Validation", "review": "Review decision", "actions": "Actions", "history": "History", "loadingHistory": "Loading revision history…",
-      "approve": "Approve review", "reject": "Reject review", "confirmApprove": "Record approval of this staged provider record? This will not post it to canonical data.",
-      "confirmReject": "Record rejection of this staged provider record?", "notPosted": "Canonical status: not posted. Provider records remain source-scoped evidence.",
-      "revision": "Revision {{number}}", "previous": "Previous", "next": "Next", "page": "Page {{page}}",
-      "loadFailed": "Provider records could not be loaded. Try again.", "reviewFailed": "The review could not be saved. Try again.",
-      "sessionExpired": "Your session expired. Sign in again.", "forbidden": "Your role cannot review provider records.",
-      "notFound": "This provider record is unavailable in your workspace.", "conflict": "This revision is stale or already reviewed. Refresh the list.",
-      "entities": { "product": "Product", "variant": "Variant", "order": "Order", "order_line_item": "Order item" },
-      "states": { "valid": "Validated", "invalid": "Invalid", "review_required": "Needs review", "notReviewed": "Not reviewed" },
-      "decisions": { "approve": "Approved for review only", "reject": "Rejected" }
+      "refresh": "Refresh",
+      "loading": "Loading provider records…",
+      "empty": "No provider business records have been staged yet.",
+      "tableLabel": "Provider business records",
+      "type": "Record type",
+      "providerId": "Provider reference",
+      "values": "Staged values",
+      "validation": "Validation",
+      "review": "Review decision",
+      "actions": "Actions",
+      "history": "History",
+      "loadingHistory": "Loading revision history…",
+      "approve": "Approve review",
+      "reject": "Reject review",
+      "confirmApprove": "Record approval of this staged provider record? This will not post it to canonical data.",
+      "confirmReject": "Record rejection of this staged provider record?",
+      "notPosted": "Canonical status: not posted. Provider records remain source-scoped evidence.",
+      "revision": "Revision {{number}}",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}}",
+      "loadFailed": "Provider records could not be loaded. Try again.",
+      "reviewFailed": "The review could not be saved. Try again.",
+      "sessionExpired": "Your session expired. Sign in again.",
+      "forbidden": "Your role cannot review provider records.",
+      "notFound": "This provider record is unavailable in your workspace.",
+      "conflict": "This revision is stale or already reviewed. Refresh the list.",
+      "entities": {
+        "product": "Product",
+        "variant": "Variant",
+        "order": "Order",
+        "order_line_item": "Order item"
+      },
+      "states": {
+        "valid": "Validated",
+        "invalid": "Invalid",
+        "review_required": "Needs review",
+        "notReviewed": "Not reviewed"
+      },
+      "decisions": {
+        "approve": "Approved for review only",
+        "reject": "Rejected"
+      }
     },
     "upload": {
       "title": "Upload Files",
@@ -1897,7 +2281,11 @@
       "refresh": "Refresh",
       "filterLabel": "Import type",
       "allCategories": "All types",
-      "categories": { "sales": "Sales", "invoice": "Invoices", "inventory": "Inventory" },
+      "categories": {
+        "sales": "Sales",
+        "invoice": "Invoices",
+        "inventory": "Inventory"
+      },
       "date": "Created",
       "source": "Source",
       "category": "Type",
@@ -1939,7 +2327,11 @@
       "rejectRow": "Reject row",
       "approveBatch": "Approve draft",
       "rejectBatch": "Reject draft",
-      "review": { "pending": "Not reviewed", "approved": "Approved", "rejected": "Rejected" },
+      "review": {
+        "pending": "Not reviewed",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
       "states": {
         "draft": "Draft",
         "review_required": "Needs review",
@@ -1953,14 +2345,28 @@
         "completed": "Import complete"
       },
       "fields": {
-        "product_name": "Product", "product_id": "Canonical product reference", "provider_product_id": "Source product reference",
-        "quantity": "Quantity", "quantity_semantics": "Quantity type", "unit": "Unit",
-        "unit_price": "Unit price", "line_total": "Line total", "amount_raw": "Amount",
-        "currency": "Currency", "transaction_date": "Sale date", "invoice_date": "Invoice date",
-        "invoice_id": "Invoice reference", "order_id": "Order reference", "barcode": "Barcode",
-        "location_id": "Canonical location reference", "provider_location_id": "Source location reference", "observed_at": "Observed at"
+        "product_name": "Product",
+        "product_id": "Canonical product reference",
+        "provider_product_id": "Source product reference",
+        "quantity": "Quantity",
+        "quantity_semantics": "Quantity type",
+        "unit": "Unit",
+        "unit_price": "Unit price",
+        "line_total": "Line total",
+        "amount_raw": "Amount",
+        "currency": "Currency",
+        "transaction_date": "Sale date",
+        "invoice_date": "Invoice date",
+        "invoice_id": "Invoice reference",
+        "order_id": "Order reference",
+        "barcode": "Barcode",
+        "location_id": "Canonical location reference",
+        "provider_location_id": "Source location reference",
+        "observed_at": "Observed at"
       },
-      "references": { "present": "Reference present (ID hidden)" },
+      "references": {
+        "present": "Reference present (ID hidden)"
+      },
       "findings": {
         "required": "Required value is missing.",
         "must_be_positive_number": "Enter a number greater than zero.",
@@ -1990,8 +2396,14 @@
       "confirmAction": "Confirm decision",
       "submitting": "Saving decision…",
       "confirm": {
-        "approve": { "title": "Approve this review?", "body": "This records that you reviewed the selected draft or row. It will not post an invoice, change stock, merge products or make a payment." },
-        "reject": { "title": "Reject this review?", "body": "This records that you rejected the selected draft or row. It does not undo sales already posted by the established import process." },
+        "approve": {
+          "title": "Approve this review?",
+          "body": "This records that you reviewed the selected draft or row. It will not post an invoice, change stock, merge products or make a payment."
+        },
+        "reject": {
+          "title": "Reject this review?",
+          "body": "This records that you rejected the selected draft or row. It does not undo sales already posted by the established import process."
+        },
         "notPosting": "This action only records a review decision. No canonical posting or stock update will run."
       }
     },
@@ -2107,8 +2519,14 @@
       "woocommerceTitle": "Connect WooCommerce",
       "shopifyTitle": "Connect Shopify",
       "options": {
-        "woocommerce": { "title": "Connect WooCommerce", "description": "Use your store URL and read-only REST keys to verify and sync store records." },
-        "shopify": { "title": "Connect Shopify", "description": "Authorize KEEL to read products, orders, inventory and locations from your shop." }
+        "woocommerce": {
+          "title": "Connect WooCommerce",
+          "description": "Use your store URL and read-only REST keys to verify and sync store records."
+        },
+        "shopify": {
+          "title": "Connect Shopify",
+          "description": "Authorize KEEL to read products, orders, inventory and locations from your shop."
+        }
       },
       "url": "Store URL or myshopify.com domain",
       "consumerKey": "WooCommerce consumer key",
@@ -4104,13 +4522,31 @@
       "themes": "What customers talk about:",
       "themeNegative": "{{count}} negative",
       "toReview": "To review",
-      "action": {"label": "What you did about this comment", "noted": "Noted", "acted_on": "Acted on",
+      "action": {
+        "label": "What you did about this comment",
+        "noted": "Noted",
+        "acted_on": "Acted on",
         "error": "Could not save that. Please try again."
       },
-      "theme": {"service": "Service", "waiting": "Waiting time", "price": "Price", "quality": "Quality", "cleanliness": "Cleanliness", "staff": "Staff", "delivery": "Delivery", "availability": "Availability"},
+      "theme": {
+        "service": "Service",
+        "waiting": "Waiting time",
+        "price": "Price",
+        "quality": "Quality",
+        "cleanliness": "Cleanliness",
+        "staff": "Staff",
+        "delivery": "Delivery",
+        "availability": "Availability"
+      },
       "collectNow": "Collect comments now",
-      "signal": {"opportunity": "Opportunity", "threat": "Strength to match"},
-      "signalHint": {"opportunity": "Customers who agree are unhappy with this competitor - a chance to stand out on exactly this.", "threat": "Customers who agree praise this competitor - know what you are up against."},
+      "signal": {
+        "opportunity": "Opportunity",
+        "threat": "Strength to match"
+      },
+      "signalHint": {
+        "opportunity": "Customers who agree are unhappy with this competitor - a chance to stand out on exactly this.",
+        "threat": "Customers who agree praise this competitor - know what you are up against."
+      },
       "error": "The comments could not be loaded.",
       "sentiment": {
         "positive": "Positive",
