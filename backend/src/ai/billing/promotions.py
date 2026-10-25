@@ -455,6 +455,12 @@ def validate(conn, tenant_id: str, code: str, plan_key: str, period_code: str) -
         promo, reason = _eligibility(conn, tenant_id, code, plan_key, period_code)
     except PromotionError:
         return {"valid": False, "reason": "not_available"}
+    if promo:
+        with conn.cursor() as cur:
+            cur.execute("SELECT public.billing_promotion_capacity_reason(%s)", (promo["promotion_id"],))
+            capacity_reason = cur.fetchone()[0]
+        if capacity_reason:
+            promo, reason = None, capacity_reason
     return {"valid": bool(promo), "reason": reason,
             "promotion": ({"code": promo["code"], "discount_type": promo["terms"]["discount_type"],
                            "discount_value": promo["terms"]["discount_value"],
@@ -658,6 +664,12 @@ def attach_checkout(conn, *, tenant_id: str, redemption_id: str, session_id: str
 def provider_outcome_unknown(conn, *, tenant_id: str, redemption_id: str) -> None:
     _set_state(conn, redemption_id, tenant_id, "reconciliation_required", event_type="provider_outcome_unknown",
                reason_code="provider_outcome_unknown")
+
+
+def provider_request_rejected(conn, *, tenant_id: str, redemption_id: str) -> None:
+    """Release only a definitively rejected create request, retaining its audit."""
+    _set_state(conn, redemption_id, tenant_id, "rejected", event_type="provider_request_rejected",
+               reason_code="provider_validation_rejected")
 
 
 def _metadata_redemption(obj: dict):
