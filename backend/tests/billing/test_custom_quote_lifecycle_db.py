@@ -10,36 +10,11 @@ from src.ai.billing import custom_offers
 
 
 @pytest.fixture
-def quote_actors(owner_db):
+def quote_actors(owner_db, platform_owner_context):
     tenant_a, user_a = str(uuid.uuid4()), str(uuid.uuid4())
     tenant_b, user_b = str(uuid.uuid4()), str(uuid.uuid4())
-    created_platform = False
-    created_platform_user = False
+    platform_tenant, platform_user = platform_owner_context
     with owner_db.cursor() as cur:
-        cur.execute("SELECT tenant_id FROM keel_platform_workspace WHERE singleton=TRUE")
-        workspace = cur.fetchone()
-        if workspace:
-            platform_tenant = str(workspace[0])
-            cur.execute("SELECT user_id FROM keel_platform_members WHERE role_key='owner' AND status='active'")
-            operator = cur.fetchone()
-            if not operator:
-                raise AssertionError("Disposable schema has a platform workspace but no active test owner")
-            platform_user = str(operator[0])
-            cur.execute("SELECT 1 FROM tenant_users WHERE tenant_id=%s AND user_id=%s AND removed_at IS NULL",
-                        (platform_tenant, platform_user))
-            if not cur.fetchone():
-                cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')",
-                            (platform_tenant, platform_user))
-                created_platform_user = True
-        else:
-            platform_tenant, platform_user = str(uuid.uuid4()), str(uuid.uuid4())
-            cur.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,'Quote Platform','JO','JOD')", (platform_tenant,))
-            cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES(%s,%s,'test-only')",
-                        (platform_user, f"quote-platform-{platform_user}@example.test"))
-            cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')", (platform_tenant, platform_user))
-            cur.execute("INSERT INTO keel_platform_workspace(singleton,tenant_id) VALUES(TRUE,%s)", (platform_tenant,))
-            cur.execute("INSERT INTO keel_platform_members(user_id,role_key,status) VALUES(%s,'owner','active')", (platform_user,))
-            created_platform = True
         for tid, name in ((tenant_a, "Quote Tenant A"), (tenant_b, "Quote Tenant B")):
             cur.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,%s,'JO','JOD')", (tid, name))
         for uid, prefix in ((user_a, "quote-a"), (user_b, "quote-b")):
@@ -52,13 +27,6 @@ def quote_actors(owner_db):
         cur.execute("DELETE FROM billing_webhook_events WHERE tenant_id = ANY(%s::uuid[])", ([tenant_a, tenant_b],))
         cur.execute("DELETE FROM companies WHERE tenant_id = ANY(%s::uuid[])", ([tenant_a, tenant_b],))
         cur.execute("DELETE FROM users WHERE user_id = ANY(%s::uuid[])", ([user_a, user_b],))
-        if created_platform:
-            cur.execute("DELETE FROM keel_platform_workspace WHERE tenant_id=%s", (platform_tenant,))
-            cur.execute("DELETE FROM keel_platform_members WHERE user_id=%s", (platform_user,))
-            cur.execute("DELETE FROM companies WHERE tenant_id=%s", (platform_tenant,))
-            cur.execute("DELETE FROM users WHERE user_id=%s", (platform_user,))
-        elif created_platform_user:
-            cur.execute("DELETE FROM tenant_users WHERE tenant_id=%s AND user_id=%s", (platform_tenant, platform_user))
 
 
 def _conn(billing_connections, actors, who="platform"):
