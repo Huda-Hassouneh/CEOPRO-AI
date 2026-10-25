@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Link2, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useSWR from "../../../shared/lib/useSWRCompat.js";
@@ -414,6 +414,7 @@ function PromoFormModal({
   isOpen,
   onClose,
   promo,
+  plans = [],
   onSaved,
   t,
   api = billingApi
@@ -436,7 +437,10 @@ function PromoFormModal({
       maxUsesPerUser: promo?.maxUsesPerUser ?? 1,
       startsAt: toDateTimeLocal(promo?.startsAt ?? now),
       expiresAt: toDateTimeLocal(promo?.expiresAt ?? nextMonth),
-      isActive: promo?.isActive ?? false
+      isActive: promo?.isActive ?? false,
+      planKey: promo?.planKeys?.[0] ?? "",
+      approvalReference: "",
+      approvalReason: ""
     });
   }, [isOpen, promo]);
 
@@ -461,6 +465,10 @@ function PromoFormModal({
       return setError(t("billing.catalog.validation.usageLimits"));
     if (!startsAt || !expiresAt || new Date(expiresAt) <= new Date(startsAt))
       return setError(t("billing.catalog.validation.dates"));
+    if (form.isActive && !form.planKey)
+      return setError(t("billing.catalog.promos.activationRequiresPlan"));
+    if (form.isActive && (!editing || !promo?.isActive) && (!form.approvalReference.trim() || !form.approvalReason.trim()))
+      return setError(t("billing.catalog.promos.activationApprovalRequired"));
 
     setSaving(true);
     setError("");
@@ -473,7 +481,10 @@ function PromoFormModal({
         maxUsesPerUser: toNumber(form.maxUsesPerUser),
         startsAt,
         expiresAt,
-        isActive: Boolean(form.isActive)
+        isActive: Boolean(form.isActive),
+        planKey: form.planKey,
+        approvalReference: form.approvalReference.trim(),
+        approvalReason: form.approvalReason.trim()
       };
       if (editing) await api.updatePromoCode(promo.id, payload);
       else await api.createPromoCode(payload);
@@ -583,6 +594,28 @@ function PromoFormModal({
               { value: "false", label: t("billing.catalog.status.inactive") }
             ]}
           />
+          {form.isActive && <Select
+            label={t("billing.catalog.fields.plan")}
+            value={form.planKey}
+            onChange={(event) => setForm({ ...form, planKey: event.target.value })}
+            options={plans.filter((plan) => plan.isActive).map((plan) => ({ value: plan.id, label: plan.name }))}
+          />}
+          {form.isActive && (!editing || !promo?.isActive) && <>
+            <Input
+              label={t("billing.catalog.fields.approvalReference")}
+              value={form.approvalReference}
+              onChange={(event) => setForm({ ...form, approvalReference: event.target.value })}
+              maxLength={255}
+              required
+            />
+            <Input
+              label={t("billing.catalog.fields.auditReason")}
+              value={form.approvalReason}
+              onChange={(event) => setForm({ ...form, approvalReason: event.target.value })}
+              maxLength={2000}
+              required
+            />
+          </>}
           <Input
             label={t("billing.catalog.fields.startsAt")}
             type="datetime-local"
@@ -1308,7 +1341,7 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
             {
               header: t("billing.catalog.customPlans.tenant"),
               render: (plan) =>
-                plan.tenant?.businessName ?? plan.tenantId ?? "â€”"
+                plan.tenant?.businessName ?? plan.tenantId ?? "—"
             },
             {
               header: tt("billing.catalog.fields.name", "Name"),
@@ -1376,12 +1409,12 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
                   ? new Intl.DateTimeFormat(locale, {
                       dateStyle: "medium"
                     }).format(new Date(plan.subscriptionEffectiveAt))
-                  : "â€”"
+                  : "—"
             },
             {
               header: t("billing.catalog.customPlans.sourceQuote"),
               render: (plan) =>
-                plan.sourceQuote?.id ? plan.sourceQuote.id.slice(0, 8) : "â€”"
+                plan.sourceQuote?.id ? plan.sourceQuote.id.slice(0, 8) : "—"
             },
             {
               header: tt("billing.catalog.actions", "Actions"),
@@ -1473,7 +1506,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
       ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(
           new Date(value)
         )
-      : "â€”";
+      : "—";
 
   if (isLoading) return <Skeleton height="220px" variant="rectangular" />;
   if (error) return <SectionError error={error} />;
@@ -1529,7 +1562,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
                     </span>
                   </div>
                 ) : (
-                  "â€”"
+                  "—"
                 )
             },
             {
@@ -1551,7 +1584,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
                     )}
                   </Badge>
                 ) : (
-                  "â€”"
+                  "—"
                 )
             },
             {
@@ -1561,7 +1594,7 @@ function PlatformSubscriptionsManager({ api, t, locale }) {
             {
               header: t("billing.catalog.subscriptions.billingPeriod"),
               render: (row) => {
-                if (!row.billingPeriod) return "â€”";
+                if (!row.billingPeriod) return "—";
                 if (row.billingPeriod === "monthly")
                   return t("billing.periods.monthly");
                 if (row.billingPeriod === "three-months")
@@ -1755,7 +1788,7 @@ export function BillingCatalogPage({
     {
       header: t("billing.catalog.fields.expiresAt"),
       render: (promo) =>
-        promo.expiresAt ? dateFormatter.format(new Date(promo.expiresAt)) : "â€”"
+        promo.expiresAt ? dateFormatter.format(new Date(promo.expiresAt)) : "—"
     },
     {
       header: t("billing.catalog.fields.status"),
@@ -1772,6 +1805,8 @@ export function BillingCatalogPage({
             <Button
               variant="ghost"
               size="sm"
+              disabled={platformMode && promo.isActive}
+              title={platformMode && promo.isActive ? t("billing.catalog.promos.activeTermsImmutable") : undefined}
               onClick={() => setPromoModal({ open: true, promo })}
               leadingIcon={<Pencil size={13} />}
             >
@@ -1816,7 +1851,7 @@ export function BillingCatalogPage({
     },
     {
       header: t("billing.catalog.fields.unit"),
-      render: (feature) => feature.unit || "â€”"
+      render: (feature) => feature.unit || "—"
     },
     {
       header: t("billing.catalog.fields.resetCycle"),
@@ -2137,6 +2172,7 @@ export function BillingCatalogPage({
           })
         }
         promo={promoModal.promo}
+        plans={plans}
         t={t}
         api={api}
         onSaved={async () => {

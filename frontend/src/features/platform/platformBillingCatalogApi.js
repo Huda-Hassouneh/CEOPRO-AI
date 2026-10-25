@@ -3,6 +3,39 @@ import { platformBillingApi } from './platformBillingApi.js';
 const unavailable = (name) => Promise.reject(Object.assign(new Error(`The Python billing API does not expose ${name}; this control is unavailable.`), { code: 'BACKEND_CAPABILITY_UNAVAILABLE' }));
 const list = (response, key) => Array.isArray(response?.[key]) ? response[key] : [];
 const wrap = (data) => ({ data });
+const idempotencyKey = () => globalThis.crypto?.randomUUID?.() ?? `keel-owner-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const MODULE_CODES = new Set(['market_intelligence', 'demand_prediction', 'competitor_management']);
+function customQuoteBody(payload, key) {
+  const selected = payload.features || [];
+  const enabledFeatures = selected.map((feature) => String(feature.featureId || feature.code || feature.id))
+    .filter((code) => MODULE_CODES.has(code));
+  const featureQuantities = {};
+  for (const feature of selected) {
+    const code = String(feature.featureId || feature.code || feature.id);
+    if (MODULE_CODES.has(code)) continue;
+    if (!Number.isInteger(feature.limitValue) || feature.limitValue < 0)
+      throw new Error(`Enter a nonnegative integer allowance for ${code}.`);
+    featureQuantities[code] = feature.limitValue;
+  }
+  const competitor = selected.find((feature) => String(feature.featureId || feature.code || feature.id) === 'competitor_management');
+  const minutes = competitor?.configuration?.monitoringFrequencyMinutes;
+  const refreshFrequency = minutes == null ? null : ({ 60: 'hourly', 1440: 'daily', 10080: 'weekly' })[Number(minutes)];
+  if (competitor && !refreshFrequency)
+    throw new Error('Python Custom Plans support hourly, daily, or weekly competitor monitoring cadence.');
+  if (!enabledFeatures.length && !Object.values(featureQuantities).some((value) => value > 0))
+    throw new Error('Select an included module or a positive allowance before submitting the quote.');
+  return { tenant_id: payload.tenantId, idempotency_key: key,
+    configuration: { enabledFeatures, refreshFrequency,
+      ...(payload.name ? { requestLabel: String(payload.name).trim().slice(0, 80) } : {}),
+      ...(payload.name_ar ? { requestLabelAr: String(payload.name_ar).trim().slice(0, 80) } : {}),
+      ...(payload.description ? { requestDescription: String(payload.description).trim().slice(0, 1000) } : {}),
+      ...(payload.description_ar ? { requestDescriptionAr: String(payload.description_ar).trim().slice(0, 1000) } : {}) }, feature_quantities: featureQuantities,
+    // Historical client economics are not authoritative Python inputs.
+    commercial_terms: {}, economic_inputs: {}, fx_evidence: {} };
+}
+const quoteId = (quote) => quote?.quote_id || quote?.quoteId || quote?.id;
+const quoteRevision = (quote) => quote?.currentRevision || quote?.current_revision || {};
+const quoteNumber = (quote) => Number(quote?.revision_number || quote?.revisionNumber || quoteRevision(quote).revision_number || quoteRevision(quote).revisionNumber || 1);
 const promoTerms = (p) => p?.terms || {};
 const promoForUi = (p) => {
   const terms = promoTerms(p);
@@ -13,7 +46,7 @@ const promoForUi = (p) => {
 };
 const promoPayload = (p, planKeys = []) => ({
   code: String(p.code || '').trim().toUpperCase(), name: String(p.code || '').trim().toUpperCase(), description: '',
-  reason: 'Platform owner promotion administration', plan_keys: planKeys,
+  reason: p.approvalReason || 'Platform owner promotion administration', plan_keys: planKeys,
   terms: {
     discount_type: p.discountType === 'percentage' ? 'percent' : p.discountType,
     discount_value: Number(p.discountValue), starts_at: p.startsAt || null, expires_at: p.expiresAt || null,
@@ -69,12 +102,17 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
   };
   return Object.freeze({
     getPlans: async () => wrap(await plans()),
-    getFeatures: async () => { const catalog = await offers.getConfigurator(); return wrap((catalog.features || []).map((f) => ({ id: f.featureCode, code: f.featureCode, name: f.featureCode, type: 'limit', unit: f.unit, aggregation: f.aggregationType, resetCycle: f.resetCycle }))); },
+    getFeatures: async () => {
+      const catalog = await offers.getConfigurator();
+      const numeric = (catalog.features || []).map((f) => ({ id: f.featureCode, code: f.featureCode, name: f.featureCode, type: 'limit', unit: f.unit, aggregationType: f.aggregationType, resetCycle: f.resetCycle }));
+      const modules = (catalog.modules || []).map((f) => ({ id: f.featureCode, code: f.featureCode, name: f.featureCode, type: 'boolean', unit: '', aggregationType: 'max', resetCycle: 'lifetime' }));
+      return wrap([...numeric, ...modules]);
+    },
     getPlanFeatures: async (planId) => { const plan = (await plans()).find((item) => item.id === planId); return wrap((plan?.feature_limits || []).map((item) => ({ id: `${planId}:${item.feature_code}`, planId, featureId: item.feature_code, limitValue: item.limit_value, feature: { id: item.feature_code, code: item.feature_code, name: item.feature_code, type: 'limit', unit: item.unit } }))); },
     getPromoCodes: async () => wrap(await promotions()),
     getSubscriptions: async () => wrap(list(await billing.view('subscriptions'), 'subscriptions')),
     getCustomPlans: async () => wrap(list(await billing.view('contracts'), 'contracts').map((c) => ({ ...c, id: c.tenant_id, tenant: { businessName: c.business_name }, name: c.contract_ref, isActive: c.assignment_status === 'active', features: c.included_features }))),
-        getCustomPlanQuotes: async () => wrap(((await billing.quotes()).quotes || []).map((q) => ({
+    getCustomPlanQuotes: async () => wrap(((await billing.quotes()).quotes || []).map((q) => ({
       ...q,
       id: q.quoteId || q.quote_id,
       tenantId: q.tenantId || q.tenant_id,
@@ -89,25 +127,87 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
       quantities: q.currentRevision?.featureQuantities || q.current_revision?.feature_quantities || q.feature_quantities,
       currency: q.currentRevision?.commercialTerms?.currency || q.current_revision?.commercial_terms?.currency,
     }))),
+    getCustomPlanQuote: async (id) => billing.quote(id),
+    createCustomPlanQuote: async (payload) => {
+      if (!payload.tenantId) throw new Error('Select the customer tenant for this quote.');
+      const created = await billing.createQuote(customQuoteBody(payload, idempotencyKey()));
+      const id = quoteId(created);
+      if (!id) throw new Error('The Python API did not return a quote identity. Refresh the quote list before retrying.');
+      await billing.submitQuote(id, { expected_revision: 1, idempotency_key: idempotencyKey() });
+      return wrap({ id, quote_id: id, state: 'submitted' });
+    },
+    updateCustomPlanQuote: async (id, payload) => {
+      const existing = await billing.quote(id);
+      const revision = quoteNumber(existing);
+      const revised = await billing.reviseQuote(id, { ...customQuoteBody(payload, idempotencyKey()), expected_revision: revision });
+      if ((existing.state || 'draft') === 'draft')
+        await billing.submitQuote(id, { expected_revision: revision + 1, idempotency_key: idempotencyKey() });
+      return wrap({ id, quote_id: id, revision: revised.revision_number || revision + 1, state: 'submitted' });
+    },
+    approveCustomPlanQuote: async (id, body = {}) => {
+      const quote = await billing.quote(id);
+      const reference = String(body.approvalReference || body.approval_reference || '').trim();
+      if (!reference) throw new Error('An approval reference is required. Use the Python quote review action; prices cannot be overridden from this form.');
+      return billing.approveQuote(id, { expected_revision: quoteNumber(quote), idempotency_key: idempotencyKey(), approval_reference: reference });
+    },
+    rejectCustomPlanQuote: async (id, body = {}) => {
+      const quote = await billing.quote(id);
+      return billing.rejectQuote(id, { expected_revision: quoteNumber(quote), idempotency_key: idempotencyKey(), ...body });
+    },
+    sendCustomPlanQuote: async (id) => {
+      const quote = await billing.quote(id);
+      if (quote.state !== 'approved') throw new Error('Only an approved offer is available to the customer.');
+      return { quote_id: id, state: quote.state, available_in_app: true };
+    },
     getCustomPlanPricingPolicy: async () => ({ data: await billing.policies() }),
     getVendorRates: async () => wrap(await rates()),
-    getTenants: () => unavailable('tenant search for manual contract creation'),
+    getTenants: async () => wrap(list(await billing.companies(100, 0), 'items').map((tenant) => ({ ...tenant, id: tenant.tenant_id, businessName: tenant.business_name }))),
     createPlan: () => unavailable('plan creation'), updatePlan: () => unavailable('plan mutation'),
     createPromoCode: async (payload) => {
       if (payload.discountType === 'fixed_amount' && !payload.currency) {
-        const currencies = [...new Set((await plans()).map((p) => String(p.currency || '').toUpperCase()).filter(Boolean))];
-        if (currencies.length !== 1) throw new Error('Choose a currency for fixed-amount promotions; the Python API requires an explicit currency.');
+        const catalog = await plans();
+        const selected = catalog.find((plan) => plan.id === payload.planKey);
+        const currencies = [...new Set((selected ? [selected] : catalog).map((p) => String(p.currency || '').toUpperCase()).filter(Boolean))];
+        if (currencies.length !== 1) throw new Error('Select one eligible plan before creating a fixed-amount promotion so the backend can bind its currency.');
         payload = { ...payload, currency: currencies[0] };
       }
-      const saved = await billing.createPromotionDraft(promoPayload(payload));
+      const saved = await billing.createPromotionDraft(promoPayload(payload, payload.planKey ? [payload.planKey] : []));
+      if (payload.isActive) return billing.activatePromotion(saved.promotion_id, {
+        approval_reference: payload.approvalReference,
+        reason: payload.approvalReason,
+      });
       return saved;
     },
     updatePromoCode: async (id, payload) => {
       const current = (await promotions()).find((p) => p.id === id);
       if (!current) throw new Error('Promotion draft not found. Refresh the list.');
+      const sameInstant = (left, right) => !left && !right || Boolean(left && right && Date.parse(left) === Date.parse(right));
+      const changedTerms = (payload.discountType && payload.discountType !== current.discountType)
+        || (payload.discountValue != null && Number(payload.discountValue) !== current.discountValue)
+        || (payload.maxUses != null && Number(payload.maxUses) !== Number(current.maxUses))
+        || (payload.maxUsesPerUser != null && Number(payload.maxUsesPerUser) !== Number(current.maxUsesPerUser))
+        || (payload.startsAt && !sameInstant(payload.startsAt, current.startsAt))
+        || (payload.expiresAt && !sameInstant(payload.expiresAt, current.expiresAt))
+        || (payload.planKey && !(current.planKeys || []).includes(payload.planKey));
+      if (current.status !== 'draft' && changedTerms)
+        throw new Error('Active or disabled promotion terms are immutable; create a new promotion to change them.');
       if (payload.isActive === false && current.status === 'active') return billing.disablePromotion(id, 'Disabled by Platform Owner.');
-      if (payload.isActive === true && current.status !== 'active') throw new Error('Python stores new promotions as drafts. Activation requires verified Stripe coupon and promotion-code references; no provider operation was performed.');
-      return billing.updatePromotionDraft(id, promoPayload({ ...current, ...payload, discountType: payload.discountType || current.discountType, discountValue: payload.discountValue ?? current.discountValue, startsAt: payload.startsAt || current.startsAt, expiresAt: payload.expiresAt || current.expiresAt, maxUses: payload.maxUses ?? current.maxUses, maxUsesPerUser: payload.maxUsesPerUser ?? current.maxUsesPerUser }, current.planKeys));
+      if (payload.isActive === true && current.status === 'disabled') {
+        return billing.activatePromotion(id, { approval_reference: payload.approvalReference, reason: payload.approvalReason });
+      }
+      if (current.status !== 'draft')
+        throw new Error('Only promotion drafts can be edited. Choose Activate or Deactivate to change this promotion status.');
+      const next = { ...current, ...payload, discountType: payload.discountType || current.discountType,
+        discountValue: payload.discountValue ?? current.discountValue, startsAt: payload.startsAt || current.startsAt,
+        expiresAt: payload.expiresAt || current.expiresAt, maxUses: payload.maxUses ?? current.maxUses,
+        maxUsesPerUser: payload.maxUsesPerUser ?? current.maxUsesPerUser };
+      const planKeys = [...new Set([...(current.planKeys || []), ...(payload.planKey ? [payload.planKey] : [])])];
+      const saved = await billing.updatePromotionDraft(id, promoPayload(next, planKeys));
+      if (payload.isActive === true) return billing.activatePromotion(id, {
+        approval_reference: payload.approvalReference,
+        reason: payload.approvalReason,
+      });
+      return saved;
     },
     linkPromoCodeToPlan: async ({ promoCodeId, planId }) => {
       const current = (await promotions()).find((p) => p.id === promoCodeId);
@@ -117,9 +217,8 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
     },
     createFeature: () => unavailable('canonical feature catalog mutation'), updateFeature: () => unavailable('canonical feature catalog mutation'), removeFeature: () => unavailable('canonical feature catalog mutation'),
     linkFeatureToPlan: () => unavailable('plan quota mutation'), unlinkFeatureFromPlan: () => unavailable('plan quota mutation'), updatePlanFeatureLimit: () => unavailable('plan quota mutation'),
-    setCustomPlanActive: () => unavailable('custom-contract status mutation'), createCustomPlanQuote: () => unavailable('legacy quote creation'), updateCustomPlanQuote: () => unavailable('legacy quote editing'),
-    approveCustomPlanQuote: (id, body) => billing.approveQuote(id, body), calculateCustomPlanQuote: (id) => billing.calculateQuote(id), rejectCustomPlanQuote: (id, body) => billing.rejectQuote(id, body),
-    sendCustomPlanQuote: () => unavailable('email quote delivery; offers are available in-app'),
+    setCustomPlanActive: () => unavailable('custom-contract status mutation; contract status is driven by approved billing and entitlement authorities'),
+    calculateCustomPlanQuote: (id) => billing.calculateQuote(id),
     updateCustomPlanPricingPolicy: () => unavailable('mutable legacy pricing; use versioned Python policy administration'),
     createVendorRate: (payload) => saveVendorRate(payload), updateVendorRate: (rateId, payload) => saveVendorRate({ ...payload, supersedesRateId: rateId }),
   });
