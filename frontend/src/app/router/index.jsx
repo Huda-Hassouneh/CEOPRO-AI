@@ -65,7 +65,7 @@ const ProductPageRedirect = () => {
 const routes = [
   // Old billing and onboarding-plan addresses: payment now happens on
   // Stripe-hosted Checkout from Billing.
-  ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/billing/checkout', '/onboarding/*']
+  ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/onboarding/*']
     .map((path) => ({ path, element: <Navigate to={path.startsWith('/onboarding') ? '/onboarding' : '/billing'} replace /> })),
   platformAdminRoute,
   { path: '/platform/billing', element: <Navigate to="/admin/billing" replace /> },

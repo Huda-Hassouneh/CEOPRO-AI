@@ -79,6 +79,9 @@
 .ceopro-plan-card__featured {
   position: absolute;
   top: -12px;
+  /* Clear the preceding integrated theme's logical inset before original centering. */
+  inset-inline-start: auto;
+  right: auto;
   left: 50%;
   padding: 5px 14px;
   transform: translateX(-50%);
