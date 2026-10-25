@@ -1036,6 +1036,13 @@ function ApproveQuoteModal({ quote, onClose, onApproved, t, locale, api = billin
 const vendorRateForm = (rate = null) => ({
   id: rate?.id ?? "",
   featureId: rate?.featureId ?? "",
+  budgetKind: rate?.budgetKind ?? "data",
+  policyVersionId: rate?.policyVersionId ?? "",
+  usageBasis: rate?.usageBasis ?? "limit_value",
+  unitsPerFeatureUnit: rate?.unitsPerFeatureUnit ?? 1,
+  verifiedAt: "",
+  effectiveFrom: "",
+  effectiveTo: "",
   vendor: rate?.vendor ?? "",
   service: rate?.service ?? "",
   billingUnit: rate?.billingUnit ?? "",
@@ -1052,6 +1059,10 @@ const vendorRateForm = (rate = null) => ({
 
 function VendorRateModal({ open, onClose, rate, features, onSaved, t, api = billingApi }) {
   const [form, setForm] = useState(() => vendorRateForm(rate));
+  const { data: policyResponse, error: policyError, isLoading: policiesLoading } = useSWR(
+    "platform-custom-plan-pricing-policies", api.getCustomPlanPricingPolicy, swrOptions,
+  );
+  const draftPolicies = policyResponse?.data?.policies?.filter((policy) => policy.status === "draft") ?? [];
   const editing = Boolean(rate?.id);
   useEffect(() => {
     if (open) setForm(vendorRateForm(rate));
@@ -1067,8 +1078,20 @@ function VendorRateModal({ open, onClose, rate, features, onSaved, t, api = bill
     setSaving(true);
     setError("");
     try {
+      if (form.currency.trim().toUpperCase() !== "USD") throw new Error("Python Custom Plan cost schedules currently require USD rates; no currency conversion is applied.");
+      if (form.verificationStatus !== "confirmed") throw new Error("Python pricing accepts only verified provider rates. Select Confirmed only when supported by the source evidence.");
+      if (!form.verifiedAt || !form.effectiveFrom) throw new Error("Enter the date the rate was verified and its effective start date.");
+      if (form.featureId && !form.policyVersionId) throw new Error("Choose a draft pricing policy to bind this feature cost.");
+      if (form.featureId && !draftPolicies.some((policy) => policy.policy_version_id === form.policyVersionId)) throw new Error("Choose an available draft policy. Active pricing policies are immutable.");
       const payload = {
         featureId: form.featureId || null,
+        budgetKind: form.budgetKind,
+        policyVersionId: form.policyVersionId || null,
+        usageBasis: form.usageBasis,
+        unitsPerFeatureUnit: selectedFeature?.code === "competitor_management" ? numeric(form.unitsPerCompetitorCheck) : numeric(form.unitsPerFeatureUnit, 1),
+        verifiedAt: form.verifiedAt,
+        effectiveFrom: new Date(form.effectiveFrom).toISOString(),
+        effectiveTo: form.effectiveTo ? new Date(form.effectiveTo).toISOString() : null,
         vendor: form.vendor.trim(),
         service: form.service.trim(),
         billingUnit: form.billingUnit.trim(),
@@ -1154,6 +1177,49 @@ function VendorRateModal({ open, onClose, rate, features, onSaved, t, api = bill
               })),
             ]}
           />
+          <Select
+            label={tr(t, "billing.catalog.customPlans.vendorRates.budgetKind", "Cost budget")}
+            value={form.budgetKind}
+            onChange={(event) => setForm({ ...form, budgetKind: event.target.value })}
+            options={["data", "ai"].map((value) => ({ value, label: value.toUpperCase() }))}
+          />
+          {form.featureId && (
+            <Select
+              label={tr(t, "billing.catalog.customPlans.vendorRates.draftPolicy", "Draft pricing policy")}
+              value={form.policyVersionId}
+              onChange={(event) => setForm({ ...form, policyVersionId: event.target.value })}
+              disabled={policiesLoading || draftPolicies.length === 0}
+              options={[{ value: "", label: policiesLoading ? "Loading?" : "Select a draft policy" }, ...draftPolicies.map((policy) => ({ value: policy.policy_version_id, label: `Draft v${policy.version_number}` }))]}
+            />
+          )}
+          {form.featureId && <Select
+            label={tr(t, "billing.catalog.customPlans.vendorRates.usageBasisLabel", "Cost usage basis")}
+            value={form.usageBasis}
+            onChange={(event) => setForm({ ...form, usageBasis: event.target.value })}
+            options={["limit_value", "enabled_feature"].map((value) => ({ value, label: tr(t, `billing.catalog.customPlans.vendorRates.usageBasis.${value}`, value) }))}
+          />}
+          {form.featureId && selectedFeature?.code !== "competitor_management" && <Input
+            label={tr(t, "billing.catalog.customPlans.vendorRates.unitsPerFeatureUnit", "Billing units per feature unit")}
+            type="number" min="0.00000001" step="0.00000001" value={form.unitsPerFeatureUnit}
+            onChange={(event) => setForm({ ...form, unitsPerFeatureUnit: event.target.value })} required
+          />}
+          <Input
+            label={tr(t, "billing.catalog.customPlans.vendorRates.verifiedAt", "Verified on")}
+            type="date" value={form.verifiedAt}
+            onChange={(event) => setForm({ ...form, verifiedAt: event.target.value })} required
+          />
+          <Input
+            label={tr(t, "billing.catalog.customPlans.vendorRates.effectiveFrom", "Effective from")}
+            type="datetime-local" value={form.effectiveFrom}
+            onChange={(event) => setForm({ ...form, effectiveFrom: event.target.value })} required
+          />
+          <Input
+            label={tr(t, "billing.catalog.customPlans.vendorRates.effectiveTo", "Effective to")}
+            type="datetime-local" value={form.effectiveTo}
+            onChange={(event) => setForm({ ...form, effectiveTo: event.target.value })}
+          />
+          {policyError && <p className="billing-inline-error">{getApiError(policyError).message}</p>}
+          {form.featureId && !policiesLoading && draftPolicies.length === 0 && <p className="billing-inline-error">No draft pricing policy is available. Create a draft policy before binding this rate.</p>}
           <Input
             label={tr(
               t,
@@ -1297,6 +1363,7 @@ function VendorRateModal({ open, onClose, rate, features, onSaved, t, api = bill
             onChange={(event) =>
               setForm({ ...form, source: event.target.value })
             }
+            required
           />
         </div>
         {error && <p className="billing-inline-error">{error}</p>}

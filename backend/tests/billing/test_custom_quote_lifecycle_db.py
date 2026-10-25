@@ -578,3 +578,60 @@ def test_unpriced_quote_cannot_be_approved_and_rejection_is_non_activating(quote
     finally:
         platform_conn.close()
         customer_conn.close()
+
+
+def test_owner_vendor_rate_route_persists_verified_rate_binding_and_audit_under_restricted_role(
+    quote_actors, owner_db, billing_connections, monkeypatch
+):
+    from datetime import datetime, timezone
+    from src.ai.core.security import TenantContext
+    from src.ai.routers import platform
+
+    actors = quote_actors
+    platform_conn = _conn(billing_connections, actors)
+    try:
+        draft = custom_offers.pricing_admin_command(platform_conn, "policy_create", {})
+        platform_conn.commit()
+    finally:
+        platform_conn.close()
+
+    monkeypatch.setattr(platform.service, "command", lambda *_args, **_kwargs: {"role": "owner"})
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda tenant_id, user_id: _conn(
+        billing_connections, {**actors, "platform_tenant": tenant_id, "platform_user": user_id}
+    ))
+    now = datetime.now(timezone.utc)
+    provider = "synthetic-owner-route-" + uuid.uuid4().hex[:10]
+    body = platform.OwnerVendorRateSave(
+        budget_kind="ai", provider=provider, operation="inference", unit="input_token",
+        unit_cost_usd="0.00002", source="SYNTHETIC_TEST_ONLY: owner route fixture",
+        verification_evidence="SYNTHETIC_TEST_ONLY: not a provider cost assertion",
+        verified_at=now.date(), effective_from=now, policy_version_id=draft["policy_version_id"],
+        feature_code="rag_assistant", usage_basis="limit_value", units_per_feature_unit="4",
+        operational_multiplier="1.2", variability_reserve="1.1", usage_assumption={},
+    )
+    result = platform.save_owner_vendor_rate(
+        body, TenantContext(actors["platform_tenant"], actors["platform_user"])
+    )
+    rate_id = result["cost_rate"]["cost_rate_id"]
+    binding_id = result["binding"]["binding_id"]
+    assert result["cost_rate"]["status"] == "verified"
+    assert result["binding"]["status"] == "draft"
+
+    with owner_db.cursor() as cur:
+        cur.execute("SELECT provider,operation,unit,unit_cost_usd,source,verification_evidence,verified_by FROM billing_custom_cost_rates WHERE cost_rate_id=%s", (rate_id,))
+        assert cur.fetchone() == (provider, "inference", "input_token", 0.00002,
+            "SYNTHETIC_TEST_ONLY: owner route fixture",
+            "SYNTHETIC_TEST_ONLY: not a provider cost assertion", actors["platform_user"])
+        cur.execute("SELECT feature_code,cost_category,policy_version_id,cost_rate_id FROM billing_custom_cost_bindings WHERE binding_id=%s", (binding_id,))
+        assert cur.fetchone() == ("rag_assistant", "vendor", draft["policy_version_id"], rate_id)
+        cur.execute("SELECT count(*) FROM entitlement_audit_log WHERE tenant_id=%s AND action IN ('custom_pricing_rate_created','custom_pricing_binding_created')", (actors["platform_tenant"],))
+        assert cur.fetchone()[0] >= 2
+
+    tenant_conn = _conn(billing_connections, actors, "tenant_a")
+    try:
+        with tenant_conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM billing_custom_cost_rates WHERE cost_rate_id=%s", (rate_id,))
+            assert cur.fetchone()[0] == 0
+        tenant_conn.commit()
+    finally:
+        tenant_conn.close()
