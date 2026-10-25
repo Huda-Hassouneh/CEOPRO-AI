@@ -5,7 +5,9 @@ import { join } from 'node:path';
 const base=process.env.APP_URL,api=process.env.API_URL,evidence=process.env.E2E_EVIDENCE_DIR;
 if(process.env.KEEL_REAL_STRIPE_TEST!=='YES'||base!=='http://127.0.0.1:5204'||api!=='http://127.0.0.1:8024'||!process.env.E2E_EMAIL?.endsWith('@example.test'))throw new Error('Explicit approved disposable Stripe TEST runtime required');
 mkdirSync(evidence,{recursive:true});
-const ledgerPath=join(evidence,'../checkout-resource-ledger.json');
+const scenario=process.env.E2E_BILLING_SCENARIO||'checkout';
+if(!['checkout','trial','custom','promotion'].includes(scenario))throw new Error('Unknown approved test scenario');
+const ledgerPath=join(evidence,`../${scenario}-resource-ledger.json`);
 const ledger=JSON.parse(readFileSync(ledgerPath,'utf8'));
 if(ledger.account!=='acct_1UESzuDvEnSheKuc'||ledger.livemode!==false)throw new Error('Unexpected Stripe ledger');
 const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,headless:true,chromiumSandbox:true});
@@ -13,9 +15,10 @@ const context=await browser.newContext({viewport:{width:1440,height:1050}});
 const page=await context.newPage();page.setDefaultTimeout(20000);
 const errors=[];page.on('pageerror',error=>errors.push(error.message));
 let actualCheckout;
+const checkoutEndpoint=scenario==='custom'?`/billing/custom-offers/quotes/${ledger.quote_id}/checkout-attempts`:'/billing/checkout';
 // Observe the real backend response before the app immediately leaves this origin.
 // fetch/fulfill passes through its unmodified status, headers and body; no fixture response.
-await page.route(api+'/billing/checkout',async route=>{
+await page.route(api+checkoutEndpoint,async route=>{
   const response=await route.fetch();
   actualCheckout=await response.json();
   if(response.ok()&&actualCheckout.session_id?.startsWith('cs_test_')) {
@@ -32,11 +35,20 @@ try {
   await page.locator('button[type=submit]').click();
   if((await loggedIn).status()!==200)throw new Error('Actual synthetic login failed');
   await page.waitForURL(url=>url.pathname!=='/login');
-  await page.goto(base+'/billing/checkout?plan=starter&period=monthly');
-  await page.locator('.billing-upgrade-review').waitFor();
+  await page.goto(base+(scenario==='custom'?`/billing/custom-plan/quotes/${ledger.quote_id}`:`/billing/checkout?plan=${scenario==='trial'?'growth':'starter'}&period=monthly`));
+  await page.locator(scenario==='custom'?'.custom-plan-offer-actions':'.billing-upgrade-review').waitFor();
+  if(scenario==='promotion') {
+    if(!ledger.promotion_code?.startsWith('KEEL'))throw new Error('Unique approved test promotion required');
+    await page.locator('.billing-coupon-block input').fill(ledger.promotion_code);
+    const validated=page.waitForResponse(r=>r.url()===api+'/billing/promotions/validate'&&r.request().method()==='POST');
+    await page.locator('.billing-coupon-block button').click();
+    const validation=await validated;
+    if(validation.status()!==200||!(await validation.json()).valid)throw new Error('Actual promotion validation failed');
+    await page.locator('.billing-coupon-success').waitFor();
+  }
   await page.screenshot({path:join(evidence,'keel-before-checkout.png'),fullPage:true});
-  const created=page.waitForResponse(r=>r.url()===api+'/billing/checkout'&&r.request().method()==='POST');
-  await page.locator('.billing-payment-boundary button').first().click();
+  const created=page.waitForResponse(r=>r.url()===api+checkoutEndpoint&&r.request().method()==='POST');
+  await page.locator(scenario==='custom'?'.custom-plan-offer-actions button':'.billing-payment-boundary button').first().click();
   const response=await created;
   if(!response.ok())throw new Error('KEEL Checkout HTTP '+response.status());
   const session=actualCheckout;
