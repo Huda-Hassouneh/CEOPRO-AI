@@ -629,6 +629,15 @@ def test_owner_vendor_rate_route_persists_verified_rate_binding_and_audit_under_
         cur.execute("SELECT count(*) FROM entitlement_audit_log WHERE tenant_id=%s AND action IN ('custom_pricing_rate_created','custom_pricing_binding_created')", (actors["platform_tenant"],))
         assert cur.fetchone()[0] >= 2
 
+    owner_conn = _conn(billing_connections, actors)
+    try:
+        with owner_conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM billing_custom_cost_rates WHERE cost_rate_id=%s", (rate_id,))
+            assert cur.fetchone()[0] == 1
+        owner_conn.commit()
+    finally:
+        owner_conn.close()
+
     tenant_conn = _conn(billing_connections, actors, "tenant_a")
     try:
         with tenant_conn.cursor() as cur:
