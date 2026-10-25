@@ -12,7 +12,7 @@ import { signOut } from '../../shared/components/layout/signOut.js';
 
 const areas = ['overview', 'companies', 'users', 'team', 'audit', 'settings', 'approvals', 'account'];
 export function PlatformDashboard() {
-  const { t } = useI18n(); const location = useLocation(); const navigate = useNavigate(); const queryClient = useQueryClient();
+  const { t, locale } = useI18n(); const location = useLocation(); const navigate = useNavigate(); const queryClient = useQueryClient();
   const actor = useAuthStore((s) => s.user?.id);
   const hydrated = useAuthStore((s) => s.isHydrated); const authenticated = useAuthStore(selectIsAuthenticated);
   const [area, setArea] = React.useState('overview'); const [offset, setOffset] = React.useState(0); const [search, setSearch] = React.useState(''); const [settledSearch, setSettledSearch] = React.useState('');
@@ -63,7 +63,7 @@ export function PlatformDashboard() {
     <header><h1>{t('platform.title')}</h1><Link to="/dashboard">{t('platform.back')}</Link><Button variant="secondary" onClick={() => signOut(useAuthStore.getState().clearSession, navigate)}>{t('platform.signOut')}</Button></header>
     {who.error ? <section role="alert"><p>{errorMessage(who.error)}</p><Button onClick={() => who.refetch()}>{t('platform.retry')}</Button></section> : !who.data ? <p role="status">{t('common.loading')}</p> : <>
       <p>{t(owner ? 'platform.owner' : 'platform.admin')}</p>
-      <nav aria-label={t('platform.title')}>{areas.filter((a) => a !== 'approvals' || owner).map((a) => <Button key={a} variant={a === area ? 'primary' : 'secondary'} onClick={() => { setArea(a); setOffset(0); setSearch(''); setSettledSearch(''); setDetail(null); setEditor(null); setNotice(''); }}>{t(`platform.${a}`)}</Button>)}</nav>
+      <nav aria-label={t('platform.title')}>{areas.filter((a) => a !== 'approvals' || owner).map((a) => <Button key={a} variant={a === area ? 'primary' : 'secondary'} onClick={() => { setArea(a); setOffset(0); setSearch(''); setSettledSearch(''); setDetail(null); setEditor(null); setNotice(''); }}>{t(`platform.${a}`)}</Button>)}{owner && <Button variant="secondary" onClick={() => navigate('/platform/billing')}>{locale === 'ar' ? 'الفوترة' : 'Billing'}</Button>}</nav>
       {notice && <p role="status">{notice}</p>}
       {data.error && area !== 'approvals' && <p role="alert">{errorMessage(data.error)} <Button onClick={() => data.refetch()}>{t('platform.retry')}</Button></p>}
       {!['approvals', 'account'].includes(area) && data.isPending ? <p role="status">{t('common.loading')}</p> : null}
