@@ -63,29 +63,12 @@ def _load_bindings(conn, policy_id, feature_codes: list[str], as_of: datetime) -
     if not feature_codes:
         return []
     with conn.cursor() as cur:
-        cur.execute("""
-            SELECT b.binding_id, b.feature_code, b.cost_category, b.budget_kind,
-                   b.provider, b.operation, b.unit, b.usage_basis,
-                   b.units_per_feature_unit, b.operational_multiplier, b.variability_reserve,
-                   b.required_for_price, b.effective_from, b.effective_to, b.source,
-                   b.usage_assumption,
-                   COALESCE(cr.cost_rate_id,p.schedule_id) AS rate_id,
-                   COALESCE(cr.unit_cost_usd,p.unit_cost_usd) AS unit_cost_usd,
-                   p.safety_margin, COALESCE(cr.cost_rate_id IS NOT NULL,p.cost_is_final) AS cost_is_final,
-                   COALESCE(cr.source,p.source) AS rate_source,
-                   COALESCE(cr.verified_at,p.verified_at) AS verified_at,
-                   COALESCE(cr.created_at,p.updated_at) AS updated_at
-              FROM public.billing_custom_cost_bindings b
-              LEFT JOIN public.billing_custom_cost_rates cr ON cr.cost_rate_id=b.cost_rate_id
-               AND cr.effective_from <= %s AND (cr.effective_to IS NULL OR cr.effective_to > %s)
-              LEFT JOIN public.provider_cost_schedules p
-                ON b.cost_rate_id IS NULL AND p.budget_kind=b.budget_kind AND p.provider=b.provider
-               AND p.operation=b.operation AND p.unit=b.unit
-               AND p.updated_at <= %s
-             WHERE b.policy_version_id=%s AND b.feature_code=ANY(%s)
-               AND b.effective_from <= %s AND (b.effective_to IS NULL OR b.effective_to > %s)
-             ORDER BY b.feature_code,b.cost_category,b.binding_id
-        """, (as_of, as_of, as_of, policy_id, feature_codes, as_of, as_of))
+        # The owner-authorized SQL command reads only this policy's bound rates.
+        # Tenant connections retain no direct accounting cost-table privileges.
+        cur.execute(
+            "SELECT * FROM public.billing_custom_pricing_rate_evidence(%s,%s::text[],%s)",
+            (str(policy_id), feature_codes, as_of),
+        )
         rows = cur.fetchall()
     names = ("binding_id", "feature_code", "cost_category", "budget_kind", "provider", "operation", "unit",
              "usage_basis", "units_per_feature_unit", "operational_multiplier", "variability_reserve",

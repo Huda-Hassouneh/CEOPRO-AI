@@ -28,6 +28,42 @@ class AdminError(ValueError):
     pass
 
 
+def closed_quote_limits(selected: Dict[str, int]) -> Dict[str, int]:
+    """A purchased quote grants its selected quantities, never template defaults.
+
+    Keep omission distinct in the immutable quote/validation contract. At paid
+    provisioning, an omitted numeric capability has no purchased allowance.
+    Manual administrative contracts retain their existing patch semantics.
+    """
+    unknown = set(selected) - set(_NUMERIC_CONTRACT_FEATURES)
+    if unknown or any(isinstance(v, bool) or not isinstance(v, int) or v < 0 for v in selected.values()):
+        raise AdminError("invalid approved quote allowances")
+    return {code: selected.get(code, 0) for code in _NUMERIC_CONTRACT_FEATURES}
+
+
+def fill_missing_quote_limits(conn, *, tenant_id: str, contract_ref: str,
+                             selected: Dict[str, int], approved_by: str, reason: str) -> None:
+    """Repair only missing paid-quote overrides on a verified replay/update.
+
+    Never replace an explicit owner override or a newer/different contract.
+    The caller has already verified the activation/subscription correlation.
+    """
+    expected = closed_quote_limits(selected)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT contract_ref FROM tenant_custom_contracts WHERE tenant_id=%s FOR UPDATE", (tenant_id,))
+        row = cursor.fetchone()
+        if not row or row[0] != contract_ref:
+            return
+        for code, value in sorted(expected.items()):
+            cursor.execute("""INSERT INTO tenant_entitlement_overrides
+                (tenant_id,feature_code,limit_value,contract_ref,approved_by,reason)
+                VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT(tenant_id,feature_code) DO NOTHING""",
+                (tenant_id, code, value, contract_ref, approved_by, reason))
+            if cursor.rowcount:
+                _audit(cursor, tenant_id, "set_limit", code, None, {"limit": value},
+                       approved_by, reason, contract_ref)
+
+
 def set_plan_active(conn, *, plan_key: str, active: bool, approved_by: str, reason: str) -> dict:
     """Enable or hide a plan from new purchases without changing current assignments."""
     plan_key = _require(plan_key, "plan_key")

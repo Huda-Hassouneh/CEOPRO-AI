@@ -60,3 +60,33 @@ flag before submitting Stripe's synthetic test card. It observes the actual API
 response without substituting fixture responses. Keep credentials, live Checkout
 URLs, provider ledgers and generated evidence outside Git. Never use these tests
 with a production tenant, database, account or live key.
+
+## Verified Custom and promotion corrections
+
+`20261104000100_owner_custom_pricing_rate_evidence.sql` exposes bound cost
+evidence only through an active Platform Owner command. The runtime role still
+has no direct SELECT privilege on private accounting provider-cost schedules.
+Quote calculation continues to use the Python calculator and immutable snapshot
+authority; customers cannot supply prices, margins or provider rates.
+
+Paid Custom quote provisioning uses a closed allowance vector: selected numeric
+limits retain their approved values and unpurchased capabilities receive no
+allowance. This does not rewrite the immutable quote's omitted fields or change
+the patch semantics of separately authorized administrative custom contracts.
+Verified updates can fill missing overrides for the exact existing quote
+contract; explicit owner overrides and newer contract references are preserved.
+
+Managed Checkout sends its bound Stripe discount without the mutually exclusive
+`allow_promotion_codes` field. A definite Stripe validation rejection releases
+the failed attempt with audit evidence. Timeouts and unknown outcomes remain
+quarantined. Immutable request parameters are never edited to force a retry.
+
+`20261104000200_tenant_promotion_capacity_check.sql` lets authenticated validation
+report exhausted campaign/tenant capacity without exposing cross-tenant
+redemptions. Atomic reservation remains the final concurrency check.
+
+`owner-billing-restoration.mjs` and `custom-paid-review.mjs` are read-only browser
+checks using authorized synthetic logins. The original owner catalog remains
+the default; its existing versioned policy/cost/review links preserve query
+context inside that same owner shell. Paid offer history never implies that a
+later cancelled subscription still has access.

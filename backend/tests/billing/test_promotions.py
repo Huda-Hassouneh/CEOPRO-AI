@@ -140,7 +140,7 @@ def test_managed_checkout_uses_stripe_discount_without_hosted_code_stacking(monk
     params = calls[0][0]
     assert result["session_id"] == "cs_test"
     assert params["discounts"] == [{"promotion_code": "promo_test_only"}]
-    assert params["allow_promotion_codes"] is False
+    assert "allow_promotion_codes" not in params
     assert params["metadata"]["keel_promotion_redemption_id"] == "1c6125e7-352e-49cf-9f93-7f095f8d5e3e"
     assert params["subscription_data"]["metadata"]["keel_promotion_redemption_id"] == params["metadata"]["keel_promotion_redemption_id"]
     assert reserved[0]["actor_user_id"] == "user-id"
@@ -149,7 +149,8 @@ def test_managed_checkout_uses_stripe_discount_without_hosted_code_stacking(monk
     assert calls[0][1] == "apex-promo-checkout-1c6125e7-352e-49cf-9f93-7f095f8d5e3e"
 
 
-def test_uncertain_stripe_outcome_is_quarantined_without_retry(monkeypatch, memory_checkout_reservations):
+@pytest.mark.parametrize("definitive", [False, True])
+def test_provider_rejection_releases_reservation_but_uncertain_outcome_is_quarantined(monkeypatch, memory_checkout_reservations, definitive):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
     monkeypatch.setattr(store, "current_subscription", lambda *args: None)
@@ -165,9 +166,13 @@ def test_uncertain_stripe_outcome_is_quarantined_without_retry(monkeypatch, memo
     monkeypatch.setattr(promotions, "begin_checkout_request", lambda *a, **kw: None)
     unknown = []
     monkeypatch.setattr(promotions, "provider_outcome_unknown", lambda *a, **kw: unknown.append(kw))
+    rejected = []
+    monkeypatch.setattr(promotions, "provider_request_rejected", lambda *a, **kw: rejected.append(kw))
     calls = []
     def lost_response(*args, **kwargs):
         calls.append(1)
+        if definitive:
+            raise stripe_api.stripe.InvalidRequestError("Synthetic invalid create parameters", "allow_promotion_codes", http_status=400)
         raise TimeoutError("synthetic uncertain outcome")
     monkeypatch.setattr(stripe_api, "create_checkout_session", lost_response)
 
@@ -177,11 +182,14 @@ def test_uncertain_stripe_outcome_is_quarantined_without_retry(monkeypatch, memo
         def rollback(self):
             pass
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises(stripe_api.stripe.InvalidRequestError if definitive else TimeoutError):
         service.create_checkout(None, Connection(), "tenant", "a@example.test", "Store",
                                 "starter", "monthly", "SAVE", "user-id")
     assert len(calls) == 1
-    assert unknown == [{"tenant_id": "tenant", "redemption_id": "1c6125e7-352e-49cf-9f93-7f095f8d5e3e"}]
+    expected = [{"tenant_id": "tenant", "redemption_id": "1c6125e7-352e-49cf-9f93-7f095f8d5e3e"}]
+    assert unknown == ([] if definitive else expected)
+    assert rejected == (expected if definitive else [])
+    assert bool(memory_checkout_reservations) is not definitive
 
 
 def test_retried_managed_checkout_reuses_existing_session_without_creating_another(monkeypatch, memory_checkout_reservations):

@@ -144,6 +144,16 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
     if row[14]:
         # Renewal/cancellation events update only the existing subscription;
         # they cannot provision the contract a second time.
+        # Older activations stored only selected overrides and accidentally
+        # inherited the legacy Custom catalog's broad defaults. Fill omissions
+        # only for this exact existing paid contract, preserving explicit owner
+        # adjustments and any newer/different manual contract.
+        current = store.current_subscription(sys_conn, tenant_id)
+        if current and current["stripe_subscription_id"] == stripe_sub["id"]:
+            admin.fill_missing_quote_limits(
+                sys_conn, tenant_id=tenant_id, contract_ref=f"custom-quote:{quote_id}:{revision_id}",
+                selected=row[6] or {}, approved_by=str(row[10]),
+                reason=f"Verified paid quote reconciliation; webhook {provider_event_id}")
         store.apply_subscription(sys_conn, tenant_id, stripe_sub, "custom", "monthly", event_created)
         entitlements.forget(tenant_id)
         return tenant_id
@@ -182,7 +192,7 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
     admin.set_custom_contract(
         sys_conn, tenant_id=tenant_id, contract_ref=reference,
         approved_by=str(row[10]), reason=f"Verified Stripe invoice {invoice_id}; webhook {provider_event_id}",
-        limits={str(key): int(value) for key, value in limits.items()},
+        limits=admin.closed_quote_limits(limits),
         monthly_price=Decimal(str(terms["monthlyPriceUsd"])), currency="USD", trial_days=0,
         data_sources=(row[7] or {}).get("dataSources", []),
         included_features=(row[7] or {}).get("enabledFeatures", []),

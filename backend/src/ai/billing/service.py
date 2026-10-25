@@ -224,6 +224,9 @@ def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: s
             sys_conn.rollback()
             raise BillingError(err.status, err.code, err.message) from err
         params["discounts"] = [{"promotion_code": promotion["stripe_promotion_code_id"]}]
+        # Stripe rejects the presence of both fields, including an explicit
+        # allow_promotion_codes=False. Omit hosted code entry for a bound code.
+        params.pop("allow_promotion_codes", None)
         params["metadata"]["keel_promotion_redemption_id"] = reservation["redemption_id"]
         params["subscription_data"]["metadata"]["keel_promotion_redemption_id"] = reservation["redemption_id"]
     try:
@@ -233,15 +236,19 @@ def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: s
         session = stripe_api.create_checkout_session(params, idempotency_key=provider_key)
         if _attempt:
             checkout_attempts.opened(sys_conn, _attempt, session)
-    except Exception:
+    except Exception as err:
+        rejected = stripe_api.checkout_request_rejected(err)
         if reservation:
             try:
-                promotions.provider_outcome_unknown(
+                outcome = promotions.provider_request_rejected if rejected else promotions.provider_outcome_unknown
+                outcome(
                     sys_conn, tenant_id=tenant_id, redemption_id=reservation["redemption_id"],
                 )
                 sys_conn.commit()
             except Exception:
                 sys_conn.rollback()
+        if rejected and _attempt:
+            checkout_attempts.expire(sys_conn, _attempt)
         raise
     if reservation:
         try:

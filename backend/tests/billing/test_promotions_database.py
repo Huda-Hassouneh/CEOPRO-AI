@@ -64,6 +64,38 @@ def _system_connection():
                             gssencmode="disable", sslmode="disable")
 
 
+def test_customer_validation_checks_held_capacity_without_cross_tenant_disclosure(
+    owner_db, tenant, active_promotion, billing_connections, monkeypatch
+):
+    monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
+    customer = billing_connections(*tenant)
+    system = _system_connection()
+    other = _make_tenant(owner_db)
+    other_conn = billing_connections(*other)
+    try:
+        args = (active_promotion["code"], active_promotion["plan_key"], "monthly")
+        assert promotions.validate(customer, tenant[0], *args)["valid"]
+        promotions.reserve(system, tenant_id=tenant[0], actor_user_id=tenant[1],
+            code=args[0], plan_key=args[1], period_code=args[2], request_key="capacity-a")
+        system.commit()
+        assert promotions.validate(customer, tenant[0], *args)["reason"] == "promotion_tenant_limit"
+        assert promotions.validate(other_conn, other[0], *args)["valid"]
+        promotions.reserve(system, tenant_id=other[0], actor_user_id=other[1],
+            code=args[0], plan_key=args[1], period_code=args[2], request_key="capacity-b")
+        system.commit()
+        result = promotions.validate(other_conn, other[0], *args)
+        assert result == {"valid": False, "reason": "promotion_exhausted", "promotion": None}
+        with customer.cursor() as cur:
+            cur.execute("SELECT count(*) FROM billing_promotion_redemptions WHERE tenant_id=%s", (other[0],))
+            assert cur.fetchone()[0] == 0
+    finally:
+        customer.close(); other_conn.close(); system.close()
+        with owner_db.cursor() as cur:
+            cur.execute("DELETE FROM billing_promotion_redemptions WHERE tenant_id=%s", (other[0],))
+            cur.execute("DELETE FROM companies WHERE tenant_id=%s", (other[0],))
+            cur.execute("DELETE FROM users WHERE user_id=%s", (other[1],))
+
+
 def test_active_promotion_read_is_tenant_scoped_and_app_role_is_read_only(
     owner_db, tenant, active_promotion, billing_connections, monkeypatch
 ):
@@ -402,9 +434,9 @@ def test_concurrent_tenant_reservations_respect_global_limit(owner_db, tenant, a
         owner_db.commit()
 
 
-def test_eligibility_checks_plan_date_currency_and_custom_contract(owner_db, tenant, active_promotion, test_price, monkeypatch):
+def test_eligibility_checks_plan_date_currency_and_custom_contract(owner_db, tenant, active_promotion, test_price, monkeypatch, billing_connections):
     monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
-    conn = _system_connection()
+    conn = billing_connections(*tenant)
     try:
         def set_terms(**changes):
             with owner_db.cursor() as cur:
