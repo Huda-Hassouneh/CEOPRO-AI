@@ -15,6 +15,26 @@ test('original billing presentation maps Python plan and feature contracts witho
   assert.equal((await api.getPlanFeatures('growth')).data[0].limitValue, 5);
 });
 
+test('plan quota controls map numeric and module terms to the versioned Python endpoint', async () => {
+  const calls = [];
+  const api = createPlatformBillingCatalogApi({
+    billing: {
+      view: async () => ({ plans: [{ plan_key: 'growth', display_name: 'Growth',
+        feature_limits: [{ feature_code: 'team_seats', unit: 'seats', limit_value: 5 }],
+        entitlements: ['market_intelligence'] }] }),
+      updatePlanFeature: async (planKey, body) => { calls.push([planKey, body]); return { catalog_versioned: true }; },
+    },
+  });
+  const features = (await api.getPlanFeatures('growth')).data;
+  assert.deepEqual(features.map((row) => row.feature_id), ['team_seats', 'market_intelligence']);
+  await api.updatePlanFeatureLimit({ planId: 'growth', featureId: 'team_seats', limitValue: 12 });
+  await api.unlinkFeatureFromPlan({ planId: 'growth', featureId: 'market_intelligence' });
+  assert.deepEqual(calls, [
+    ['growth', { feature_code: 'team_seats', included: true, limit_value: 12, reason: 'Owner changed a supported plan feature allowance.' }],
+    ['growth', { feature_code: 'market_intelligence', included: false, limit_value: null, reason: 'Owner removed a supported feature from a plan.' }],
+  ]);
+});
+
 test('original quote list reflects Python tenant/revision data and never fabricates a quote price', async () => {
   const api = createPlatformBillingCatalogApi({
     billing: { quotes: async () => ({ quotes: [{ quoteId: 'q-1', tenantId: 't-1', businessName: 'Synthetic Co', state: 'submitted', updatedAt: '2026-10-25T00:00:00Z', currentRevision: { revisionNumber: 2, configuration: { enabledFeatures: ['market_intelligence'] }, featureQuantities: { team_seats: 4 }, commercialTerms: {} } }] }) },
