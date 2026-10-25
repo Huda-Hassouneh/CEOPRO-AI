@@ -74,6 +74,9 @@ def test_webhook_not_configured_is_503(client, monkeypatch):
         ("post", "/billing/cancel"),
         ("post", "/billing/resume"),
         ("get", "/billing/invoices"),
+        ("get", "/billing/checkout-status?session_id=cs_test_synthetic"),
+        ("post", "/billing/checkout/cancel-pending"),
+        ("post", "/billing/change-plan/preview"),
     ],
 )
 def test_existing_billing_routes_require_authentication(client, method, path):
@@ -86,6 +89,28 @@ def test_existing_billing_routes_require_authentication(client, method, path):
     )
     assert response.status_code == 401
     assert "detail" in response.json()
+
+
+@pytest.mark.parametrize('operation,method,path',[
+    ('checkout_status','get','/billing/checkout-status?session_id=cs_test_synthetic'),
+    ('cancel_pending_checkout','post','/billing/checkout/cancel-pending'),
+])
+def test_checkout_recovery_provider_errors_have_a_controlled_http_contract(client,monkeypatch,operation,method,path):
+    from src.ai.core.security import TenantContext
+    from src.ai.routers import billing
+
+    class Connection:
+        def close(self): pass
+
+    client.app.dependency_overrides[billing.get_tenant_context]=lambda:TenantContext('synthetic-tenant','synthetic-owner')
+    monkeypatch.setattr(billing.db,'app_role_connection',lambda *args:Connection())
+    monkeypatch.setattr(billing.db,'system_connection',lambda:Connection())
+    monkeypatch.setattr(billing,'_require_billing_role',lambda *args:None)
+    def unavailable(*args): raise TimeoutError('Synthetic provider timeout')
+    monkeypatch.setattr(service,operation,unavailable)
+    response=getattr(client,method)(path)
+    assert response.status_code==502
+    assert response.json()['detail']['reason']=='provider_error'
 
 
 def test_checkout_preserves_existing_contract_and_provider_idempotency(monkeypatch, memory_checkout_reservations):
