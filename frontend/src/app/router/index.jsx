@@ -1,5 +1,7 @@
 ﻿import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import { routePaths } from './routePaths.js';
+import { useLocation } from 'react-router-dom';
+import { ownerBillingDestination } from '../../features/platform/ownerBillingRoutes.js';
 import { page } from './lazyPage.jsx';
 import { ProtectedRoute } from './ProtectedRoute.jsx';
 import { GuestRoute } from './GuestRoute.jsx';
@@ -62,13 +64,18 @@ const ProductPageRedirect = () => {
   return <Navigate to={`/products/${productId}`} replace />;
 };
 
+const OwnerBillingRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={ownerBillingDestination(location)} replace />;
+};
+
 const routes = [
   // Old billing and onboarding-plan addresses: payment now happens on
   // Stripe-hosted Checkout from Billing.
   ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/onboarding/*']
     .map((path) => ({ path, element: <Navigate to={path.startsWith('/onboarding') ? '/onboarding' : '/billing'} replace /> })),
   platformAdminRoute,
-  { path: '/platform/billing', element: <Navigate to="/admin/billing" replace /> },
+  { path: '/platform/billing', element: <OwnerBillingRedirect /> },
   { path: '/platform', element: <Navigate to="/admin" replace /> },
   { path: '/platform/invitations/:token', lazy: async () => ({ Component: (await import('../../features/platform/PlatformInvitation.jsx')).PlatformInvitation }) },
   {

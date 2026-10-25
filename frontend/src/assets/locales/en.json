@@ -1470,7 +1470,7 @@
       "checkoutConfirmed": "Your subscription is confirmed and plan access is active."
     },
     "customPlan": {
-      "cardTitle": "Custom ? Build Your Plan",
+      "cardTitle": "Custom — Build Your Plan",
       "cardDescription": "Choose KEEL capabilities and limits for your business.",
       "cardSummary": "KEEL reviews a tailored configuration. A request does not set a price or grant access.",
       "buildAction": "Build your plan",
@@ -1574,7 +1574,9 @@
         "market_intelligence": "Market intelligence access",
         "demand_prediction": "Demand forecasting access",
         "competitor_management": "Competitor monitoring access"
-      }
+      },
+      "paymentConfirmed": "Payment was verified for this offer. See Billing for the current subscription status.",
+      "manageSubscription": "Manage subscription"
     },
     "management": {
       "title": "Plans & Subscription",
