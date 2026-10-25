@@ -1,9 +1,7 @@
-import httpClient from '../../shared/lib/httpClient.js';
-
+﻿import httpClient from '../../shared/lib/httpClient.js';
 const unwrap = (promise) => promise.then((response) => response.data);
 const enc = encodeURIComponent;
 const root = '/platform/billing';
-
 export function createPlatformBillingApi(client) {
   return Object.freeze({
     view: (name, limit = 100, offset = 0) => unwrap(client.get(`${root}/admin-views/${enc(name)}`, { params: { limit, offset } })),
@@ -23,7 +21,10 @@ export function createPlatformBillingApi(client) {
     bindings: (id) => unwrap(client.get(`${root}/custom-plan-pricing/policies/${enc(id)}/bindings`)),
     createBinding: (body) => unwrap(client.post(`${root}/custom-plan-pricing/bindings`, body)),
     assignContract: (body) => unwrap(client.post(`${root}/custom-contracts`, body)),
+    promotions: () => unwrap(client.get(`${root}/promotions`)),
+    createPromotionDraft: (body) => unwrap(client.post(`${root}/promotions`, body)),
+    updatePromotionDraft: (id, body) => unwrap(client.patch(`${root}/promotions/${enc(id)}`, body)),
+    disablePromotion: (id, reason) => unwrap(client.post(`${root}/promotions/${enc(id)}/disable`, { reason })),
   });
 }
-
 export const platformBillingApi = createPlatformBillingApi(httpClient);
