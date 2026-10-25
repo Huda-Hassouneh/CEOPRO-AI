@@ -40,6 +40,11 @@ def create_checkout_session(params: dict, idempotency_key: str):
     return _plain(_client().checkout.Session.create(**params, idempotency_key=idempotency_key))
 
 
+def checkout_request_rejected(error: Exception) -> bool:
+    """A provider validation rejection created no session. Timeouts stay unknown."""
+    return isinstance(error, stripe.InvalidRequestError) and error.http_status == 400
+
+
 def retrieve_checkout_session(session_id: str):
     return _plain(_client().checkout.Session.retrieve(session_id))
 
