@@ -1,7 +1,5 @@
 # Lightweight application/runtime dependencies, constrained by the authoritative manifests.
 # Model libraries are installed separately by setup --models; no model substitutes.
--c ../../backend/src/ai/requirements.txt
--c ../../backend/src/market_scraper/requirements.txt
 xgboost
 pandas
 numpy
