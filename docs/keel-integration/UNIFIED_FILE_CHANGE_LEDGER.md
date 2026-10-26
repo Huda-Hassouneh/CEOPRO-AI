@@ -1855,3 +1855,8 @@ Approved directions remain binding: Python is the sole identity, billing, entitl
 ### Remaining integration Phase 3 checkpoint ? 2026-10-26
 
 Original bilingual product form and structured import review adapted to Python authorities; tenant SKU/version identity, strict product references, durable file replay and atomic reviewed invoice/inventory posting added. Four forward migrations (124?127), restricted receipt permissions/FORCE RLS, concurrency and audit coverage. Native affected suite 158 passed/0 skipped; frontend 192 passed/0 skipped; lint/build passed. Real Chrome product/import/persistence/Arabic mobile journey passed. Evidence and exact remaining boundaries: REMAINING_INTEGRATION_CHECKPOINT.md. No AI model changes, external provider operations, protected env edits or historical migration replacement. Next: Phase 4 webhook/privacy/commerce gaps.
+
+
+### Remaining integration Phase 4 checkpoint ? 2026-10-26
+
+Existing Shopify/Woo OAuth/vault/adapters/fenced worker reused. Added restricted signed Shopify HTTP intake, deduplicated audited receipts, numeric/GID shop identity compatibility, signed uninstall disable and durable privacy review/reimport holds. Added order-only provider-time incremental reads and configuration-bound atomic checkpoints; stock/products remain full scans. Migration128 forward-only. Affected native/adapter/worker/security suite98 passed/0 skipped. Real store E2E UNRUN; canonical source priority/refund promotion and irreversible privacy policy remain explicitly partial/blocked. See current checkpoint for exact evidence and next Phase5 action.

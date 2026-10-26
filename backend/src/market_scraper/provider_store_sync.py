@@ -21,6 +21,7 @@ from src.market_scraper.provider_identity import persist_shopify_records
 from src.market_scraper.inventory_provenance import persist_shopify_inventory_records
 from src.market_scraper.provider_business_staging import stage_provider_business_records
 from src.market_scraper.provider_lifecycle import ProviderLifecycleError
+from src.market_scraper.provider_incremental import load_order_watermark,next_order_continuation
 from src.market_scraper.provider_identity import persist_woocommerce_records
 from src.market_scraper.inventory_provenance import persist_woocommerce_inventory_records
 from src.market_scraper.woocommerce import WooCommerceClient, WooCommerceError, canonical_store_url
@@ -108,11 +109,11 @@ def _woocommerce_client_for(source: dict, loaded: dict, client_factory: Callable
                           max_pages=config.get("max_pages", 100))
 
 
-def _stream_records(client, stream: str):
+def _stream_records(client, stream: str, modified_since=None):
     if stream == "products":
         return list(client.iter_products())
     if stream == "orders":
-        return list(client.iter_orders())
+        return list(client.iter_orders(modified_since=modified_since)) if modified_since else list(client.iter_orders())
     if stream == "inventory":
         return list(client.iter_inventory())
     raise ValueError("unsupported provider stream")
@@ -271,7 +272,8 @@ def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
             or verification.get("shop_domain") != source["verified_store_domain"]
         ):
             raise ShopifyError("shop_mismatch", "Authenticated Shopify identity differs from the verified source")
-        records_by_stream = {stream: _stream_records(client, stream) for stream in _STREAMS}
+        order_watermark=load_order_watermark(conn,tenant_id,source)
+        records_by_stream = {stream: _stream_records(client, stream,order_watermark if stream=='orders' else None) for stream in _STREAMS}
     except operation_receipts.ReceiptSourceChanged:
         data_access.fail_source_changed_ingestion_job(conn, tenant_id, receipt)
         raise
@@ -314,7 +316,7 @@ def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
                 "source_id": source["source_id"], "stream_key": stream,
                 # The adapter consumes bounded cursors internally. This marks a
                 # completed full scan; it is not an incremental-resume cursor.
-                "continuation": {},
+                "continuation": next_order_continuation(records,"shopify",order_watermark) if stream=="orders" else {},
                 "configuration_version": int(source["configuration_version"]),
             })
         data_access.finish_ingestion_job(
@@ -339,7 +341,7 @@ def sync_shopify_source(conn, tenant_id: str, source: dict, receipt: dict, *,
         "stream_results": stream_results, "business_staging": business_results,
         "business_records_staged": sum(v["revisions_created"] for v in business_results.values()),
         "records_persisted": sum(stream_results.values()),
-        "checkpoint_advanced": True, "full_scan": True,
+        "checkpoint_advanced": True, "full_scan": order_watermark is None,
         "canonical_promotion": False,
     }
 
@@ -381,7 +383,8 @@ def sync_woocommerce_source(conn, tenant_id: str, source: dict, receipt: dict, *
                 or expected_id != source["verified_store_id"]:
             raise WooCommerceError("store_mismatch", "Authenticated WooCommerce endpoint differs from its verified source")
         products = list(client.iter_products())
-        orders = list(client.iter_orders())
+        order_watermark=load_order_watermark(conn,tenant_id,source)
+        orders = list(client.iter_orders(modified_since=order_watermark)) if order_watermark else list(client.iter_orders())
     except operation_receipts.ReceiptSourceChanged:
         data_access.fail_source_changed_ingestion_job(conn, tenant_id, receipt)
         raise
@@ -413,7 +416,7 @@ def sync_woocommerce_source(conn, tenant_id: str, source: dict, receipt: dict, *
             receipt_id=receipt["receipt_id"],
         )
         checkpoints = [{"source_id": source["source_id"], "stream_key": stream,
-                        "continuation": {}, "configuration_version": int(source["configuration_version"])}
+                        "continuation": next_order_continuation(orders,"woocommerce",order_watermark) if stream=="orders" else {}, "configuration_version": int(source["configuration_version"])}
                        for stream in ("products", "orders", "inventory")]
         data_access.finish_ingestion_job(
             conn, tenant_id, job_id, status="COMPLETED",
@@ -435,7 +438,7 @@ def sync_woocommerce_source(conn, tenant_id: str, source: dict, receipt: dict, *
             "records_persisted": len(identities) + len(inventory),
             "business_records_staged": business["revisions_created"],
             "business_staging": business, "checkpoint_advanced": True,
-            "full_scan": True, "canonical_promotion": False, "provider": "woocommerce"}
+            "full_scan": order_watermark is None, "canonical_promotion": False, "provider": "woocommerce"}
 
 
 def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = ShopifyGraphQLClient,
