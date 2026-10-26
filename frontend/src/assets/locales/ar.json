@@ -503,7 +503,11 @@
       "NOT_INCLUDED": "غير مشمول في خطتك",
       "NOT_ANALYZED": "حلل المراجعات لعرض النتيجة"
     },
-    "eligibleReviewCount": "المراجعات المؤهلة المقدمة: {{count}}"
+    "eligibleReviewCount": "المراجعات المؤهلة المقدمة: {{count}}",
+    "historyTitle": "سجل تحليل انطباع السوق",
+    "historyDate": "وقت الحساب",
+    "historyStatus": "حالة الأدلة",
+    "historyEvidence": "الأدلة"
   },
   "marketScoped": {
     "common": {

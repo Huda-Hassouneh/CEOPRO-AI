@@ -1,3 +1,5 @@
+import {useI18n} from '../../../app/providers/I18nProvider.jsx';
+import {useAuthStore} from '../../auth/store/authStore.js';
 import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -10,13 +12,15 @@ import { mpiApi } from '../api/mpiApi.js';
 const SCOPE = { BUSINESS: 'BUSINESS', PRODUCT: 'PRODUCT', COMPETITOR: 'COMPETITOR' };
 
 export function MarketPerceptionPanel({ t }) {
+  const {locale}=useI18n();
+  const tenant=useAuthStore(state=>state.tenantId);
   const [scope, setScope] = useState(SCOPE.BUSINESS);
   const [subjectId, setSubjectId] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const products = useQuery({ queryKey: ['mpi-products', productSearch], queryFn: () => productsApi.list({ limit: 100, offset: 0, search: productSearch || undefined }) });
-  const competitors = useQuery({ queryKey: ['mpi-competitors'], queryFn: competitorsApi.list });
+  const products = useQuery({ queryKey: ['mpi-products',tenant, productSearch], queryFn: () => productsApi.list({ limit: 100, offset: 0, search: productSearch || undefined }) });
+  const competitors = useQuery({ queryKey: ['mpi-competitors',tenant], queryFn: competitorsApi.list });
   const summary = useQuery({
-    queryKey: ['mpi-summary', scope, subjectId],
+    queryKey: ['mpi-summary',tenant, scope, subjectId],
     queryFn: () => mpiApi.summary({ subjectType: scope, subjectId: scope === SCOPE.BUSINESS ? undefined : subjectId }),
     enabled: false,
     retry: false,
@@ -27,13 +31,14 @@ export function MarketPerceptionPanel({ t }) {
     ? (products.data?.products || []).map((item) => ({ id: item.product_id, name: item.product_name }))
     : (competitors.data?.competitors || []).map((item) => ({ id: item.id, name: item.name }));
   const canRequest = scope === SCOPE.BUSINESS || Boolean(subjectId);
+  const history=useQuery({queryKey:['mpi-history',tenant,scope,subjectId],queryFn:()=>mpiApi.history({subjectType:scope,subjectId:scope===SCOPE.BUSINESS?undefined:subjectId}),enabled:Boolean(tenant&&canRequest),retry:false});
   const result = summary.data;
   const lowSample = result?.sample_size?.status === 'LOW_SAMPLE_SIZE';
   const errorStatus = summary.error?.response?.status;
 
   return <Card className="mpi-panel">
     <header><div><h2>{t('marketPerception.title')}</h2><p>{t('marketPerception.description')}</p></div>
-      <Button size="sm" variant="outline" leadingIcon={<RefreshCw size={15} />} disabled={!canRequest || summary.isFetching} loading={summary.isFetching} onClick={() => summary.refetch()}>
+      <Button size="sm" variant="outline" leadingIcon={<RefreshCw size={15} />} disabled={!canRequest || summary.isFetching} loading={summary.isFetching} onClick={async () => {await summary.refetch();await history.refetch();}}>
         {summary.isFetching ? t('marketPerception.loading') : t('marketPerception.refresh')}
       </Button>
     </header>
@@ -63,5 +68,11 @@ export function MarketPerceptionPanel({ t }) {
       {result.label_counts && <p>{t('marketPerception.breakdown', { positive: result.label_counts.positive ?? 0, neutral: result.label_counts.neutral ?? 0, negative: result.label_counts.negative ?? 0 })}</p>}
       <small>{lowSample ? t('marketPerception.lowSampleNotice') : t('marketPerception.evidenceNotice')}</small>
     </div>}
+    <details className="mpi-history"><summary>{t('marketPerception.historyTitle')}</summary>
+      {history.isPending&&<p role="status">{t('common.loading')}</p>}
+      {history.isError&&<p role="alert">{t('marketPerception.error')}</p>}
+      {history.isSuccess&&history.data.items.length===0&&<p>{t('common.noData')}</p>}
+      {history.isSuccess&&history.data.items.length>0&&<table><thead><tr><th>{t('marketPerception.historyDate')}</th><th>{t('marketPerception.historyStatus')}</th><th>{t('marketPerception.historyEvidence')}</th></tr></thead><tbody>{history.data.items.map(item=><tr key={item.evidence_id}><td>{new Date(item.generated_at).toLocaleString(locale)}</td><td>{item.result.status==='UNKNOWN'?t('marketPerception.noReviews'):item.result.sample_size?.status==='LOW_SAMPLE_SIZE'?t('marketPerception.lowSampleNotice'):t('marketPerception.evidenceNotice')}</td><td><details><summary>{item.evidence_id}</summary><p dir="auto">{item.result.sample_size?.status==='LOW_SAMPLE_SIZE'?t('marketPerception.lowSampleNotice'):item.explanation}</p></details></td></tr>)}</tbody></table>}
+    </details>
   </Card>;
 }

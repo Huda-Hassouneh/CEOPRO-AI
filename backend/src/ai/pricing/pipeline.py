@@ -133,7 +133,7 @@ class ProductNotFoundError(ValueError):
     callers that catch ValueError keep working; the API maps it to 404."""
 
 
-def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
+def run_price_recommendation(conn, tenant_id: str, product_id: str, *, commit: bool = True) -> dict:
     own = data_access.load_own_product(conn, tenant_id, product_id)
     if own is None:
         raise ProductNotFoundError(f"No product found for tenant={tenant_id} product_id={product_id}")
@@ -277,7 +277,8 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         else f"{action.capitalize()} price to {money(final_suggested_price)} {own_currency}"
     )
     outcome_id = evidence.insert_recommendation_outcome(conn, evidence_id, tenant_id, recommended_action)
-    conn.commit()
+    if commit:
+        conn.commit()
 
     logger.info(
         f"Price recommendation written tenant={tenant_id} product={product_id} "
