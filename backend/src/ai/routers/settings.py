@@ -297,11 +297,8 @@ def complete_onboarding(ctx: TenantContext = Depends(get_tenant_context)) -> dic
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_role(conn, ctx.tenant_id, ctx.user_id, _COMPANY_ADMIN_ROLES)
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "UPDATE companies SET onboarding_completed_at = COALESCE(onboarding_completed_at, CURRENT_TIMESTAMP) WHERE tenant_id = %s;",
-                (ctx.tenant_id,),
-            )
+        from src.ai import onboarding_profile
+        onboarding_profile.complete(conn, ctx.tenant_id, ctx.user_id)
         company = _fetch_company(conn, ctx.tenant_id)
         conn.commit()
         return company

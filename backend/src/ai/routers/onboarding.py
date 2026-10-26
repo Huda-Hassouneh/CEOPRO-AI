@@ -20,6 +20,31 @@ from src.market_scraper import provider_business_staging
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
+from src.ai import onboarding_profile
+
+@router.get("/state")
+def onboarding_state(ctx: TenantContext = Depends(get_tenant_context)):
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        result=onboarding_profile.state(conn,ctx.tenant_id)
+        conn.commit()
+        return result
+    finally: conn.close()
+
+@router.put("/state")
+def save_onboarding_state(body: onboarding_profile.StepRequest, ctx: TenantContext = Depends(get_tenant_context)):
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx)
+        result=onboarding_profile.save(conn,ctx.tenant_id,ctx.user_id,body)
+        conn.commit()
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally: conn.close()
+
+
 
 @router.get("/industries")
 def onboarding_industries() -> dict:
