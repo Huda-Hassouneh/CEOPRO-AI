@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import { routePaths } from './routePaths.js';
 import { useLocation } from 'react-router-dom';
 import { ownerBillingDestination } from '../../features/platform/ownerBillingRoutes.js';
@@ -22,7 +22,15 @@ import { VerificationCodePage } from '../../features/auth/pages/VerificationCode
 
 
 
-const SetupPage = page(() => import('../../features/onboarding/pages/SetupPage.jsx').then((m) => ({ default: m.SetupPage })));
+import { OnboardingLayout } from '../layouts/OnboardingLayout.jsx';
+import { OnboardingGate, OnboardingResume } from '../../features/onboarding/components/OnboardingGate.jsx';
+const OnboardingRegionalPreferencesPage = page(() => import('../../features/onboarding/pages/OnboardingRegionalPreferencesPage.jsx').then(m=>({default:m.OnboardingRegionalPreferencesPage})));
+const OnboardingIndustryPage = page(() => import('../../features/onboarding/pages/OnboardingIndustryPage.jsx').then(m=>({default:m.OnboardingIndustryPage})));
+const OnboardingBusinessSizePage = page(() => import('../../features/onboarding/pages/OnboardingBusinessSizePage.jsx').then(m=>({default:m.OnboardingBusinessSizePage})));
+const OnboardingGoalsPage = page(() => import('../../features/onboarding/pages/OnboardingGoalsPage.jsx').then(m=>({default:m.OnboardingGoalsPage})));
+const OnboardingSubscriptionSuccessPage = page(() => import('../../features/onboarding/pages/OnboardingSubscriptionSuccessPage.jsx').then(m=>({default:m.OnboardingSubscriptionSuccessPage})));
+const OnboardingSubscriptionFailedPage = page(() => import('../../features/onboarding/pages/OnboardingSubscriptionFailedPage.jsx').then(m=>({default:m.OnboardingSubscriptionFailedPage})));
+const OnboardingFinishPage = page(() => import('../../features/onboarding/pages/OnboardingDataSourcesPage.jsx').then(m=>({default:m.OnboardingDataSourcesPage})));
 const CreateWorkspacePage = page(() => import('../../features/workspaces/pages/CreateWorkspacePage.jsx').then((m) => ({ default: m.CreateWorkspacePage })));
 const InvitationPage = page(() => import('../../features/auth/pages/InvitationPage.jsx').then((m) => ({ default: m.InvitationPage })));
 const WelcomePage = page(() => import('../../features/system/pages/WelcomePage.jsx'));
@@ -168,7 +176,7 @@ const routes = [
   },
   {
     path: routePaths.onboarding,
-    element: <ProtectedRoute><SetupPage /></ProtectedRoute>,
+    element: <ProtectedRoute><OnboardingResume /></ProtectedRoute>,
   },
   {
     path: routePaths.newWorkspace,
@@ -176,9 +184,13 @@ const routes = [
   },
   {
     path: routePaths.onboardingPlan,
-    element: <ProtectedRoute><DashboardLayout><OnboardingPlanSelectionPage /></DashboardLayout></ProtectedRoute>,
+    element: <ProtectedRoute><OnboardingLayout><OnboardingGate step={5}><OnboardingPlanSelectionPage /></OnboardingGate></OnboardingLayout></ProtectedRoute>,
   },
-  { path: routePaths.onboardingPlanPayment, element: <ProtectedRoute><DashboardLayout><OnboardingPaymentPage /></DashboardLayout></ProtectedRoute> },
+  { path: routePaths.onboardingPlanSuccess,element:<ProtectedRoute><OnboardingLayout><OnboardingGate step={6}><OnboardingSubscriptionSuccessPage/></OnboardingGate></OnboardingLayout></ProtectedRoute> },
+  { path: routePaths.onboardingPlanFailed,element:<ProtectedRoute><OnboardingLayout><OnboardingGate step={6}><OnboardingSubscriptionFailedPage/></OnboardingGate></OnboardingLayout></ProtectedRoute> },
+  { path: routePaths.onboardingPlanPayment, element: <ProtectedRoute><OnboardingLayout><OnboardingGate step={5}><OnboardingPaymentPage /></OnboardingGate></OnboardingLayout></ProtectedRoute> },
+  ...[[routePaths.onboardingRegion,1,<OnboardingRegionalPreferencesPage key="OnboardingRegionalPreferencesPage"/>],[routePaths.onboardingIndustry,2,<OnboardingIndustryPage key="OnboardingIndustryPage"/>],[routePaths.onboardingBusiness,3,<OnboardingBusinessSizePage key="OnboardingBusinessSizePage"/>],[routePaths.onboardingObjectives,4,<OnboardingGoalsPage key="OnboardingGoalsPage"/>],[routePaths.onboardingConnectData,6,<OnboardingFinishPage key="OnboardingFinishPage"/>]].map(([path,step,element])=>({path,element:<ProtectedRoute><OnboardingLayout><OnboardingGate step={step}>{element}</OnboardingGate></OnboardingLayout></ProtectedRoute>})),
+  { path: routePaths.onboardingPlanCustom, element: <ProtectedRoute><OnboardingLayout><OnboardingGate step={5}><CustomPlanBuilderPage /></OnboardingGate></OnboardingLayout></ProtectedRoute> },
   { path: routePaths.customPlanBuilder, element: <ProtectedRoute><DashboardLayout><CustomPlanBuilderPage /></DashboardLayout></ProtectedRoute> },
   { path: routePaths.customPlanQuote, element: <ProtectedRoute><DashboardLayout><CustomPlanQuotePage /></DashboardLayout></ProtectedRoute> },
   {

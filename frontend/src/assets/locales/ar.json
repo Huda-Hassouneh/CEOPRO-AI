@@ -2599,7 +2599,9 @@
       "providerNotice": "سيتم تحويلك إلى Stripe لإتمام الدفع بأمان.",
       "redirecting": "جارٍ التحويل إلى Stripe...",
       "error": "تعذر بدء عملية الدفع. حاول مرة أخرى.",
-      "planTrial": "تجربة {{plan}}"
+      "planTrial": "تجربة {{plan}}",
+      "catalogBeforePromotion": "مبلغ الكتالوج قبل العرض الترويجي",
+      "stripeConfirmsPromotion": "يؤكد Stripe المبلغ النهائي بعد الخصم قبل الدفع."
     },
     "result": {
       "success": {
@@ -5567,5 +5569,291 @@
     "partialSalesFile": "استلم الخادم جزءًا فقط من هذا الملف. أعد رفع ملف المبيعات CSV كاملًا لاستعادة الصفوف المفقودة.",
     "stagedCountMismatch": "عدد المبيعات المهيأة لا يطابق الملف الكامل.",
     "ragAnswerMissing": "لم يُرجع مساعد المستندات إجابة"
+  },
+  "onboarding": {
+    "common": {
+      "setup": "الإعداد",
+      "userAvatar": "ملف المستخدم",
+      "stepAccessible": "الخطوة {{step}}",
+      "stepOf": "الخطوة {{step}} من {{total}}",
+      "progressLabel": "تقدم الإعداد",
+      "back": "رجوع",
+      "continue": "متابعة"
+    },
+    "account": {
+      "title": "الملف الشخصي للحساب",
+      "open": "فتح الملف الشخصي للحساب",
+      "close": "إغلاق الملف الشخصي للحساب",
+      "activeLanguage": "لغة التطبيق الحالية: {{language}}",
+      "company": "المنشأة",
+      "notAvailable": "غير متوفر"
+    },
+    "industry": {
+      "title": "اختر مجال عملك",
+      "subtitle": "ساعدنا في تخصيص مؤشرات لوحة التحكم وتوقعات الذكاء الاصطناعي باختيار قطاع عملك الرئيسي.",
+      "options": {
+        "retail": "التجزئة",
+        "tech": "التقنية",
+        "manufacturing": "التصنيع",
+        "restaurants": "المطاعم",
+        "healthcare": "الرعاية الصحية",
+        "other": "أخرى"
+      }
+    },
+    "business": {
+      "title": "أخبرنا عن منشأتك",
+      "subtitle": "يساعدنا ذلك في تخصيص تجربتك وتقديم رؤى أكثر صلة.",
+      "sizeLabel": "حجم المنشأة",
+      "sizeHint": "كم عدد الموظفين في منشأتك؟",
+      "sizeDescriptions": {
+        "0": "صغيرة",
+        "1": "متوسطة",
+        "2": "كبيرة"
+      },
+      "revenueLabel": "نطاق الإيرادات السنوية",
+      "revenueHint": "ما الإيرادات السنوية التقديرية لمنشأتك؟",
+      "revenueOptions": {
+        "under-100k": "أقل من $100K",
+        "100k-500k": "$100K–$500K",
+        "500k-1m": "$500K–$1M",
+        "1m-10m": "$1M–$10M",
+        "10m-50m": "$10M–$50M",
+        "50m+": "$50M+"
+      }
+    },
+    "region": {
+      "title": "التفضيلات الإقليمية",
+      "subtitle": "ساعدنا في تخصيص تجربتك بالإعدادات الإقليمية المناسبة.",
+      "countryLabel": "الدولة",
+      "countryHint": "اختر دولة أو موقع منشأتك",
+      "cityLabel": "المدينة",
+      "cityHint": "اختر مدينتك",
+      "cityPlaceholder": "اختر مدينة",
+      "languageLabel": "اللغة",
+      "languageHint": "اختر لغة تطبيق KEEL",
+      "noteMarket": "تساعد دولتك ومدينتك KEEL في عرض المنافسين الملائمين لسوقك.",
+      "noteLanguage": "يُطبّق تفضيل اللغة في جميع أنحاء التطبيق ويمكن تغييره لاحقاً من الإعدادات.",
+      "countries": {
+        "belgium": "بلجيكا",
+        "france": "فرنسا",
+        "luxembourg": "لوكسمبورغ",
+        "moldova": "مولدوفا",
+        "poland": "بولندا",
+        "romania": "رومانيا",
+        "slovakia": "سلوفاكيا",
+        "spain": "إسبانيا",
+        "botswana": "بوتسوانا",
+        "burkinaFaso": "بوركينا فاسو",
+        "cameroon": "الكاميرون",
+        "centralAfricanRepublic": "جمهورية أفريقيا الوسطى",
+        "coteDIvoire": "ساحل العاج",
+        "democraticRepublicCongo": "جمهورية الكونغو الديمقراطية",
+        "egypt": "مصر",
+        "guinea": "غينيا",
+        "guineaBissau": "غينيا بيساو",
+        "jordan": "الأردن",
+        "liberia": "ليبيريا",
+        "mali": "مالي",
+        "morocco": "المغرب",
+        "senegal": "السنغال",
+        "sierraLeone": "سيراليون",
+        "tunisia": "تونس"
+      },
+      "cities": {
+        "brussels": "بروكسل",
+        "antwerp": "أنتويرب",
+        "liege": "لييج",
+        "paris": "باريس",
+        "lyon": "ليون",
+        "marseille": "مرسيليا",
+        "luxembourgCity": "مدينة لوكسمبورغ",
+        "eschSurAlzette": "إيش سور ألزيت",
+        "chisinau": "كيشيناو",
+        "balti": "بالتي",
+        "warsaw": "وارسو",
+        "krakow": "كراكوف",
+        "wroclaw": "فروتسواف",
+        "bucharest": "بوخارست",
+        "clujNapoca": "كلوج نابوكا",
+        "iasi": "ياش",
+        "bratislava": "براتيسلافا",
+        "kosice": "كوشيتسه",
+        "madrid": "مدريد",
+        "barcelona": "برشلونة",
+        "valencia": "فالنسيا",
+        "gaborone": "غابورون",
+        "francistown": "فرانسيس تاون",
+        "ouagadougou": "واغادوغو",
+        "boboDioulasso": "بوبو ديولاسو",
+        "yaounde": "ياوندي",
+        "douala": "دوالا",
+        "bangui": "بانغي",
+        "bimbo": "بيمبو",
+        "abidjan": "أبيدجان",
+        "yamoussoukro": "ياموسوكرو",
+        "bouake": "بواكيه",
+        "kinshasa": "كينشاسا",
+        "lubumbashi": "لوبومباشي",
+        "goma": "غوما",
+        "cairo": "القاهرة",
+        "alexandria": "الإسكندرية",
+        "giza": "الجيزة",
+        "conakry": "كوناكري",
+        "confirm": "تأكيد المدينة",
+        "nzerekore": "نزيريكوري",
+        "bissau": "بيساو",
+        "bafata": "بافاتا",
+        "amman": "عمّان",
+        "irbid": "إربد",
+        "zarqa": "الزرقاء",
+        "aqaba": "العقبة",
+        "monrovia": "مونروفيا",
+        "gbarnga": "غبارنغا",
+        "bamako": "باماكو",
+        "sikasso": "سيكاسو",
+        "casablanca": "الدار البيضاء",
+        "rabat": "الرباط",
+        "marrakesh": "مراكش",
+        "dakar": "داكار",
+        "thies": "تييس",
+        "saintLouis": "سانت لويس",
+        "freetown": "فريتاون",
+        "bo": "بو",
+        "tunis": "تونس",
+        "sfax": "صفاقس",
+        "sousse": "سوسة"
+      },
+      "languages": {
+        "english": "الإنجليزية",
+        "arabic": "العربية"
+      }
+    },
+    "objectives": {
+      "title": "ما أهدافك الرئيسية؟",
+      "subtitle": "اختر كل ما ينطبق. سنخصص لوحة التحكم للتركيز على هذه المجالات.",
+      "options": {
+        "competitors": {
+          "title": "متابعة المنافسين",
+          "description": "راقب الحصة السوقية وتغيّرات الأسعار وإطلاق الميزات في قطاعك."
+        },
+        "forecasting": {
+          "title": "توقع الطلب",
+          "description": "توقّع حجم المبيعات المستقبلي بناءً على البيانات التاريخية ونماذج السوق."
+        },
+        "knowledge": {
+          "title": "بناء مساعد معرفة بالذكاء الاصطناعي",
+          "description": "أنشئ مساعد معرفة داخلياً للاستعلام عن مستندات المنشأة ومؤشراتها."
+        }
+      }
+    },
+    "paymentSuccess": {
+      "continueSetup": "متابعة الإعداد"
+    },
+    "persistence": {
+      "error": "تعذر حفظ تقدمك. حاول مرة أخرى.",
+      "currentTrial": "المتابعة باستخدام تجربتي الحالية",
+      "pending": "أكمل الدفع أو اختر تجربتك المتاحة لإكمال الإعداد."
+    }
+  },
+  "dataConnections": {
+    "title": "اربط بياناتك",
+    "subtitle": "اربط أدواتك ومصادر بياناتك للاستفادة القصوى من KEEL، أو أكمل الإعداد وأضفها لاحقاً.",
+    "statuses": {
+      "not-connected": "غير متصل",
+      "connecting": "جارٍ الاتصال",
+      "connected": "متصل",
+      "error": "الاتصال غير متاح",
+      "configured": "تم الحفظ — بانتظار المزامنة"
+    },
+    "connectedCount": "تم ربط {{count}} من مصادر البيانات",
+    "completeSetup": "إكمال الإعداد",
+    "skip": "التخطي الآن",
+    "analytics": {
+      "title": "Google Analytics",
+      "description": "اربط حساب Google Analytics للحصول على رؤى الموقع والجمهور.",
+      "action": "ربط الحساب",
+      "oauthUnavailable": "ربط Google Analytics غير متاح في معاينة الواجهة الحالية."
+    },
+    "website": {
+      "title": "موقعك أو متجرك الإلكتروني",
+      "description": "أدخل رابط موقعك أو متجرك لمتابعة المنتجات والزيارات والمنافسين.",
+      "inputLabel": "رابط الموقع أو المتجر",
+      "action": "إضافة الموقع",
+      "error": "أدخل رابط الموقع كاملا باستخدام HTTP أو HTTPS، مثل https://example.com.",
+      "saveFailed": "تعذر حفظ الموقع. حاول مرة أخرى.",
+      "added": "تمت إضافة الموقع",
+      "configuredNotice": "تم حفظ الموقع. لم تتم مزامنة البيانات بعد.",
+      "placeholder": "https://your-website.com"
+    },
+    "documents": {
+      "title": "المستندات",
+      "description": "أضف مستندات منشأتك، مثل المنتجات والتقارير وبيانات السوق.",
+      "action": "إضافة ملفات"
+    },
+    "businessSystem": {
+      "title": "نظام الأعمال",
+      "description": "اربط قاعدة بياناتك أو نظام نقاط البيع أو نظام تخطيط موارد المؤسسة لاستيراد بيانات الأعمال.",
+      "action": "ربط نظام الأعمال",
+      "pageTitle": "اربط مصدر بياناتك",
+      "pageSubtitle": "اختر طريقة ربط بيانات أعمالك.",
+      "back": "العودة إلى ربط بياناتك",
+      "backToSelection": "العودة إلى نظام الأعمال",
+      "select": "اختيار",
+      "placeholder": "ستتم إضافة تفاصيل إعداد الاتصال بشكل منفصل.",
+      "options": {
+        "database": {
+          "title": "قاعدة البيانات",
+          "description": "اربط مباشرة بقاعدة بيانات منشأتك."
+        },
+        "pos": {
+          "title": "نظام نقاط البيع",
+          "description": "اربط نظام نقاط البيع الخاص بك."
+        },
+        "erp": {
+          "title": "نظام تخطيط موارد المؤسسة",
+          "description": "اربط نظام تخطيط موارد المؤسسة الخاص بك."
+        }
+      }
+    },
+    "database": {
+      "title": "قاعدة البيانات",
+      "description": "اختر مزود قاعدة بيانات منشأتك للتحضير للربط مستقبلاً.",
+      "action": "ربط قاعدة البيانات",
+      "back": "العودة إلى ربط البيانات",
+      "pageTitle": "اربط قاعدة بياناتك",
+      "pageSubtitle": "اختر مزود قاعدة بيانات منشأتك. لا تشمل هذه المعاينة جمع بيانات الدخول.",
+      "chooseType": "اختر نوع قاعدة البيانات",
+      "securityTitle": "بياناتك آمنة",
+      "securityDescription": "سيستخدم الربط المستقبلي اتصالاً مشفراً وآمناً. لا نجمع بيانات الدخول في هذه المعاينة.",
+      "test": "اختبار الاتصال",
+      "testUnavailable": "سيتاح اختبار الاتصال بعد توفر تدفق بيانات الدخول في الخادم.",
+      "providers": {
+        "mysql": {
+          "title": "MySQL",
+          "description": "اختر MySQL"
+        },
+        "postgresql": {
+          "title": "PostgreSQL",
+          "description": "اختر PostgreSQL"
+        },
+        "sqlServer": {
+          "title": "Microsoft SQL Server",
+          "description": "اختر SQL Server"
+        },
+        "mongodb": {
+          "title": "MongoDB",
+          "description": "اختر MongoDB"
+        },
+        "oracle": {
+          "title": "Oracle",
+          "description": "اختر Oracle"
+        },
+        "other": {
+          "title": "قاعدة بيانات أخرى",
+          "description": "اختر مزوداً آخر"
+        }
+      }
+    },
+    "addedCount": "تمت إضافة {{count}} من مصادر البيانات."
   }
 }
