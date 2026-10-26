@@ -591,3 +591,36 @@ def review_provider_business_record(source_id: UUID, body: ProviderBusinessRevie
         raise HTTPException(status_code=500, detail="Provider review could not be recorded.") from None
     finally:
         conn.close()
+
+
+class ProviderCatalogPost(BaseModel):
+    business_revision_id:UUID
+    preview_hash:str=Field(pattern=r'^[0-9a-f]{64}$')
+    model_config=ConfigDict(extra='forbid')
+
+@router.get('/sources/{source_id}/provider-records/{revision_id}/catalog-preview')
+def provider_catalog_preview(source_id:UUID,revision_id:UUID,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_catalog
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx)
+        result=provider_catalog.preview(conn,ctx.tenant_id,str(source_id),str(revision_id));conn.commit();return result
+    except Exception:conn.rollback();raise
+    finally:conn.close()
+
+@router.post('/sources/{source_id}/provider-records/catalog-post')
+def provider_catalog_post(source_id:UUID,body:ProviderCatalogPost,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_catalog
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx)
+        result=provider_catalog.confirm(conn,ctx.tenant_id,ctx.user_id,str(source_id),str(body.business_revision_id),body.preview_hash);conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        if getattr(exc,'pgcode',None)=='23505':raise HTTPException(409,'Source identity or SKU conflicts with an existing reviewed product.') from None
+        raise
+    finally:conn.close()
+    if result['created']:
+        from src.ai.routers.products import _publish_discovery_request
+        _publish_discovery_request(ctx.tenant_id)
+    return result

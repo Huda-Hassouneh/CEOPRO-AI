@@ -215,7 +215,7 @@ export function ConnectDataPage() {
       ) : <EmptyState title={t('connectData.empty.title')} description={t('connectData.empty.description')} action={<Button size="sm" onClick={() => setAddOpen(true)}>{t('connectData.actions.addSource')}</Button>} />}
     </section>
 
-    {providerSource && <ProviderRecordsPanel source={providerSource}
+    {providerSource && <ProviderRecordsPanel key={providerSource.source_id} source={providerSource}
       refreshVersion={`${providerSource.last_run?.job_id || ''}:${providerSource.last_run?.status || ''}`} t={t} />}
 
     <section ref={uploadRef} className="connect-data-section connect-data-upload">

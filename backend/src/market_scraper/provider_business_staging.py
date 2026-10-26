@@ -28,6 +28,8 @@ _ENTITY = {
 
 
 def _records_for_staging(provider: str, records: Iterable[Any]) -> list[tuple[str, str, Mapping[str, Any]]]:
+    records=list(records)
+    parent_titles={str(r.provider_id):r.payload.get('name') for r in records if provider=='woocommerce' and getattr(r,'entity_type',None)=='product' and isinstance(getattr(r,'payload',None),Mapping)}
     staged: list[tuple[str, str, Mapping[str, Any]]] = []
     for record in records:
         raw_entity = getattr(record, "entity_type", None)
@@ -36,6 +38,12 @@ def _records_for_staging(provider: str, records: Iterable[Any]) -> list[tuple[st
         payload = getattr(record, "payload", None)
         if entity is None or not isinstance(payload, Mapping):
             raise ProviderBusinessStagingError("Provider adapter returned an unsupported business record")
+        if provider=='woocommerce' and entity=='variant' and not payload.get('name'):
+            parent=parent_titles.get(str(getattr(record,'parent_provider_id',None)))
+            attributes=payload.get('attributes') or []
+            if isinstance(parent,str) and isinstance(attributes,list):
+                labels=[a.get('option') for a in attributes if isinstance(a,Mapping) and isinstance(a.get('option'),str)]
+                payload={**payload,'name':parent+(' / '+' / '.join(labels) if labels else '')}
         staged.append((entity, str(provider_id), payload))
         # WooCommerce returns line items nested in each order; M95 creates an
         # independent source-scoped identity for each line in the same pass.
@@ -120,7 +128,7 @@ def list_provider_business_records(conn, source_id: str, *, limit: int = 50, off
         cursor.execute(
             "SELECT b.business_revision_id,b.provider_record_identity_id,b.entity_type,b.revision_number,"
             "b.typed_values,b.validation_findings,b.validation_status,b.created_at,i.provider_record_id,"
-            "i.mapping_status,r.decision,r.created_at,r.reason_code "
+            "i.mapping_status,r.decision,r.created_at,r.reason_code,i.canonical_product_id "
             "FROM public.keel_provider_business_revisions b "
             "JOIN public.keel_provider_record_identities i ON i.tenant_id=b.tenant_id "
             "AND i.source_id=b.source_id AND i.provider=b.provider AND i.provider_record_identity_id=b.provider_record_identity_id "
@@ -140,7 +148,8 @@ def list_provider_business_records(conn, source_id: str, *, limit: int = 50, off
         "validation_status": r[6], "created_at": r[7].isoformat(), "provider_record_id": r[8],
         "identity_status": r[9], "review_decision": r[10], "reviewed_at": r[11].isoformat() if r[11] else None,
         "review_reason_code": r[12],
-        "canonical_status": "not_posted",
+        "canonical_status": "linked" if r[13] else "not_posted",
+        "canonical_product_id":str(r[13]) if r[13] else None,
     } for r in rows], "limit": limit, "offset": offset}
 
 

@@ -55,3 +55,13 @@ Fresh/upgrade/repeat migrations, affected native/worker/accounting/security/fron
 ## Preservation
 
 Integration backend/.env.example SHA256 6850C0B739FF783FE57466C509105DB4DF3F03AED16E1D939CBA870167EF2F28 must remain unchanged. Original D: Node/React remain read-only. No push/main merge/deployment or protected runtime/database modifications.
+
+## Source catalog/provider follow-up checkpoint
+
+Original source product review now uses the existing M95 identity, M98 typed review, canonical product/capacity and discovery authorities. Owner-confirmed create/link never overwrites a manually linked price or stock. Latest completed source revision and configuration must still match; source/revision locks serialize owner posting against worker updates. Three forward migrations131-133 add only supported typed product fields and restricted locking guards. Regression DB133; runtime132 at browser verification, final alignment pending.
+
+Woo simple/variation names, SKU, GTIN, currency and prices now remain usable instead of unconditional unsupported findings. Shopify ProductVariant scalar money fields follow the actual provider contract using authenticated shop currency. Fixed valid outer pagination being rejected as duplicate; nested cursor replay is still rejected. Existing secure adapters/worker remain the sole provider authority.
+
+Evidence: phase4-provider-contract-final.xml71 passed; phase4-source-post-final.xml15 passed; phase4-source-guard-final.xml21 passed; phase4-canonical-concurrency.xml6 passed (overlapping groups, never summed). Frontend197 passed, lint/build passed. Actual Chrome source review/confirm -> persisted canonical product/link -> reload -> Arabic mobile RTL passed, errors empty; phase4-browser/provider-browser-ledger.json. Upstream is explicitly CONTROLLED_PROVIDER_FIXTURE_NOT_REAL_STORE, not real merchant acceptance.
+
+Recovered original source-specific invoice namespace SH-/WC- plus source UUID/order ID and reserved inventory location rules. These are established original behavior; only actual authority collisions/unapproved privacy erasure remain policy-dependent. Next: reconcile source orders/stock using those exact rules and existing authorities, then final fresh/123-upgrade/repeat migration verification, affected regressions and safe fast-forward. No new Stripe resources or unchanged billing E2E repeats.

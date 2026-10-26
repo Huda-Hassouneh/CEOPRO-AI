@@ -25,3 +25,14 @@ test('original GTIN upload sends a multipart file instead of the shared JSON def
  const previous=httpClient.defaults.baseURL;httpClient.defaults.baseURL=`http://127.0.0.1:${server.address().port}`;t.after(()=>{httpClient.defaults.baseURL=previous;server.close();});
  await productsApi.previewGtins(new File(['sku,gtin\nFIXTURE,3017620422003'],'fixture.csv',{type:'text/csv'}));assert.match(captured.type,/multipart\/form-data; boundary=/);assert.match(captured.body,/name="file"; filename="fixture.csv"/);assert.match(captured.body,/FIXTURE,3017620422003/);
 });
+
+
+test('source catalog actions use explicit preview/hash confirmation and retain canonical links',()=>{
+ const api=read('features/data-connections/api/dataConnectionsApi.js'),panel=read('features/data-connections/components/ProviderRecordsPanel.jsx');
+ assert.match(api,/catalog-preview/);assert.match(api,/catalog-post/);assert.match(panel,/preview_hash:catalogPlan.preview_hash/);assert.match(panel,/catalogPlan.eligible/);assert.match(panel,/canonical_product_id/);assert.match(panel,/<Modal/);
+ for(const locale of ['en','ar']){const bundle=JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`,import.meta.url),'utf8'));assert.ok(bundle.connectData.providerRecords.catalogCreate);assert.ok(bundle.connectData.providerRecords.catalogFindings.identity_conflict);}
+});
+
+test('pricing requests preserve one retry identity until a successful acknowledgement',()=>{
+ const api=read('features/pricing/api/pricingApi.js');assert.match(api,/keel.pricing.\$\{tenant\}.\$\{productId\}/);assert.match(api,/Idempotency-Key/);assert.match(api,/pendingRequests.delete/);assert.match(api,/sessionStorage\?\.removeItem/);
+});

@@ -240,8 +240,8 @@ def verify_privacy_webhook(
 
 
 SHOP_QUERY = """query KeelVerifyShop { shop { id myshopifyDomain currencyCode plan { partnerDevelopment } } currentAppInstallation { accessScopes { handle } } }"""
-PRODUCTS_QUERY = """query KeelProducts($first:Int!,$after:String,$variantFirst:Int!){ products(first:$first,after:$after) { edges { cursor node { id title handle status vendor createdAt updatedAt variants(first:$variantFirst) { edges { cursor node { id title sku barcode updatedAt price { amount currencyCode } compareAtPrice { amount currencyCode } inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
-PRODUCT_VARIANTS_QUERY = """query KeelProductVariants($id:ID!,$first:Int!,$after:String){ product(id:$id) { variants(first:$first,after:$after) { edges { cursor node { id title sku barcode updatedAt price { amount currencyCode } compareAtPrice { amount currencyCode } inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } }"""
+PRODUCTS_QUERY = """query KeelProducts($first:Int!,$after:String,$variantFirst:Int!){ products(first:$first,after:$after) { edges { cursor node { id title handle status vendor createdAt updatedAt variants(first:$variantFirst) { edges { cursor node { id title sku barcode updatedAt price compareAtPrice inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
+PRODUCT_VARIANTS_QUERY = """query KeelProductVariants($id:ID!,$first:Int!,$after:String){ product(id:$id) { variants(first:$first,after:$after) { edges { cursor node { id title sku barcode updatedAt price compareAtPrice inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } }"""
 ORDERS_QUERY = """query KeelOrders($first:Int!,$after:String,$lineFirst:Int!,$query:String){ orders(first:$first,after:$after,sortKey:UPDATED_AT,query:$query) { edges { cursor node { id name createdAt updatedAt currencyCode displayFinancialStatus displayFulfillmentStatus cancelledAt test totalPriceSet { shopMoney { amount currencyCode } } totalTaxSet { shopMoney { amount currencyCode } } totalShippingPriceSet { shopMoney { amount currencyCode } } totalDiscountsSet { shopMoney { amount currencyCode } } lineItems(first:$lineFirst) { edges { cursor node { id title quantity sku variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
 ORDER_LINES_QUERY = """query KeelOrderLines($id:ID!,$first:Int!,$after:String){ order(id:$id) { lineItems(first:$first,after:$after) { edges { cursor node { id title quantity sku variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } }"""
 LOCATIONS_QUERY = """query KeelLocations($first:Int!,$after:String,$levelFirst:Int!){ locations(first:$first,after:$after) { edges { cursor node { id name isActive inventoryLevels(first:$levelFirst) { edges { cursor node { id updatedAt item { id sku tracked variant { id } } quantities(names:[\"available\",\"on_hand\"]) { name quantity } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
@@ -435,7 +435,9 @@ class ShopifyGraphQLClient:
             raise ShopifyError("insufficient_permissions", "Shopify connection is missing a required read scope")
 
     def iter_products(self) -> Iterator[ShopifyRecord]:
-        self.require_scopes(self.verify_connection(), ("read_products",))
+        verification=self.verify_connection()
+        self.require_scopes(verification, ("read_products",))
+        shop_currency=verification.get("currency_code")
         nested_page = min(self._page_size, 250)
         for product in self._iterate_connection(PRODUCTS_QUERY, ("products",), {"variantFirst": nested_page}):
             product_id = _gid(product.get("id"), "product")
@@ -445,13 +447,14 @@ class ShopifyGraphQLClient:
                 raise ShopifyError("invalid_response", "Shopify product response omitted variants")
             initial_edges = _edge_nodes(variants)
             for variant in initial_edges:
-                yield ShopifyRecord("variant", _gid(variant.get("id"), "variant"), variant, product_id)
+                yield ShopifyRecord("variant", _gid(variant.get("id"), "variant"), _variant_money_payload(variant,shop_currency), product_id)
             page_info = variants.get("pageInfo")
             if isinstance(page_info, dict) and page_info.get("hasNextPage"):
                 after = _cursor(page_info.get("endCursor"))
-                yield from self._iterate_connection(
-                    PRODUCT_VARIANTS_QUERY, ("product", "variants"), {"id": product_id}, initial_after=after
-                , parent_id=product_id, entity_type="variant")
+                for record in self._iterate_connection(
+                    PRODUCT_VARIANTS_QUERY, ("product", "variants"), {"id": product_id}, initial_after=after,
+                    parent_id=product_id, entity_type="variant",seen_cursors=_edge_cursors(variants)):
+                    yield ShopifyRecord(record.entity_type,record.provider_id,_variant_money_payload(record.payload,shop_currency),record.parent_provider_id)
 
     def iter_orders(self, *, modified_since: str | None = None) -> Iterator[ShopifyRecord]:
         self.require_scopes(self.verify_connection(), ("read_orders",))
@@ -477,7 +480,7 @@ class ShopifyGraphQLClient:
                 after = _cursor(page_info.get("endCursor"))
                 yield from self._iterate_connection(
                     ORDER_LINES_QUERY, ("order", "lineItems"), {"id": order_id}, initial_after=after
-                , parent_id=order_id, entity_type="line_item")
+                , parent_id=order_id, entity_type="line_item",seen_cursors=_edge_cursors(lines))
 
     def iter_inventory(self) -> Iterator[ShopifyRecord]:
         self.require_scopes(self.verify_connection(), ("read_inventory",))
@@ -495,7 +498,7 @@ class ShopifyGraphQLClient:
                 after = _cursor(page_info.get("endCursor"))
                 yield from self._iterate_connection(
                     LOCATION_LEVELS_QUERY, ("location", "inventoryLevels"), {"id": location_id}, initial_after=after
-                , parent_id=location_id, entity_type="inventory_level")
+                , parent_id=location_id, entity_type="inventory_level",seen_cursors=_edge_cursors(levels))
 
     def _iterate_connection(
         self,
@@ -546,7 +549,7 @@ class ShopifyGraphQLClient:
             if not page_info.get("hasNextPage"):
                 return
             next_cursor = _cursor(page_info.get("endCursor"))
-            if next_cursor in cursors or next_cursor == after:
+            if not edges or next_cursor == after:
                 raise ShopifyError("pagination_nonprogress", "Shopify pagination did not advance")
             after = next_cursor
         raise ShopifyError("page_limit", "Shopify pagination exceeded the configured page limit")
@@ -556,6 +559,21 @@ class _RetryableHTTP(ShopifyError):
     def __init__(self, code: str, message: str, delay: float):
         super().__init__(code, message, retryable=True)
         self.delay = delay
+
+
+def _variant_money_payload(variant,shop_currency):
+    """Admin ProductVariant Money is a scalar in the authenticated shop currency.
+    https://shopify.dev/docs/api/admin-graphql/latest/objects/ProductVariant
+    Preserve the existing internal typed Money shape without inferring FX.
+    """
+    payload=dict(variant)
+    for field in ('price','compareAtPrice'):
+        value=payload.get(field)
+        if value is None or isinstance(value,Mapping):continue
+        if not isinstance(value,str) or not isinstance(shop_currency,str) or not re.fullmatch(r'[A-Z]{3}',shop_currency):
+            raise ShopifyError('invalid_response','Shopify variant price or authenticated currency is invalid')
+        payload[field]={'amount':value,'currencyCode':shop_currency}
+    return payload
 
 
 def _edge_cursors(connection: Mapping[str, Any]) -> set[str]:

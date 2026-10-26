@@ -55,15 +55,15 @@ def test_shopify_line_item_keeps_provider_product_and_variant_ids():
     assert findings == []
 
 
-def test_woocommerce_product_holds_fields_not_supported_by_m98_contract():
+def test_woocommerce_product_preserves_supported_source_price_and_sku_without_customer_pii():
     values, findings = normalize_woocommerce_record("product", {
         "name": "Coffee", "type": "simple", "sku": "C-1", "price": "15.2500",
         "regular_price": "16.00", "sale_price": "15.2500", "stock_quantity": 91,
         "billing": {"email": "private@example.test"},
-    })
-    assert values == {"title": "Coffee", "status": None, "created_at": None, "updated_at": None}
-    assert {f["field"] for f in findings} == {"sku", "type", "price", "regular_price", "sale_price"}
-    assert {f["code"] for f in findings} == {"provider_business_field_not_supported"}
+    },store_currency="USD")
+    assert values["title"]=="Coffee" and values["sku"]=="C-1" and values["price"]=="15.2500" and values["currency_code"]=="USD"
+    assert "stock_quantity" not in values and "billing" not in values and "email" not in str(values)
+    assert findings==[]
     assert "stock_quantity" not in values
     assert "billing" not in values and "email" not in str(values)
 
@@ -128,8 +128,7 @@ def test_fingerprint_is_stable_and_sensitive_to_typed_value_changes():
     assert business_value_fingerprint(values) != business_value_fingerprint({"title": "A", "price": Decimal("2.00")})
 
 
-def test_shopify_product_queries_fetch_provider_variant_price_contract():
-    assert "price { amount currencyCode }" in PRODUCTS_QUERY
-    assert "compareAtPrice { amount currencyCode }" in PRODUCTS_QUERY
-    assert "price { amount currencyCode }" in PRODUCT_VARIANTS_QUERY
-    assert "compareAtPrice { amount currencyCode }" in PRODUCT_VARIANTS_QUERY
+def test_shopify_product_queries_fetch_the_documented_scalar_money_contract():
+    for query in (PRODUCTS_QUERY,PRODUCT_VARIANTS_QUERY):
+        assert 'price compareAtPrice' in query
+        assert 'price { amount currencyCode }' not in query
