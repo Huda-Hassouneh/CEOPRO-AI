@@ -338,13 +338,19 @@ class WooCommerceClient:
                                 yield WooRecord("variation", variation_id, variation, provider_id)
 
     def iter_orders(self, *, modified_since: str | None = None) -> Iterator[WooRecord]:
-        """Yield provider order payloads without status/refund normalization."""
+        """Yield provider evidence and strict original accounting, including allocated refunds."""
         order_url = f"{self._api_root}/orders?per_page={self._page_size}&page=1"
         if modified_since is not None:
             from src.market_scraper.provider_incremental import woo_modified_after
             order_url+='&'+urlencode({'modified_after':woo_modified_after(modified_since),'dates_are_gmt':'true','orderby':'modified','order':'asc'})
         for page in self._pages(order_url):
             for order in page:
+                from src.market_scraper.provider_order_values import normalize_woocommerce_order,ProviderError
+                try:
+                    accounting=normalize_woocommerce_order(order,lambda path:self._get_json(f"{self._api_root}/"+path.removeprefix('wc/v3/')))
+                    order={**order,'keel_accounting':accounting}
+                except (ProviderError,KeyError,TypeError,ValueError):
+                    order={**order,'keel_accounting_error':'provider_accounting_needs_review'}
                 yield WooRecord("order", _provider_id(order), order)
 
 

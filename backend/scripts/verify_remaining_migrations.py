@@ -45,7 +45,7 @@ def main():
         if raw!=(REPO/name).read_bytes():raise RuntimeError('Historical migration changed: '+Path(name).name)
         (baseline/Path(name).name).write_bytes(raw)
     assert len(list(baseline.glob('*.sql')))==123
-    tables=['products','keel_file_upload_requests','keel_structured_import_posts','keel_provider_privacy_requests','keel_pricing_request_results']
+    tables=['products','keel_file_upload_requests','keel_structured_import_posts','keel_provider_privacy_requests','keel_pricing_request_results','keel_provider_order_posts','keel_provider_stock_posts','keel_provider_stock_scan_members','keel_provider_promotion_decisions']
     results={}
     for mode in ['fresh','upgrade']:
         name='keel_billing_test_'+run+'_'+mode
@@ -58,11 +58,13 @@ def main():
             with migration_log(out/(mode+'-migrations.log')):
                 if mode=='upgrade':
                     runner.MIGRATIONS_DIR=baseline;initial=runner.run(conn);assert len(initial)==123
-                    tenant=str(uuid.uuid4());product=str(uuid.uuid4())
+                    tenant=str(uuid.uuid4());product=str(uuid.uuid4());invoice=str(uuid.uuid4())
                     with conn.cursor() as c:
                         c.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,'Synthetic upgrade preservation','JO','JOD')",(tenant,))
                         c.execute("INSERT INTO products(product_id,tenant_id,product_name,current_price,currency,metadata) VALUES(%s,%s,'{\"en\":\"Legacy preserved\"}',12,'JOD','{\"legacy\":true}')",(product,tenant))
                         c.execute('INSERT INTO inventory(tenant_id,product_id,stock_quantity) VALUES(%s,%s,6)',(tenant,product))
+                        c.execute("INSERT INTO invoices(invoice_id,tenant_id,invoice_number,subtotal,tax_amount,total_amount,currency,payment_status) VALUES(%s,%s,'SYNTHETIC-LEGACY-UPGRADE',24,1,25,'JOD','PAID')",(invoice,tenant))
+                        c.execute('INSERT INTO invoice_items(tenant_id,invoice_id,product_id,quantity,unit_price,total_price) VALUES(%s,%s,%s,2,12,24)',(tenant,invoice,product))
                     conn.commit()
                 runner.MIGRATIONS_DIR=current;applied=runner.run(conn);assert len(applied)==(total if mode=='fresh' else new_count)
                 assert runner.run(conn)==[]
@@ -71,14 +73,18 @@ def main():
                 if mode=='upgrade':
                     c.execute('SELECT product_name,current_price,metadata,sku,version FROM products WHERE tenant_id=%s AND product_id=%s',(tenant,product));row=c.fetchone();assert row[0]=={'en':'Legacy preserved'} and row[1]==12 and row[2]=={'legacy':True} and row[3] is None and row[4]==1
                     c.execute('SELECT stock_quantity FROM inventory WHERE tenant_id=%s AND product_id=%s',(tenant,product));assert c.fetchone()==(6,)
+                    c.execute('SELECT total_amount,payment_status FROM invoices WHERE tenant_id=%s AND invoice_id=%s',(tenant,invoice));assert c.fetchone()==(25,'PAID')
+                    c.execute('SELECT quantity,unit_price,total_price,rounding_adjustment FROM invoice_items WHERE tenant_id=%s AND invoice_id=%s',(tenant,invoice));assert c.fetchone()==(2,12,24,0)
                 c.execute("SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class WHERE relnamespace='public'::regnamespace AND relname=ANY(%s)",(tables,));flags=c.fetchall();assert len(flags)==len(tables) and all(x[1] and x[2] for x in flags)
                 c.execute("SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname='ceopro_app'");assert c.fetchone()==(False,False)
             password=os.environ['APP_DB_PASSWORD'];app_parts=parts._replace(netloc='ceopro_app:'+quote(password,safe='')+'@127.0.0.1:60433',path='/'+name)
             with contextlib.closing(psycopg2.connect(urlunsplit(app_parts))) as restricted,restricted.cursor() as c:
                 c.execute('SELECT current_user');assert c.fetchone()==('ceopro_app',)
+                for table in ['keel_provider_order_posts','keel_provider_stock_posts','keel_provider_stock_scan_members','keel_provider_promotion_decisions']:
+                    c.execute("SELECT has_table_privilege(current_user,%s,'UPDATE'),has_table_privilege(current_user,%s,'DELETE')",(table,table));assert c.fetchone()==(False,False)
                 for table in tables:
                     c.execute(sql.SQL('SELECT count(*) FROM {}').format(sql.Identifier(table)));assert c.fetchone()==(0,)
-            results[mode]={'status':'PASS','total_migrations':total,'newly_applied':len(applied),'repeat_newly_applied':0,'restricted_password_login':'PASS','force_rls':tables,'legacy_data_preserved':mode=='upgrade'}
+            results[mode]={'status':'PASS','total_migrations':total,'newly_applied':len(applied),'repeat_newly_applied':0,'restricted_password_login':'PASS','force_rls':tables,'legacy_data_preserved':mode=='upgrade','legacy_paid_invoice_preserved':mode=='upgrade','immutable_receipt_permissions':'PASS'}
         ledger['databases'][mode]['verified']=True;save()
     (out/'migration-results.json').write_text(json.dumps(results,indent=2)+'\n',encoding='utf-8')
     print(f'PASS: fresh{total}; original123 + upgrade{new_count}; repeat0; restricted password login, FORCE RLS and legacy product/stock preservation. Resources retained in scoped ledger.')

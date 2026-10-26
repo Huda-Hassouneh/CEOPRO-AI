@@ -242,8 +242,8 @@ def verify_privacy_webhook(
 SHOP_QUERY = """query KeelVerifyShop { shop { id myshopifyDomain currencyCode plan { partnerDevelopment } } currentAppInstallation { accessScopes { handle } } }"""
 PRODUCTS_QUERY = """query KeelProducts($first:Int!,$after:String,$variantFirst:Int!){ products(first:$first,after:$after) { edges { cursor node { id title handle status vendor createdAt updatedAt variants(first:$variantFirst) { edges { cursor node { id title sku barcode updatedAt price compareAtPrice inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
 PRODUCT_VARIANTS_QUERY = """query KeelProductVariants($id:ID!,$first:Int!,$after:String){ product(id:$id) { variants(first:$first,after:$after) { edges { cursor node { id title sku barcode updatedAt price compareAtPrice inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } }"""
-ORDERS_QUERY = """query KeelOrders($first:Int!,$after:String,$lineFirst:Int!,$query:String){ orders(first:$first,after:$after,sortKey:UPDATED_AT,query:$query) { edges { cursor node { id name createdAt updatedAt currencyCode displayFinancialStatus displayFulfillmentStatus cancelledAt test totalPriceSet { shopMoney { amount currencyCode } } totalTaxSet { shopMoney { amount currencyCode } } totalShippingPriceSet { shopMoney { amount currencyCode } } totalDiscountsSet { shopMoney { amount currencyCode } } lineItems(first:$lineFirst) { edges { cursor node { id title quantity sku variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
-ORDER_LINES_QUERY = """query KeelOrderLines($id:ID!,$first:Int!,$after:String){ order(id:$id) { lineItems(first:$first,after:$after) { edges { cursor node { id title quantity sku variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } }"""
+ORDERS_QUERY = """query KeelOrders($first:Int!,$after:String,$lineFirst:Int!,$query:String){ orders(first:$first,after:$after,sortKey:UPDATED_AT,query:$query) { edges { cursor node { id name createdAt updatedAt processedAt closed currencyCode currentTotalPriceSet { shopMoney { amount currencyCode } } currentTotalTaxSet { shopMoney { amount currencyCode } } currentShippingPriceSet { shopMoney { amount currencyCode } } currentTotalAdditionalFeesSet { shopMoney { amount currencyCode } } currentTotalDutiesSet { shopMoney { amount currencyCode } } currentTotalDiscountsSet { shopMoney { amount currencyCode } } totalRefundedSet { shopMoney { amount currencyCode } } transactions(first:100) { kind status processedAt } displayFinancialStatus displayFulfillmentStatus cancelledAt test totalPriceSet { shopMoney { amount currencyCode } } totalTaxSet { shopMoney { amount currencyCode } } totalShippingPriceSet { shopMoney { amount currencyCode } } totalDiscountsSet { shopMoney { amount currencyCode } } lineItems(first:$lineFirst) { edges { cursor node { id title name quantity currentQuantity sku priceAfterAllDiscountsBeforeTaxesSet { shopMoney { amount currencyCode } } variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
+ORDER_LINES_QUERY = """query KeelOrderLines($id:ID!,$first:Int!,$after:String){ order(id:$id) { lineItems(first:$first,after:$after) { edges { cursor node { id title name quantity currentQuantity sku priceAfterAllDiscountsBeforeTaxesSet { shopMoney { amount currencyCode } } variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } }"""
 LOCATIONS_QUERY = """query KeelLocations($first:Int!,$after:String,$levelFirst:Int!){ locations(first:$first,after:$after) { edges { cursor node { id name isActive inventoryLevels(first:$levelFirst) { edges { cursor node { id updatedAt item { id sku tracked variant { id } } quantities(names:[\"available\",\"on_hand\"]) { name quantity } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
 LOCATION_LEVELS_QUERY = """query KeelLocationLevels($id:ID!,$first:Int!,$after:String){ location(id:$id) { inventoryLevels(first:$first,after:$after) { edges { cursor node { id updatedAt item { id sku tracked variant { id } } quantities(names:[\"available\",\"on_hand\"]) { name quantity } } } pageInfo { hasNextPage endCursor } } } }"""
 
@@ -469,18 +469,24 @@ class ShopifyGraphQLClient:
             if order.get("test") is True and not self._include_test_orders:
                 continue
             order_id = _gid(order.get("id"), "order")
-            yield ShopifyRecord("order", order_id, order)
             lines = order.get("lineItems")
             if not isinstance(lines, dict):
                 raise ShopifyError("invalid_response", "Shopify order response omitted line items")
-            for line in _edge_nodes(lines):
-                yield ShopifyRecord("line_item", _gid(line.get("id"), "line item"), line, order_id)
+            line_records=[ShopifyRecord("line_item", _gid(line.get("id"), "line item"), line, order_id) for line in _edge_nodes(lines)]
             page_info = lines.get("pageInfo")
             if isinstance(page_info, dict) and page_info.get("hasNextPage"):
                 after = _cursor(page_info.get("endCursor"))
-                yield from self._iterate_connection(
+                line_records.extend(self._iterate_connection(
                     ORDER_LINES_QUERY, ("order", "lineItems"), {"id": order_id}, initial_after=after
-                , parent_id=order_id, entity_type="line_item",seen_cursors=_edge_cursors(lines))
+                , parent_id=order_id, entity_type="line_item",seen_cursors=_edge_cursors(lines)))
+            from src.market_scraper.provider_order_values import normalize_shopify_order,ProviderError
+            try:
+                accounting=normalize_shopify_order(order,[x.payload for x in line_records])
+                order={**order,'keel_accounting':accounting}
+            except (ProviderError,KeyError,TypeError,ValueError):
+                order={**order,'keel_accounting_error':'provider_accounting_needs_review'}
+            yield ShopifyRecord("order", order_id, order)
+            yield from line_records
 
     def iter_inventory(self) -> Iterator[ShopifyRecord]:
         self.require_scopes(self.verify_connection(), ("read_inventory",))
