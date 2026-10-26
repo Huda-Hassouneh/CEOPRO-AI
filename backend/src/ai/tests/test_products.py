@@ -445,8 +445,8 @@ def test_query_list_products_total_reflects_the_real_count_not_the_page_size():
     cursor = _cursor_returning(
         fetchone_values=[(137,)],
         fetchall_value=[
-            ("p1", "Widget", None, None, 10.0, None, "JOD", "MANUAL", None),
-            ("p2", "Gadget", None, None, 20.0, None, "JOD", "IMPORTED", None),
+            ("p1", "Widget", None, None, 10.0, None, "JOD", "MANUAL", None, None,1),
+            ("p2", "Gadget", None, None, 20.0, None, "JOD", "IMPORTED", None, None,1),
         ],
     )
     conn.cursor.return_value = cursor
@@ -471,7 +471,8 @@ def test_query_list_products_searches_every_name_language_brand_and_category():
         assert f"jsonb_typeof({column})" in list_sql
     assert list_sql.count("jsonb_each_text") == 3
     # LIKE wildcards typed by the user are matched literally.
-    assert list_params == ["t1", "%50\\%\\_off%", "%50\\%\\_off%", "%50\\%\\_off%", 50, 0]
+    assert list_params == ["t1", *([r"%50\%\_off%"]*4), 50, 0]
+    assert "p.sku ILIKE %s" in list_sql
 
 
 def test_query_get_product_returns_none_when_missing():
@@ -507,7 +508,7 @@ def test_query_create_product_always_writes_manual_source():
     conn = MagicMock()
     insert_cursor = _cursor_returning(fetchone_values=[("new-product-id",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None),
+        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None, None, 1),
         None,
     ])
     conn.cursor.side_effect = [insert_cursor, get_cursor]
@@ -531,7 +532,7 @@ def test_query_create_product_leaves_stock_untracked_when_omitted():
     conn = MagicMock()
     insert_cursor = _cursor_returning(fetchone_values=[("new-product-id",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None),
+        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None, None, 1),
         None,
     ])
     conn.cursor.side_effect = [insert_cursor, get_cursor]
@@ -553,7 +554,7 @@ def test_query_update_product_builds_set_clause_only_from_whitelisted_columns():
     conn = MagicMock()
     update_cursor = _cursor_returning(fetchone_values=[("p1",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("p1", {"en": "New Name"}, None, None, None, 12.0, None, "JOD", "MANUAL", None, None, None), None,
+        ("p1", {"en": "New Name"}, None, None, None, 12.0, None, "JOD", "MANUAL", None, None, None, None, 1), None,
     ])
     conn.cursor.side_effect = [update_cursor, get_cursor]
 
@@ -674,7 +675,7 @@ def test_query_create_product_stores_the_barcode_in_metadata_without_touching_ot
     conn = MagicMock()
     insert_cursor = _cursor_returning(fetchone_values=[("new-id",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("new-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, "3017620422003"), None,
+        ("new-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, "3017620422003", None, 1), None,
     ])
     conn.cursor.side_effect = [insert_cursor, get_cursor]
     result = products.create_product(conn, "t1", "u1", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", None, "3017620422003")
@@ -682,7 +683,7 @@ def test_query_create_product_stores_the_barcode_in_metadata_without_touching_ot
     assert "metadata" in sql and '"barcode": "3017620422003"' in params[8]
     assert result["barcode"] == "3017620422003"
     conn.cursor.side_effect = [_cursor_returning(fetchone_values=[("n2",)]), _cursor_returning(fetchone_values=[
-        ("n2", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, None), None])]
+        ("n2", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, None, None, 1), None])]
     products.create_product(conn, "t1", "u1", {"en": "W"}, None, None, None, 1.0, None, "JOD", None)
     assert conn.cursor.call_count == 4
 
@@ -692,7 +693,7 @@ def test_query_update_product_sets_and_clears_the_barcode_key_only():
         conn = MagicMock()
         update_cursor = _cursor_returning(fetchone_values=[("p1",)])
         get_cursor = _cursor_returning(fetchone_values=[
-            ("p1", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, value), None])
+            ("p1", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, value, None, 1), None])
         conn.cursor.side_effect = [update_cursor, get_cursor]
         products.update_product(conn, "t1", "u1", "p1", {"barcode": value})
         sql, params = update_cursor.execute.call_args.args

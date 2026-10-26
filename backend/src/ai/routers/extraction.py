@@ -13,7 +13,7 @@ from typing import Optional
 from uuid import UUID
 
 import redis
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Header
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -22,7 +22,7 @@ from src.ai.extraction.template_contract import TEMPLATE_ID
 from src.ai.core.redis_client import get_redis_client
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.extraction import file_dispatch, geo_currency, ingestion_pipeline, job_management, promotion
-from src.ai.extraction import typed_imports
+from src.ai.extraction import typed_imports, durable_uploads
 from src.ai.extraction import minio_persistence
 from src.ai.extraction import pipeline as extraction_pipeline
 from src.ai.rag import pipeline as rag_pipeline
@@ -124,6 +124,74 @@ def _publish_discovery_request(tenant_id: str) -> None:
     except redis.RedisError as exc:
         logger.error("could not enqueue downstream competitor discovery for tenant=%s: %s", tenant_id, exc)
 
+
+@router.get('/upload-requests/{request_key}')
+def upload_request_status(request_key: str,ctx:TenantContext=Depends(get_tenant_context)):
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:return durable_uploads.status(conn,ctx.tenant_id,request_key)
+    finally:conn.close()
+
+class StructuredReviewRequest(BaseModel):
+    choices: dict = Field(default_factory=dict)
+    reviewHash: Optional[str] = Field(default=None,min_length=64,max_length=64)
+
+@router.get('/structured-imports/products')
+def structured_product_search(search:str='',ctx:TenantContext=Depends(get_tenant_context)):
+    from src.ai.extraction import structured_business
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        term=search.strip().casefold()[:150]
+        rows=structured_business.catalog(conn,ctx.tenant_id)
+        return {'products':[p for p in rows if not term or term in str(p['product_name']).casefold() or term in (p['sku'] or '').casefold()][:25]}
+    finally:conn.close()
+
+@router.get('/structured-imports/templates/{kind}/{format}')
+def structured_template(kind:str,format:str,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.ai.extraction.structured_business import HEADERS
+    from fastapi.responses import Response
+    from openpyxl import Workbook
+    import csv
+    if kind not in ('invoices','inventory') or format not in ('csv','xlsx'):raise HTTPException(404,'Unknown structured template.')
+    names=['Inventory'] if kind=='inventory' else ['Invoices','Invoice Items']
+    if format=='csv':
+        result=io.StringIO();csv.writer(result).writerow(HEADERS[names[0]]);body=result.getvalue().encode('utf-8-sig');mime='text/csv'
+    else:
+        workbook=Workbook();workbook.remove(workbook.active)
+        for name in names:workbook.create_sheet(name).append(HEADERS[name])
+        result=io.BytesIO();workbook.save(result);workbook.close();body=result.getvalue();mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return Response(body,media_type=mime,headers={'Content-Disposition':f'attachment; filename="keel-{kind}.{format}"'})
+
+@router.post('/structured-imports/preview')
+def structured_preview(kind:str,file:UploadFile=File(...),idempotency_key:Optional[str]=Header(default=None),ctx:TenantContext=Depends(get_tenant_context)):
+    from src.ai.extraction import structured_business
+    from uuid import uuid4
+    content=_read_upload_within_limit(file);conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        result=structured_business.preview(conn,ctx.tenant_id,ctx.user_id,idempotency_key or str(uuid4()),kind,file.filename or '',content);conn.commit();return result
+    except Exception:conn.rollback();raise
+    finally:conn.close()
+
+@router.post('/structured-imports/{batch_id}/review')
+def structured_review(batch_id:UUID,body:StructuredReviewRequest,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.ai.extraction import structured_business
+    from src.ai.routers.products import _require_catalog_admin
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_catalog_admin(conn,ctx.tenant_id,ctx.user_id)
+        return structured_business.describe(conn,ctx.tenant_id,str(batch_id),body.choices)[0]
+    finally:conn.close()
+
+@router.post('/structured-imports/{batch_id}/confirm')
+def structured_confirm(batch_id:UUID,body:StructuredReviewRequest,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.ai.extraction import structured_business
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        result=structured_business.confirm(conn,ctx.tenant_id,ctx.user_id,str(batch_id),body.choices,body.reviewHash);conn.commit();return result
+    except Exception as exc:
+        conn.rollback()
+        if getattr(exc,'pgcode',None)=='23505':raise HTTPException(409,'Invoice or product identity already exists. No rows imported.') from None
+        raise
+    finally:conn.close()
 
 @router.get("/imports")
 def extraction_recent_imports(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
@@ -337,6 +405,10 @@ def _register_pdf_as_rag_document(
     already committed successfully above.
     """
     object_key = f"uploads/{job_id}{os.path.splitext(file_name)[1] or '.pdf'}"
+    with conn.cursor() as cursor:
+        cursor.execute('SELECT processed_status FROM rag_documents_metadata WHERE tenant_id=%s AND storage_bucket_path=%s LIMIT 1',(tenant_id,object_key))
+        prior=cursor.fetchone()
+    if prior:return prior[0]
     try:
         # The deterministic key lets an interrupted attempt be retried. Commit
         # its tenant-scoped byte record first so a crash around PUT cannot
@@ -489,7 +561,7 @@ def _ingestion_job_completion(summary, promotion_summary) -> tuple[str, str | No
 
 
 @router.post("/upload")
-def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends(get_tenant_context), idempotency_key: Optional[str] = Header(default=None)) -> dict:
     """
     Uploads a file and runs it through the full ingestion pipeline
     (extraction/ingestion_pipeline.py::process_records()) - the live,
@@ -523,6 +595,8 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     failure partway through this endpoint now loses at most the current
     uncommitted batch, not every row processed so far.
     """
+    if isinstance(idempotency_key,str):
+        return durable_uploads.run(file,ctx,idempotency_key,lambda f,c:extraction_upload(f,c,None),_read_upload_within_limit,_validate_upload_content,file_dispatch.detect_file_type)
     try:
         ext = file_dispatch.detect_file_type(file.filename or "")
     except file_dispatch.UnsupportedFileTypeError as e:
@@ -590,20 +664,24 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     try:
         # Document processing allowance (plan catalog: KB per billing period,
         # ceil(bytes / 1024)); committed with the job, given back on failure.
-        kb_reservation = usage.reserve(conn, ctx.tenant_id, usage.DOCUMENT_EXTRACTION, max(1, -(-len(contents) // 1024)))
+        attempt=durable_uploads.current.get()
+        if attempt:
+            job_id,kb_reservation=attempt.bind(conn,f"{ext.lstrip('.').upper()}_UPLOAD",file.filename,contents,rows)
+        else:
+            kb_reservation = usage.reserve(conn, ctx.tenant_id, usage.DOCUMENT_EXTRACTION, max(1, -(-len(contents) // 1024)))
         if ext == ".pdf":  # PDFs also become assistant documents (document storage allowance)
             usage.ensure_capacity(conn, ctx.tenant_id, usage.DOCUMENT_STORAGE_MB, len(contents) / 1048576)
         source_type = f"{ext.lstrip('.').upper()}_UPLOAD"
-        source_id = job_management.resolve_or_create_data_source(
-            conn, ctx.tenant_id, source_type, "Manual File Upload"
-        )
-        job_id = job_management.create_ingestion_job(conn, ctx.tenant_id, source_id, file_name=file.filename)
+        if not attempt:
+            source_id = job_management.resolve_or_create_data_source(conn,ctx.tenant_id,source_type,"Manual File Upload")
+            job_id = job_management.create_ingestion_job(conn,ctx.tenant_id,source_id,file_name=file.filename)
         conn.commit()
 
         summary = ingestion_pipeline.process_records(
             tenant_id=ctx.tenant_id, job_id=job_id, source_name=file.filename or f"upload{ext}",
             headers=headers, rows=rows, conn=conn, redis_client=None, minio_client=minio_client,
             commit_every=_EXTRACTION_COMMIT_EVERY,
+            existing_staging_ids=attempt.staging_ids if attempt else None,
             storage_preupload_callback=_track_extraction_result_before_put(ctx.tenant_id, ctx.user_id, minio_client)
             if minio_client is not None else None,
         )
@@ -640,7 +718,7 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     except Exception as e:
         logger.exception("extraction upload: ingestion pipeline failed (tenant=%s job=%s)", ctx.tenant_id, job_id)
         conn.rollback()
-        if kb_reservation is not None and job_id is not None:  # committed with the job: give it back
+        if durable_uploads.current.get() is None and kb_reservation is not None and job_id is not None:  # committed with the job: give it back
             try:
                 usage.release(conn, kb_reservation)
                 conn.commit()
