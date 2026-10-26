@@ -1,3 +1,19 @@
+# Current integration inventory update - 2026-10-26
+
+Authoritative current evidence: [Phase6 acceptance](PHASE6_INTEGRATED_ACCEPTANCE_REPORT.md) and [remaining checkpoint](REMAINING_INTEGRATION_CHECKPOINT.md). The older inventory below is historical; its absent SKU/history/source reconciliation and unverified Stripe statements are not the current milestone state. Billing/onboarding completion is inherited from a00669d and its reports, not rerun here.
+
+- VERIFIED: original bilingual catalog/form/archive/restore/GTIN/history; durable manual upload and structured invoice/stock review/post; source catalog review/create/link; original provider accounting and explicit selected stock; current-history pricing/MPI integration.
+- VERIFIED with controlled upstream: secure Shopify/Woo adapters, fenced worker, incremental order checkpoints, signed intake and reversible privacy holds; actual merchant E2E remains UNRUN.
+- VERIFIED, disposable-only: default-off Tenant Owner opt-in per source/category and existing-service canonical retry. Automatic invoices remain policy blocked in API/SQL. Stock requires existing explicit source/field/location approval; no silent priority/aggregation.
+- PRESERVED: existing Python product pages, models, billing/auth/credit/receipt authorities, forecast/sentiment/pricing mathematics, RAG/storage and directly affected consumers (237 tests).
+- DEFERRED: Business Recommendations, per existing owner priority. No new entitlement alias or engine.
+- POLICY BLOCKED / NOT CERTIFIED: irreversible privacy erasure/retention, automatic invoice rules, universal collisions/stock priority, unspecified PRICE/MPI numerical policy, real merchant/provider and production rollout requirements.
+- Current totals:366 unique native/backend tests and201 frontend tests passed, zero failures/skips; post-ff42 native and13 frontend passed as overlapping subsets;137 fresh/123+14 upgrade/repeat0 migrations verified. Actual controlled-source Chrome/Python/PG catalog/invoice/stock/reload/opt-in/English/Arabic journey passed. No production certification claimed.
+
+---
+
+## Historical inventory retained below
+
 # KEEL feature inventory and practical verification
 
 This inventory follows actual Phase 6 evidence. Route existence alone is not acceptance. See PHASE6_INTEGRATED_ACCEPTANCE_REPORT.md for scenario-level results, exact counts and PASS/BLOCKED/NOT RUN labels.
