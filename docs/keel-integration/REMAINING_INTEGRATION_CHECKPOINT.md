@@ -26,9 +26,17 @@ Source-owned order/stock automatic canonical reconciliation is still PARTIAL; ty
 
 Technical filter references: https://shopify.dev/docs/api/admin-graphql/latest/queries/orders and https://woocommerce.github.io/woocommerce-rest-api-docs/ (read 2026-10-26).
 
-## Next exact action ? Phase 5
+## Phase 5 checkpoint ? catalog and feature-history integration verified
 
-Complete remaining approved catalog controls and pricing/MPI request/history integration boundaries. Preserve existing algorithms, workers and frontend design. PRICE age/FX/newest-invalid thresholds, MPI sample/recency thresholds, universal source priority and exact privacy erasure policy remain unresolved: do not invent them. Business Recommendations remains explicitly deferred per prior ledger.
+Original CatalogPage, CatalogProductPage, CatalogTable, GtinImport, productText and RecordSummary ported from D:/freeup space/New folder/Keel/root/frontend/src. Same original form, cards, tables, confirmation dialogs, CSS and bilingual labels. Compatibility adapters use Python canonical products, usage/capacity and price-history trigger. New /catalog and /catalog/:productId routes preserve main /products list, ProductHub, quick sale and forecast pages; a visible original-catalog link is provided on Products.
+
+GET /catalog/products/detail supports original localized shapes, search, sorting, active/archive paging, capacity and price/inventory history. Versioned archive/restore keeps stock and historical records, checks existing Python capacity and SKU uniqueness, and audits changes. Original strict GTIN CSV/XLSX workflow rejects non-text/formula cells, bad checksums, duplicate/missing SKU, stale versions, oversize/too-many rows; applies atomically through existing update_product with audit. Browser exposed JSON-default multipart failure; adapter fixed and real multipart regression added.
+
+MPI GET /history projects the existing evidence_records authority with subject validation, tenant isolation and pagination. It never scores, calls providers or charges; native tests verify unchanged evidence/accounting counts on repeated reads. Existing summary/scoring/cold-start functions unchanged. Frontend MPI caches now include tenant; history has English/Arabic labels, localized dates and truthful empty/error states. Pricing history already existed and is reused. Optional Idempotency-Key on single-product pricing links response/evidence atomically (migration129, 20261108000000_pricing_request_result_links.sql); concurrent replay writes one recommendation, interrupted evidence write rolls back. Existing rule math, default pipeline commit behavior, legacy callers and batch semantics retained; no new charge/meter or price policy threshold.
+
+Evidence: phase5-final.xml 142 native/API/pipeline tests passed, zero failed/skipped; phase5-frontend-final.log 195 frontend tests passed, lint/build passed. Counts overlap earlier phases and are not summed. Actual Chrome original catalog search -> GTIN preview/apply -> archive -> reload -> restore -> unchanged stock5 -> persisted no-reviews UNKNOWN MPI evidence/history -> Arabic390px RTL passed; no console errors, Stripe or store calls. Evidence phase5-browser/catalog-browser-ledger.json and screenshots/API status log. Synthetic product reused, no new account/product/Checkout.
+
+Runtime8024 currently has128 migrations and dirty Phase5 source at the last reload; align129 and committed revision before final browser readiness claim. Regression DB has129. Phase5 does not claim price age/FX, MPI sample/cap/recency, source priority or privacy erasure decisions are approved. It preserves existing Python models and gates.
 
 ## Phase 6 pending
 

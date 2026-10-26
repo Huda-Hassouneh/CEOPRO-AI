@@ -1860,3 +1860,8 @@ Original bilingual product form and structured import review adapted to Python a
 ### Remaining integration Phase 4 checkpoint ? 2026-10-26
 
 Existing Shopify/Woo OAuth/vault/adapters/fenced worker reused. Added restricted signed Shopify HTTP intake, deduplicated audited receipts, numeric/GID shop identity compatibility, signed uninstall disable and durable privacy review/reimport holds. Added order-only provider-time incremental reads and configuration-bound atomic checkpoints; stock/products remain full scans. Migration128 forward-only. Affected native/adapter/worker/security suite98 passed/0 skipped. Real store E2E UNRUN; canonical source priority/refund promotion and irreversible privacy policy remain explicitly partial/blocked. See current checkpoint for exact evidence and next Phase5 action.
+
+
+### Remaining integration Phase 5 checkpoint ? 2026-10-26
+
+Original catalog/table/detail/GTIN components restored at additive /catalog routes, preserving Python main product pages and existing authorities. Added versioned audited archive/restore and strict atomic GTIN batch contracts. Fixed demonstrated multipart adapter defect. Read-only MPI history reuses evidence_records; tenant-bound frontend caches fixed. Optional pricing request replay is atomic with existing evidence, with no mathematical/metering change (forward migration129). Combined142 native tests and195 frontend tests passed/0 skipped; lint/build and real catalog/history/Arabic browser passed. Exact policy and provider limitations remain in current checkpoint; next Phase6 scoped differential and fresh/upgrade/repeat migration verification.
