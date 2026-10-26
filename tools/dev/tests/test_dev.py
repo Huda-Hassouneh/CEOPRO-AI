@@ -160,3 +160,14 @@ class DevTests(unittest.TestCase):
         _, created = fixtures.generate(self.root, self.state / "fixtures")
         self.assertFalse(created)
         self.assertEqual(target.read_text(), "developer edit")
+
+    def test_vite_isolation_is_explicit_and_does_not_change_manual_start(self):
+        self.assertEqual(dev.environment(self.c)["KEEL_DEV_ISOLATED"], "1")
+        config = (SOURCE.parents[2] / "frontend/vite.config.js").read_text(encoding="utf-8")
+        self.assertIn("envDir: process.env.KEEL_DEV_ISOLATED === '1' ? false : undefined", config)
+
+    def test_failed_migration_cannot_report_success(self):
+        from types import SimpleNamespace
+        with patch.object(dev.subprocess, "run", return_value=SimpleNamespace(returncode=1)):
+            with self.assertRaisesRegex(dev.DevError, "Migration runner failed"):
+                dev.database(self.c, "migrate")
