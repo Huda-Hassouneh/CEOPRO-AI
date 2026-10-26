@@ -60,7 +60,7 @@ def listing(search:str=Query('',max_length=150),status:str=Query('active',patter
     def action(c):
         where='p.deleted_at IS '+('NULL' if status=='active' else 'NOT NULL');args=[]
         if search:
-            where+=" AND (p.product_name::text ILIKE %s OR p.sku ILIKE %s OR p.metadata->>'barcode' ILIKE %s)";args=[text_search.like_pattern(search)]*3
+            where+=" AND ("+text_search.any_text("p.product_name")+" OR p.sku ILIKE %s OR p.metadata->>'barcode' ILIKE %s)";args=[text_search.like_pattern(search)]*3
         with c.cursor() as q:
             q.execute('SELECT count(*) FROM products p WHERE p.tenant_id=%s AND '+where,(ctx.tenant_id,*args));total=q.fetchone()[0]
             q.execute('SELECT count(*) FROM products WHERE tenant_id=%s AND deleted_at IS NULL',(ctx.tenant_id,));used=q.fetchone()[0]

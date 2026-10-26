@@ -38,7 +38,17 @@ Evidence: phase5-final.xml 142 native/API/pipeline tests passed, zero failed/ski
 
 Runtime8024 currently has128 migrations and dirty Phase5 source at the last reload; align129 and committed revision before final browser readiness claim. Regression DB has129. Phase5 does not claim price age/FX, MPI sample/cap/recency, source priority or privacy erasure decisions are approved. It preserves existing Python models and gates.
 
-## Phase 6 pending
+## Phase 6 verification checkpoint ? in progress
+
+- Affected credit/operation-receipt, upload/RAG, storage recovery, company data, dashboard/inventory/forecast and pricing regressions:143 passed, zero skipped (phase6-affected.xml).
+- Fresh129 installation, original123+6 upgrade and repeat0 verified, restricted password login/FORCE RLS and legacy product/stock preservation passed. New API journeys on that fresh database:33 passed, zero skipped. These are pre-migration130 evidence, not the final schema claim.
+- Impact testing reproduced a new pricing receipt FK blocking existing whole-company deletion. Forward migration130 (20261108000100_pricing_receipt_tenant_cleanup.sql) fixes cascade cleanup only when the company is actually deleted; normal direct result deletion stays forbidden. Pricing/company regression7 passed.
+- Also reproduced the existing M97 intentional import-audit RESTRICT boundary after newly exposed manual imports. It is not bypassed: company deletion now returns explicit409 INTEGRATION_EVIDENCE_REVIEW_REQUIRED before any write. Existing import/provider immutability and pending retention policy preserved; no erasure policy invented. Complete cleanup group22 passed. Ordinary non-retained company deletion still passes.
+- Catalog localized search now reuses existing any_text helper (no false matches on JSON locale keys);10 native catalog tests passed.
+- Next: final130 fresh/upgrade/repeat proof, scoped final native/browser alignment, then finish source product posting/review boundary or mark its exact policy/implementation limits. No full-parity verdict yet.
+
+## Outstanding final verification
+
 
 Fresh/upgrade/repeat migrations, affected native/worker/accounting/security/frontend regressions and selected real browser journeys. No repetition of unchanged real Stripe E2E. Verdict is not READY yet.
 
