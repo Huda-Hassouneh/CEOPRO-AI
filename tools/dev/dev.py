@@ -44,7 +44,7 @@ MANAGED = {
     "CORS_ALLOWED_ORIGINS", "VITE_API_BASE_URL", "KEEL_API_PROXY_TARGET",
     "SCRAPER_METRICS_PORT", "SCRAPER_MAINTENANCE_METRICS_PORT",
     "AI_SERVICE_ACTOR_USER_ID", "SCRAPER_ACTOR_USER_ID", "SENTRY_ENVIRONMENT",
-    "KEEL_ALLOW_DISPOSABLE_PROVIDER_PROMOTION",
+    "KEEL_ALLOW_DISPOSABLE_PROVIDER_PROMOTION", "KEEL_DEV_ISOLATED",
 }
 
 
@@ -165,7 +165,7 @@ def environment(c, *, admin=False):
         "EMAIL_FROM_ADDRESS": "local@keel.example", "EMAIL_LOG_UNSENT_BODIES": "false",
         "FRONTEND_BASE_URL": f"http://127.0.0.1:{p['frontend']}",
         "CORS_ALLOWED_ORIGINS": f"http://127.0.0.1:{p['frontend']}",
-        "VITE_API_BASE_URL": "/api", "KEEL_API_PROXY_TARGET": f"http://127.0.0.1:{p['api']}",
+        "KEEL_DEV_ISOLATED": "1", "VITE_API_BASE_URL": "/api", "KEEL_API_PROXY_TARGET": f"http://127.0.0.1:{p['api']}",
         "SCRAPER_METRICS_PORT": str(p["prices_metrics"]),
         "SCRAPER_MAINTENANCE_METRICS_PORT": str(p["maintenance_metrics"]),
         "AI_SERVICE_ACTOR_USER_ID": actor, "SCRAPER_ACTOR_USER_ID": actor,
@@ -300,7 +300,18 @@ def wait_for(description, check, timeout=90):
 
 
 def database(c, action):
-    run([PYTHON, ROOT / "tools/dev/database.py", action], cwd=ROOT / "backend", env=environment(c, admin=True))
+    args = [str(PYTHON), str(ROOT / "tools/dev/database.py"), action]
+    if action != "migrate":
+        run(args, cwd=ROOT / "backend", env=environment(c, admin=True))
+        return
+    log = STATE / "logs/migrations.log"
+    log.parent.mkdir(exist_ok=True)
+    with log.open("w", encoding="utf-8") as output:
+        result = subprocess.run(args, cwd=ROOT / "backend", env=environment(c, admin=True),
+                                stdout=output, stderr=subprocess.STDOUT)
+    if result.returncode:
+        raise DevError("Migration runner failed. Inspect logs --service migrations; no migration success assumed.")
+    print(log.read_text(encoding="utf-8").splitlines()[-1])
 
 
 def runtime_pids(record):
@@ -365,6 +376,10 @@ def capabilities():
 
 
 def setup(args):
+    if sys.platform not in ("win32", "linux", "darwin"):
+        raise DevError("Supported local platforms are Windows, Linux and macOS.")
+    if sys.maxsize <= 2 ** 32:
+        raise DevError("Install 64-bit CPython 3.11/3.12; 32-bit ML dependencies are not supported.")
     if not (3, 11) <= sys.version_info[:2] <= (3, 12):
         raise DevError("Use CPython 3.11 or 3.12 (64-bit), then rerun setup.")
     node = run(["node", "--version"], capture=True).strip().lstrip("v").split(".")
@@ -633,7 +648,7 @@ def main():
     parser.add_argument("--mode", choices=["core", "full"], default=None)
     parser.add_argument("--models", action="store_true", help="setup: also install the existing model requirements")
     parser.add_argument("--suite", choices=["tooling", "frontend", "database", "browser"], default="tooling")
-    parser.add_argument("--service", choices=["api", "frontend", *WORKERS])
+    parser.add_argument("--service", choices=["api", "frontend", "migrations", *WORKERS])
     parser.add_argument("--tail", type=int, default=40)
     parser.add_argument("--follow", action="store_true")
     args = parser.parse_args()

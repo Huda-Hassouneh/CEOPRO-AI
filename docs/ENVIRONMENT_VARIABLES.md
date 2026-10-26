@@ -27,6 +27,7 @@ All rows below require a restart after changes. Setup supplies them; missing/inv
 | FRONTEND_BASE_URL | Links and payment return origin | http://127.0.0.1:<frontend-port> | Links may target wrong frontend |
 | CORS_ALLOWED_ORIGINS | FastAPI browser origins | Exact frontend origin | Cross-origin requests denied |
 | VITE_API_BASE_URL | Public frontend transport | /api | Browser reaches wrong/no API |
+| KEEL_DEV_ISOLATED | Vite configuration-file isolation | 1 under launcher; disables legacy dotenv loading | Without it, manual Vite retains normal dotenv behavior |
 | KEEL_API_PROXY_TARGET | Vite server-side proxy | http://127.0.0.1:<api-port> | Proxy fails |
 | AI_SERVICE_ACTOR_USER_ID / SCRAPER_ACTOR_USER_ID | Existing restricted service principal | Existing zero-UUID system actor | Worker authorization fails |
 | SCRAPER_METRICS_PORT / SCRAPER_MAINTENANCE_METRICS_PORT | Worker metrics | Per-checkout free ports | Metric bind conflict |
