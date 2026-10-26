@@ -131,7 +131,7 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
         </tr></thead><tbody>{items.map((item) => <tr key={item.business_revision_id}>
           <td>{t(`connectData.providerRecords.entities.${item.entity_type}`)}</td>
           <td><code>{item.provider_record_id}</code></td>
-          <td><dl className="provider-records__values">{Object.entries(item.typed_values || {}).slice(0, 8).map(([key, value]) => <div key={key}>
+          <td><dl className="provider-records__values">{Object.entries(item.typed_values || {}).filter(([key])=>key!=='accounting').slice(0, 8).map(([key, value]) => <div key={key}>
             <dt>{key}</dt><dd>{typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—')}</dd>
           </div>)}</dl></td>
           <td><strong>{t(`connectData.providerRecords.states.${item.validation_status}`)}</strong>
@@ -157,7 +157,7 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
       {history[item.provider_record_identity_id].map((revision) => <li key={revision.business_revision_id}>
         {t('connectData.providerRecords.revision', { number: revision.revision_number })} · {t(`connectData.providerRecords.states.${revision.validation_status}`)}
         {revision.review && ` · ${t(`connectData.providerRecords.decisions.${revision.review.decision}`)} · ${revision.review.reason_code}`}
-        <dl className="provider-records__values">{Object.entries(revision.typed_values || {}).slice(0, 8).map(([key, value]) => <div key={key}>
+        <dl className="provider-records__values">{Object.entries(revision.typed_values || {}).filter(([key])=>key!=='accounting').slice(0, 8).map(([key, value]) => <div key={key}>
           <dt>{key}</dt><dd>{typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—')}</dd>
         </div>)}</dl>
         {!!revision.validation_findings?.length && <ul>{revision.validation_findings.map((finding, index) => <li key={`${finding.code}-${index}`}>{finding.field}: {finding.code}</li>)}</ul>}
