@@ -337,9 +337,12 @@ class WooCommerceClient:
                             if variation_id in expected_ids:
                                 yield WooRecord("variation", variation_id, variation, provider_id)
 
-    def iter_orders(self) -> Iterator[WooRecord]:
+    def iter_orders(self, *, modified_since: str | None = None) -> Iterator[WooRecord]:
         """Yield provider order payloads without status/refund normalization."""
         order_url = f"{self._api_root}/orders?per_page={self._page_size}&page=1"
+        if modified_since is not None:
+            from src.market_scraper.provider_incremental import woo_modified_after
+            order_url+='&'+urlencode({'modified_after':woo_modified_after(modified_since),'dates_are_gmt':'true','orderby':'modified','order':'asc'})
         for page in self._pages(order_url):
             for order in page:
                 yield WooRecord("order", _provider_id(order), order)

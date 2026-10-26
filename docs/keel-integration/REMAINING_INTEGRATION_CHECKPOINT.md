@@ -16,11 +16,17 @@ Base: a00669dd8500dcce7dba9d94e2fbfac5a22d8808. Existing development worktree: %
 
 Multiple source/warehouse balances must not collapse silently into Python's single manual balance: guarded pending safe reconciliation. Original complete catalog archive/restore/GTIN batch screens still require Phase 5 reconciliation. Do not call these complete.
 
-## Next exact action ? Phase 4
+## Phase 4 checkpoint ? safe technical additions verified
 
-Reuse existing secure Shopify/Woo adapters, OAuth/vault, fenced receipt worker, identity and stock/business staging. Wire the missing public signed webhook receiver to restricted durable receipts; implement privacy restriction/reimport protection without inventing legal erasure fields/retention. Inspect safe incremental checkpoint semantics and canonical promotion boundaries. Actual merchant sandbox E2E remains UNRUN without approved credentials.
+Reused secure Shopify/Woo adapters, OAuth/vault, existing fenced worker and receipt/identity/staging authorities. Added POST /onboarding/shopify/webhooks/{source_id}, exact-body HMAC before restricted identity lookup, bound shop identity, 2MB limit, durable digest-only receipt, duplicate/content-conflict handling and audited state. Numeric privacy shop IDs correctly match verified GraphQL GIDs. Uninstall requires its signed shop ID and disables only its source. Privacy jobs retain no payload/customer PII; redact topics atomically hold the source and block reconnect/reimport. They explicitly remain policy_review_required, never falsely report erasure.
 
-## Phase 5 pending
+Migration128: 20261107000000_shopify_delivery_intake.sql applied only to identified disposable regression DB. Order-only incremental scans reuse existing completed checkpoints/configuration versions: Shopify inclusive provider timestamp, Woo exclusive-second boundary overlap/GMT. Product/variant and inventory full snapshots retained because child changes cannot safely be inferred from parent timestamps. Failed/partial jobs never move watermarks; native failure/retry test proves this. Relevant commerce/security/native group: 98 passed, zero failed/skipped (phase4-final.xml). HTTP signed-provider requests use synthetic cryptographic fixtures and real PostgreSQL; actual merchant sandbox E2E remains UNRUN without approved credentials.
+
+Source-owned order/stock automatic canonical reconciliation is still PARTIAL; typed evidence and review remain the existing authority. Universal source priority/refund/shared invoice collision policy is unresolved. Exact privacy target fields, retention and irreversible erasure are POLICY-BLOCKED; reversible holds are implemented. No external provider credentials, store writes or new worker authority introduced.
+
+Technical filter references: https://shopify.dev/docs/api/admin-graphql/latest/queries/orders and https://woocommerce.github.io/woocommerce-rest-api-docs/ (read 2026-10-26).
+
+## Next exact action ? Phase 5
 
 Complete remaining approved catalog controls and pricing/MPI request/history integration boundaries. Preserve existing algorithms, workers and frontend design. PRICE age/FX/newest-invalid thresholds, MPI sample/recency thresholds, universal source priority and exact privacy erasure policy remain unresolved: do not invent them. Business Recommendations remains explicitly deferred per prior ledger.
 

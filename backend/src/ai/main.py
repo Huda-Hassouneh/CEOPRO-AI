@@ -187,6 +187,8 @@ app.include_router(sentiment.router, dependencies=[requires(usage.MARKET_INTELLI
 app.include_router(mpi.router, dependencies=[requires(usage.MARKET_INTELLIGENCE)])
 app.include_router(rag.router)
 app.include_router(extraction.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
+from src.ai.routers import provider_webhooks
+app.include_router(provider_webhooks.router)
 app.include_router(onboarding.router)
 app.include_router(dashboard.router)
 app.include_router(sales.router, dependencies=[Depends(permissions.forbid_read_only_writes)])

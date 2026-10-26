@@ -40,7 +40,7 @@ DEFAULT_MAX_RETRY_DELAY_SECONDS = 5.0
 SHOP_DOMAIN_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com$", re.ASCII)
 PRIVACY_TOPICS = frozenset({"customers/data_request", "customers/redact", "shop/redact"})
 ALLOWED_WEBHOOK_TOPICS = PRIVACY_TOPICS | frozenset(
-    {"app/uninstalled", "products/create", "products/update", "products/delete", "orders/create", "orders/updated", "orders/cancelled", "orders/paid", "inventory_levels/update"}
+    {"app/uninstalled", "products/create", "products/update", "products/delete", "orders/create", "orders/updated", "orders/cancelled", "orders/paid", "refunds/create", "inventory_levels/update"}
 )
 
 
@@ -126,6 +126,14 @@ def _header(headers: Mapping[str, str], name: str) -> str | None:
     return None
 
 
+def _shop_identity(value: Any) -> str:
+    text=str(value)
+    if text.startswith('gid://shopify/Shop/'):text=text.rsplit('/',1)[-1]
+    if isinstance(value,bool) or not re.fullmatch(r'[1-9][0-9]{0,19}',text):
+        raise ShopifyError('invalid_webhook','Shopify webhook shop identity is invalid')
+    return text
+
+
 def verify_shopify_webhook(
     raw_body: bytes,
     headers: Mapping[str, str],
@@ -176,8 +184,11 @@ def verify_shopify_webhook(
         except UnsafeTargetError as exc:
             raise ShopifyError("shop_mismatch", "Shopify webhook payload shop is invalid") from exc
     if expected_shop_id is not None and payload.get("shop_id") is not None:
-        if str(payload["shop_id"]) != str(expected_shop_id):
+        if _shop_identity(payload["shop_id"]) != _shop_identity(expected_shop_id):
             raise ShopifyError("shop_mismatch", "Shopify webhook shop ID does not match the expected source")
+    if topic == 'app/uninstalled' and expected_shop_id is not None:
+        if _shop_identity(payload.get('id')) != _shop_identity(expected_shop_id):
+            raise ShopifyError('shop_mismatch','Shopify uninstall identity does not match the bound source')
     if event_id is not None and (len(event_id) > 512 or any(ord(ch) < 32 for ch in event_id)):
         raise ShopifyError("invalid_webhook", "Shopify webhook event identity is invalid")
     return VerifiedShopifyWebhook(supplied_shop, topic, webhook_id, payload, event_id)
@@ -231,7 +242,7 @@ def verify_privacy_webhook(
 SHOP_QUERY = """query KeelVerifyShop { shop { id myshopifyDomain currencyCode plan { partnerDevelopment } } currentAppInstallation { accessScopes { handle } } }"""
 PRODUCTS_QUERY = """query KeelProducts($first:Int!,$after:String,$variantFirst:Int!){ products(first:$first,after:$after) { edges { cursor node { id title handle status vendor createdAt updatedAt variants(first:$variantFirst) { edges { cursor node { id title sku barcode updatedAt price { amount currencyCode } compareAtPrice { amount currencyCode } inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
 PRODUCT_VARIANTS_QUERY = """query KeelProductVariants($id:ID!,$first:Int!,$after:String){ product(id:$id) { variants(first:$first,after:$after) { edges { cursor node { id title sku barcode updatedAt price { amount currencyCode } compareAtPrice { amount currencyCode } inventoryItem { id tracked } } } pageInfo { hasNextPage endCursor } } } }"""
-ORDERS_QUERY = """query KeelOrders($first:Int!,$after:String,$lineFirst:Int!){ orders(first:$first,after:$after,sortKey:UPDATED_AT) { edges { cursor node { id name createdAt updatedAt currencyCode displayFinancialStatus displayFulfillmentStatus cancelledAt test totalPriceSet { shopMoney { amount currencyCode } } totalTaxSet { shopMoney { amount currencyCode } } totalShippingPriceSet { shopMoney { amount currencyCode } } totalDiscountsSet { shopMoney { amount currencyCode } } lineItems(first:$lineFirst) { edges { cursor node { id title quantity sku variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
+ORDERS_QUERY = """query KeelOrders($first:Int!,$after:String,$lineFirst:Int!,$query:String){ orders(first:$first,after:$after,sortKey:UPDATED_AT,query:$query) { edges { cursor node { id name createdAt updatedAt currencyCode displayFinancialStatus displayFulfillmentStatus cancelledAt test totalPriceSet { shopMoney { amount currencyCode } } totalTaxSet { shopMoney { amount currencyCode } } totalShippingPriceSet { shopMoney { amount currencyCode } } totalDiscountsSet { shopMoney { amount currencyCode } } lineItems(first:$lineFirst) { edges { cursor node { id title quantity sku variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
 ORDER_LINES_QUERY = """query KeelOrderLines($id:ID!,$first:Int!,$after:String){ order(id:$id) { lineItems(first:$first,after:$after) { edges { cursor node { id title quantity sku variant { id product { id } } originalUnitPriceSet { shopMoney { amount currencyCode } } discountedTotalSet(withCodeDiscounts:true) { shopMoney { amount currencyCode } } } } pageInfo { hasNextPage endCursor } } } }"""
 LOCATIONS_QUERY = """query KeelLocations($first:Int!,$after:String,$levelFirst:Int!){ locations(first:$first,after:$after) { edges { cursor node { id name isActive inventoryLevels(first:$levelFirst) { edges { cursor node { id updatedAt item { id sku tracked variant { id } } quantities(names:[\"available\",\"on_hand\"]) { name quantity } } } pageInfo { hasNextPage endCursor } } } } pageInfo { hasNextPage endCursor } } }"""
 LOCATION_LEVELS_QUERY = """query KeelLocationLevels($id:ID!,$first:Int!,$after:String){ location(id:$id) { inventoryLevels(first:$first,after:$after) { edges { cursor node { id updatedAt item { id sku tracked variant { id } } quantities(names:[\"available\",\"on_hand\"]) { name quantity } } } pageInfo { hasNextPage endCursor } } } }"""
@@ -442,10 +453,16 @@ class ShopifyGraphQLClient:
                     PRODUCT_VARIANTS_QUERY, ("product", "variants"), {"id": product_id}, initial_after=after
                 , parent_id=product_id, entity_type="variant")
 
-    def iter_orders(self) -> Iterator[ShopifyRecord]:
+    def iter_orders(self, *, modified_since: str | None = None) -> Iterator[ShopifyRecord]:
         self.require_scopes(self.verify_connection(), ("read_orders",))
         nested_page = min(self._page_size, 250)
-        for order in self._iterate_connection(ORDERS_QUERY, ("orders",), {"lineFirst": nested_page}):
+        variables={"lineFirst":nested_page}
+        if modified_since is not None:
+            from src.market_scraper.provider_incremental import timestamp
+            value=timestamp(modified_since)
+            if value is None:raise ShopifyError('invalid_request','Invalid order watermark')
+            variables['query']="updated_at:>='"+value.isoformat().replace('+00:00','Z')+"'"
+        for order in self._iterate_connection(ORDERS_QUERY, ("orders",), variables):
             if order.get("test") is True and not self._include_test_orders:
                 continue
             order_id = _gid(order.get("id"), "order")
