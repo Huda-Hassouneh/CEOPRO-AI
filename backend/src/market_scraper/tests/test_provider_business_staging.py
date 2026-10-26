@@ -148,3 +148,12 @@ def test_woocommerce_line_item_currency_comes_from_parent_order_not_store_defaul
         identity_rows=[_identity("order", "10"), _identity("order_line_item", "11")], store_currency="CAD",
     )
     assert json.loads(conn.calls[1][1][8])["currency_code"] == "EUR"
+
+
+def test_real_woo_variation_without_name_uses_only_provider_parent_and_attributes():
+    from src.market_scraper.woocommerce import WooRecord
+    records=[WooRecord('product',1,{'id':1,'name':'Coffee','type':'variable'}),WooRecord('variation',2,{'id':2,'sku':'C-1KG','price':'15','attributes':[{'name':'Size','option':'1kg'}]},1)]
+    staged=staging._records_for_staging('woocommerce',records)
+    assert staged[1][2]['name']=='Coffee / 1kg'
+    values,findings=staging.normalize_woocommerce_record('variant',staged[1][2],store_currency='USD')
+    assert values['title']=='Coffee / 1kg' and values['price']=='15' and findings==[]

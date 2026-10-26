@@ -33,6 +33,8 @@ function toFieldMapping(mapping) {
 }
 
 export const dataConnectionsApi = Object.freeze({
+  previewProviderCatalog:async(source,revision)=>(await httpClient.get(`/onboarding/sources/${encodeURIComponent(source)}/provider-records/${encodeURIComponent(revision)}/catalog-preview`)).data,
+  postProviderCatalog:async(source,input)=>(await httpClient.post(`/onboarding/sources/${encodeURIComponent(source)}/provider-records/catalog-post`,input)).data,
   list: async () => {
     const [imports, sources] = await Promise.all([httpClient.get('/extraction/imports'), httpClient.get('/onboarding/sources')]);
     return { connectedSources: sources.data.sources, recentImports: mapRecentImports(imports.data) };
