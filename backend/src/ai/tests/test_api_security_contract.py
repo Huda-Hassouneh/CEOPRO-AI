@@ -2,8 +2,8 @@
 P0 security-contract tests for src/ai/main.py (see QA_TEST_STRATEGY.md).
 
 Offline: DB access is mocked. These tests guard the single gate every
-endpoint relies on - the Bearer JWT -> tenant context - and are written so a
-newly added route is covered automatically.
+tenant endpoint relies on - the Bearer JWT -> tenant context - plus the
+separate exact-body provider HMAC gate. New routes are covered automatically.
 """
 import os
 import time
@@ -51,6 +51,11 @@ _PUBLIC = {
     ("GET", "/billing/plans"),
 }
 
+# Provider deliveries authenticate the raw body with Shopify's HMAC, not a
+# customer JWT. They have an explicit fail-closed contract below; they are
+# neither public profile reads nor exempt from authentication testing.
+_SIGNED_WEBHOOKS = {("POST", "/onboarding/shopify/webhooks/{source_id}")}
+
 _METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
 
 
@@ -67,7 +72,7 @@ def _all_operations():
 
 
 def _routes():
-    return [op for op in _all_operations() if op not in _PUBLIC]
+    return [op for op in _all_operations() if op not in _PUBLIC | _SIGNED_WEBHOOKS]
 
 
 def _concrete(path: str) -> str:
@@ -107,9 +112,37 @@ def test_public_routes_are_exactly_the_documented_set(monkeypatch):
     open_routes = {
         (method, path)
         for method, path in _all_operations()
-        if client.request(method, _concrete(path)).status_code != 401
+        if (method, path) not in _SIGNED_WEBHOOKS
+        and client.request(method, _concrete(path)).status_code != 401
     }
     assert open_routes == _PUBLIC
+
+
+@pytest.mark.parametrize("signature", [None, "invalid", "Zm9yZ2Vk"])
+@pytest.mark.parametrize("bearer", [False, True])
+def test_shopify_delivery_requires_hmac_before_database_lookup(monkeypatch, signature, bearer):
+    from src.ai import db
+    monkeypatch.setenv("SHOPIFY_CLIENT_SECRET", "ci-only-synthetic-hmac-secret")
+    monkeypatch.setattr(db, "auth_lookup_connection", lambda: pytest.fail("Unauthenticated provider lookup"))
+    monkeypatch.setattr(db, "app_role_connection", lambda *args: pytest.fail("Unauthenticated tenant write"))
+    assert _SIGNED_WEBHOOKS <= set(_all_operations())
+    headers = {"X-Shopify-Shop-Domain": "synthetic.myshopify.com", "X-Shopify-Topic": "products/update",
+               "X-Shopify-Webhook-Id": "00000000-0000-0000-0000-000000000001"}
+    if signature is not None:
+        headers["X-Shopify-Hmac-Sha256"] = signature
+    if bearer:
+        headers.update(_bearer(_tok(secret="x" * 40)))
+    response = client.post("/onboarding/shopify/webhooks/00000000-0000-0000-0000-000000000002",
+                           content=b"{}", headers=headers)
+    assert response.status_code == 401
+
+
+def test_shopify_delivery_without_configured_secret_is_unavailable_before_lookup(monkeypatch):
+    from src.ai import db
+    monkeypatch.delenv("SHOPIFY_CLIENT_SECRET", raising=False)
+    monkeypatch.setattr(db, "auth_lookup_connection", lambda: pytest.fail("Unconfigured provider lookup"))
+    response = client.post("/onboarding/shopify/webhooks/00000000-0000-0000-0000-000000000002", content=b"{}")
+    assert response.status_code == 503
 
 
 @pytest.mark.parametrize(
