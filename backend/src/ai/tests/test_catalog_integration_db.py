@@ -26,6 +26,7 @@ def test_original_catalog_shapes_search_archived_and_existing_python_pages(fixtu
     client,ts,us,p=fixtures;r=client.get('/catalog/products',params={'search':'ORIGINAL-1'});assert r.status_code==200,r.text
     result=r.json();assert result['products'][0]['sku']=='ORIGINAL-1' and result['products'][0]['name']['en']=='Original catalog'
     assert result['pagination']['total']==1 and result['canEdit'] and result['capacity']['currentUsage']==1
+    assert client.get('/catalog/products',params={'search':'en'}).json()['pagination']['total']==0  # JSON locale keys are not product names
     detail=client.get('/catalog/products/'+p['product_id']);assert detail.status_code==200,detail.text;assert detail.json()['inventory']['currentStock']==8
     assert client.get('/products/'+p['product_id']).status_code==200
 

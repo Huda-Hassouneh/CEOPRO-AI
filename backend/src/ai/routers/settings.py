@@ -354,6 +354,9 @@ def delete_company(body: DeleteCompanyRequest, ctx: TenantContext = Depends(get_
         sys_conn.commit()
     except company_data.DeletionBlocked as blocked:
         sys_conn.rollback()
+        if blocked.reason == 'integration_evidence_review':
+            raise HTTPException(status_code=409, detail={'code':'INTEGRATION_EVIDENCE_REVIEW_REQUIRED',
+                'message':'Import or provider audit evidence requires a retention review before company deletion. No data was deleted.'}) from None
         if blocked.reason == "subscription_active":
             raise HTTPException(status_code=409, detail={"code": "SUBSCRIPTION_ACTIVE",
                                                          "message": "Cancel the paid subscription in Billing before deleting the company."})

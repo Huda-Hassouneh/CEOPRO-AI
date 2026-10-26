@@ -115,3 +115,18 @@ def test_restricted_role_post_evidence_is_append_only_and_staff_cannot_forge_it(
             with pytest.raises(psycopg2.errors.InsufficientPrivilege):q.execute("INSERT INTO keel_structured_import_posts(tenant_id,batch_id,actor_id,request_hash,response,evidence) VALUES(%s,%s,%s,%s,'{}','{}')",(ts[0],p2['draftId'],us[0],'a'*64))
         c.rollback()
     finally:c.close()
+
+
+def test_company_deletion_reports_retained_reviewed_import_without_erasing_it(setup):
+    from src.ai import company_data
+    client,app,ts,us=setup;seed(setup);p=preview(client,'inventory',stock_csv());r=review(client,p);assert confirm(client,p,r).status_code==200
+    with psycopg2.connect(os.environ['AI_TEST_DATABASE_URL']) as conn:
+        with pytest.raises(company_data.DeletionBlocked,match='integration_evidence_review'):company_data.delete_company(conn,ts[0])
+        conn.rollback()
+        with conn.cursor() as q:q.execute('SELECT count(*) FROM keel_structured_import_posts WHERE tenant_id=%s',(ts[0],));assert q.fetchone()==(1,)
+    from src.ai.routers import settings
+    app.include_router(settings.router)
+    r=client.request('DELETE','/settings/company',json={'confirm_name':query(ts[0],'SELECT business_name FROM companies WHERE tenant_id=%s')[0][0]})
+    assert r.status_code==409,r.text
+    assert r.json()['detail']['code']=='INTEGRATION_EVIDENCE_REVIEW_REQUIRED'
+    assert query(ts[0],'SELECT count(*) FROM products WHERE tenant_id=%s')[0][0]==1
