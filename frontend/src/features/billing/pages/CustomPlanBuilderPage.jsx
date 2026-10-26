@@ -100,14 +100,14 @@ export function CustomPlanBuilderPage() {
     <div className="ceopro-custom-plan-layout">
       <section className="billing-management-section custom-plan-options" aria-labelledby="custom-modules-title">
         <CustomPlanBuilder features={[
-          ...(catalog.includedFeatures || []).map((item) => ({ id:item.featureCode,code:item.featureCode,type:'boolean',name:t('billing.modules.'+item.featureCode),
+          ...(catalog.modules || []).map((item) => ({ id:item.featureCode,code:item.featureCode,type:'boolean',name:t('billing.modules.'+item.featureCode),
             ...(item.featureCode === 'competitor_management' ? { configuration:{monitoringCadence:{defaultMinutes:1440,options:(catalog.refreshFrequencies||[]).map((value)=>({minutes:({hourly:60,daily:1440,weekly:10080})[value],code:value}))}} } : {}) })),
           ...features.map((item) => ({ id:item.featureCode,code:item.featureCode,type:'limit',name:formatFeature(item).name,unit:formatFeature(item).unit,min:0,step:1 })),
         ]} configuration={Object.fromEntries([
-          ...(catalog.includedFeatures||[]).map((item)=>[item.featureCode,{selected:enabledFeatures.includes(item.featureCode),configuration:{monitoringFrequencyMinutes:({hourly:60,daily:1440,weekly:10080})[refreshFrequency]||1440}}]),
+          ...(catalog.modules||[]).map((item)=>[item.featureCode,{selected:enabledFeatures.includes(item.featureCode),configuration:{monitoringFrequencyMinutes:({hourly:60,daily:1440,weekly:10080})[refreshFrequency]||1440}}]),
           ...features.map((item)=>[item.featureCode,{selected:Boolean(selectedLimits[item.featureCode]),limitValue:limitValues[item.featureCode]??0}]),
         ])} onChange={(code,value)=>{
-          if ((catalog.includedFeatures||[]).some((item)=>item.featureCode===code)) {
+          if ((catalog.modules||[]).some((item)=>item.featureCode===code)) {
             setEnabledFeatures((current)=>value.selected?[...new Set([...current,code])]:current.filter((item)=>item!==code));
             if(code==='competitor_management')setRefreshFrequency(({60:'hourly',1440:'daily',10080:'weekly'})[value.configuration?.monitoringFrequencyMinutes]||'daily');
           } else {

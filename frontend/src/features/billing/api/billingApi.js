@@ -96,7 +96,7 @@ export const billingApi = Object.freeze({
     return { ...data, status: SUBSCRIPTION_STATUS[data.status] || 'failed', billingStatus: data.status };
   },
   getInvoices: async () => (await httpClient.get('/billing/invoices')).data.invoices || [],
-  checkout: async ({ planId, billingPeriod }) => (await httpClient.post('/billing/checkout', { plan_key: planId, period_code: billingPeriod })).data,
+  checkout: async ({ planId, billingPeriod, promotionCode }) => (await httpClient.post('/billing/checkout', { plan_key: planId, period_code: billingPeriod, ...(promotionCode ? { promotion_code:promotionCode } : {}) })).data,
   openPortal: async () => (await httpClient.post('/billing/portal')).data,
   changePlan: async ({ planId, billingPeriod }) => (await httpClient.post('/billing/change-plan', { plan_key: planId, period_code: billingPeriod })).data,
   cancelScheduledChange: async () => (await httpClient.delete('/billing/scheduled-change')).data,
