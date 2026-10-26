@@ -1880,3 +1880,8 @@ Affected143 regressions and fresh129/upgrade123+6/repeat0 proof passed;33 fresh 
 2026-10-26 closure: application fast-forward980f8ec integrated; post-integration native42/frontend13 passed with preserved .env.example. Updated existing Phase6 acceptance, current feature inventory and checkpoint; no application change in the final report commit. Final external master/mirror records full delivery HEAD and evidence.
 
 2026-10-26 final correction05874e8: provider_orders.py returns accurate no-write replay flag; test_provider_orders_integration_db.py asserts it for both providers; ProviderRecordsPanel.jsx preserves escaped multiplication glyph; remainingIntegration.test.mjs and provider-accounting-integration.mjs assert exact display and actual no-effect browser replay. Local native5 + integrated5 pass; fullfrontend201 and integrated13/lint/build pass. No SQL change. Reports updated; protected environment hash retained.
+
+
+## 2026-10-26 developer experience checkpoint
+
+Root dev.ps1/dev.sh now share tools/dev orchestration; local keel delegates to it. Per-checkout infrastructure/configuration and process identity protect existing runtimes. Backend/domain/model/migration source is unchanged; frontend changes are limited to Vite environment isolation, patched Vite dependency and bounded test-file concurrency. Verified code checkpoint: 8cce0e39241d11734a5d6ad3637d6fb4ab13d759. Windows evidence: 28 tooling tests, 201 frontend tests/lint/build, 18 native RLS tests, 137 fresh/repeat migrations, core/full worker startup, restart/down and read-only EN/AR Chrome smoke. See ../DEVELOPER_EXPERIENCE_VERIFICATION.md and ../LOCAL_DEVELOPMENT.md. Protected backend/.env.example preserved; no push/main merge/deployment.
