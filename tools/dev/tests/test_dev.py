@@ -135,3 +135,28 @@ class DevTests(unittest.TestCase):
         code = SOURCE.read_text(encoding="utf-8")
         self.assertIn('constraints = STATE / "constraints.txt"', code)
         self.assertNotIn('-c ../../backend', (SOURCE.parent / "requirements.txt").read_text())
+
+    def test_fatal_worker_error_is_actionable_without_timeout(self):
+        def failed():
+            raise dev.DevError("forecast failed; inspect forecast.log")
+        with self.assertRaisesRegex(dev.DevError, "forecast.log"):
+            dev.wait_for("forecast", failed, timeout=1)
+
+    def test_legacy_local_entry_delegates_to_same_runtime(self):
+        script = (SOURCE.parents[2] / "keel").read_text(encoding="utf-8")
+        self.assertIn('exec bash "$ROOT/dev.sh" up', script)
+
+    def test_seed_is_bounded_and_never_overwrites(self):
+        spec = importlib.util.spec_from_file_location("keel_fixtures", SOURCE.parent / "fixtures.py")
+        fixtures = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fixtures)
+        source = self.root / "backend/mocks/e2e_pipeline_demo.csv"
+        source.parent.mkdir(parents=True)
+        source.write_text("product_name,quantity\n" + "Synthetic,1\n" * 100, encoding="utf-8")
+        target, created = fixtures.generate(self.root, self.state / "fixtures")
+        self.assertTrue(created)
+        self.assertEqual(len(target.read_text().splitlines()), 21)
+        target.write_text("developer edit", encoding="utf-8")
+        _, created = fixtures.generate(self.root, self.state / "fixtures")
+        self.assertFalse(created)
+        self.assertEqual(target.read_text(), "developer edit")
