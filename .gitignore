@@ -4,3 +4,6 @@ dump.rdb
 !.env.example
 __pycache__/
 *.pyc
+
+# Checkout-local developer config, credentials, dependencies, logs and process ownership.
+.dev/
