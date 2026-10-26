@@ -66,6 +66,7 @@ Model weights may download on first use. This does not configure hosted AI provi
 | Check identity/readiness | `.\dev.ps1 status` |
 | Diagnose prerequisites/configuration | `.\dev.ps1 doctor` |
 | Tail application logs | `.\dev.ps1 logs --service api --follow` |
+| Initialize infrastructure / create the development DB on first use | `.\dev.ps1 infra` |
 | Apply pending migrations | `.\dev.ps1 migrate` |
 | Migration inventory / DB security health | `.\dev.ps1 db-status` / `.\dev.ps1 db-check` |
 | Generate optional synthetic import files | `.\dev.ps1 seed` |
