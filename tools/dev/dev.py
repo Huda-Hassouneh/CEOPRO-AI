@@ -60,7 +60,7 @@ def run(args, *, cwd=ROOT, env=None, capture=False):
     if result.returncode:
         # Captured commands may contain provider diagnostics or credentials: keep errors local.
         raise DevError(f"{Path(str(args[0])).name} failed (exit {result.returncode}). "
-                       "Check Docker Desktop/network or the service log; no success was assumed.")
+                       "Inspect the command output above and local logs; no success was assumed.")
     return result.stdout if capture else ""
 
 
@@ -203,6 +203,7 @@ def compose_file(c):
         "environment": {"MINIO_ROOT_USER": "keeldev", "MINIO_ROOT_PASSWORD": c["storage_password"]},
         "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"],
                         "interval": "3s", "timeout": "3s", "retries": 40}})
+    storage.pop("image")  # Compose builds a checkout-project image; no nonexistent registry pull.
     storage["ports"].append(f"127.0.0.1:{p['console']}:9001")
     mail = service("axllent/mailpit:latest", "smtp", 1025)
     mail["ports"].append(f"127.0.0.1:{p['inbox']}:8025")
@@ -254,7 +255,10 @@ def start_process(name, args, c):
     import psutil
     records = processes()
     record = records.get(name)
+    revision = run(["git", "rev-parse", "HEAD"], capture=True).strip()
     if record and owned(record):
+        if record.get("revision") != revision:
+            raise DevError(f"{name} serves a different source revision. Run restart before reusing it.")
         return
     log = STATE / "logs" / f"{name}.log"
     log.parent.mkdir(exist_ok=True)
@@ -269,7 +273,7 @@ def start_process(name, args, c):
     if process.poll() is not None:
         raise DevError(f"{name} exited immediately. Inspect .dev/logs/{name}.log.")
     p = psutil.Process(process.pid)
-    records[name] = {"pid": p.pid, "created": p.create_time(), "exe": p.exe(), "cmd": p.cmdline()}
+    records[name] = {"pid": p.pid, "created": p.create_time(), "exe": p.exe(), "cmd": p.cmdline(), "revision": revision}
     write_json(STATE / "processes.json", records)
 
 
@@ -297,6 +301,14 @@ def database(c, action):
     run([PYTHON, ROOT / "tools/dev/database.py", action], cwd=ROOT / "backend", env=environment(c, admin=True))
 
 
+def runtime_pids(record):
+    """Windows venv launchers may delegate to a base-interpreter child."""
+    import psutil
+    if not owned(record):
+        return set()
+    return {record["pid"], *(p.pid for p in psutil.Process(record["pid"]).children(recursive=True))}
+
+
 def worker_ready(name, c):
     record = processes().get(name)
     if not record or not owned(record):
@@ -307,10 +319,11 @@ def worker_ready(name, c):
         raise DevError(f"{name} reported a startup error; inspect its log.")
     import psycopg2
     import redis
+    pids = runtime_pids(record)
     env = environment(c)
     if name == "images":
         with psycopg2.connect(env["DATABASE_URL"], connect_timeout=3) as conn, conn.cursor() as cur:
-            cur.execute("SELECT EXISTS (SELECT 1 FROM image_workers WHERE worker_id LIKE %s)", (f"%:{record['pid']}",))
+            cur.execute("SELECT EXISTS (SELECT 1 FROM image_workers WHERE worker_id LIKE ANY(%s) AND heartbeat_at > now() - interval '60 seconds')", ([f"%:{pid}" for pid in pids],))
             return cur.fetchone()[0]
     if name == "connectors":
         return "Connector worker online" in text
@@ -327,7 +340,7 @@ def worker_ready(name, c):
     stream, group = mapping[name]
     client = redis.Redis.from_url(env["REDIS_URL"], decode_responses=True)
     try:
-        return any(str(record["pid"]) in x["name"] for x in client.xinfo_consumers(stream, group))
+        return any(x["name"].endswith("-" + str(pid)) for x in client.xinfo_consumers(stream, group) for pid in pids)
     except redis.ResponseError:
         return False
     finally:
@@ -381,6 +394,11 @@ def setup(args):
                 lines.append(re.sub(r"\[[^]]+\]", "", line))
     constraints.write_text("\n".join(lines) + "\n", encoding="utf-8")
     if prior.get("python") != fingerprint:
+        free = shutil.disk_usage(ROOT).free
+        if free < 1024 ** 3:
+            raise DevError("Less than 1 GB free disk. Free space safely before dependency installation; no data removed.")
+        if free < 5 * 1024 ** 3:
+            print("WARNING: under 5 GB free; dependencies and optional model weights can need several GB.")
         run([PYTHON, "-m", "pip", "install", "-c", constraints, "-r", manifest])
         run([PYTHON, "-m", "pip", "check"])
         prior["python"] = fingerprint
@@ -414,6 +432,11 @@ def up(args):
     compose_file(c)
     verify_containers(c)
     records = processes()
+    mode_file = STATE / "mode.json"
+    previous_mode = json.loads(mode_file.read_text())["mode"] if mode_file.exists() else "full"
+    args.mode = args.mode or previous_mode
+    if args.mode != previous_mode and any(owned(r) for r in records.values()):
+        raise DevError("Stop the owned runtime with down before changing worker modes.")
     containers = docker(c, "ps", "--format", "json", capture=True).strip()
     # Check ports before creating infrastructure. Running owned infrastructure is checked by Compose.
     owned_ports = {"api", "frontend"}
@@ -439,8 +462,6 @@ def up(args):
     wait_for("FastAPI database/Redis readiness and exact CORS", lambda: (
         json.loads(http(api + "/health/ready", origin)[0]).get("status") == "ok"
         and http(api + "/health/ready", origin)[1].get("Access-Control-Allow-Origin") == origin))
-    mode_file = STATE / "mode.json"
-    args.mode = args.mode or (json.loads(mode_file.read_text())["mode"] if mode_file.exists() else "full")
     names = CORE if args.mode == "core" else list(WORKERS)
     for name in names:
         start_process(name, [PYTHON, "-m", WORKERS[name]], c)
@@ -450,6 +471,7 @@ def up(args):
     wait_for("Vite and actual frontend-to-API proxy", lambda: (
         "/src/main" in http(origin)[0] and json.loads(http(origin + "/api/health/ready")[0]).get("status") == "ok"))
     write_json(STATE / "mode.json", {"mode": args.mode, "workers": names})
+    print("Source: " + run(["git", "rev-parse", "HEAD"], capture=True).strip())
     print(f"\nREADY ({args.mode} local runtime; external capabilities listed below)")
     print(f"Frontend: {origin}\nAPI: {api}\nAPI docs: {api}/docs")
     print(f"Mail inbox: http://127.0.0.1:{c['ports']['inbox']}\nStorage console: http://127.0.0.1:{c['ports']['console']}")
@@ -477,7 +499,13 @@ def down(_args):
                 child.terminate()
             except psutil.NoSuchProcess:
                 pass
-        psutil.wait_procs(children, timeout=5)
+        _, remaining = psutil.wait_procs(children, timeout=5)
+        for child in remaining:
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
+        psutil.wait_procs(remaining, timeout=5)
     write_json(STATE / "processes.json", {})
     check_docker()
     verify_containers(c)
@@ -491,6 +519,8 @@ def status(_args):
     for name, record in processes().items():
         live = owned(record)
         print(f"{name}: {'RUNNING (identity verified)' if live else 'STOPPED/IDENTITY MISMATCH'}")
+        if live:
+            print("  source: " + record.get("revision", "unrecorded"))
         ok &= live
     check_docker()
     verify_containers(c)
@@ -511,6 +541,11 @@ def status(_args):
         raise DevError("One or more local services are not ready. Inspect logs; status is not a readiness claim.")
 
 
+def redact(value):
+    value = re.sub(r"(?:sk|rk)_(?:test|live)_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+", "<redacted>", value)
+    return re.sub(r"postgres(?:ql)?://\S+", "postgresql://<redacted>", value)
+
+
 def logs(args):
     def show():
         paths = [STATE / "logs" / f"{args.service}.log"] if args.service else sorted((STATE / "logs").glob("*.log"))
@@ -521,7 +556,7 @@ def logs(args):
                 for line in lines[-args.tail:]:
                     line = re.sub(r"(?:sk|rk)_(?:test|live)_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+", "<redacted>", line)
                     line = re.sub(r"postgres(?:ql)?://[^ @]+", "postgresql://<redacted>", line)
-                    print(line)
+                    print(redact(line))
     show()
     if args.follow:
         # Avoid repeats: maintain offsets and print only new lines.
@@ -535,7 +570,7 @@ def logs(args):
                         stream.seek(min(offsets.get(path, 0), path.stat().st_size))
                         value = stream.read()
                         if value:
-                            print(f"[{path.stem}] {value}", end="", flush=True)
+                            print(f"[{path.stem}] {redact(value)}", end="", flush=True)
                         offsets[path] = stream.tell()
                 time.sleep(0.5)
         except KeyboardInterrupt:

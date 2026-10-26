@@ -1,3 +1,5 @@
+> Current fresh-clone startup: [root developer commands](../../docs/LOCAL_DEVELOPMENT.md). The guide below describes the earlier specialist/WSL workflow and historical evidence; its fixed ports and recorded migration counts are not the new default.
+
 # Reusable KEEL local verification environment
 
 This harness is for synthetic local verification only. It is not the normal KEEL development stack and never points at a shared or production database. Migrations 1-103 are applied only to the dedicated `keel_verification` database in the `keel-verification-postgres` container.

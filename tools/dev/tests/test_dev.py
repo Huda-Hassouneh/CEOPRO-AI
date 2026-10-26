@@ -118,3 +118,20 @@ class DevTests(unittest.TestCase):
         self.assertNotIn('"backend/.env"', code)
         self.assertNotIn("FLUSHALL", code)
         self.assertNotIn("down\", \"-v", code)
+
+    def test_redaction_for_tail_and_follow(self):
+        self.assertEqual(dev.redact("sk_test_hidden whsec_hidden postgresql://user:pass@host/db"), "<redacted> <redacted> postgresql://<redacted>")
+
+    def test_failed_readiness_is_not_success(self):
+        with self.assertRaises(dev.DevError):
+            dev.wait_for("synthetic failed readiness", lambda: False, timeout=0)
+
+    def test_native_stderr_not_terminating_in_windows_wrapper(self):
+        wrapper = (SOURCE.parents[2] / "dev.ps1").read_text(encoding="utf-8")
+        self.assertIn("$ErrorActionPreference = 'Continue'", wrapper)
+        self.assertIn("exit $LASTEXITCODE", wrapper)
+
+    def test_constraints_are_sanitized_from_real_manifests(self):
+        code = SOURCE.read_text(encoding="utf-8")
+        self.assertIn('constraints = STATE / "constraints.txt"', code)
+        self.assertNotIn('-c ../../backend', (SOURCE.parent / "requirements.txt").read_text())

@@ -1,3 +1,5 @@
+> Current fresh-clone startup: [root developer commands](../LOCAL_DEVELOPMENT.md). The guide below describes the earlier specialist/WSL workflow and historical evidence; its fixed ports and recorded migration counts are not the new default.
+
 # KEEL contributor setup and verification
 
 This is the current Windows/PowerShell handoff. It uses the reusable isolated verification environment and the repository's WSL development scripts. It never requires production credentials or databases.

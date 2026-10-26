@@ -1,3 +1,5 @@
+> Current fresh-clone startup: [root developer commands](docs/LOCAL_DEVELOPMENT.md). The guide below describes the earlier specialist/WSL workflow and historical evidence; its fixed ports and recorded migration counts are not the new default.
+
 # Running KEEL on your own machine
 
 This guide is self-contained: it doesn't depend on any particular person,
