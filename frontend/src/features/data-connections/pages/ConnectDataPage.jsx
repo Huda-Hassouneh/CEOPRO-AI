@@ -1,3 +1,4 @@
+import {StructuredBusinessImport} from '../../data-ingestion/components/StructuredBusinessImport.jsx';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Database, Download, FileText, Plug, Plus, RefreshCw, ShoppingBag, Store, Unplug } from 'lucide-react';
@@ -224,6 +225,8 @@ export function ConnectDataPage() {
         <div><h3>{t('connectData.upload.files')}</h3><FileUploadDropzone files={files} onFilesChange={setFiles} />{files.length > 0 && <Button className="connect-data-prepare" size="sm" onClick={prepareImport} loading={importing} loadingLabel={t('connectData.actions.preparingImport')}>{t('connectData.actions.prepareImport')}</Button>}</div>
       </div>
     </section>
+      <StructuredBusinessImport/>
+
 
     <ImportDraftsPanel t={t} locale={locale} />
 

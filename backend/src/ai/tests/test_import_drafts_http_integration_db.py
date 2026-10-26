@@ -137,6 +137,8 @@ def test_invoice_and_inventory_review_routes_remain_review_only(api, admin_conn,
 
     source_id, job_id = str(uuid.uuid4()), str(uuid.uuid4())
     with admin_conn.cursor() as cur:
+        # This approved invoice fixture must reference an actual unambiguous tenant product.
+        cur.execute("INSERT INTO products(tenant_id,product_name,current_price,currency) VALUES(%s,'{\"en\":\"Widget\"}'::jsonb,4.25,'JOD')",(owner['tenant'],))
         cur.execute("INSERT INTO data_sources(source_id,tenant_id,source_name,source_type,collector_key,collector_config,is_active) VALUES(%s,%s,'typed fixture','CSV_UPLOAD','manual','{}',true)", (source_id,owner["tenant"]))
         cur.execute("INSERT INTO ingestion_jobs(job_id,tenant_id,source_id,job_status,file_name) VALUES(%s,%s,%s,'COMPLETED','typed.csv')", (job_id,owner["tenant"],source_id))
     writer = db.app_role_connection(owner["tenant"], owner["user"])

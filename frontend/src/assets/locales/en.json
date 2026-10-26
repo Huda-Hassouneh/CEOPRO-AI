@@ -58,7 +58,8 @@
     "disabled": "Disabled",
     "enable": "Enable",
     "disable": "Disable",
-    "activate": "Activate"
+    "activate": "Activate",
+    "error": "Something went wrong. Please try again."
   },
   "businessShell": {
     "navigation": {
@@ -93,10 +94,12 @@
       "failed": "Search is unavailable right now",
       "open": "Search KEEL",
       "pages": "Pages",
-      "hint": "Search your products, competitors and KEEL pages."
+      "hint": "Search your products, competitors and KEEL pages.",
+      "clear": "Clear search"
     },
     "profile": {
-      "label": "Account profile"
+      "label": "Account profile",
+      "welcome": "Welcome back,"
     },
     "mobile": {
       "openMenu": "Open navigation",
@@ -105,6 +108,18 @@
     "theme": {
       "switchToDark": "Switch to dark mode",
       "switchToLight": "Switch to light mode"
+    },
+    "brandSubtitle": "Business Intelligence",
+    "notifications": {
+      "label": "Notifications",
+      "unread": "Unread notifications",
+      "title": "Notifications",
+      "unreadCount": "{{count}} unread",
+      "markAllRead": "Mark all read",
+      "loading": "Loading notifications...",
+      "error": "Unable to load notifications.",
+      "empty": "No new notifications",
+      "archive": "Archive notification"
     }
   },
   "dataStatus": {
@@ -119,6 +134,18 @@
     "estimated": {
       "label": "Estimated",
       "description": "Estimated using available data or AI models."
+    },
+    "partial": {
+      "label": "Partial",
+      "description": "Some relevant records are missing or excluded. Check the details below."
+    },
+    "unavailable": {
+      "label": "Unavailable",
+      "description": "There is not enough eligible data to show this result."
+    },
+    "stale": {
+      "label": "Stale",
+      "description": "The source record is older than the configured freshness limit."
     }
   },
   "products": {
@@ -448,12 +475,56 @@
     "reviewCount": "Eligible analyzed reviews: {{count}}",
     "breakdown": "Positive: {{positive}} · Neutral: {{neutral}} · Negative: {{negative}}",
     "lowSampleNotice": "The numeric index is hidden because the sample is below the backend reliability status.",
-    "evidenceNotice": "Based on eligible, analyzed reviews. This is an evidence summary, not a financial or operational action."
+    "evidenceNotice": "Based on eligible, analyzed reviews. This is an evidence summary, not a financial or operational action.",
+    "subtitle": "Analyze the latest eligible reviews for your business and selected product. The page date filter applies to the other market sections.",
+    "analyze": "Analyze reviews",
+    "analyzing": "Analyzing eligible reviews…",
+    "mixedFeedback": "Mixed feedback",
+    "minimum": "Minimum required: {{count}}",
+    "evidence": "Evidence details",
+    "period": "Review dates: {{start}} – {{end}}",
+    "sampleBasis": "Based on up to {{count}} of the latest eligible reviews.",
+    "confidence": "Evidence confidence: {{value}}",
+    "confidenceHint": "An AI support signal, not a probability of business success or proof that the sample represents all customers.",
+    "sources": "Review sources: {{sources}}",
+    "checkedAt": "Checked: {{date}}",
+    "methods": {
+      "PUBLIC_API": "Public API",
+      "PUBLIC_FEED": "Public feed",
+      "MANUAL": "Manually collected"
+    },
+    "states": {
+      "OK": "Available",
+      "NO_ELIGIBLE_REVIEWS": "No eligible reviews yet",
+      "INSUFFICIENT_REVIEWS": "Insufficient reviews",
+      "MODEL_UNAVAILABLE": "Analysis unavailable",
+      "SERVICE_UNAVAILABLE": "Perception service unavailable",
+      "SUBJECT_UNAVAILABLE": "Subject unavailable",
+      "NOT_INCLUDED": "Not included in your plan",
+      "NOT_ANALYZED": "Analyze reviews to see a result"
+    },
+    "eligibleReviewCount": "Eligible reviews supplied: {{count}}"
   },
   "marketScoped": {
     "common": {
       "actions": "Actions",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "all": "All",
+      "viewAll": "View All",
+      "active": "Active",
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "highPotential": "High Potential",
+      "mediumPotential": "Medium Potential",
+      "lowPotential": "Low Potential",
+      "lastPeriod": "vs last period",
+      "monthAgo": "{{count}} month ago",
+      "close": "Close",
+      "previewActivity": "Preview market activity"
     },
     "leaderboard": {
       "sort": "Sort by",
@@ -461,12 +532,212 @@
       "competitor": "Competitor",
       "priceScore": "Price Score",
       "activityScore": "Market Activity",
-      "compositeScore": "Composite Score"
+      "compositeScore": "Composite Score",
+      "export": "Export PDF",
+      "industry": "Industry",
+      "period": "Time Period",
+      "view": "View",
+      "homeInternet": "Home Internet",
+      "quarter": "Q3 2026",
+      "top10": "Top 10",
+      "sentimentScore": "Sentiment Score",
+      "trend": "Trend",
+      "showing": "Showing 1 to 10 of 24 competitors",
+      "previous": "Previous",
+      "next": "Next",
+      "viewAll": "View All",
+      "priceMethod": "Price Competitiveness",
+      "priceMethodText": "Relative pricing and price stability",
+      "sentimentMethod": "Customer Sentiment",
+      "sentimentMethodText": "Customer reviews and social media sentiment",
+      "activityMethod": "Market Activity",
+      "activityMethodText": "Product launches, marketing activity, and market presence",
+      "varietyMethod": "Product Variety",
+      "varietyMethodText": "Range of products and packages offered",
+      "growthMethod": "Historical Growth",
+      "growthMethodText": "Growth in search interest and demand over time",
+      "insight1": "Stratos Analytics maintains the leading position with strong performance across all metrics.",
+      "insight2": "Orange has moved up 3 positions this quarter, driven by increased marketing activity.",
+      "insight3": "Price competition is intensifying across the market.",
+      "orange": "Orange",
+      "fibernet": "FiberNet",
+      "speedConnect": "Speed Connect",
+      "novaQuery": "NovaQuery",
+      "linkPlus": "LinkPlus",
+      "umniah": "Umniah"
+    },
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "category": {
+      "homeInternet": "Home Internet",
+      "smartHome": "Smart Home",
+      "mobile": "Mobile",
+      "business": "Business",
+      "digitalServices": "Digital Services"
+    },
+    "type": {
+      "fiber": "Fiber",
+      "postpaid": "Postpaid",
+      "tv": "TV",
+      "productGap": "Product Gap",
+      "bundle": "Bundle",
+      "service": "Service"
+    },
+    "product": {
+      "searchDemand": "Search and demand interest over the last 12 months",
+      "otherProducts": "Other products from {{provider}}",
+      "marketDemand": "Market demand",
+      "priceIndex": "Price index",
+      "priceUpdated": "Price updated",
+      "priceUpdatedDetail": "Price changed from 24.00 to 22.00 JOD",
+      "promotion": "New promotion launched",
+      "searchIncreased": "Increased search interest",
+      "reviewsIncreased": "Customer reviews increased",
+      "insight1": "Search interest for this product increased by 22% in the last 3 months.",
+      "insight2": "High demand in urban areas, especially Amman and Zarqa.",
+      "insight3": "Competitive pricing compared with similar packages.",
+      "insight4": "Positive customer sentiment regarding speed and reliability.",
+      "insight5": "Opportunity to target new residential areas with focused campaigns.",
+      "contract12": "12 months",
+      "monthly": "Monthly",
+      "nationwide": "Nationwide",
+      "majorCities": "Major cities"
+    },
+    "opportunities": {
+      "aiTitle": "AI Market Insight",
+      "aiText": "The home internet and smart home segments show the highest growth potential in Jordan, driven by increasing remote work, student enrollment, and expanding fiber infrastructure.",
+      "fullAnalysis": "View Full Analysis",
+      "industry": "Industry",
+      "opportunityType": "Opportunity Type",
+      "potential": "Potential",
+      "timePeriod": "Time Period",
+      "next12": "Next 12 Months",
+      "search": "Search opportunities...",
+      "topSubtitle": "Highest potential opportunities based on AI analysis.",
+      "allSubtitle": "Complete list of AI-identified product opportunities.",
+      "opportunity": "Opportunity",
+      "category": "Category",
+      "marketSize": "Est. Market Size",
+      "demandGrowth": "Demand Growth",
+      "competition": "Competition",
+      "sortPotential": "Sort by Potential",
+      "showing": "Showing 1 to 10 of 18 opportunities",
+      "remoteWork": "Remote Work Growth",
+      "remoteWorkText": "Increased demand for higher internet speeds.",
+      "digitalAdoption": "Digital Service Adoption",
+      "digitalAdoptionText": "Growing interest in streaming and cloud services.",
+      "smartInterest": "Smart Home Interest",
+      "smartInterestText": "Rising demand for connected devices.",
+      "marketSizeShort": "Market Size",
+      "demandSignal": "Demand Signal",
+      "competitionLevel": "Competition Level",
+      "customerSentiment": "Market Sentiment",
+      "competitorActivity": "Competitor Activity",
+      "track": "Track Opportunity",
+      "tracked": "Tracked"
+    },
+    "opportunityData": {
+      "homeDemand": {
+        "title": "High Demand for Home Internet in Irbid",
+        "short": "High Speed Home Packages",
+        "type": "500 Mbps+ internet packages",
+        "description": "Increasing search interest and limited competitor promotions indicate growing demand for home internet services in Irbid.",
+        "insight1": "Search interest for home internet in Irbid increased by 18% in the last 6 months.",
+        "insight2": "Competitor promotions in the area have decreased, creating favorable market conditions.",
+        "insight3": "Customer sentiment regarding internet speed and reliability is positive.",
+        "insight4": "Population growth and new residential projects in Irbid are driving higher demand.",
+        "action1": "Consider launching a targeted marketing campaign in Irbid.",
+        "action2": "Explore special offers for new residential areas.",
+        "action3": "Monitor competitor activity and adjust pricing accordingly."
+      },
+      "smartBundle": {
+        "title": "Smart Home Bundles",
+        "type": "Internet and smart devices",
+        "description": "Interest in smart home solutions and connected devices is increasing.",
+        "insight": "Smart home searches continue to rise.",
+        "action": "Test a bundled smart-home offer."
+      },
+      "mobileBundle": {
+        "title": "Mobile + Internet Bundles",
+        "type": "Combined packages",
+        "description": "Search volume for combined mobile and internet packages is rising.",
+        "insight": "Bundled-plan comparisons are increasing.",
+        "action": "Create a combined offer for pilot customers."
+      },
+      "gaming": {
+        "title": "Gaming Internet Packages",
+        "type": "Low-latency gaming",
+        "description": "Demand for low-latency gaming connectivity is growing.",
+        "insight": "Gaming traffic is rising.",
+        "action": "Test a low-latency package."
+      },
+      "business": {
+        "title": "Business Internet Solutions",
+        "type": "SMEs and remote work",
+        "description": "SMEs are seeking reliable internet and remote-work solutions.",
+        "insight": "SME demand is expanding.",
+        "action": "Target growing SMEs."
+      },
+      "student": {
+        "title": "Student Packages",
+        "type": "Affordable student plans",
+        "description": "Student demand rises around enrollment periods.",
+        "insight": "Seasonal student demand is strong.",
+        "action": "Launch before enrollment season."
+      },
+      "streaming": {
+        "title": "Streaming Bundles",
+        "type": "Internet and TV services",
+        "description": "Customers increasingly prefer combined streaming packages.",
+        "insight": "Streaming engagement is rising.",
+        "action": "Partner with a streaming provider."
+      },
+      "security": {
+        "title": "Security and Monitoring",
+        "type": "Home security solutions",
+        "description": "Interest in connected security solutions is accelerating.",
+        "insight": "Security searches are increasing.",
+        "action": "Bundle monitoring devices."
+      },
+      "cloud": {
+        "title": "Cloud Storage Add-ons",
+        "type": "Additional cloud storage",
+        "description": "Some customers want storage as a service add-on.",
+        "insight": "Demand is moderate.",
+        "action": "Validate willingness to pay."
+      },
+      "backup": {
+        "title": "Backup Internet Solutions",
+        "type": "4G/5G backup packages",
+        "description": "Businesses need resilient backup connectivity.",
+        "insight": "Continuity needs are increasing.",
+        "action": "Offer managed failover."
+      }
     }
   },
   "marketMain": {
     "actions": {
-      "retry": "Try again"
+      "retry": "Try again",
+      "generateRecommendation": "Generate Recommendation",
+      "refreshRecommendation": "Refresh Recommendation",
+      "dateRange": "Date range",
+      "exportPdf": "Export to PDF",
+      "connectData": "Connect Data",
+      "raise": "Raise",
+      "lower": "Lower",
+      "hold": "Hold"
     },
     "overviewCards": {
       "priceTrend": "Price Trend",
@@ -489,6 +760,159 @@
       "categoryTableSubtitle": "Highest detected competitor activity level per product category.",
       "categoryEmptyTitle": "No category activity yet",
       "categoryEmptyDescription": "Category activity will appear once competitors are matched to your product categories."
+    },
+    "pricingFix": {
+      "referenceSources": "Cross-currency references",
+      "referenceOnly": "Reference only. These converted prices do not determine the market average or recommendation.",
+      "retryRequest": "Retry previous request",
+      "unlimitedCredits": "Unlimited recommendation credits",
+      "remainingCredits": "Recommendation credits remaining: {{count}}",
+      "chargePolicy": "One credit per usable recommendation. Failed or unavailable results do not consume a credit. Suggestions do not change your selling price.",
+      "loadingHistory": "Loading saved recommendations…",
+      "historyError": "Saved recommendations could not be loaded.",
+      "savedRecommendations": "Saved recommendations",
+      "generatedAt": "Generated: {{date}}",
+      "stale": "This is a historical recommendation. The product details or source freshness have changed; generate a new recommendation before acting.",
+      "confidence": "Heuristic confidence signal: {{count}}% — not a guaranteed outcome.",
+      "sources": "Competitor observations used ({{count}})",
+      "sourceWindow": "Prices must be within {{days}} days; conversion rates within {{fxDays}} days of generation.",
+      "fxRate": "Rate {{rate}} · {{date}} · {{source}}",
+      "errors": {
+        "pending": "A recommendation is already processing for this product. Wait, then retry.",
+        "requestFailed": "The previous request did not complete and its reservation was released. Generate again to start a new request.",
+        "requestConflict": "This request belongs to a different product. Start a new request.",
+        "sourceChanged": "The product or selected competitor inputs changed during generation. Generate again using current data.",
+        "invalidProduct": "Set a positive current price and a valid cost/currency before generating a recommendation.",
+        "invalidResult": "The pricing service returned an inconsistent or unusable result. No recommendation credit was charged."
+      }
+    },
+    "page": {
+      "title": "Market Intelligence",
+      "subtitle": "Track competitors, analyze market trends, and get AI-powered insights."
+    },
+    "product": {
+      "label": "Select Product"
+    },
+    "metrics": {
+      "label": "Market intelligence summary",
+      "totalCompetitors": "Total Competitors",
+      "averageCompositeScore": "Average Composite Score",
+      "topSegmentScore": "Top Segment Score",
+      "averagePriceScore": "Avg Price Score",
+      "partialSignals": "Based on available signals"
+    },
+    "ai": {
+      "title": "Market Intelligence",
+      "generated": "Latest supporting record: {{date}}",
+      "insight": "Market Insight",
+      "drivers": "Key Market Drivers",
+      "sentiment": "Market Sentiment",
+      "confidence": "Confidence: {{value}}%"
+    },
+    "driverTypes": {
+      "pricing": "Pricing",
+      "sentiment": "Customer sentiment",
+      "demand": "Demand",
+      "activity": "Competitor activity"
+    },
+    "sentiments": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative"
+    },
+    "competitors": {
+      "title": "Competitor Analysis",
+      "subtitle": "Product-linked competitor signals for {{product}}."
+    },
+    "pricing": {
+      "title": "Pricing Recommendations",
+      "subtitle": "Recommended pricing actions based on comparable market data.",
+      "comparisonTitle": "Market Price Comparison",
+      "comparisonSubtitle": "Recorded competitor prices in the selected product currency."
+    },
+    "opportunities": {
+      "title": "Expansion Opportunities",
+      "subtitle": "Existing products with rising recorded sales. Investigate before expanding.",
+      "growth": "Recorded unit sales growth"
+    },
+    "changes": {
+      "title": "Recent Competitor Price Changes",
+      "subtitle": "Latest detected pricing movements for the selected product.",
+      "increased": "increase",
+      "decreased": "decrease"
+    },
+    "tables": {
+      "product": "Product",
+      "competitor": "Competitor",
+      "pricingScore": "Pricing Score (1–10)",
+      "compositeScore": "Composite Score (1–100)",
+      "relevanceScore": "Relevance Score (1–100)",
+      "presenceScore": "Market Presence Score (1–100)",
+      "perception": "Market Perception",
+      "currentPrice": "Current Price",
+      "action": "Action",
+      "suggestedPrice": "Suggested Price",
+      "marketMin": "Market Min",
+      "marketMax": "Market Max",
+      "marketAverage": "Market Average",
+      "marketMedian": "Market Median",
+      "matchedCompetitors": "Matched Competitors",
+      "explanation": "Explanation",
+      "date": "Date",
+      "previousPrice": "Previous Price",
+      "newPrice": "New Price",
+      "change": "Change",
+      "detected": "Detected"
+    },
+    "empty": {
+      "productsTitle": "No products available",
+      "productsDescription": "Connect or upload product data to begin market analysis.",
+      "aiTitle": "No AI market insight",
+      "aiDescription": "An insight has not been generated for this product yet.",
+      "competitorsTitle": "No competitors tracked",
+      "competitorsDescription": "Add a competitor to begin product-level comparison.",
+      "pricingTitle": "No pricing data",
+      "pricingDescription": "Pricing recommendations will appear when comparable data is available.",
+      "opportunitiesTitle": "No expansion opportunities identified",
+      "opportunitiesDescription": "No supported expansion opportunities were found in the available data.",
+      "changesTitle": "No recent price changes",
+      "changesDescription": "Detected competitor pricing movements will appear here."
+    },
+    "error": {
+      "title": "Market intelligence unavailable",
+      "description": "We could not load this market view. Please try again.",
+      "pricingQuotaExhausted": "Your AI pricing recommendation allowance has been used. Check your plan or wait for the next billing period.",
+      "pricingNotIncluded": "AI pricing recommendations are not included in your subscription."
+    },
+    "export": {
+      "generated": "Generated",
+      "failed": "Could not generate the PDF. Please try again."
+    },
+    "freshness": {
+      "priceObserved": "Price observed: {{date}}",
+      "scoreCalculated": "Score calculated: {{date}}"
+    },
+    "pricingUx": {
+      "generating": "Analyzing prices…",
+      "generatingDescription": "Checking comparable competitor prices. Your selling price stays unchanged.",
+      "unavailableLabel": "Unavailable",
+      "historical": "Historical",
+      "recordedPrice": "Price when generated",
+      "why": "Why this price?",
+      "explanationMissing": "No explanation was supplied for this recommendation.",
+      "unavailableTitle": "No price recommendation yet",
+      "unavailableDescription": "There is not enough eligible competitor price data to recommend a price.",
+      "nextStep": "Check that matching competitor products are confirmed and tracking has collected recent prices, then try again.",
+      "emptyTitle": "Find a price backed by market data",
+      "emptyDescription": "Generate a recommendation to compare your price with recent prices from confirmed competitor matches.",
+      "marketDetails": "Market comparison details",
+      "errorTitle": "Recommendation could not be completed",
+      "dismiss": "Dismiss",
+      "actions": {
+        "raise": "Consider raising the price",
+        "lower": "Consider lowering the price",
+        "hold": "Keep the current price"
+      }
     }
   },
   "market": {
@@ -714,7 +1138,8 @@
       "twoDays": "2d ago",
       "threeDays": "3d ago",
       "fourDays": "4d ago",
-      "notAvailable": "Not available"
+      "notAvailable": "Not available",
+      "oneWeek": "1 week ago"
     },
     "status": {
       "positive": "Positive",
@@ -763,7 +1188,10 @@
       "activityPriceIncreased": "Raised the price of {{product}}",
       "activityPriceDecreased": "Lowered the price of {{product}}",
       "activityIncreaseBadge": "Price increase",
-      "activityDecreaseBadge": "Price decrease"
+      "activityDecreaseBadge": "Price decrease",
+      "coverage": "Coverage expanded",
+      "mobilePlan": "New mobile plan",
+      "partnership": "New partnership"
     },
     "badges": {
       "newProduct": "New Product",
@@ -853,7 +1281,10 @@
       "tierStrategic": "Strategic",
       "tierRelevant": "Relevant",
       "summaryStrategic": "Strategic competitor — {{pct}}% product overlap with your catalog.",
-      "summaryRelevant": "Relevant competitor — {{count}} of your products matched for price comparison."
+      "summaryRelevant": "Relevant competitor — {{count}} of your products matched for price comparison.",
+      "industryTelecom": "Telecom",
+      "industryInternet": "Internet",
+      "industryAnalytics": "Analytics"
     },
     "modal": {
       "title": "Add Competitor",
@@ -919,7 +1350,16 @@
       "priceChanged": "Price change",
       "campaignDetected": "Marketing campaign detected",
       "bundleUpdated": "Updated bundle pricing",
-      "serviceDetected": "New service detected"
+      "serviceDetected": "New service detected",
+      "ourPrice": "Our Price",
+      "competitorPrice": "Competitor Price",
+      "notFoundTitle": "Competitor Not Found",
+      "notFoundDescription": "This competitor could not be loaded or is not tracked.",
+      "goBack": "Go Back",
+      "noMappedProducts": "No products mapped to this competitor yet.",
+      "noHistoricalPriceChanges": "No historical price changes detected.",
+      "priceChangedFrom": "Price changed from {{previous}} to {{next}} {{currency}}",
+      "loadErrorTitle": "Could not load competitor"
     },
     "empty": {
       "strengths": "No clear strengths detected yet - not enough real price or sentiment data for this competitor.",
@@ -952,6 +1392,18 @@
       "sentimentInsight": "Positive sentiment in customer discussions.",
       "productInsight": "New packages and features detected.",
       "competitorInsight": "Increased marketing campaigns and price changes."
+    },
+    "leaderboard": {
+      "rank": "Rank",
+      "mappedProducts": "Tracked Products",
+      "priceIndex": "Price Index (vs Our Prices)",
+      "loadError": "Failed to load leaderboard.",
+      "empty": "No tracked competitors found.",
+      "noPriceData": "No Price Data"
+    },
+    "reports": {
+      "title": "Intelligence Reports",
+      "subtitle": "Automated executive summaries"
     }
   },
   "auth": {
@@ -968,7 +1420,10 @@
       "businessName": "Business Name",
       "country": "Country",
       "currency": "Currency",
-      "backToLogin": "Back to Login"
+      "backToLogin": "Back to Login",
+      "rememberMe": "Remember me",
+      "or": "OR",
+      "orContinueWithEmail": "OR CONTINUE WITH EMAIL"
     },
     "welcome": {
       "eyebrow": "AI business intelligence",
@@ -997,7 +1452,12 @@
           "title": "AI-Powered Insights",
           "text": "Turn information into action."
         }
-      }
+      },
+      "descriptionLine1": "Your AI-powered business intelligence platform",
+      "descriptionLine2": "for smarter decisions and real growth.",
+      "signup": "Sign Up →",
+      "newTo": "New to KEEL?",
+      "imageAlt": "Business growth illustration"
     },
     "login": {
       "title": "Welcome Back",
@@ -1007,7 +1467,8 @@
       "forgotPassword": "Forgot password?",
       "submit": "Log In",
       "noAccount": "Don't have an account?",
-      "signup": "Sign up"
+      "signup": "Sign up",
+      "google": "Log in with Google"
     },
     "signup": {
       "title": "Create an account",
@@ -1026,7 +1487,8 @@
       "privacy": "Privacy Policy",
       "submit": "Create Account",
       "hasAccount": "Already have an account?",
-      "loginInstead": "Log in instead"
+      "loginInstead": "Log in instead",
+      "google": "Sign up with Google"
     },
     "forgotPassword": {
       "title": "Reset Password",
@@ -1042,7 +1504,9 @@
       "resend": "Resend Code",
       "resendIn": "Resend in {{seconds}}s",
       "submit": "Verify Code",
-      "inputLabel": "Verification code"
+      "inputLabel": "Verification code",
+      "subtitle": "We've sent a 6-digit verification code to {{email}}.",
+      "destinationFallback": "name@company.com"
     },
     "resetPassword": {
       "title": "Reset Password",
@@ -1069,7 +1533,16 @@
       "resendIn": "Send a new code in {{seconds}}s",
       "later": "I'll do this later",
       "signOut": "Sign out",
-      "backToLogin": "Back to sign in"
+      "backToLogin": "Back to sign in",
+      "confirmTitle": "Confirm your email",
+      "confirmDescription": "Select the button below to verify your email and create your account.",
+      "confirmButton": "Confirm email",
+      "confirming": "Confirming your email",
+      "confirmingDescription": "Your email is verified. We are opening your account setup.",
+      "subtitleLine1": "We've sent a verification link to your email.",
+      "subtitleWithEmail": "We've sent a verification link to {{email}}.",
+      "subtitleLine2": "Click the link to activate your account.",
+      "changeEmail": "Change email"
     },
     "invitation": {
       "credentialsHelp": "For a new account, enter your full name and a new password. Existing account holders can leave these fields blank; their password will not change.",
@@ -1144,7 +1617,10 @@
       "resendFailed": "We couldn't resend the code. Please try again.",
       "emailInUse": "This address has an account or pending registration. Sign in, use your original verification tab, or start again after that request expires.",
       "invitationUnavailable": "We couldn't load this invitation. Please try again.",
-      "deliveryUnavailable": "We could not deliver the verification email. Try resending the code; no company has been created yet."
+      "deliveryUnavailable": "We could not deliver the verification email. Try resending the code; no company has been created yet.",
+      "unauthorized": "Your session has expired. Please log in again.",
+      "verificationFailed": "This verification session expired. Please sign in or request a new verification email.",
+      "emailAlreadyRegistered": "An account already exists with this email. Sign in or reset your password."
     },
     "success": {
       "codeResent": "A new verification code has been sent.",
@@ -1152,7 +1628,8 @@
       "passwordReset": "Your password has been reset. You can now log in.",
       "companyDeleted": "The company and all its data were deleted.",
       "emailVerified": "Your email is confirmed. You can sign in now.",
-      "logoutUnconfirmed": "Signed out on this device. Server sign-out could not be confirmed; the previous token may remain valid until it expires."
+      "logoutUnconfirmed": "Signed out on this device. Server sign-out could not be confirmed; the previous token may remain valid until it expires.",
+      "verificationResent": "A new verification email has been sent."
     },
     "workspaces": {
       "title": "Choose a company",
@@ -1231,7 +1708,8 @@
         "currency": "Currency",
         "industryKey": "Industry",
         "website": "Website",
-        "description": "What you sell"
+        "description": "What you sell",
+        "businessSize": "Business Size"
       },
       "countryPlaceholder": "Select a country",
       "industryPlaceholder": "e.g. Retail, Electronics",
@@ -1401,7 +1879,9 @@
       },
       "emailUnverified": "Verify your email address to receive summaries. Until then, none are sent.",
       "emailUnavailable": "Email isn't set up on this server yet, so summaries can't be sent for now. Your choices are saved.",
-      "emailOffNote": "Choose Daily or Weekly above to pick which alerts go into the email summary."
+      "emailOffNote": "Choose Daily or Weekly above to pick which alerts go into the email summary.",
+      "unavailableTitle": "Notification preferences are not connected",
+      "unavailableDescription": "No configurable channels or categories are exposed by the current notification service, so no preference controls are shown."
     },
     "preferences": {
       "title": "Preferences",
@@ -2783,19 +3263,55 @@
       "addSource": "Add Data Source",
       "retry": "Try again",
       "prepareImport": "Prepare Import",
-      "preparingImport": "Importing..."
+      "preparingImport": "Importing...",
+      "details": "View details",
+      "uploadVersion": "Upload new version",
+      "sync": "Refresh / Sync",
+      "reconnect": "Reconnect",
+      "pause": "Pause",
+      "reactivate": "Reactivate",
+      "disconnect": "Disconnect",
+      "importRecords": "Import Records",
+      "importing": "Importing...",
+      "syncNow": "Sync now",
+      "connectStore": "Connect / reconnect store"
     },
     "statuses": {
       "connected": "Connected",
       "completed": "Completed",
       "processing": "Processing",
       "needsAttention": "Needs Attention",
-      "failed": "Failed"
+      "failed": "Failed",
+      "queued": "Queued",
+      "extracting": "Extracting",
+      "unknown": "Unknown status",
+      "notsynced": "Not Synced",
+      "configured": "Configured · not verified",
+      "synced": "Synced",
+      "paused": "Paused",
+      "disconnected": "Disconnected",
+      "failedHelp": "The latest synchronization job failed. Review its job details."
     },
     "connected": {
       "title": "Connected Data Sources",
       "subtitle": "Sources currently linked to your company workspace.",
-      "count": "{{count}} sources"
+      "count": "{{count}} sources",
+      "remaining": "{{count}} remaining",
+      "overLimit": "{{count}} active sources exceed this plan's {{limit}}-source limit. Pause or disconnect sources before adding another.",
+      "integrationUnavailable": "Data integration is not included in the current plan. Existing sources remain available to pause or disconnect.",
+      "updated": "Updated {{date}}",
+      "updatedLabel": "Last updated",
+      "lastAttempt": "Last job attempt",
+      "neverSynced": "Not yet synced",
+      "unlimited": "unlimited",
+      "sourceUrl": "Source URL",
+      "verification": "Connection state",
+      "syncVerified": "A synchronization job completed successfully.",
+      "syncNotPromoted": "The job completed, but it did not promote any business records.",
+      "configuredHelp": "Saved, but no provider authentication or sync has been verified.",
+      "disconnectedHelp": "Provider credentials were removed. Existing imported records and job history were retained. Register the source again to reconnect.",
+      "records": "Records",
+      "categories": "Data categories"
     },
     "providerRecords": {
       "open": "View synced records",
@@ -2850,7 +3366,20 @@
       "title": "Upload Files",
       "subtitle": "Add a new version or import additional business data.",
       "templates": "Download Template",
-      "files": "Select Files"
+      "files": "Select Files",
+      "importKind": "What are you importing?",
+      "productReference": "View your product names and SKUs (optional)",
+      "kinds": {
+        "sales": "Sales transactions",
+        "invoices": "Invoices",
+        "inventory": "Inventory"
+      },
+      "help": {
+        "sales": "Sales files use the existing extraction and staging process.",
+        "invoices": "Use XLSX for invoices with item rows; CSV imports invoice headers only. Enter product names or SKUs in the Invoice Items sheet. Preview and resolve products before saving; no sales upload is required.",
+        "inventory": "Use product names or SKUs in the stock template. Preview shows which quantities will be created or replaced. You can add missing products during review."
+      },
+      "structuredFormats": "CSV or XLSX only · 10 MB maximum"
     },
     "activity": {
       "title": "Recent Data Activity",
@@ -2861,7 +3390,9 @@
       "type": "Type",
       "status": "Status",
       "emptyTitle": "No recent data activity",
-      "emptyDescription": "Imports and connection updates will appear here."
+      "emptyDescription": "Imports and connection updates will appear here.",
+      "details": "Job details",
+      "syncName": "Sync — {{name}}"
     },
     "drafts": {
       "title": "Import review",
@@ -3020,13 +3551,35 @@
       "fileFailed": "{{name}}: {{error}}"
     },
     "feedback": {
-      "uploadFailed": "The file upload failed. Please try again."
+      "uploadFailed": "The file upload failed. Please try again.",
+      "backendUnavailable": "This connection action is not available until its backend integration is configured.",
+      "previewOnly": "The source was validated in preview mode, but no live connection was created.",
+      "preparedOnly": "Files passed frontend validation. Backend upload is not connected, so nothing was imported.",
+      "uploaded": "{{count}} files uploaded and queued. {{duplicates}} repeated file(s) were already tracked.",
+      "structuredImported": "{{count}} invoice or inventory records saved. Dashboard values update on refresh.",
+      "structuredPartial": "{{succeeded}} file(s) imported; {{failed}} failed. Failed files remain selected.",
+      "rowNumber": "row {{row}}",
+      "partialUpload": "{{succeeded}} files queued; {{duplicates}} already tracked; {{failed}} failed. Failed files remain selected.",
+      "duplicateUpload": "These {{count}} file(s) already have an import job. No duplicate records were created.",
+      "salesRowsReceived": "{{count}} sales rows received. They will appear in analysis after processing finishes.",
+      "salesRowsRecovered": "{{count}} missing rows queued for recovery; previously committed sales were retained.",
+      "sourceConfigured": "Website saved. It is not verified and no live sync has started.",
+      "paused": "Source paused. It no longer uses a source slot.",
+      "reactivated": "Source reactivated. Its configuration is still unverified.",
+      "disconnected": "Source disconnected and saved provider credentials removed. Historical data was retained.",
+      "retryQueued": "The import retry was queued."
     },
     "fileTypes": {
       "pdf": "PDF",
       "xlsx": "Excel",
       "csv": "CSV",
-      "connection": "Connection"
+      "connection": "Connection",
+      "excel": "Excel",
+      "file": "File",
+      "website": "Website",
+      "analytics": "Analytics",
+      "businesssystem": "Business system",
+      "unknown": "Other"
     },
     "options": {
       "documents": {
@@ -3149,6 +3702,157 @@
         "active": "Verification required",
         "QUEUED": "Queued"
       }
+    },
+    "review": {
+      "title": "Review your import",
+      "previewOnly": "Nothing has been imported yet. Check the product matches and changes before confirming.",
+      "oneFile": "Choose one invoice or inventory file at a time.",
+      "previewFailed": "The server could not prepare this file for review.",
+      "preparing": "Preparing preview...",
+      "previewButton": "Preview file",
+      "cancel": "Choose another file",
+      "sheets": "Sheets",
+      "invoices": "{{count}} invoices",
+      "items": "{{count}} invoice items",
+      "balances": "{{count}} stock balances",
+      "matched": "{{count}} product rows matched",
+      "needsAttention": "{{count}} rows need attention",
+      "fileIssues": "File problems",
+      "fixFile": "Correct these rows in the file, then upload it again. No records have been saved.",
+      "resolveTitle": "Match your products",
+      "reuseChoice": "One choice is applied to every row with the same name and SKU.",
+      "action": "How should we handle this product?",
+      "chooseAction": "Choose an action",
+      "selectExisting": "Select an existing product",
+      "createProduct": "Create a new product",
+      "creationUnavailable": "Your plan does not include product creation. Select an existing product or enable Product Management.",
+      "searchCatalog": "Search your catalog",
+      "product": "Product",
+      "chooseProduct": "Choose a product",
+      "searchError": "Could not search products. Try again.",
+      "price": "Current product price",
+      "currency": "Currency",
+      "sku": "SKU (optional)",
+      "reviewChanges": "Review changes",
+      "resolveFirst": "Resolve each product and file problem to continue.",
+      "confirmTitle": "Ready to save",
+      "confirmSummary": "This will save {{invoices}} invoices, {{items}} invoice items, {{inventory}} stock balances, and {{products}} new product entries.",
+      "stockChanges": "Stock quantities after import",
+      "defaultWarehouse": "Default location",
+      "newBalance": "new balance: {{next}}",
+      "replaceBalance": "replace {{previous}} with {{next}}",
+      "confirmImport": "Confirm and import",
+      "imported": "Saved {{invoices}} invoices, {{items}} items, and {{inventory}} stock balances. The data activity list has been refreshed.",
+      "status": {
+        "missing": "No product matched this name or SKU.",
+        "ambiguous": "Several products match. Choose the right one.",
+        "conflict": "The ID, name, and SKU refer to different products."
+      },
+      "issues": {
+        "productReference": "Enter a product name, SKU, or existing product ID in this row.",
+        "productSelection": "Choose an active product belonging to your company.",
+        "productConflict": "These identifiers or new product details disagree. Correct the row and try again.",
+        "productMissing": "This product was not found. Select an existing product or create a new one.",
+        "productAmbiguous": "More than one product matches. Select the intended product.",
+        "sku": "Use letters, numbers, dots, underscores, or hyphens in the SKU.",
+        "productDetails": "Check the new product's price, currency, and SKU.",
+        "date": "Enter a valid date in YYYY-MM-DD format; the due date must not be earlier than the issue date.",
+        "integer": "Enter a valid nonnegative whole number.",
+        "amount": "Check the amounts and make sure invoice item totals equal the subtotal.",
+        "invoiceReference": "This item must refer to an invoice in the same file.",
+        "invoiceDuplicate": "The invoice number is missing or already used. Use a unique invoice number.",
+        "duplicateBalance": "Rows must not resolve to the same product and warehouse or invoice item.",
+        "currency": "Check the currency and payment status against your company settings.",
+        "expired": "This preview has expired. Upload the file again.",
+        "changed": "Product or stock data changed since review. Review the changes again.",
+        "template": "The workbook sheets or columns do not match the downloaded template.",
+        "formula": "Remove formulas and upload values only.",
+        "file": "Upload a valid nonempty UTF-8 CSV or XLSX file.",
+        "generic": "This row could not be imported. Check the file and try again.",
+        "json": "This row must contain a JSON object.",
+        "productName": "Enter a product name.",
+        "quantity": "Enter a quantity greater than zero as a whole number.",
+        "saleAmount": "Enter a valid nonnegative amount with at most four decimal places, within the supported size.",
+        "saleDate": "Enter a valid sales date or timestamp in ISO format.",
+        "discount": "Enter a discount percentage between 0 and 100.",
+        "saleConflict": "This sale ID is already used with different data. Review the source file.",
+        "saleReused": "An existing sale was reused. No duplicate sale was created.",
+        "productCapacity": "The product limit is reached or unavailable. You can still import sales for existing products.",
+        "salesColumns": "Required sales columns are missing. Use the downloaded sales template."
+      },
+      "sheetNames": {
+        "sales": "Sales",
+        "invoices": "Invoices",
+        "invoiceItems": "Invoice Items",
+        "inventory": "Inventory"
+      }
+    },
+    "job": {
+      "title": "Import job details",
+      "status": "Status",
+      "source": "Source",
+      "rowsProcessed": "Rows committed",
+      "sourceRows": "Rows in the full file",
+      "incomplete": "Incomplete import",
+      "truncatedHelp": "Only part of this file was extracted. Re-upload the exact sales CSV to recover missing rows while preserving committed sales.",
+      "rowsFailed": "Rows failed",
+      "rowsPartial": "Rows needing review",
+      "attempts": "Worker attempts",
+      "created": "Created",
+      "error": "Latest error",
+      "stagingTitle": "Staged rows",
+      "noRows": "This job has no staged rows.",
+      "row": "Row",
+      "rowStatus": "Validation status",
+      "rowData": "Data",
+      "rowErrors": "Validation errors",
+      "correctRow": "Correct row",
+      "editRowData": "Corrected row JSON",
+      "saveCorrection": "Save and requeue",
+      "rowMustBeObject": "Enter a JSON object for this row.",
+      "saveFailed": "The row could not be saved.",
+      "unknownError": "The job could not process this data. Review the source and try again.",
+      "invalidJson": "Enter valid JSON before saving the row.",
+      "reviewSummary": "{{invalid}} invalid rows and {{partial}} partial rows need review.",
+      "errors": {
+        "EXTRACTION_UPSTREAM_FAILURE": "The extraction service could not read the file. Try uploading it again.",
+        "INGESTION_MAX_ATTEMPTS_EXCEEDED": "Processing stopped after the maximum retry attempts. Review the source before retrying."
+      },
+      "rowStatuses": {
+        "pending": "Pending",
+        "partial": "Needs review",
+        "invalid": "Invalid",
+        "committed": "Saved",
+        "quarantined": "Quarantined",
+        "valid": "Valid",
+        "unknown": "Unknown status"
+      },
+      "fields": {
+        "product_name": "Product name",
+        "sku": "SKU",
+        "quantity": "Quantity",
+        "unit_price": "Unit price",
+        "currency": "Currency",
+        "transaction_date": "Sale date",
+        "amount_raw": "Amount",
+        "discount_pct": "Discount",
+        "_row": "Row"
+      },
+      "technicalDetails": "Original error details"
+    },
+    "disconnect": {
+      "title": "Disconnect data source?",
+      "description": "Disconnect {{name}} and remove its saved provider credentials? Historical jobs and imported business records will remain."
+    },
+    "categories": {
+      "sales": "Sales",
+      "products": "Products",
+      "inventory": "Inventory",
+      "invoices": "Invoices",
+      "pricing": "Pricing",
+      "traffic": "Website traffic",
+      "customers": "Customer activity",
+      "general": "General data"
     }
   },
   "demand": {
@@ -3254,7 +3958,9 @@
       },
       "actions": "Actions",
       "adjustInventory": "Adjust Inventory",
-      "export": "Export Forecast"
+      "export": "Export Forecast",
+      "suggestedQty": "Suggested quantity",
+      "recommendedAction": "Recommended action"
     },
     "filters": {
       "searchProducts": "Search products...",
@@ -3382,7 +4088,8 @@
       "summary_sourceLanguage": "Quoted as written in your source, which is in a different language from your question.",
       "showFullAnswer": "Show the full answer",
       "hideFullAnswer": "Hide the full answer",
-      "followUps": "Suggested follow-up questions"
+      "followUps": "Suggested follow-up questions",
+      "demoResponse": "DEMO RESPONSE — UI preview only. The assistant uses your uploaded documents in the connected application. No AI query was made."
     },
     "composer": {
       "placeholder": "Ask about your business, market, trade or regulations...",
@@ -3402,11 +4109,18 @@
     "sources": {
       "title": "Sources",
       "knowledgeBase": "Knowledge Base",
-      "web": "External web source"
+      "web": "External web source",
+      "page": "Page {{value}}",
+      "pages": "Pages {{value}}",
+      "chatAttachment": "Chat attachment",
+      "sourceDocument": "Source document {{index}}"
     },
     "attachments": {
       "remove": "Remove {{name}}",
-      "imagePreview": "Selected image preview"
+      "imagePreview": "Selected image preview",
+      "add": "Attach a file or image",
+      "invalid": "{{name}} is not a supported file or exceeds 50 MB.",
+      "readFailed": "The selected attachment could not be read. Please try again."
     },
     "knowledge": {
       "title": "Knowledge Base",
@@ -3433,15 +4147,29 @@
       "status": {
         "ready": "Ready for questions",
         "processing": "Processing",
-        "failed": "Failed"
+        "failed": "Failed",
+        "active": "Active",
+        "stored": "Stored · analyzed when queried",
+        "unknown": "Status unavailable"
       },
       "retry": "Process {{name}} again",
-      "retryFailed": "Couldn't process this document. Try again later."
+      "retryFailed": "Couldn't process this document. Try again later.",
+      "actions": "Actions for {{name}}",
+      "delete": "Delete {{name}}",
+      "deleteTitle": "Delete document",
+      "deleteAction": "Delete document",
+      "deleteConfirm": "Delete {{name}} and its saved citations? This removes the stored file and frees its storage capacity.",
+      "deleted": "Document deleted. Storage capacity has been reclaimed.",
+      "deleteFailed": "Could not delete the document. Please try again."
     },
     "upload": {
       "title": "Upload documents for the assistant",
       "description": "Upload TXT, Markdown, PDF, DOCX or XLSX files for assistant search. Knowledge Base uploads stay separate from business imports.",
-      "uploading": "Uploading..."
+      "uploading": "Uploading...",
+      "supported": "Supported: TXT, MD, PDF, DOCX, XLSX",
+      "maxSize": "Maximum file size: 2 MiB (2,097,152 bytes)",
+      "invalidFile": "{{name}} is unsupported, empty, or exceeds 2 MiB.",
+      "partial": "Some files were saved. Only failed files remain selected for retry."
     },
     "actions": {
       "retry": "Try again",
@@ -3453,7 +4181,20 @@
       "empty": "No previous conversations yet.",
       "untitled": "Untitled conversation",
       "unavailable": "Could not load your conversation history.",
-      "loadFailed": "Could not open that conversation. Please try again."
+      "loadFailed": "Could not open that conversation. Please try again.",
+      "retry": "Retry last request",
+      "label": "Conversation",
+      "new": "New conversation",
+      "header": "Conversation history",
+      "active": "Current conversation",
+      "switch": "Chat history",
+      "noHistory": "No saved conversations yet",
+      "historyUnavailable": "History is unavailable",
+      "loadingList": "Loading chat history…",
+      "openFailed": "Could not open that conversation. Your current conversation is still here.",
+      "retryLoad": "Try again",
+      "loading": "Loading conversation…",
+      "pending": "This question is still processing. Try loading the conversation again shortly."
     },
     "feedback": {
       "reasons": {
@@ -3471,7 +4212,11 @@
       "planLimit": "You've used all assistant questions included in your plan for this billing period. They renew after {{date}} — or upgrade your plan in Billing.",
       "busy": "The assistant is answering many questions right now. Please ask again in about {{seconds}} seconds.",
       "uploadFailed": "The document upload failed. Please try again.",
-      "uploadSummary": "{{added}} ready for questions · {{processing}} still processing · {{failed}} need attention"
+      "uploadSummary": "{{added}} ready for questions · {{processing}} still processing · {{failed}} need attention",
+      "chatUnavailable": "RAG chat is not connected yet. No answer was generated.",
+      "requestFailed": "The RAG request failed. Please try again.",
+      "uploadUnavailable": "Files passed frontend validation, but RAG ingestion is not connected. Nothing was uploaded.",
+      "uploaded": "Documents uploaded successfully."
     },
     "claims": {
       "kindCalculation": "Calculation",
@@ -3589,6 +4334,66 @@
       "reviewsNone": "No customer reviews are stored for this yet.",
       "notPermitted": "Some of the data this question needs isn't available to your role.",
       "documentsFailed": "Document search wasn't available for this question."
+    },
+    "search": {
+      "ready": "Searchable text ready",
+      "pending": "Search indexing pending",
+      "empty": "No readable text found; image-only PDFs need OCR",
+      "unreadable": "Text could not be extracted; check or replace this file",
+      "reindex": "Rebuild search index for {{name}}",
+      "finished": "Search index rebuilt.",
+      "notReadable": "Indexing finished, but no readable text was available."
+    },
+    "evidence": {
+      "title": "Citation Details",
+      "document": "Document",
+      "loading": "Loading source document...",
+      "error": "Could not load source document.",
+      "label": "Citation details"
+    },
+    "storage": {
+      "usage": "Storage: {{used}} of {{limit}}",
+      "unlimited": "Unlimited",
+      "notIncluded": "Not included in the current subscription",
+      "overLimit": "Existing documents are preserved. Delete documents or increase capacity before uploading more.",
+      "manageDescription": "Review retained documents and delete files to free storage, including after subscription cancellation."
+    },
+    "errors": {
+      "emptyAnswer": "The AI returned an empty answer. Nothing was saved or charged. Please try again.",
+      "pendingRequest": "A question is still processing. Please wait, then retry the same question.",
+      "failedRequest": "The previous request did not produce a usable answer. Its token reservation was released. Send the question again to start a new request.",
+      "requestConflict": "This request identifier belongs to a different question. Start a new request.",
+      "sourceChanged": "A supporting document changed or was removed. Ask the question again using the current documents.",
+      "sessionMissing": "This conversation is unavailable. Start a new conversation.",
+      "invalidEvidence": "The AI returned an unverified source. No answer was saved or charged. Please try again.",
+      "invalidUsage": "The AI did not report valid token usage. No answer was saved or charged. Please try again.",
+      "fileTooLarge": "Documents must not exceed 2 MiB.",
+      "documentProcessingUnavailable": "PDF processing is unavailable on the server. Please try again after the server setup has been checked.",
+      "invalidFile": "Use a non-empty TXT, MD, PDF, DOCX or XLSX file up to 2 MiB.",
+      "storageQuota": "Document storage is full. Delete documents or increase capacity.",
+      "storageQuotaDetailed": "This upload needs {{requested}}; {{remaining}} remains.",
+      "extractionQuota": "Document extraction allowance has been reached.",
+      "extractionQuotaDetailed": "This upload needs {{requested}}; {{remaining}} of extraction allowance remains.",
+      "ragQuotaReached": "Assistant usage allowance has been reached.",
+      "ragNotIncluded": "The assistant is not included in the current subscription.",
+      "storageNotIncluded": "Document storage is not included in the current subscription.",
+      "extractionNotIncluded": "Document extraction is not included in the current subscription.",
+      "uploadNotAllowed": "Your account cannot upload documents.",
+      "notAllowed": "Your account cannot perform this action.",
+      "sessionExpired": "Sign in again to continue.",
+      "noDocuments": "Upload a document with readable content before asking a question.",
+      "invalidQuestion": "Enter a valid question.",
+      "invalidRequest": "Check the request and try again.",
+      "aiUnavailable": "The analysis service is unavailable. Please try again.",
+      "serviceUnavailable": "The service is unavailable. Please try again.",
+      "resourceNotFound": "The document is no longer available. Refresh the list.",
+      "tooManyRequests": "Too many requests. Please try again shortly.",
+      "serverError": "The request could not be completed. Please try again.",
+      "network": "Check your connection and try again.",
+      "uploadUnknown": "The upload failed. Please try again.",
+      "chatUnknown": "The question could not be answered. Please try again.",
+      "documentsUnknown": "Could not load the documents.",
+      "unknown": "The request failed. Please try again."
     }
   },
   "dataIngestion": {
@@ -3596,7 +4401,8 @@
       "excel": "Excel (.xlsx)",
       "csv": "CSV (.csv)",
       "download": "Download",
-      "downloaded": "Downloaded"
+      "downloaded": "Downloaded",
+      "pdf": "PDF (.pdf)"
     },
     "dropTitle": "Drag & drop files here",
     "or": "or",
@@ -3607,7 +4413,15 @@
     "uploadedFiles": "Uploaded files ({{count}})",
     "removeAll": "Remove all",
     "removeFile": "Remove {{name}}",
-    "ready": "Ready"
+    "ready": "Ready",
+    "back": "Back to Connect Data",
+    "title": "Upload your data",
+    "subtitle": "Add relevant business files to help KEEL prepare better insights.",
+    "templateTitle": "Download required template",
+    "templateDescription": "Download and complete a template before uploading your data.",
+    "uploadTitle": "Upload files",
+    "uploadDescription": "Upload your completed template and any other relevant business files.",
+    "templateRequired": "Download at least one required template to complete this upload flow."
   },
   "reports": {
     "page": {
@@ -5855,5 +6669,1225 @@
       }
     },
     "addedCount": "{{count}} data source(s) added."
+  },
+  "catalog": {
+    "title": "Products",
+    "subtitle": "Manage your business catalog using recorded product and inventory data.",
+    "add": "Add product",
+    "edit": "Edit product",
+    "archive": "Archive product",
+    "restore": "Restore product",
+    "details": "Product details",
+    "back": "Back to products",
+    "active": "Active",
+    "archived": "Archived",
+    "status": "Status",
+    "search": "Search by name or SKU",
+    "sort": "Sort",
+    "byName": "Name",
+    "newest": "Newest first",
+    "loading": "Loading products…",
+    "retry": "Try again",
+    "empty": "No products match these filters.",
+    "previous": "Previous",
+    "next": "Next",
+    "pagination": "Page {{page}} of {{pages}} · {{total}} products",
+    "capacity": "{{used}} of {{limit}} active products used",
+    "capacityUnlimited": "{{used}} active products · unlimited capacity",
+    "save": "Save product",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "nameHint": "Enter a name in at least one language. Use distinct SKUs for products that share a name.",
+    "currencyHint": "Changing currency requires entering the new amounts. Historical sales keep their original prices and currencies.",
+    "selectCurrency": "Select currency",
+    "inventory": "Recorded inventory",
+    "stock": "Current stock",
+    "unknown": "Unknown",
+    "inventoryHint": "Stock comes from inventory imports; editing this product does not change warehouse balances.",
+    "noInventory": "No inventory balances have been recorded.",
+    "importInventory": "Open Data Connections",
+    "warehouse": "Warehouse",
+    "quantity": "Quantity",
+    "updated": "Last updated",
+    "priceHistory": "Price history",
+    "historyHint": "The latest 100 recorded price changes. Existing products may have no initial price record.",
+    "noHistory": "No price changes have been recorded.",
+    "changed": "Changed at",
+    "oldPrice": "Previous price",
+    "newPrice": "New price",
+    "unknownCurrency": "currency not recorded",
+    "forecast": "View product forecast",
+    "quickSale": "Quick Sale",
+    "quickSaleHint": "Unavailable until sales recording is connected.",
+    "archiveHint": "Archive this product? Its sales, inventory and price history will be preserved. It will stop counting toward your active product limit.",
+    "restoreHint": "Restore this product to the active catalog? A free product slot and an available SKU are required.",
+    "languages": {
+      "en": "English",
+      "ar": "Arabic"
+    },
+    "fields": {
+      "name": "Name",
+      "sku": "SKU",
+      "price": "Current price",
+      "costPrice": "Cost price (optional)",
+      "currency": "Currency",
+      "brand": "Brand",
+      "category": "Category",
+      "description": "Description",
+      "gtin": "GTIN / Barcode (optional)"
+    },
+    "stockReasons": {
+      "MISSING_INVENTORY": "No recorded inventory is available.",
+      "DUPLICATE_WAREHOUSE": "Warehouse balances overlap; resolve duplicate warehouse records.",
+      "INVALID_STOCK_DATE": "An inventory timestamp is invalid or in the future.",
+      "STALE_INVENTORY": "Inventory is older than the source freshness setting.",
+      "UNDATED_INVENTORY": "Inventory timestamps are missing.",
+      "INVALID_INVENTORY": "Recorded stock values could not be used."
+    },
+    "gtin": {
+      "hint": "Use the number printed beneath the product barcode. Optional; keep leading zeros.",
+      "invalid": "Enter a valid 8, 12, 13 or 14 digit GTIN including its check digit.",
+      "duplicate": "Another active product in this company uses the same GTIN. Check the product and variant; no products were merged.",
+      "title": "Import product GTINs",
+      "instructions": "Update existing products by SKU. Upload one CSV or XLSX sheet with sku and gtin columns, up to 500 rows and 256 KiB. Format both columns as Text in Excel. Preview changes before saving. Blank GTINs are rejected; use Edit product to clear one.",
+      "template": "Download CSV template",
+      "file": "CSV or XLSX file",
+      "preview": "Preview GTIN changes",
+      "apply": "Save GTIN changes",
+      "current": "Current GTIN",
+      "next": "New GTIN",
+      "success": "GTIN changes saved.",
+      "empty": "Choose a file first.",
+      "limit": "Choose a non-empty CSV or XLSX file up to 256 KiB.",
+      "fileError": "Use one sheet with sku and gtin columns, valid GTINs, and at most 500 rows. Each SKU must identify one active product in your company. Format Excel cells as Text and remove formulas."
+    },
+    "ux": {
+      "catalogUsage": "Catalog usage",
+      "matchingProducts": "Matching products",
+      "matchingHint": "Total matching the selected filters",
+      "statusHint": "Choose active or archived products below",
+      "searchHint": "Search by name, SKU or barcode",
+      "noMatches": "No matching products",
+      "tryFilters": "Try another name, SKU or barcode, or clear your search.",
+      "emptyHint": "Add products to start managing your catalog and matching competitor products.",
+      "searchingFor": "Search results for",
+      "clearSearch": "Clear search"
+    }
+  },
+  "uiTesting": {
+    "sampleDescription": "Fictional sample recommendations for UI testing only. No live inventory or forecasting service was queried."
+  },
+  "dashboard": {
+    "executive": {
+      "subtitle": "Business performance and supported market signals",
+      "unavailable": "Not available",
+      "invoiceBasis": "Invoice totals · selected period",
+      "soldUnits": "Units sold · selected period",
+      "comparison": "Revenue vs previous {{days}} days",
+      "lowCount": "{{count}} low",
+      "inventoryBasis": "Of {{count}} inventory records · current snapshot",
+      "preview": "Preview data",
+      "previewNote": "Illustrative data as of {{date}}. Not connected to live results.",
+      "summary": "Business summary",
+      "products": "Total products",
+      "competitors": "Tracked competitors",
+      "competitiveness": "Price competitiveness",
+      "productScope": "Product: {{product}} · latest score",
+      "salesOverview": "Sales overview",
+      "salesBasis": "Invoice revenue · selected period · grouped by date",
+      "forecast": "Demand forecast",
+      "modelOutput": "Model output · latest product forecast",
+      "units": "units",
+      "target": "Target date: {{date}}",
+      "range": "80% confidence range",
+      "uncertainty": "Actual demand may fall outside this range.",
+      "viewForecast": "View forecast",
+      "sentiment": "Market sentiment",
+      "businessScope": "Model output · business review summary",
+      "sentimentScale": "on a −1 to 1 scale",
+      "lowReliability": "Limited reliability: review sample is below the required size.",
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "competitorOverview": "Competitor overview",
+      "compositeBasis": "Composite score · 0–100 · latest available",
+      "missingFactors": "Unavailable factors: {{factors}}",
+      "price": "Price",
+      "activity": "Activity",
+      "viewMarket": "View market intelligence",
+      "alerts": "System alerts",
+      "stockRule": "Current inventory at or below its reorder level",
+      "stockDetails": "Stock: {{stock}} · Reorder level: {{level}}",
+      "emptyTitle": "No dashboard data yet",
+      "emptyDescription": "Connect data sources to populate the dashboard.",
+      "errorTitle": "Dashboard unavailable",
+      "error": "Unable to load the dashboard. Please try again."
+    },
+    "page": {
+      "title": "Executive Dashboard",
+      "subtitle": "Overview of your business performance and key insights."
+    },
+    "sections": {
+      "kpis": "Dashboard summary",
+      "quickActions": "Quick Actions",
+      "insights": "AI Insights Feed",
+      "trends": "Trends & Forecasts",
+      "market": "Market & Competitors",
+      "recentActivity": "Recent Activity"
+    },
+    "controls": {
+      "dateRange": "Date range",
+      "last30": "Last 30 days",
+      "last7": "Last 7 days",
+      "last90": "Last 90 days",
+      "export": "Export Report",
+      "newQuery": "New Query",
+      "viewAll": "View All",
+      "connectData": "Connect Data",
+      "retry": "Try again"
+    },
+    "kpis": {
+      "revenue": "Revenue",
+      "sales": "Sales",
+      "growth": "Growth",
+      "inventory": "Inventory Status",
+      "competitors": "Competitors Tracked",
+      "sentiment": "Market Sentiment",
+      "rag": "RAG Queries",
+      "totalSales": "Paid Invoices",
+      "totalProducts": "Total Products",
+      "trackedCompetitors": "Tracked Competitors",
+      "revenues": "Revenues",
+      "inventoryStatus": "Inventory Status",
+      "marketSentiment": "Review Sentiment",
+      "vsLastMonth": "vs last month",
+      "thisMonth": "this month",
+      "sentimentBasis": "points this month",
+      "today": "Today",
+      "thisWeek": "vs this week",
+      "inStock": "In stock"
+    },
+    "quickActions": {
+      "askAi": "Ask AI",
+      "askAiDescription": "Get instant insights",
+      "addData": "Add Data",
+      "addDataDescription": "Upload files or connect",
+      "quickSale": "Quick Sale",
+      "quickSaleDescription": "Record a new sale",
+      "forecast": "View Forecast",
+      "forecastDescription": "See detailed predictions"
+    },
+    "insights": {
+      "competitorAlert": "Competitor Alert",
+      "demandSpike": "Demand Spike",
+      "opportunity": "Opportunity",
+      "tenMinutes": "10 min ago",
+      "twoHours": "2 hours ago",
+      "fiveHours": "5 hours ago",
+      "priceDropTitle": "GlobalTech announces sudden price drop on core API services.",
+      "priceDropDescription": "Our AI indicates this is a strategic move to capture market share in Q3.",
+      "demandTitle": "Unusual volume detected for Enterprise SLA inquiries.",
+      "demandDescription": "Social listening shows a 40% WoW increase in enterprise-level interest.",
+      "opportunityTitle": "New market opportunity in Irbid region.",
+      "opportunityDescription": "Rising demand for home internet packages. Consider targeted campaign."
+    },
+    "alert": {
+      "title": "Today's Top Alert",
+      "priority": "High Priority",
+      "headline": "Inventory for Router X200 is running low.",
+      "description": "Only 12 units left in stock. Based on current sales rate, it may run out in 5 days.",
+      "viewProduct": "View Product",
+      "dismiss": "Dismiss"
+    },
+    "recommendation": {
+      "title": "Top Recommendation",
+      "badge": "AI Powered",
+      "headline": "Consider increasing marketing spend in Irbid.",
+      "description": "Our analysis shows an expected increase in demand next month based on search trends and competitor activity.",
+      "viewDetails": "View Details"
+    },
+    "trends": {
+      "demandTitle": "Demand Change",
+      "demandSubtitle": "Expected demand increase next month (Amman)",
+      "demandCallout": "Expected demand increase next month",
+      "forecastTitle": "Next Week Forecast",
+      "forecastSubtitle": "Total sales forecast",
+      "homeInternet": "Home Internet",
+      "totalSales": "Total Sales",
+      "demandChartLabel": "Demand change by month",
+      "forecastChartLabel": "Actual and forecast sales for the week",
+      "actual": "Actual",
+      "forecast": "Forecast"
+    },
+    "market": {
+      "activityTitle": "Market Activity",
+      "changesTitle": "Recent Competitor Changes",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "others": "Others",
+      "other": "Other",
+      "orangeDescription": "Strong activity - High visibility and competitive moves",
+      "zainDescription": "Strong activity - Active promotions and product launches",
+      "umniahDescription": "Moderate activity - Stable presence with limited recent changes",
+      "othersDescription": "Lower activity - Niche players with limited presence",
+      "zainChange": "+ New unlimited package launched",
+      "umniahChange": "- 10% price drop on 50 Mbps",
+      "orangeChange": "Updated bundle pricing",
+      "otherChange": "Launched new home solutions",
+      "twoDays": "2 days ago",
+      "fourDays": "4 days ago",
+      "sixDays": "6 days ago",
+      "oneWeek": "1 week ago"
+    },
+    "sales": {
+      "title": "Paid Invoice Revenue",
+      "subtitle": "Revenue from paid invoices issued in {{currency}} over the last {{days}} days",
+      "tooltip": "Sales",
+      "excludedCurrency": "{{count}} paid invoice(s) in other currencies are excluded from the {{currency}} total.",
+      "lastRecorded": "Latest paid invoice recorded: {{date}}"
+    },
+    "inventory": {
+      "title": "Inventory Status",
+      "subtitle": "Current availability across your catalog",
+      "inStock": "In Stock",
+      "lowStock": "Low Stock",
+      "outOfStock": "Out of Stock",
+      "totalItems": "Total Items",
+      "coverage": "Stock recorded for {{known}} of {{total}} active products.",
+      "lastUpdated": "Latest stock update: {{date}}",
+      "view": "View Inventory",
+      "detailsTitle": "Inventory Details",
+      "detailsSubtitle": "Current quantities for connected catalog items.",
+      "oldestUpdated": "Oldest stock record update: {{date}}",
+      "unavailableProducts": "{{count}} product(s) have no usable inventory total."
+    },
+    "forecast": {
+      "title": "Upcoming Demand Forecasts",
+      "subtitle": "Predicted demand by product",
+      "view": "View Forecast"
+    },
+    "competitors": {
+      "title": "Competitor Price Comparison",
+      "subtitle": "Latest comparable prices in your market",
+      "view": "View Competitor"
+    },
+    "tables": {
+      "product": "Product",
+      "quantity": "Quantity",
+      "forecastedDemand": "Forecasted Demand (Units)",
+      "ourPrice": "Our Price",
+      "competitorPrice": "Lowest Competitor Price",
+      "lastObserved": "Observed"
+    },
+    "sentiment": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "mixed": "Mixed"
+    },
+    "empty": {
+      "salesTitle": "No sales data",
+      "salesDescription": "Sales will appear when business data is available.",
+      "inventoryTitle": "No inventory data",
+      "inventoryDescription": "Connect a catalog or upload inventory data to get started.",
+      "forecastTitle": "No forecast yet",
+      "forecastDescription": "Generate a forecast from the Demand Prediction page.",
+      "competitorsTitle": "No competitors tracked",
+      "competitorsDescription": "Track competitors to compare current product pricing.",
+      "activityTitle": "No recent activity",
+      "activityDescription": "Company activity will appear here as it happens."
+    },
+    "activity": {
+      "title": "Recent Activity",
+      "subtitle": "Latest updates across your company workspace",
+      "historyTitle": "Activity History",
+      "date": "Date",
+      "activity": "Activity",
+      "details": "Details",
+      "status": "Status",
+      "fileUploaded": "File Uploaded",
+      "competitorTracked": "New Competitor Tracked",
+      "forecastGenerated": "Forecast Generated",
+      "productAdded": "Product Added",
+      "completed": "Completed",
+      "statuses": {
+        "completed": "Completed",
+        "processing": "Processing",
+        "failed": "Failed"
+      }
+    }
+  },
+  "marketProductData": {
+    "ultra500": "High-speed fiber internet package designed for homes, offering reliable and ultra-fast connectivity.",
+    "ultra250": "Balanced fiber package for connected households.",
+    "postpaid50": "High-data 5G postpaid package.",
+    "postpaid30": "Accessible 5G postpaid plan.",
+    "orangeTv": "Digital entertainment service for Orange customers.",
+    "perMonth": "per month",
+    "providerSeries": "Provider",
+    "industryAverage": "Industry Average"
+  },
+  "demandApproved": {
+    "page": {
+      "title": "Demand Prediction",
+      "subtitle": "Forecast demand, plan inventory, and take data-driven actions."
+    },
+    "filters": {
+      "product": "Product",
+      "period": "Date range",
+      "allProducts": "All Products",
+      "last7": "Next 7 days",
+      "last30": "Next 30 days"
+    },
+    "metrics": {
+      "label": "Demand prediction summary",
+      "next30Forecast": "Next 30 Days Forecast",
+      "productsForecasted": "Products with Full Forecasts",
+      "predictedIncrease": "Predicted Increase",
+      "predictedDecrease": "Predicted Decrease",
+      "stableDemand": "Stable Demand",
+      "selectedForecast": "Next {{days}} Days Forecast",
+      "next7Forecast": "Next 7 Days Forecast"
+    },
+    "common": {
+      "units": "units",
+      "notAvailable": "Not available"
+    },
+    "chart": {
+      "label": "Demand forecast chart",
+      "totalTitle": "Total Forecasted Demand",
+      "totalSubtitle": "Aggregated demand forecast over the selected {{days}} days.",
+      "value": "Forecasted demand",
+      "actual": "Recorded sales",
+      "forecast": "Forecast demand",
+      "confidence": "Confidence range"
+    },
+    "forecasts": {
+      "title": "Product Forecasts",
+      "subtitle": "Product-level demand forecasts and supported inventory recommendations."
+    },
+    "table": {
+      "product": "Product",
+      "category": "Category",
+      "currentStock": "Current Stock",
+      "expectedDemand": "Expected Demand",
+      "targetDate": "Target Date",
+      "confidenceRange": "Confidence Range",
+      "trend": "Trend",
+      "recommendedAction": "Recommended Action",
+      "actions": "Actions"
+    },
+    "actions": {
+      "retry": "Try again",
+      "viewDetails": "View Details",
+      "exportPdf": "Export to PDF",
+      "back": "Back to Demand Prediction"
+    },
+    "trends": {
+      "increasing": "Increasing",
+      "decreasing": "Decreasing",
+      "stable": "Stable"
+    },
+    "recommendations": {
+      "restock": "Restock",
+      "reduce": "Reduce",
+      "monitor": "Monitor"
+    },
+    "priorities": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "detailMetrics": {
+      "modelPerformance": "Model Performance",
+      "currentStock": "Current Stock",
+      "expectedDemand": "Expected Demand",
+      "targetDate": "Target Date",
+      "confidenceRange": "Confidence Range",
+      "modelAccuracy": "Model Accuracy"
+    },
+    "detail": {
+      "chartTitle": "Demand Forecast",
+      "chartSubtitle": "Historical demand, forecast demand, and the supported confidence interval."
+    },
+    "history": {
+      "title": "Forecast Table",
+      "subtitle": "Upcoming forecasts and prior predictions from the last 30 days. Target-day rows describe one date; period rows describe their full interval. Recorded sales may be incomplete.",
+      "date": "Date / Period",
+      "forecast": "Forecasted Demand",
+      "lower": "Lower Bound",
+      "upper": "Upper Bound",
+      "actual": "Recorded Sales Units",
+      "modelVersion": "Model Version",
+      "generatedAt": "Generated At"
+    },
+    "recommendation": {
+      "title": "Inventory Recommendation",
+      "subtitle": "Stored recommendation for the shown period. Restock quantity uses forecast demand, safety stock and current stock; it is not a purchase order.",
+      "quantity": "Suggested Quantity",
+      "priority": "Priority",
+      "targetDate": "Target Date",
+      "accuracy": "Model Accuracy"
+    },
+    "insight": {
+      "title": "AI Insight",
+      "generated": "Generated {{date}}",
+      "confidence": "Confidence: {{value}}%"
+    },
+    "empty": {
+      "productsTitle": "No products available",
+      "productsDescription": "Connect product data before generating demand forecasts.",
+      "forecastsTitle": "No forecasts available",
+      "forecastsDescription": "No forecasts are available for this period. Select a product and generate a forecast from its recorded sales history.",
+      "detailTitle": "Product forecast not found",
+      "detailDescription": "No supported forecast was found for this product.",
+      "historyTitle": "No forecast history",
+      "historyDescription": "Forecast entries will appear here when available.",
+      "recommendationTitle": "No recommendation available",
+      "recommendationDescription": "No inventory recommendation was returned for this product.",
+      "accuracyTitle": "Model evaluation unavailable",
+      "accuracyDescription": "There are no evaluation results reliably linked to your company’s forecasts. Performance metrics will appear when validated evaluations are available.",
+      "chartTitle": "No daily forecast series",
+      "chartDescription": "This chart needs actual daily values. A saved period total may still appear in the summary; it is not spread across days."
+    },
+    "error": {
+      "title": "Demand prediction unavailable",
+      "detailTitle": "Product forecast unavailable",
+      "description": "We could not load the forecast data. Please try again.",
+      "access": "This feature is not available in your current subscription.",
+      "refreshBusy": "The database is busy, so the forecast data could not be refreshed. This page is showing previously loaded data. Use Retry to reload the data without generating another forecast."
+    },
+    "export": {
+      "unavailable": "PDF export is not connected yet. No file was generated.",
+      "loading": "Generating PDF…",
+      "failed": "Could not generate the PDF. Please try again."
+    },
+    "coverage": {
+      "label": "Forecast coverage",
+      "complete": "Complete",
+      "partial": "Partial",
+      "overlapping": "Overlapping periods",
+      "unavailable": "Unavailable",
+      "note": "Totals require complete, non-overlapping coverage. Target-day results are not period totals. Forecast windows start tomorrow; all dates use UTC.",
+      "chartNote": "Only real daily forecast values are shown. Gaps remain unknown; period totals are not spread across days.",
+      "stale": "Outdated",
+      "count": "{{covered}} of {{total}} days covered",
+      "productCount": "Totals include {{covered}} of {{total}} products with complete coverage."
+    },
+    "pdf": {
+      "metric": "Metric",
+      "value": "Value",
+      "source": "Data status",
+      "generated": "Report generated",
+      "filteredRows": "Rows match the table filters. Summary metrics describe the selected product and period."
+    },
+    "generation": {
+      "title": "Generate a product forecast",
+      "description": "Analyze this product’s recorded sales with the forecasting service.",
+      "generate": "Generate forecast",
+      "refresh": "Refresh forecast",
+      "loading": "Generating…",
+      "progress": "The model is processing your sales history. This can take a few minutes.",
+      "selectProduct": "Select one product to generate a forecast.",
+      "lastGenerated": "Last generated: {{date}}",
+      "targetResult": "{{value}} units expected on {{date}}",
+      "periodResult": "{{value}} units for the period starting {{date}}",
+      "targetNote": "This is one target-day prediction. A full 7/30-day total requires predictions covering every day or an explicit period total.",
+      "historyThrough": "Sales history supplied through {{date}}",
+      "confidence": "Model confidence signal: {{value}}%",
+      "modelVersion": "Model version: {{version}}",
+      "sources": {
+        "baseline": "Estimate derived from your sales history (baseline)",
+        "xgboost": "XGBoost forecast"
+      },
+      "reasons": {
+        "NO_HISTORY": "No recorded sales history is available for this product. Import sales before generating a forecast.",
+        "INVALID_HISTORY": "The sales history contains invalid dates, quantities, prices or missing currency conversions. Review the source records.",
+        "STALE_HISTORY": "The sales history is too old for a current forecast. Import newer sales records and try again.",
+        "MODEL_UNAVAILABLE": "The model did not return a usable prediction.",
+        "PRODUCT_METADATA_UNAVAILABLE": "A product name is required before a forecast can be generated."
+      },
+      "detailsTitle": "Forecast coverage and source details",
+      "targetDate": "Latest prediction date",
+      "targetDemand": "Latest prediction units",
+      "source": "Prediction source"
+    },
+    "evaluation": {
+      "title": "Model Evaluation",
+      "description": "Recorded evaluation metrics for model versions linked to forecasts in the selected horizon.",
+      "lowerIsBetter": "Lower error values are better. These are model evaluation results, not an accuracy percentage for an individual forecast.",
+      "product": "Associated product",
+      "model": "Model",
+      "version": "Version",
+      "trainedAt": "Trained at",
+      "mae": "MAE",
+      "rmse": "RMSE",
+      "mase": "MASE",
+      "folds": "Validation folds"
+    },
+    "inventoryEvidence": {
+      "title": "Inventory evidence",
+      "confidence": "Forecast confidence",
+      "stock": "Stock combines {{count}} warehouse record(s). Oldest record update: {{date}}.",
+      "calculation": "Suggested units: round up max(0, demand {{demand}} + safety stock {{safety}} − stock {{stock}}) = {{quantity}}. Incoming orders and supplier lead times are not included.",
+      "source": "Based on a saved recommendation dated {{date}} and its linked forecast.",
+      "confidenceNote": "Forecast confidence is not measured model accuracy.",
+      "reasons": {
+        "MISSING_INVENTORY": "No inventory records are available for this product. Import its actual stock levels.",
+        "DUPLICATE_WAREHOUSE": "Multiple stock records refer to the same warehouse. Review the inventory records before using a recommendation.",
+        "INVALID_STOCK_DATE": "A stock update date is invalid or in the future. Review the inventory records.",
+        "STALE_INVENTORY": "Stock records are older than the configured freshness limit. Update stock before using a recommendation.",
+        "INVALID_INVENTORY": "Stock quantities are incomplete or invalid. Review the inventory records.",
+        "UNDATED_INVENTORY": "Stock update dates are missing. A current recommendation cannot be verified.",
+        "INCOMPLETE_FORECAST": "The selected period does not have complete usable demand coverage. A target-day prediction cannot supply a full-period stock recommendation.",
+        "NO_HORIZON_RECOMMENDATION": "Demand coverage exists, but no saved recommendation is linked to one forecast for the whole selected period.",
+        "NO_STORED_RECOMMENDATION": "No supported inventory recommendation has been saved for the selected forecast.",
+        "INVALID_RECOMMENDATION": "The saved recommendation has an unsupported action or an invalid forecast link.",
+        "OUTDATED_RECOMMENDATION": "The saved recommendation date is missing, invalid, or outside the usable source dates.",
+        "STOCK_CHANGED": "Stock was updated after this recommendation was saved. A new recommendation is needed.",
+        "MISSING_SAFETY_STOCK": "Safety stock is missing or invalid. A replenishment quantity cannot be calculated.",
+        "INCONSISTENT_RECOMMENDATION": "The saved restock action does not agree with the recorded demand and stock values."
+      }
+    }
+  },
+  "tenantNotifications": {
+    "customPlanOfferReady": {
+      "title": "Your custom plan offer is ready",
+      "body": "{{quoteName}} is ready for your review."
+    },
+    "businessRecommendation": {
+      "title": "New priority recommendation",
+      "body": "Review a new high-priority business finding."
+    },
+    "marketAlert": {
+      "title": "Competitor price alert",
+      "body": "A verified price change matched one of your rules."
+    },
+    "importCompleted": {
+      "title": "Import completed",
+      "body": "Your data import has completed. Open Connect Data to review its results."
+    },
+    "importFailed": {
+      "title": "Import needs attention",
+      "body": "A data import failed. Review the job details before retrying."
+    },
+    "subscriptionChanged": {
+      "title": "Subscription updated",
+      "body": "Your subscription status or cancellation schedule changed. Review billing for details."
+    }
+  },
+  "apiErrors": {
+    "UNAUTHORIZED": "Your session is missing or no longer valid. Sign in and try again.",
+    "INVALID_AUTH_HEADER": "The sign-in information could not be read. Sign in again.",
+    "INVALID_TOKEN": "Your session could not be verified. Sign in again.",
+    "TOKEN_EXPIRED": "Your session has expired. Sign in again.",
+    "INVALID_CREDENTIALS": "The email or password is incorrect.",
+    "EMAIL_VERIFICATION_INVALID": "This verification link is invalid or expired. Request a new link.",
+    "EMAIL_DELIVERY_FAILED": "We could not send the verification email. Check your email address and try again shortly.",
+    "FORBIDDEN": "Your account does not have permission to do this.",
+    "INSUFFICIENT_PERMISSIONS": "Your account is missing the permission required for this action.",
+    "TENANT_ACCESS_DENIED": "You do not have access to this company workspace.",
+    "INVALID_REQUEST": "Some request information is missing or invalid. Check the form and try again.",
+    "VALIDATION_ERROR": "Some fields need attention. Review the highlighted information and try again.",
+    "INVALID_TEMPLATE": "The file does not match the required data template. Download the latest template and try again.",
+    "INVALID_PARAMETER": "One of the selected values is invalid. Check your selection and try again.",
+    "UNPROCESSABLE_ENTITY": "The request was understood, but the current data cannot be processed.",
+    "PAYMENT_PROVIDER_SUBSCRIPTION_NOT_FOUND": "This subscription is not linked to a payment provider yet. Contact support if you believe this is an error.",
+    "RESOURCE_NOT_FOUND": "The requested item could not be found. It may have been removed or is no longer available.",
+    "USER_NOT_FOUND": "This user could not be found. Refresh the page and try again.",
+    "TENANT_NOT_FOUND": "This company workspace could not be found. Refresh the page and try again.",
+    "PLAN_NOT_FOUND": "This subscription plan is no longer available. Refresh the page and choose another plan.",
+    "CUSTOM_PLAN_QUOTE_NOT_FOUND": "This custom plan offer could not be found. It may have expired or been withdrawn.",
+    "VENDOR_RATE_NOT_FOUND": "The vendor rate could not be found. Refresh the pricing data and try again.",
+    "SUBSCRIPTION_NOT_FOUND": "No subscription was found for this account.",
+    "PROMO_CODE_NOT_FOUND": "This promo code could not be found. Check the code and try again.",
+    "INFRASTRUCTURE_RATE_NOT_FOUND": "The infrastructure rate could not be found. Refresh the pricing data and try again.",
+    "NO_SCHEDULED_PLAN_CHANGE": "There is no upcoming plan change to cancel.",
+    "RESOURCE_ALREADY_EXISTS": "This item already exists. Review the existing entry before creating another.",
+    "DATA_SOURCE_RECONNECT_REQUIRED": "This disconnected source must be registered again before it can be reactivated.",
+    "USER_ALREADY_EXISTS": "An account with this email already exists. Sign in or use another email address.",
+    "TENANT_ALREADY_EXISTS": "A workspace with these details already exists.",
+    "SUBSCRIPTION_ALREADY_EXISTS": "This account already has a subscription.",
+    "ONBOARDING_INCOMPLETE": "Finish the previous setup step before continuing.",
+    "INVALID_SUBSCRIPTION_STATUS": "This subscription is in a state that does not allow this action. Refresh its status and try again.",
+    "SUBSCRIPTION_NOT_ACTIVE": "This action requires an active subscription.",
+    "PLAN_NOT_AVAILABLE": "This plan cannot be selected right now. Refresh the plans and try again.",
+    "SAME_PLAN": "Your subscription is already on this plan.",
+    "INVALID_PROMO_CODE": "This promo code is not valid. Check the code and try again.",
+    "PROMO_CODE_EXPIRED": "This promo code has expired.",
+    "PROMO_CODE_NOT_ACTIVE": "This promo code is not currently active.",
+    "PROMO_CODE_USAGE_LIMIT_REACHED": "This promo code has reached its usage limit.",
+    "PROMO_CODE_NOT_APPLICABLE": "This promo code cannot be used with the selected plan or purchase.",
+    "PROMO_CODE_CURRENCY_MISMATCH": "This promo code uses a different currency from the selected plan.",
+    "UNSUPPORTED_PAYMENT_PROVIDER": "This payment method is not supported for this purchase.",
+    "PAYMENT_FAILED": "The payment could not be completed. Check your payment details or try another payment method.",
+    "PAYMENT_REQUIRED": "This feature or action requires a plan with sufficient available quota.",
+    "PAYMENT_NOT_FOUND": "The payment record could not be found. Refresh billing and try again.",
+    "EXTERNAL_SERVICE_ERROR": "A connected service could not complete the request. Try again shortly.",
+    "NOT_IMPLEMENTED": "This action is not available yet.",
+    "PAYMENT_PROVIDER_ERROR": "The payment provider could not complete the request. Try again shortly.",
+    "WEBHOOK_PROCESSING_ERROR": "The payment update could not be processed. The account status may take a short time to refresh.",
+    "INTERNAL_SERVER_ERROR": "Something went wrong on our side. Try again shortly.",
+    "SERVICE_UNAVAILABLE": "This service is temporarily unavailable. Try again shortly.",
+    "ALREADY_ACTIVE_PLAN": "You already have this plan and billing period.",
+    "ALREADY_SCHEDULED_PLAN": "A change to this plan is already scheduled for the end of your current period.",
+    "CANCEL_DOWNGRADE_REQUIRED": "Cancel the scheduled downgrade before selecting this plan again.",
+    "INVALID_BILLING_PERIOD": "This billing period is not available for the selected plan.",
+    "INVALID_QUOTE_STATUS": "This custom plan offer has changed and can no longer be processed. Refresh the page.",
+    "UNSAFE_CUSTOM_PLAN_PRICE": "The proposed custom plan price is below the minimum allowed price. Review the price and try again.",
+    "FX_RATE_REQUIRED": "A current currency conversion rate is required to calculate this quote.",
+    "VENDOR_RATE_REQUIRED": "Pricing data is missing for one or more selected features. Update the vendor rates and try again.",
+    "MALFORMED_HISTORY_JSON": "The conversation history could not be read. Refresh the page and try again.",
+    "UPSTREAM_LLM_FAILURE": "The AI service could not complete the request. Try again shortly.",
+    "INVALID_FILE_UPLOAD": "The file is empty, damaged, or does not match its file type. Check the file and upload it again.",
+    "FILE_SIZE_LIMIT_EXCEEDED": "The file is larger than the upload limit. Choose a smaller file.",
+    "QUOTA_EXCEEDED": "Your plan does not have enough remaining usage for this request. Review usage or change your plan.",
+    "ENTITLEMENT_NOT_AVAILABLE": "This feature is not included in your current plan.",
+    "AI_PROCESSED_OVER_LIMIT": "The AI processing limit for this request was exceeded. Reduce the file or request size and try again.",
+    "EXTERNAL_SERVICE_UNAVAILABLE": "A connected service is temporarily unavailable. Try again shortly.",
+    "NETWORK": "Could not reach the server. Check your connection and try again.",
+    "GENERIC": "The request could not be completed. Try again, and contact support if the problem continues.",
+    "TOO_MANY_REQUESTS": "Too many requests were made in a short time. Wait a moment and try again.",
+    "INVALID_WEBHOOK_HEADER": "The payment provider could not verify this webhook request.",
+    "SUBSCRIPTION_ALREADY_CANCELED": "This subscription is already scheduled to end at the end of the billing period.",
+    "SUBSCRIPTION_CANCELLATION_SCHEDULED": "The subscription will end at the end of the current billing period.",
+    "SUBSCRIPTION_NOT_CANCELED": "This subscription is not scheduled for cancellation.",
+    "forecastingReasons": {
+      "FORECAST_AI_TOKEN_MISSING": "Forecasting is not configured correctly on the server. Contact your administrator.",
+      "FORECAST_AI_CONFIGURATION": "The forecasting service configuration needs attention. Contact your administrator.",
+      "FORECAST_AI_CONNECTION_FAILED": "The server could not connect to the forecasting service. Try again shortly.",
+      "FORECAST_AI_TIMEOUT": "The forecasting service took too long to respond. Try again shortly.",
+      "FORECAST_AI_EXECUTION_FAILED": "The forecasting service reported an error while running the model.",
+      "FORECAST_AI_AUTHENTICATION_FAILED": "The forecasting service rejected the server connection credentials. Contact your administrator.",
+      "FORECAST_AI_RATE_LIMITED": "The forecasting service is limiting requests. Wait before trying again.",
+      "FORECAST_AI_HTTP_ERROR": "The forecasting service returned an error. Try again shortly.",
+      "FORECAST_AI_TARGET_MISMATCH": "The forecast returned a different target date than requested. The result was not saved.",
+      "FORECAST_AI_PRODUCT_MISMATCH": "The forecast returned a different product. The result was not saved.",
+      "FORECAST_AI_INVALID_RESPONSE": "The forecasting service returned an unsupported or invalid response. The result was not saved."
+    },
+    "PRODUCT_CAPACITY_EXCEEDED": "Your active product limit has been reached. Archive a product or update your plan.",
+    "PRODUCT_DUPLICATE": "This SKU or name is already in use. Use a distinct SKU for products that share a name.",
+    "PRODUCT_STALE_EDIT": "This product changed after you opened it. Close the form, refresh the page and try again.",
+    "PRODUCT_ARCHIVED": "Restore this archived product before editing it.",
+    "COMPETITOR_CAPACITY_EXCEEDED": "The tracked competitor limit has been reached or is not configured.",
+    "COMPETITOR_IDENTITY_AMBIGUOUS": "Multiple competitors match this website. Resolve their identity before tracking.",
+    "COMPETITOR_SOURCE_CHANGED": "This source changed during review. Reload and review again.",
+    "COMPETITOR_SOURCE_UNSUPPORTED": "This source requires a supported website collector and complete product URLs.",
+    "COLLECTION_RETRY_UNAVAILABLE": "Cannot retry this collection now. Reload its latest status and check tracking, approval and plan eligibility."
+  },
+  "competitorManagement": {
+    "addNotice": "Adding a competitor saves tracking details. Product discovery and price collection depend on approved sources and available workers.",
+    "saving": "Saving…",
+    "status": "Tracking status",
+    "active": "Tracked",
+    "inactive": "Untracked",
+    "all": "All",
+    "capacity": "Tracked competitors: {{used}} / {{limit}}",
+    "unlimited": "Unlimited",
+    "cleanupNotice": "Your plan no longer enables competitor management. You can still view tracking records and untrack competitors.",
+    "alias": "Display name for your business",
+    "saveAlias": "Save name",
+    "untrack": "Stop tracking",
+    "reactivate": "Resume tracking",
+    "confirmUntrack": "Stop tracking this competitor? Recorded observations will be retained.",
+    "confirmReactivate": "Resume tracking this competitor? Your current plan limit applies.",
+    "applySchedule": "Apply plan monitoring schedule",
+    "scheduleSaved": "Schedule updated for {{count}} approved sources. This does not confirm a collection run.",
+    "CADENCE_NOT_CONFIGURED": "Your plan has no monitoring frequency configured.",
+    "NO_APPROVED_SOURCE": "No eligible approved website source is linked to this competitor.",
+    "mappingConfirmation": "I verified the same product, pack size and unit",
+    "comparisonStatus": "Comparison status",
+    "available": "Comparable recorded price",
+    "difference": "Difference from our price",
+    "noMappings": "No active products are mapped to this competitor.",
+    "noActivity": "No eligible recent price changes are recorded.",
+    "priceChanged": "Price changed from {{old}} to {{new}} {{currency}}.",
+    "monitoring": "Configured interval: {{minutes}} minutes",
+    "lastSync": "Last recorded source sync",
+    "notRecorded": "Not recorded",
+    "confirmMapping": "Confirm this mapping matches the same product, pack size and unit?",
+    "MATCH_UNCONFIRMED": "Confirm product and pack size before comparing.",
+    "CURRENCY_MISMATCH": "No observation in the product currency.",
+    "NO_PRICE": "No price recorded.",
+    "SOURCE_BLOCKED": "Source is paused, blocked or lacks approval.",
+    "UNAVAILABLE": "The latest observation is unavailable.",
+    "ESTIMATED_PRICE": "The latest price is estimated.",
+    "INVALID_PRICE": "The latest price is invalid.",
+    "INVALID_DATE": "The latest observation date is invalid.",
+    "STALE_PRICE": "The latest price exceeds the configured age limit.",
+    "INVALID_OUR_PRICE": "Your catalog price is invalid.",
+    "collectionJob": "Latest source job",
+    "jobs": {
+      "QUEUED": "Queued",
+      "PROCESSING": "Processing",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed",
+      "PARTIAL": "Partially completed",
+      "EXTRACTING": "Extracting",
+      "EXTRACTED": "Extracted",
+      "PENDING": "Pending",
+      "UNKNOWN": "Unknown"
+    },
+    "TRACKING_PAUSED": "Tracking is paused; recorded history is retained.",
+    "settings": "Tracking settings",
+    "settingsHint": "Manage the name and monitoring settings for this competitor.",
+    "discoverCatalog": "Discover competitors for my catalog",
+    "discoveryScopeNotice": "Tracking searches this competitor’s website for your catalog products. Catalog discovery is a separate search for new competitors. New sources still require approval.",
+    "pipelineNotConfigured": "Automatic tracking is not available yet. Your requests are saved and awaiting service setup.",
+    "pipelineConfigured": "Background delivery is configured. Prices appear after collection completes successfully.",
+    "pipelineTitle": "Automatic tracking status",
+    "discoveryQueued": "Catalog discovery requested. This is a queued request, not a completed discovery.",
+    "noCatalogProducts": "No eligible catalog products or feature access are available for discovery.",
+    "scheduleQueued": "Monitoring saved; collection requests created or reused: {{queued}}. Check each source status. Use Retry failed collection for failed jobs.",
+    "scheduleAwaitingSetup": "Schedule saved for {{count}} sources. Automatic delivery is not configured yet.",
+    "discoveryJob": "Catalog discovery",
+    "queueStates": {
+      "PENDING": "Awaiting delivery",
+      "PUBLISHED": "Submitted; awaiting worker results",
+      "FAILED": "Delivery failed",
+      "CANCELLED": "Cancelled"
+    },
+    "bridgeErrors": {
+      "REDIS_PUBLISH_FAILED": "Redis delivery failed; retry pending.",
+      "COST_GUARD_NOT_CONFIGURED": "Collection cost checks are not configured.",
+      "COST_GUARD_UNAVAILABLE": "Collection cost checks are unavailable; retry pending.",
+      "COST_MARGIN_BLOCKED": "Collection blocked by the existing cost-to-margin policy.",
+      "NO_LONGER_ELIGIBLE": "This request is no longer eligible."
+    },
+    "competitorDiscoveryJob": "Competitor product discovery",
+    "cancelDiscovery": "Cancel discovery",
+    "currentStep": "Current step: {{step}}",
+    "discoveryResults": "Product candidates: {{products}} · Business candidates: {{domains}} · Sources queued for collection: {{sources}}",
+    "discoveryStates": {
+      "QUEUED": "Queued",
+      "RUNNING": "Discovering products",
+      "INTERRUPTED": "Progress update overdue; worker may be interrupted",
+      "COMPLETED": "Discovery completed; collection is separate",
+      "NO_MATCHES": "No candidates found in the checked pages",
+      "PARTIAL": "Partial discovery; some content or methods could not be checked",
+      "TIMED_OUT": "Discovery time limit reached",
+      "FAILED": "Discovery failed",
+      "CANCELLED": "Discovery cancelled",
+      "ACCESS_DENIED": "Website access denied",
+      "ROBOTS_DISALLOWED": "Website rules disallow discovery",
+      "UNAVAILABLE": "Website discovery unavailable"
+    },
+    "workerErrors": {
+      "DISCOVERY_FAILED": "A discovery attempt failed. Queued jobs retry automatically; failed jobs need a new request.",
+      "RUN_TIME_LIMIT": "The discovery time budget was exhausted.",
+      "USER_CANCELLED": "Cancelled by a workspace user.",
+      "UNTRACKED": "Cancelled because tracking was stopped.",
+      "UNTRACKED_OR_CANCELLED": "Tracking stopped or this job was cancelled.",
+      "LEGACY_DISCOVERY_REPLACED": "An older catalog request was retired during the upgrade. Request fresh discovery if needed.",
+      "HTTP_ACCESS_DENIED": "The website denied the crawler request.",
+      "ROBOTS_DISALLOWED": "robots.txt disallows this path for the configured crawler.",
+      "HTTP_RATE_LIMITED": "The website rate-limited the request. Try again later.",
+      "ROBOTS_UNAVAILABLE": "Website crawling rules could not be verified.",
+      "CONTENT_UNAVAILABLE": "Website content could not be read or parsed.",
+      "NO_DISCOVERY_METHOD": "No supported product discovery method completed on this website."
+    }
+  },
+  "businessRecommendations": {
+    "title": "Business Recommendations",
+    "subtitle": "Prioritized findings from your recorded sales, market prices, feedback and forecasts.",
+    "refresh": "Analyze current data",
+    "refreshing": "Analyzing…",
+    "sourcePolicy": "These are suggestions for review, not automatic business actions. For each product, sales analysis uses recorded transactions when available; otherwise it uses paid invoice lines. The two ledgers are not added together.",
+    "filter": "Show",
+    "states": {
+      "active": "Active",
+      "dismissed": "Dismissed",
+      "resolved": "No longer detected",
+      "all": "All"
+    },
+    "pending": "An analysis is already running. Wait, then retry the same request.",
+    "requestFailed": "The previous analysis did not complete. Try again to start a new request.",
+    "forbidden": "You do not have permission or an active subscription for this feature.",
+    "unavailable": "Recommendations could not be refreshed or loaded. Saved findings are retained. Please try again.",
+    "retry": "Retry",
+    "loading": "Loading recommendations…",
+    "emptyTitle": "No matching recommendations",
+    "emptyDescription": "Analyze your current data to check for supported findings. No findings can also mean there is not enough recent data or no rule currently applies.",
+    "partial": "The analysis reached its result limit. Existing findings outside this result were retained.",
+    "businessWide": "Business-wide finding",
+    "categories": {
+      "pricing": "Pricing",
+      "sentiment": "Customer feedback",
+      "demand": "Demand",
+      "causal_timing": "Competitor timing",
+      "assortment": "Product range"
+    },
+    "priorities": {
+      "high": "High priority",
+      "medium": "Medium priority",
+      "low": "Low priority"
+    },
+    "asOf": "Checked: {{date}}",
+    "evidence": "View supporting data",
+    "salesEvidence": "Sales source: {{source}}. Latest 30 days: {{recent}} units; preceding 30 days: {{prior}} units. Based on {{count}} records.",
+    "salesSources": {
+      "transactions": "recorded transactions",
+      "paid_invoice_items": "paid invoice lines"
+    },
+    "feedbackEvidence": "Feedback: {{count}} analyzed reviews ({{scope}}).",
+    "feedbackScopes": {
+      "product": "this product",
+      "business": "business-wide fallback"
+    },
+    "dailyForecast": "Target-day forecast: {{units}} units on {{date}}. This is not a full-period total.",
+    "fullForecast": "Complete 30-day forecast: {{units}} units; recorded stock: {{stock}} units.",
+    "categoryEvidence": "Category: {{category}}; observed at {{count}} relevant competitors.",
+    "timingEvidence": "Competitor event: {{date}}. Price drop: {{price}}%; sales change: {{sales}}%.",
+    "caution": "These indicators do not establish causation or guarantee a future outcome. Check data freshness before acting.",
+    "dismiss": "Dismiss finding",
+    "restore": "Restore finding",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "smartAlerts": {
+    "title": "Smart Alerts",
+    "subtitle": "Monitor verified competitor price changes with saved alert rules.",
+    "activity": "Latest activity",
+    "alerts": "Price alerts",
+    "total": "{{value}} alerts",
+    "priceChange": "price change",
+    "changeUnavailable": "Change unavailable",
+    "emptyTitle": "No alerts here yet",
+    "management": "Monitoring setup",
+    "configuration": "Rule settings",
+    "formHint": "Choose a tracked competitor and the percentage change that should trigger an alert.",
+    "policyTitle": "How price alerts work",
+    "pagination": "Alert pages",
+    "showing": "Showing {{start}}–{{end}} of {{total}}",
+    "refresh": "Refresh",
+    "policy": "Price changes use consecutive, confirmed observations in the same currency. A drop is negative (for example, at most −5%); an increase is positive (at least 5%). Cooldown suppresses further matches per rule for the chosen number of minutes. Reading a notification does not acknowledge or resolve its alert.",
+    "error": "The request could not be completed. Check your permissions and connection, then retry.",
+    "loading": "Loading alerts…",
+    "create": "Create price alert",
+    "edit": "Edit rule",
+    "name": "Rule name",
+    "competitor": "Tracked competitor",
+    "choose": "Choose a competitor",
+    "operator": "Trigger when change is",
+    "operators": {
+      "GT": "Greater than",
+      "GTE": "At least",
+      "LT": "Less than",
+      "LTE": "At most"
+    },
+    "threshold": "Percentage change",
+    "cooldown": "Cooldown in minutes",
+    "active": "Active",
+    "paused": "Paused",
+    "save": "Save rule",
+    "cancel": "Cancel edit",
+    "noCompetitors": "Track a competitor and confirm product matches in Market Intelligence before alerts can fire.",
+    "rules": "Saved rules",
+    "noRules": "No rules have been created.",
+    "unsupported": "Legacy metric: this release evaluates price changes only.",
+    "filter": "Show",
+    "states": {
+      "open": "Open",
+      "acknowledged": "Acknowledged",
+      "resolved": "Resolved",
+      "all": "All"
+    },
+    "empty": "No alerts in this view. Alerts require new collected observations that match an active rule.",
+    "change": "Price change: {{value}}%",
+    "evidence": "Supporting observation",
+    "observed": "Observed: {{date}}",
+    "ruleAtTrigger": "The percentage is recorded at trigger time. Editing a rule does not alter past alerts.",
+    "acknowledge": "Acknowledge",
+    "resolve": "Resolve",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "platformNotifications": {
+    "tenantRegistered": {
+      "title": "New tenant registered",
+      "body": "A new customer tenant has been created."
+    },
+    "importFailed": {
+      "title": "Customer import failed",
+      "body": "A customer data import needs investigation."
+    },
+    "subscriptionChanged": {
+      "title": "Customer subscription updated",
+      "body": "A customer subscription status or cancellation schedule changed."
+    }
+  },
+  "notificationPreferences": {
+    "description": "Choose which optional in-app notifications you receive. Changes affect future deliveries; existing notifications and alert history stay available.",
+    "business": "High-priority business recommendations",
+    "market": "Smart Alert rule matches",
+    "imports": "Import completion and failure",
+    "mandatory": "Billing and custom-plan notices remain enabled."
+  },
+  "sourceReview": {
+    "title": "Collection source review",
+    "hint": "Confirming an identical product and approving a collection source are separate steps. Review each source before applying monitoring. A shared source review affects all products linked to it in your workspace.",
+    "empty": "No collection sources are linked yet. Run discovery and review its candidates first.",
+    "mappingCount": "Linked products in this competitor: {{count}}",
+    "lastReview": "Last reviewed: {{date}}",
+    "inactive": "This source is paused. Approval does not reactivate it or queue collection.",
+    "unsupported": "This collector requires a separate integration review.",
+    "noPermission": "A workspace owner or source reviewer can review this source.",
+    "evidenceHint": "Approve only if you have reviewed the website terms and they permit collection. Record a checkable terms URL or permission reference. Robots permission alone does not establish terms permission. The server checks robots for every linked product path.",
+    "reference": "Terms or permission evidence (at least 10 characters)",
+    "retention": "Retention (days, 1–90)",
+    "rate": "Requests per minute (1–30)",
+    "personal": "The collected content contains personal data",
+    "privacy": "I reviewed privacy and retention requirements",
+    "approve": "Terms permit collection — check and approve",
+    "reject": "Terms do not permit collection — block source",
+    "checking": "Checking source…",
+    "trackFirst": "Resume competitor tracking before approving collection.",
+    "queued": "Collection request queued. Prices appear after the dispatcher and collection worker finish successfully.",
+    "awaitingSetup": "Approval saved and collection request recorded. Start or configure the market dispatcher and workers to process it.",
+    "status": {
+      "ALLOWED": "Approved",
+      "BLOCKED": "Blocked",
+      "RESTRICTED": "Review required"
+    },
+    "reasons": {
+      "TERMS_DISALLOW": "Terms do not permit collection.",
+      "ROBOTS_ALLOWED": "Robots permits the reviewed paths.",
+      "ROBOTS_DISALLOWED": "Robots disallows at least one linked path.",
+      "ROBOTS_UNAVAILABLE": "Robots could not be verified; approval was not granted.",
+      "CHECKER_NOT_CONFIGURED": "Technical checker is not configured.",
+      "CHECKER_UNAVAILABLE": "Technical checker could not complete.",
+      "UNSAFE_TARGET": "The URL or DNS target is not a public website.",
+      "SOURCE_HOST_MISMATCH": "Linked paths do not share one source origin.",
+      "TOO_MANY_PATHS": "Too many paths to verify in one review.",
+      "SOURCE_INACTIVE": "Source remains paused; no collection queued.",
+      "CADENCE_NOT_CONFIGURED": "Approval saved. Configure monitoring frequency in the Node plan before scheduling.",
+      "NO_ELIGIBLE_COLLECTION": "Approval saved; no eligible collection request could be queued.",
+      "MATCH_UNCONFIRMED": "Source approved. Confirm the product match to enable recurring monitoring."
+    },
+    "existingCollection": "Approval saved. A previous collection request already exists. Check its current status and use Retry failed collection if it failed."
+  },
+  "collectionTracking": {
+    "title": "Price collection",
+    "retry": "Retry failed collection",
+    "retrying": "Requesting retry…",
+    "retryQueued": "A fresh collection request was queued. Keep the dispatcher and market workers running.",
+    "existingRetry": "This failed request already has a retry. Its current status has been refreshed.",
+    "attempts": "Collection attempts: {{count}}",
+    "states": {
+      "NO_REQUEST": "No collection request yet",
+      "QUEUED": "Queued for dispatch",
+      "SUBMITTED": "Submitted to the worker queue; execution not yet reported",
+      "UNCONFIRMED": "Submitted earlier; execution outcome is unconfirmed",
+      "RUNNING": "Collection running",
+      "INTERRUPTED": "Worker heartbeat is overdue; execution needs checking",
+      "RETRYING": "Attempt failed; waiting for automatic retry",
+      "COMPLETED": "Collection completed",
+      "FAILED": "Collection failed",
+      "CANCELLED": "Collection cancelled",
+      "NO_RECORDS": "Finished without collected records"
+    },
+    "errors": {
+      "COLLECTION_RETRY_PENDING": "The worker will retry this request automatically.",
+      "COLLECTION_RETRIES_EXHAUSTED": "Collection exhausted its automatic retries. You can request a new attempt.",
+      "PREVIOUS_COLLECTION_FAILED": "The latest source job failed before execution reporting was available.",
+      "COLLECTION_RESULT_NOT_COMPLETED": "The collector did not produce a completed source job.",
+      "MAPPING_NO_LONGER_ELIGIBLE": "The product mapping changed or its confirmation was removed.",
+      "SOURCE_NO_LONGER_ELIGIBLE": "Source approval was revoked or collection was paused."
+    },
+    "requested": "Requested: {{date}}",
+    "rows": "Records processed: {{processed}} · Failed: {{failed}} · Quarantined: {{quarantined}}",
+    "retryReasons": {
+      "SOURCE_NOT_ELIGIBLE": "Resume tracking and ensure the source is active, approved and linked to this competitor.",
+      "PLAN_NOT_ELIGIBLE": "An active eligible plan with a valid monitoring frequency is required.",
+      "COLLECTION_NOT_FAILED": "Only a failed collection can be retried. Reload the latest status.",
+      "COLLECTION_ALREADY_ACTIVE": "Another collection for this source is queued or running. Wait for its outcome.",
+      "COLLECTION_CHANGED": "A newer collection exists. Reload its outcome before retrying."
+    }
+  },
+  "directoryUx": {
+    "competitorsInView": "Competitors in this view",
+    "trackedInView": "Tracked in this view",
+    "matchingResults": "Matching results",
+    "loadedScope": "Based on the selected tracking status",
+    "trackingHint": "Tracking enabled; collection depends on source approval",
+    "filteredHint": "Based on the current search and filters",
+    "newestAdded": "Recently added",
+    "clearFilters": "Clear filters",
+    "noMatchesHint": "Try a different search or clear your filters.",
+    "noCompetitorsHint": "Add a competitor to start comparing products and monitoring approved sources.",
+    "mappedProducts": "Mapped products",
+    "mappingsHint": "Candidate links to your catalog products",
+    "confirmedProducts": "Confirmed matches",
+    "confirmedHint": "Products you confirmed as identical",
+    "approvedSources": "Approved active sources",
+    "approvalHint": "Source approval does not mean collection has completed"
+  },
+  "competitorWorkflow": {
+    "title": "Match products and check tracking",
+    "flow": "Link a product → review the source → check the page → confirm the match → monitor prices.",
+    "search": "Search your products by name, SKU or barcode",
+    "choose": "Choose a product",
+    "yourProduct": "Your product",
+    "selectedProduct": "Selected competitor product",
+    "brand": "Brand",
+    "productUrl": "Competitor product page URL",
+    "urlScope": "Use an individual product page within this competitor’s website or storefront.",
+    "saveLink": "Save product link",
+    "previous": "Previous products",
+    "next": "Next products",
+    "alternatives": "Discovered alternatives",
+    "candidateHint": "These are candidate links, not verified matches. Open the page and check the exact variant and pack.",
+    "useUrl": "Use this URL",
+    "reject": "Reject candidate",
+    "checkPage": "Check selected page",
+    "approveFirst": "Review and approve the source before checking this page.",
+    "confirmed": "Match confirmed",
+    "needsConfirmation": "Match needs confirmation",
+    "notChecked": "This page has not been checked. Missing attributes are unknown.",
+    "noPreviewPrice": "No usable preview price",
+    "previewSaved": "Page check saved. See its result below.",
+    "linkSaved": "Product link saved. Review its source and confirm the exact product before monitoring.",
+    "rejected": "Candidate rejected. Any selected mapping for it was archived.",
+    "replaceWarning": "Replace the selected product URL? Existing observations will stay with the old mapping. The new source will need approval and the new match will need confirmation.",
+    "history": "Previous product links",
+    "historyHint": "These links are archived. Their prices do not contribute to the current comparison.",
+    "historyPrices": "{count} historical price records",
+    "lastCollected": "Latest recorded price (comparison may be unavailable)",
+    "attributesHint": "Verify the model, size, flavour and number of units. A missing barcode does not establish an exact match.",
+    "model": "Model",
+    "size": "Size",
+    "pack": "Units per pack",
+    "variants": "Variant signals",
+    "unknown": "Unknown",
+    "coverage": "Checked scope only; this is not proof that the product is absent from the competitor’s full catalog.",
+    "coverageCount": "Products attempted: {checked} · Not checked: {unchecked}",
+    "reasons": {
+      "READY": "Page identity and a usable price were verified.",
+      "NO_USABLE_PRICE": "Product recognized, but no usable price was found.",
+      "ROBOTS_DISALLOWED": "The website disallows collection on this path.",
+      "ROBOTS_UNAVAILABLE": "The robots rules could not be checked.",
+      "ACCESS_DENIED": "The website denied access.",
+      "CONTENT_UNAVAILABLE": "The page could not be read.",
+      "UNSUPPORTED_PRODUCT_DATA": "No supported product data was found. This page may need a reviewed adapter or JavaScript rendering.",
+      "IDENTITY_NOT_VERIFIED": "The page did not verify the selected product identity.",
+      "AMBIGUOUS_PRODUCT_OFFERS": "Multiple offers or a price range could not be assigned to one product/seller.",
+      "CHECKER_NOT_CONFIGURED": "The page checker is not configured.",
+      "CHECKER_UNAVAILABLE": "The page checker is temporarily unavailable.",
+      "BRAND_CONFLICT": "The product brands disagree.",
+      "MODEL_CONFLICT": "The models disagree.",
+      "SIZE_CONFLICT": "The product sizes disagree.",
+      "PACK_CONFLICT": "The number of units per pack disagrees.",
+      "VARIANT_CONFLICT": "The product variants disagree.",
+      "SOURCE_SCOPE_CHANGED": "The page redirected outside the selected storefront.",
+      "PACK_UNVERIFIED": "One listing is a multipack; the other listing does not identify its pack count."
+    },
+    "methods": {
+      "EXACT_GTIN": "Matching validated GTINs",
+      "EXACT_SKU": "Matching retailer SKU",
+      "FUZZY_NAME": "Name and available attribute checks; not a verified GTIN match"
+    },
+    "outcomes": {
+      "NOT_CHECKED": "Not checked before the scan limit",
+      "CANDIDATES_FOUND": "Candidate links found; identity not verified",
+      "NO_CANDIDATES_IN_CHECKED_PAGES": "No candidates found in checked pages"
+    }
+  },
+  "storeConnection": {
+    "title": "Connect your online store",
+    "close": "Close store setup",
+    "description": "Connect an authorized store to synchronize its business data with KEEL.",
+    "url": "Store URL",
+    "checking": "Checking store...",
+    "detect": "Check store platform",
+    "manualWoo": "Set up WooCommerce manually",
+    "manualSelected": "Manual WooCommerce setup selected",
+    "detected": "WooCommerce store detected",
+    "credentialsHint": "Use a WooCommerce REST API consumer key and secret with read-only permissions.",
+    "changeUrl": "Change store URL",
+    "verifying": "Verifying connection...",
+    "connect": "Connect WooCommerce",
+    "unsupported": "Automatic synchronization is not available for this store platform. You can save its URL without enabling synchronization.",
+    "saveUrlOnly": "Save URL only",
+    "key": "Consumer key (read-only)",
+    "secret": "Consumer secret",
+    "frequency": "Synchronization frequency",
+    "every15": "Every 15 minutes",
+    "every60": "Every hour",
+    "every1440": "Every day",
+    "consent": "I am authorized to connect this store and allow KEEL to read its data.",
+    "importScope": "Synchronize products, supported stock quantities, and order accounting. Available sales and payment metrics depend on the store records.",
+    "managedHint": "KEEL manages the synchronization schedule and applies your subscription limits.",
+    "syncQueued": "Synchronization requested. Results will appear after processing.",
+    "alreadySyncing": "Synchronization is already queued or running.",
+    "shopify": {
+      "select": "Connect a Shopify store",
+      "redirecting": "Opening Shopify...",
+      "connect": "Continue to Shopify",
+      "explanation": "Authorize the KEEL app in Shopify. You do not need to enter a consumer key or secret here.",
+      "domain": "Shopify store domain",
+      "includeTests": "Include Shopify test orders for integration testing",
+      "history": "Order history is limited to the recent period permitted by Shopify. Older orders require additional access.",
+      "allHistory": "This connection has access to extended Shopify order history.",
+      "connected": "Shopify connected successfully. Check the synchronization status for imported data.",
+      "noPrivacyReports": "No Shopify data request reports are available for this connection.",
+      "privacyReports": "Download data request reports"
+    },
+    "errors": {
+      "STORE_SERVICE_UNAVAILABLE": "The store connection service is unavailable. Try again later.",
+      "INVALID_STORE_URL": "Enter a valid public HTTPS store URL.",
+      "CONNECTOR_NOT_CONFIGURED": "The store connector is not configured. Contact your administrator.",
+      "STORE_ACCESS_DENIED": "The store denied access. Check the credentials and required read permissions.",
+      "STORE_INVALID_CREDENTIALS": "The store credentials are invalid. Check the key and secret.",
+      "STORE_AUTH_FAILED": "Store authorization failed. Check your credentials and try again.",
+      "STORE_UNREACHABLE": "KEEL could not reach the store. Check that its URL is accessible and try again.",
+      "STORE_RESPONSE_ERROR": "The store returned an unexpected response. Check its availability and try again.",
+      "STORE_RATE_LIMITED": "The store is limiting requests. Wait before trying again.",
+      "STORE_TIMEOUT": "The store took too long to respond. Try again later.",
+      "STORE_UNSUPPORTED": "Automatic synchronization is not supported for this store platform.",
+      "STORE_UNSUPPORTED_PLATFORM": "Automatic synchronization is not supported for this store platform.",
+      "STORE_CONSENT_REQUIRED": "Confirm that you are authorized to connect this store.",
+      "STORE_INVALID_SHOPIFY_DOMAIN": "Enter the store's myshopify.com domain, such as your-store.myshopify.com.",
+      "STORE_SHOPIFY_AUTH_FAILED": "Shopify authorization could not be completed. Reconnect the store and approve the required read permissions.",
+      "STORE_SHOPIFY_AUTH_EXPIRED": "The Shopify authorization session expired. Start the connection again.",
+      "STORE_SHOPIFY_SCOPES_MISSING": "Grant the required product, order, inventory and location read permissions in Shopify.",
+      "STORE_PAYMENT_EVIDENCE_MISSING": "Payment confirmation is missing for this order. It cannot count as a paid invoice until payment is verified.",
+      "STORE_SYNC_ALREADY_RUNNING": "Synchronization is already queued or running.",
+      "STORE_PRODUCT_LIMIT_REACHED": "Your product capacity has been reached. Check your plan before synchronizing more products.",
+      "STORE_ADAPTER_UPGRADE_REQUIRED": "The store connector needs an update. Contact your administrator.",
+      "STORE_CREDENTIALS_UNAVAILABLE": "Saved store credentials are unavailable. Reconnect the store.",
+      "STORE_CURRENCY_MISMATCH": "The store currency does not match the expected currency. Check the store and product settings.",
+      "STORE_DISCONNECTED": "The store was disconnected. Historical imported data is retained.",
+      "STORE_FEATURE_UNAVAILABLE": "Store integration is unavailable on your current plan.",
+      "STORE_FORBIDDEN": "You do not have permission to manage this store connection.",
+      "STORE_INVALID_DATA": "The store returned data that could not be validated. Review the source before retrying.",
+      "STORE_INVALID_REQUEST": "The store request is invalid. Check the connection settings and try again.",
+      "STORE_INVALID_SALE": "An order contains sales data that could not be validated. Review the order in your store.",
+      "STORE_INVALID_SKU": "A product SKU has an unsupported format. Use letters, numbers, dots, underscores or hyphens, up to 100 characters.",
+      "STORE_INVENTORY_CONFLICT": "This stock balance conflicts with an existing source. Review the product and location links.",
+      "STORE_LIMIT_EXCEEDED": "This synchronization exceeded a processing limit. Contact your administrator.",
+      "STORE_MAPPING_UPGRADED": "The import mapping was updated. Synchronization will restart using the new mapping.",
+      "STORE_NOT_FOUND": "This store connection could not be found. Refresh the page.",
+      "STORE_ORDER_TOTAL_MISMATCH": "The order totals could not be reconciled. Review its discounts, taxes and refunds in the store.",
+      "STORE_PAGINATION_UNVERIFIED": "KEEL could not verify the complete set of store records. Try again or contact your administrator.",
+      "STORE_PRODUCT_ARCHIVED": "A linked product is archived in KEEL. Review the product before retrying.",
+      "STORE_PRODUCT_CONFLICT": "A store product conflicts with an existing product. Review its SKU, currency and source links.",
+      "STORE_PRODUCT_LIMIT": "Your product capacity is unavailable or reached. Check your plan before adding more products.",
+      "STORE_PRODUCT_UNAVAILABLE": "An order refers to an unavailable product variant. Review the order in your store.",
+      "STORE_RECONNECTED": "The store was reconnected. A new synchronization was requested.",
+      "STORE_RECONNECT_REQUIRED": "Reconnect the store to renew its authorization before synchronizing.",
+      "STORE_RESPONSE_TOO_LARGE": "The store response exceeded the supported size. Contact your administrator.",
+      "STORE_SHOPIFY_NOT_CONFIGURED": "The Shopify integration is not configured. Contact your administrator.",
+      "STORE_SHOPIFY_QUERY_ERROR": "Shopify rejected the data request. Check app access settings, including protected order data access when importing orders.",
+      "STORE_SHOPIFY_SCOPES_REQUIRED": "Grant the required product, order, inventory and location read permissions in Shopify.",
+      "STORE_SOURCE_CONFLICT": "This source is linked to a different store integration. Review the existing connection.",
+      "STORE_SOURCE_LIMIT": "Your connected-source capacity is unavailable or reached. Pause a source or review your plan.",
+      "STORE_SYNC_CANCELLED": "Synchronization was cancelled because the connection changed. Check its current status.",
+      "STORE_SYNC_FAILED": "Synchronization failed. Review the connection and try again.",
+      "STORE_TEST_ORDERS_NOT_ALLOWED": "Test-order import is available only for Shopify development stores.",
+      "STORE_UNALLOCATED_REFUND": "A refund could not be matched to order items. Review the refund in the store.",
+      "STORE_UNSUPPORTED_DUTIES": "Orders with duties are not supported by this integration yet.",
+      "STORE_UNSUPPORTED_STOCK": "The store returned an unsupported stock quantity. Review the product inventory."
+    }
   }
 }
