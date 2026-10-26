@@ -1,3 +1,6 @@
+import Modal from '../../../shared/components/ui/Modal.jsx';
+import {useQueryClient} from '@tanstack/react-query';
+import {Link} from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import Button from '../../../shared/components/ui/Button.jsx';
@@ -10,6 +13,9 @@ const label = (t, key) => {
 };
 
 export function ProviderRecordsPanel({ source, refreshVersion, t }) {
+  const queryClient=useQueryClient();
+  const [catalogPlan,setCatalogPlan]=useState(null);
+  const [postedProduct,setPostedProduct]=useState(null);
   const [items, setItems] = useState([]);
   const [offset, setOffset] = useState(0);
   const [limit] = useState(25);
@@ -49,6 +55,22 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
     } finally {
       setHistoryBusy(null);
     }
+  };
+
+  const prepareCatalog=async(item)=>{
+    setPending(item.business_revision_id);setError(null);setPostedProduct(null);
+    try{setCatalogPlan(await dataConnectionsApi.previewProviderCatalog(source.source_id,item.business_revision_id));}
+    catch(e){setError(label(t,ERROR_KEY[e.response?.status]||'connectData.providerRecords.loadFailed'));}
+    finally{setPending(null);}
+  };
+  const confirmCatalog=async()=>{
+    setPending(catalogPlan.revision);setError(null);
+    try{
+      const saved=await dataConnectionsApi.postProviderCatalog(source.source_id,{business_revision_id:catalogPlan.revision,preview_hash:catalogPlan.preview_hash});
+      setPostedProduct(saved.product_id);setCatalogPlan(null);await load(offset);
+      for(const key of ['products','product-catalog','catalog-product','subscription','dashboard-aggregate'])await queryClient.invalidateQueries({queryKey:[key]});
+    }catch(e){setError(label(t,ERROR_KEY[e.response?.status]||'connectData.providerRecords.reviewFailed'));}
+    finally{setPending(null);}
   };
 
   const decide = async (item, decision) => {
@@ -95,8 +117,9 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
           <td><strong>{t(`connectData.providerRecords.states.${item.validation_status}`)}</strong>
             {!!item.validation_findings?.length && <ul>{item.validation_findings.map((finding, index) => <li key={`${finding.code}-${index}`}>{finding.field}: {finding.code}</li>)}</ul>}
           </td>
-          <td>{item.review_decision ? t(`connectData.providerRecords.decisions.${item.review_decision}`) : t('connectData.providerRecords.states.notReviewed')}</td>
+          <td>{item.review_decision ? t(`connectData.providerRecords.decisions.${item.review_decision}`) : t('connectData.providerRecords.states.notReviewed')}{item.canonical_product_id&&<p><Link to={`/catalog/${item.canonical_product_id}`}>{t('connectData.providerRecords.catalogSaved')}</Link></p>}</td>
           <td><div className="provider-records__actions">
+            {['product','variant'].includes(item.entity_type)&&<Button size="sm" variant="outline" disabled={pending===item.business_revision_id||item.validation_status==='invalid'||item.review_decision==='reject'} onClick={()=>prepareCatalog(item)}>{t('connectData.providerRecords.catalogPreview')}</Button>}
             <Button size="sm" variant="outline" leadingIcon={history[item.provider_record_identity_id] ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               disabled={historyBusy === item.provider_record_identity_id} onClick={() => toggleHistory(item.provider_record_identity_id)}>
               {t('connectData.providerRecords.history')}
@@ -124,6 +147,12 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
       <span>{t('connectData.providerRecords.page', { page: Math.floor(offset / limit) + 1 })}</span>
       <Button size="sm" variant="outline" disabled={loading || items.length < limit} onClick={() => load(offset + limit)}>{t('connectData.providerRecords.next')}</Button>
     </div>
+    {postedProduct&&<p role="status"><Link to={`/catalog/${postedProduct}`}>{t('connectData.providerRecords.catalogSaved')}</Link></p>}
+    <Modal isOpen={Boolean(catalogPlan)} title={t('connectData.providerRecords.catalogPreview')} closeLabel={t('common.close')} onClose={()=>{if(!pending)setCatalogPlan(null);}}>
+      {catalogPlan&&<><p>{t('connectData.providerRecords.catalogBoundary')}</p><dl><dt>{t('catalog.fields.name')}</dt><dd>{catalogPlan.title}</dd><dt>{t('catalog.fields.sku')}</dt><dd dir="ltr">{catalogPlan.sku||t('catalog.unknown')}</dd><dt>{t('catalog.fields.price')}</dt><dd dir="ltr">{catalogPlan.price} {catalogPlan.currency}</dd></dl>
+      {catalogPlan.reasons.map(reason=><p role="alert" key={reason}>{t(`connectData.providerRecords.catalogFindings.${reason}`)}</p>)}
+      <Button disabled={!catalogPlan.eligible||Boolean(pending)} onClick={confirmCatalog}>{t(catalogPlan.action==='create'?'connectData.providerRecords.catalogCreate':'connectData.providerRecords.catalogLink')}</Button></>}
+    </Modal>
     <p className="provider-records__boundary">{t('connectData.providerRecords.notPosted')}</p>
   </section>;
 }

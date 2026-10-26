@@ -236,7 +236,7 @@ def test_http_429_retry_and_graphql_cursor_nonprogress_are_bounded():
     with pytest.raises(ShopifyError) as exc:
         list(_client(repeated).iter_products())
     assert exc.value.code == "pagination_nonprogress"
-    assert page_calls == 2
+    assert page_calls == 3  # verification, valid first page, repeated second page rejected
 
 
 def test_hmac_verification_checks_raw_body_topic_shop_and_delivery_identity():
@@ -300,3 +300,30 @@ def test_test_orders_are_only_included_when_explicitly_enabled(include_tests, ex
     records = list(client.iter_orders())
 
     assert [record.provider_id for record in records] == expected
+
+
+def test_real_scalar_variant_money_and_valid_outer_pagination_keep_authenticated_currency():
+    pages=[]
+    def handler(request):
+        query=_query(request)
+        if 'KeelVerifyShop' in query:return _scope_response(request,['read_products'])
+        payload=json.loads(request.content);after=payload['variables']['after'];pages.append(after)
+        assert 'price { amount currencyCode }' not in query
+        index=1 if after is None else 2;cursor='product-'+str(index)
+        node={'id':f'gid://shopify/Product/{index}','title':'Synthetic scalar product','variants':{'edges':[{'cursor':'variant-'+str(index),'node':{'id':f'gid://shopify/ProductVariant/{index}','title':'Default Title','price':'12.50','compareAtPrice':'15.00'}}],'pageInfo':{'hasNextPage':False,'endCursor':'variant-'+str(index)}}}
+        return _response(request,{'data':{'products':{'edges':[{'cursor':cursor,'node':node}],'pageInfo':{'hasNextPage':index==1,'endCursor':cursor}}}})
+    records=list(_client(handler).iter_products());assert pages==[None,'product-1']
+    variants=[r for r in records if r.entity_type=='variant'];assert len(variants)==2
+    assert all(r.payload['price']=={'amount':'12.50','currencyCode':'USD'} for r in variants)
+    assert all(r.payload['compareAtPrice']=={'amount':'15.00','currencyCode':'USD'} for r in variants)
+
+
+def test_nested_variant_pagination_rejects_repeating_initial_cursor():
+    def handler(request):
+        query=_query(request)
+        if 'KeelVerifyShop' in query:return _scope_response(request,['read_products'])
+        edge={'cursor':'same-cursor','node':{'id':'gid://shopify/ProductVariant/1','title':'One','price':'1.00'}}
+        if 'KeelProductVariants' in query:return _response(request,{'data':{'product':{'variants':{'edges':[edge],'pageInfo':{'hasNextPage':False,'endCursor':'same-cursor'}}}}})
+        node={'id':'gid://shopify/Product/1','title':'One','variants':{'edges':[edge],'pageInfo':{'hasNextPage':True,'endCursor':'same-cursor'}}}
+        return _response(request,{'data':{'products':{'edges':[{'cursor':'p1','node':node}],'pageInfo':{'hasNextPage':False,'endCursor':'p1'}}}})
+    with pytest.raises(ShopifyError,match='repeated'):list(_client(handler).iter_products())

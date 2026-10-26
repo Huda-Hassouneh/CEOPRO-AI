@@ -13,10 +13,13 @@ def normalize_sku(value):
     if not SKU_PATTERN.fullmatch(value):raise ValueError("SKU must contain 1–100 letters, digits, dots, underscores or hyphens, beginning with a letter or digit.")
     return value
 
+def normalize_reference(value):
+    return re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(value)).strip()).lower()
+
 def match_reference(reference, products):
     predicates=[]
     # Original normalizeProductReference: NFKC, trim/collapse whitespace, locale-neutral lowercase.
-    norm=lambda x:re.sub(r'\s+',' ',unicodedata.normalize('NFKC',str(x)).strip()).lower()
+    norm=normalize_reference
     if reference.get('product_id'):
         try:pid=str(UUID(str(reference['product_id'])))
         except ValueError:raise HTTPException(422,'Invalid product identifier.') from None

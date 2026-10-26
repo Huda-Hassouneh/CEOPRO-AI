@@ -1870,3 +1870,5 @@ Original catalog/table/detail/GTIN components restored at additive /catalog rout
 ### Differential verification defect remediation checkpoint ? 2026-10-26
 
 Affected143 regressions and fresh129/upgrade123+6/repeat0 proof passed;33 fresh API tests passed. Added impact tests exposed pricing receipt foreign keys blocking ordinary company deletion; additive130 cleanup migration fixes this without allowing direct result deletion. Existing M97 import retention constraints now surface explicit409 before any deletion rather than an SQL500; constraints not weakened. Cleanup group22 and catalog search10 passed. Reproducible disposable migration proof script added; final130 proof pending at this checkpoint.
+
+2026-10-26 source catalog checkpoint: provider_catalog, restricted revision/source guards131-133, actual Shopify scalar prices/pagination, Woo typed product values, original ProviderRecordsPanel review and real database/browser tests. No alternate inventory, credit, catalog or worker authority. See REMAINING_INTEGRATION_CHECKPOINT.md.

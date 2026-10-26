@@ -3321,7 +3321,7 @@
       "open": "View synced records",
       "close": "Close records",
       "title": "Provider records",
-      "notice": "These are fetched source records for review. Review approval does not post canonical products or orders, create invoices, or update stock.",
+      "notice": "Fetched records are source evidence. Catalog creation or linking requires its own explicit confirmation.",
       "refresh": "Refresh",
       "loading": "Loading provider records…",
       "empty": "No provider business records have been staged yet.",
@@ -3338,7 +3338,7 @@
       "reject": "Reject review",
       "confirmApprove": "Record approval of this staged provider record? This will not post it to canonical data.",
       "confirmReject": "Record rejection of this staged provider record?",
-      "notPosted": "Canonical status: not posted. Provider records remain source-scoped evidence.",
+      "notPosted": "Catalog links are shown on their records. Order, refund and source-owned stock reconciliation remain subject to review.",
       "revision": "Revision {{number}}",
       "previous": "Previous",
       "next": "Next",
@@ -3364,6 +3364,22 @@
       "decisions": {
         "approve": "Approved for review only",
         "reject": "Rejected"
+      },
+      "catalogPreview": "Review catalog import",
+      "catalogCreate": "Confirm catalog product creation",
+      "catalogLink": "Confirm existing product link",
+      "catalogSaved": "View the linked catalog product",
+      "catalogBoundary": "Confirm the source identity and price. This creates a new catalog product or links matching records. Existing canonical prices and inventory remain unchanged.",
+      "catalogFindings": {
+        "unsupported_entity": "Choose a product or priced variant for catalog import.",
+        "validation_review": "Resolve rejected, invalid or conflicting source evidence first.",
+        "canonical_title": "A product title of at most 250 characters is required.",
+        "sku_format": "The source SKU must meet the catalog format.",
+        "source_price": "Choose a variant with a valid source price, up to four decimal places.",
+        "unsupported_currency": "Add the source currency to company supported currencies before importing.",
+        "barcode_invalid": "The source barcode check digit is invalid.",
+        "associated_product_unavailable": "The linked product is archived or unavailable.",
+        "identity_conflict": "Source identifiers conflict or match multiple products. Review the association first."
       }
     },
     "upload": {
