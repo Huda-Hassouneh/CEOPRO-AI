@@ -37,7 +37,7 @@ Global owner administration uses existing platform authorization and approved da
 
 ## Fixtures and recovery
 
-`seed` generates synthetic business import files under `.dev/fixtures`. Load selected files through normal authenticated import/review endpoints after signup/OTP. No provider costs, binding offers or paid subscriptions are seeded.
+`seed` generates synthetic business import files under `.dev/fixtures/quickstart`. Load selected files through normal authenticated import/review endpoints after signup/OTP. No provider costs, binding offers or paid subscriptions are seeded.
 
 Fresh database tests retain their generated DBs and names for diagnosis. There is intentionally no implicit cleanup/reset command. If manually removing disposable resources, first inspect their project/root labels and generated names. Never run `docker compose down -v` against an unidentified project.
 

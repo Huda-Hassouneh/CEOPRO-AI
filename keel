@@ -22,6 +22,20 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
+# Native/local commands share the Windows developer orchestrator. The original
+# Codespaces lifecycle remains below for its existing forwarded-port setup.
+if [ -z "${CODESPACE_NAME:-}" ]; then
+  case "${1:-help}" in
+    setup|up|down|restart|status|logs|doctor|migrate|db-status|db-check|seed|test)
+      exec bash "$ROOT/dev.sh" "$@" ;;
+    start) shift; exec bash "$ROOT/dev.sh" up "$@" ;;
+    stop) shift; exec bash "$ROOT/dev.sh" down "$@" ;;
+    workers) shift; exec bash "$ROOT/dev.sh" up --mode full "$@" ;;
+    check) shift; exec bash "$ROOT/dev.sh" doctor "$@" ;;
+    help|--help|-h) exec bash "$ROOT/dev.sh" --help ;;
+  esac
+fi
+
 BACKEND_PORT="${KEEL_BACKEND_PORT:-8000}"
 FRONTEND_PORT="${KEEL_FRONTEND_PORT:-5173}"
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }

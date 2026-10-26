@@ -79,7 +79,7 @@ Use `down` before switching worker modes or changing ports. `up` is repeatable. 
 
 [Database guide](docs/DATABASE.md) explains migration/admin versus restricted application credentials. Startup uses [scripts/apply_migrations.py](backend/scripts/apply_migrations.py); applied migration files remain immutable.
 
-`seed` generates labeled synthetic files in `.dev/fixtures`. It **does not load database records**. Sign up, verify your email in Mailpit, then use the application's import/review workflow. This preserves onboarding, entitlement checks and canonical data ownership.
+`seed` generates labeled synthetic files in `.dev/fixtures/quickstart`. It **does not load database records**. Sign up, verify your email in Mailpit, then use the application's import/review workflow. This preserves onboarding, entitlement checks and canonical data ownership.
 
 ## Workers and external integrations
 
