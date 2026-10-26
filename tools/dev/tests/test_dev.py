@@ -129,7 +129,7 @@ class DevTests(unittest.TestCase):
     def test_native_stderr_not_terminating_in_windows_wrapper(self):
         wrapper = (SOURCE.parents[2] / "dev.ps1").read_text(encoding="utf-8")
         self.assertIn("$ErrorActionPreference = 'Continue'", wrapper)
-        self.assertIn("exit $LASTEXITCODE", wrapper)
+        self.assertIn("exit $global:LASTEXITCODE", wrapper)
 
     def test_constraints_are_sanitized_from_real_manifests(self):
         code = SOURCE.read_text(encoding="utf-8")
@@ -185,3 +185,15 @@ class DevTests(unittest.TestCase):
             with self.assertRaisesRegex(dev.DevError, "Remote/TCP/SSH"):
                 dev.docker_base()
         self.assertEqual(calls.call_count, 2)
+
+    @unittest.skipUnless(os.name == "nt", "Windows launcher contract")
+    def test_windows_launcher_propagates_success(self):
+        import subprocess
+        result = subprocess.run(["powershell.exe", "-NoProfile", "-File", str(SOURCE.parents[2] / "dev.ps1"), "--help"], capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+
+    @unittest.skipUnless(os.name == "nt", "Windows launcher contract")
+    def test_windows_launcher_propagates_failure(self):
+        import subprocess
+        result = subprocess.run(["powershell.exe", "-NoProfile", "-File", str(SOURCE.parents[2] / "dev.ps1"), "not-a-command"], capture_output=True)
+        self.assertEqual(result.returncode, 2)
