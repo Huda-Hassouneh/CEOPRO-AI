@@ -1,0 +1,40 @@
+# Lightweight application/runtime dependencies, constrained by the authoritative manifests.
+# Model libraries are installed separately by setup --models; no model substitutes.
+-c ../../backend/src/ai/requirements.txt
+-c ../../backend/src/market_scraper/requirements.txt
+xgboost
+pandas
+numpy
+scikit-learn
+psycopg2-binary
+redis
+cryptography
+rank-bm25
+minio
+pytest
+pdfplumber
+openpyxl
+python-docx
+fastapi
+uvicorn
+PyJWT
+bcrypt
+python-multipart
+httpx
+pyarrow
+charset-normalizer
+pytz
+python-dateutil
+psutil
+extruct
+Scrapy
+scrapy-playwright
+prometheus-client
+stripe
+sentry-sdk[fastapi]
+reportlab
+arabic-reshaper
+python-bidi
+Pillow
+pytesseract
+boto3
