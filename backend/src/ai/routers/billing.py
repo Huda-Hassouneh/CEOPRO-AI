@@ -416,6 +416,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
             _iso(subscription["trial_end"]) if subscription and subscription["status"] == "trialing" else None
         ),
         "trialUsed": trial is not None,
+        "checkoutTrialEndsAt": service.checkout_trial_end(trial) if not subscription else None,
         "renewsAt": _iso(subscription["current_period_end"]) if subscription and not subscription["cancel_at_period_end"] else None,
         "endsAt": _iso(subscription["current_period_end"]) if subscription and subscription["cancel_at_period_end"] else None,
         "cancelAtPeriodEnd": bool(subscription and subscription["cancel_at_period_end"]),

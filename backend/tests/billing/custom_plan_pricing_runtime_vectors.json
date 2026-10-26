@@ -1,0 +1,496 @@
+{
+  "source_sha256": "aebd5256f8f149ef055c352cd5922822175900eed785ea08df085fa242fcff2e",
+  "execution": "Original Node TypeScript pure function stripped in memory, original Prisma Decimal; no source/database mutation",
+  "vectors": [
+    {
+      "name": "test_cost_margin_fee_and_round_up_order_matches_node_formula",
+      "input": {
+        "quoteCurrency": "USD",
+        "features": [
+          {
+            "featureId": "f1",
+            "featureCode": "feature_a",
+            "limitValue": 10,
+            "estimatedUsage": 10
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "r1",
+            "featureId": "f1",
+            "vendor": "v",
+            "service": "s",
+            "billingUnit": "unit",
+            "unitCost": "0.10",
+            "currency": "USD",
+            "operationalMultiplier": "1.2",
+            "variabilityReserve": "1.1",
+            "verificationStatus": "confirmed"
+          }
+        ],
+        "monthlyInfrastructureCost": "30",
+        "activePayingTenants": 3,
+        "estimatedOtherCost": "2",
+        "targetGrossMargin": "0.2",
+        "fixedPlatformFee": "1",
+        "roundingIncrement": "5"
+      },
+      "expected": {
+        "estimatedVendorCost": "1.32",
+        "estimatedInfrastructureCost": "10.00",
+        "estimatedOtherCost": "2.00",
+        "estimatedTotalCost": "13.32",
+        "grossMarginFloor": "16.65",
+        "vendorCostRatioFloor": "0.00",
+        "minimumSafePrice": "16.65",
+        "fixedPlatformFee": "1.00",
+        "recommendedPriceBeforeRounding": "17.65",
+        "recommendedPrice": "20.00",
+        "targetGrossMargin": "0.20",
+        "baseInfrastructureCost": "10.00",
+        "usageDrivenInfrastructureCost": "0.00"
+      }
+    },
+    {
+      "name": "test_competitor_cadence_multiplies_competitors_runs_and_units",
+      "input": {
+        "quoteCurrency": "USD",
+        "features": [
+          {
+            "featureId": "monitor",
+            "featureCode": "competitor_management",
+            "estimatedUsage": 1,
+            "configuration": {
+              "monitoringFrequencyMinutes": 1440,
+              "monitoringChecksPerMonth": 30
+            }
+          },
+          {
+            "featureId": "capacity",
+            "featureCode": "tracked_competitors",
+            "limitValue": 2,
+            "estimatedUsage": 2
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "r1",
+            "featureId": "monitor",
+            "vendor": "v",
+            "service": "scrape",
+            "billingUnit": "request",
+            "unitCost": "0.02",
+            "currency": "USD",
+            "operationalMultiplier": "1",
+            "variabilityReserve": "1",
+            "verificationStatus": "confirmed",
+            "metadata": {
+              "usageAssumption": {
+                "model": "competitor_monitoring",
+                "unitsPerCompetitorCheck": "0.5"
+              }
+            },
+            "feature": {
+              "code": "competitor_management"
+            }
+          }
+        ],
+        "monthlyInfrastructureCost": 0,
+        "activePayingTenants": 1,
+        "estimatedOtherCost": 0,
+        "targetGrossMargin": "0.2",
+        "vendorCostRequiredFeatureIds": [
+          "monitor"
+        ]
+      },
+      "expected": {
+        "estimatedVendorCost": "0.60",
+        "estimatedInfrastructureCost": "0.00",
+        "estimatedOtherCost": "0.00",
+        "estimatedTotalCost": "0.60",
+        "grossMarginFloor": "0.75",
+        "vendorCostRatioFloor": "0.00",
+        "minimumSafePrice": "0.75",
+        "fixedPlatformFee": "0.00",
+        "recommendedPriceBeforeRounding": "0.75",
+        "recommendedPrice": "0.75",
+        "targetGrossMargin": "0.20",
+        "baseInfrastructureCost": "0.00",
+        "usageDrivenInfrastructureCost": "0.00"
+      }
+    },
+    {
+      "name": "test_infrastructure_allocation_and_vendor_ratio_floor",
+      "input": {
+        "quoteCurrency": "USD",
+        "features": [
+          {
+            "featureId": "f",
+            "featureCode": "feature_a",
+            "limitValue": 100,
+            "estimatedUsage": 100
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "v1",
+            "featureId": "f",
+            "vendor": "v",
+            "service": "s",
+            "billingUnit": "unit",
+            "unitCost": "0.5",
+            "currency": "USD",
+            "operationalMultiplier": 1,
+            "variabilityReserve": 1,
+            "verificationStatus": "confirmed"
+          }
+        ],
+        "infrastructureRates": [
+          {
+            "id": "i1",
+            "featureId": "f",
+            "costDriver": "storage",
+            "usageBasis": "limit_value",
+            "billingUnit": "GB",
+            "billingUnitsPerFeatureUnit": "0.1",
+            "unitCost": "2",
+            "currency": "USD",
+            "operationalMultiplier": 1,
+            "variabilityReserve": 1,
+            "verificationStatus": "confirmed"
+          },
+          {
+            "id": "i2",
+            "featureId": "f",
+            "costDriver": "storage",
+            "usageBasis": "limit_value",
+            "billingUnit": "GB",
+            "billingUnitsPerFeatureUnit": "1",
+            "unitCost": "99",
+            "currency": "USD",
+            "operationalMultiplier": 1,
+            "variabilityReserve": 1,
+            "verificationStatus": "confirmed"
+          }
+        ],
+        "monthlyInfrastructureCost": "30",
+        "activePayingTenants": 3,
+        "estimatedOtherCost": 0,
+        "targetGrossMargin": "0.2",
+        "maxVendorCostRevenueRatio": "0.1",
+        "enforceVendorCostRatioFloor": true,
+        "fixedPlatformFee": "3",
+        "roundingIncrement": "10"
+      },
+      "expected": {
+        "estimatedVendorCost": "50.00",
+        "estimatedInfrastructureCost": "30.00",
+        "estimatedOtherCost": "0.00",
+        "estimatedTotalCost": "80.00",
+        "grossMarginFloor": "100.00",
+        "vendorCostRatioFloor": "500.00",
+        "minimumSafePrice": "500.00",
+        "fixedPlatformFee": "3.00",
+        "recommendedPriceBeforeRounding": "503.00",
+        "recommendedPrice": "510.00",
+        "targetGrossMargin": "0.20",
+        "maxVendorCostRevenueRatio": "0.10",
+        "baseInfrastructureCost": "10.00",
+        "usageDrivenInfrastructureCost": "20.00"
+      }
+    },
+    {
+      "name": "test_fx_conversion_and_unconfirmed_rate_warning",
+      "input": {
+        "quoteCurrency": "JOD",
+        "features": [
+          {
+            "featureId": "f",
+            "estimatedUsage": 1
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "r",
+            "featureId": "f",
+            "vendor": "v",
+            "service": "s",
+            "billingUnit": "unit",
+            "unitCost": "1",
+            "currency": "USD",
+            "operationalMultiplier": 1,
+            "variabilityReserve": 1,
+            "verificationStatus": "estimated"
+          }
+        ],
+        "monthlyInfrastructureCost": 0,
+        "activePayingTenants": 1,
+        "estimatedOtherCost": 0,
+        "targetGrossMargin": "0.2",
+        "fxRate": "0.709",
+        "fxSourceCurrency": "USD",
+        "fxTargetCurrency": "JOD"
+      },
+      "expected": {
+        "estimatedVendorCost": "0.71",
+        "estimatedInfrastructureCost": "0.00",
+        "estimatedOtherCost": "0.00",
+        "estimatedTotalCost": "0.71",
+        "grossMarginFloor": "0.89",
+        "vendorCostRatioFloor": "0.00",
+        "minimumSafePrice": "0.89",
+        "fixedPlatformFee": "0.00",
+        "recommendedPriceBeforeRounding": "0.89",
+        "recommendedPrice": "0.89",
+        "targetGrossMargin": "0.20",
+        "baseInfrastructureCost": "0.00",
+        "usageDrivenInfrastructureCost": "0.00"
+      }
+    },
+    {
+      "name": "rounding-boundary-0.0049",
+      "input": {
+        "quoteCurrency": "USD",
+        "features": [
+          {
+            "featureId": "f1",
+            "featureCode": "feature_a",
+            "limitValue": 10,
+            "estimatedUsage": 10
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "r1",
+            "featureId": "f1",
+            "vendor": "v",
+            "service": "s",
+            "billingUnit": "unit",
+            "unitCost": "0.0049",
+            "currency": "USD",
+            "operationalMultiplier": "1",
+            "variabilityReserve": "1",
+            "verificationStatus": "confirmed"
+          }
+        ],
+        "monthlyInfrastructureCost": 0,
+        "activePayingTenants": 1,
+        "estimatedOtherCost": 0,
+        "targetGrossMargin": "0.25",
+        "fixedPlatformFee": "0",
+        "roundingIncrement": "0.01"
+      },
+      "expected": {
+        "estimatedVendorCost": "0.05",
+        "estimatedInfrastructureCost": "0.00",
+        "estimatedOtherCost": "0.00",
+        "estimatedTotalCost": "0.05",
+        "grossMarginFloor": "0.07",
+        "vendorCostRatioFloor": "0.00",
+        "minimumSafePrice": "0.07",
+        "fixedPlatformFee": "0.00",
+        "recommendedPriceBeforeRounding": "0.07",
+        "recommendedPrice": "0.07",
+        "targetGrossMargin": "0.25",
+        "baseInfrastructureCost": "0.00",
+        "usageDrivenInfrastructureCost": "0.00"
+      }
+    },
+    {
+      "name": "rounding-boundary-0.005",
+      "input": {
+        "quoteCurrency": "USD",
+        "features": [
+          {
+            "featureId": "f1",
+            "featureCode": "feature_a",
+            "limitValue": 10,
+            "estimatedUsage": 10
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "r1",
+            "featureId": "f1",
+            "vendor": "v",
+            "service": "s",
+            "billingUnit": "unit",
+            "unitCost": "0.005",
+            "currency": "USD",
+            "operationalMultiplier": "1",
+            "variabilityReserve": "1",
+            "verificationStatus": "confirmed"
+          }
+        ],
+        "monthlyInfrastructureCost": 0,
+        "activePayingTenants": 1,
+        "estimatedOtherCost": 0,
+        "targetGrossMargin": "0.25",
+        "fixedPlatformFee": "0",
+        "roundingIncrement": "0.01"
+      },
+      "expected": {
+        "estimatedVendorCost": "0.05",
+        "estimatedInfrastructureCost": "0.00",
+        "estimatedOtherCost": "0.00",
+        "estimatedTotalCost": "0.05",
+        "grossMarginFloor": "0.07",
+        "vendorCostRatioFloor": "0.00",
+        "minimumSafePrice": "0.07",
+        "fixedPlatformFee": "0.00",
+        "recommendedPriceBeforeRounding": "0.07",
+        "recommendedPrice": "0.07",
+        "targetGrossMargin": "0.25",
+        "baseInfrastructureCost": "0.00",
+        "usageDrivenInfrastructureCost": "0.00"
+      }
+    },
+    {
+      "name": "rounding-boundary-0.0051",
+      "input": {
+        "quoteCurrency": "USD",
+        "features": [
+          {
+            "featureId": "f1",
+            "featureCode": "feature_a",
+            "limitValue": 10,
+            "estimatedUsage": 10
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "r1",
+            "featureId": "f1",
+            "vendor": "v",
+            "service": "s",
+            "billingUnit": "unit",
+            "unitCost": "0.0051",
+            "currency": "USD",
+            "operationalMultiplier": "1",
+            "variabilityReserve": "1",
+            "verificationStatus": "confirmed"
+          }
+        ],
+        "monthlyInfrastructureCost": 0,
+        "activePayingTenants": 1,
+        "estimatedOtherCost": 0,
+        "targetGrossMargin": "0.25",
+        "fixedPlatformFee": "0",
+        "roundingIncrement": "0.01"
+      },
+      "expected": {
+        "estimatedVendorCost": "0.05",
+        "estimatedInfrastructureCost": "0.00",
+        "estimatedOtherCost": "0.00",
+        "estimatedTotalCost": "0.05",
+        "grossMarginFloor": "0.07",
+        "vendorCostRatioFloor": "0.00",
+        "minimumSafePrice": "0.07",
+        "fixedPlatformFee": "0.00",
+        "recommendedPriceBeforeRounding": "0.07",
+        "recommendedPrice": "0.07",
+        "targetGrossMargin": "0.25",
+        "baseInfrastructureCost": "0.00",
+        "usageDrivenInfrastructureCost": "0.00"
+      }
+    },
+    {
+      "name": "rounding-boundary-0.9999",
+      "input": {
+        "quoteCurrency": "USD",
+        "features": [
+          {
+            "featureId": "f1",
+            "featureCode": "feature_a",
+            "limitValue": 10,
+            "estimatedUsage": 10
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "r1",
+            "featureId": "f1",
+            "vendor": "v",
+            "service": "s",
+            "billingUnit": "unit",
+            "unitCost": "0.9999",
+            "currency": "USD",
+            "operationalMultiplier": "1",
+            "variabilityReserve": "1",
+            "verificationStatus": "confirmed"
+          }
+        ],
+        "monthlyInfrastructureCost": 0,
+        "activePayingTenants": 1,
+        "estimatedOtherCost": 0,
+        "targetGrossMargin": "0.25",
+        "fixedPlatformFee": "0",
+        "roundingIncrement": "0.01"
+      },
+      "expected": {
+        "estimatedVendorCost": "10.00",
+        "estimatedInfrastructureCost": "0.00",
+        "estimatedOtherCost": "0.00",
+        "estimatedTotalCost": "10.00",
+        "grossMarginFloor": "13.33",
+        "vendorCostRatioFloor": "0.00",
+        "minimumSafePrice": "13.33",
+        "fixedPlatformFee": "0.00",
+        "recommendedPriceBeforeRounding": "13.33",
+        "recommendedPrice": "13.34",
+        "targetGrossMargin": "0.25",
+        "baseInfrastructureCost": "0.00",
+        "usageDrivenInfrastructureCost": "0.00"
+      }
+    },
+    {
+      "name": "rounding-boundary-1.0001",
+      "input": {
+        "quoteCurrency": "USD",
+        "features": [
+          {
+            "featureId": "f1",
+            "featureCode": "feature_a",
+            "limitValue": 10,
+            "estimatedUsage": 10
+          }
+        ],
+        "vendorRates": [
+          {
+            "id": "r1",
+            "featureId": "f1",
+            "vendor": "v",
+            "service": "s",
+            "billingUnit": "unit",
+            "unitCost": "1.0001",
+            "currency": "USD",
+            "operationalMultiplier": "1",
+            "variabilityReserve": "1",
+            "verificationStatus": "confirmed"
+          }
+        ],
+        "monthlyInfrastructureCost": 0,
+        "activePayingTenants": 1,
+        "estimatedOtherCost": 0,
+        "targetGrossMargin": "0.25",
+        "fixedPlatformFee": "0",
+        "roundingIncrement": "0.01"
+      },
+      "expected": {
+        "estimatedVendorCost": "10.00",
+        "estimatedInfrastructureCost": "0.00",
+        "estimatedOtherCost": "0.00",
+        "estimatedTotalCost": "10.00",
+        "grossMarginFloor": "13.33",
+        "vendorCostRatioFloor": "0.00",
+        "minimumSafePrice": "13.33",
+        "fixedPlatformFee": "0.00",
+        "recommendedPriceBeforeRounding": "13.33",
+        "recommendedPrice": "13.34",
+        "targetGrossMargin": "0.25",
+        "baseInfrastructureCost": "0.00",
+        "usageDrivenInfrastructureCost": "0.00"
+      }
+    }
+  ]
+}
