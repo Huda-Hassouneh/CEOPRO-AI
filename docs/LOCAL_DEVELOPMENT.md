@@ -91,3 +91,5 @@ Ports and per-checkout secrets live only in `.dev/config.json`. Change ports whi
 Run dev.ps1 test --suite browser after startup with Chrome/Chromium installed (or set CHROMIUM_PATH in private integrations.env). It checks actual English/Arabic login/signup rendering, mobile RTL, the Python proxy/public plans and unauthorized owner denial. It creates no accounts, quotes or payments. Screenshots/results remain private under .dev/evidence.
 
 Frontend test-file concurrency is bounded to two processes so simultaneous Vite SSR test servers do not exhaust a developer machine. Every existing assertion still runs.
+
+If multiple Python versions are installed, Unix can select one with KEEL_PYTHON=python3.12 bash dev.sh setup. On Windows invoke a compatible interpreter explicitly against tools/dev/dev.py setup before using dev.ps1. Do not copy another checkout's venv.

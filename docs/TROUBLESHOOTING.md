@@ -5,6 +5,7 @@ Start with `dev.ps1 doctor`, `dev.ps1 status`, then `dev.ps1 logs --service api 
 | Symptom | Diagnosis and safe recovery |
 |---|---|
 | Docker unavailable / pipe denied | Start Docker Desktop in Linux-container mode. Confirm your user can run `docker info`. A sandbox may need an approved host execution context; do not bypass restrictions. No DB changes occur before the check. |
+| PowerShell scripts disabled | Follow your organization's approved script-signing/unblocking workflow; do not change system policy automatically. Where Python invocation is permitted, the same entry point is tools/dev/dev.py (setup, then .dev/venv/Scripts/python.exe tools/dev/dev.py up). |
 | Python not found / wrong version | Install 64-bit CPython 3.11/3.12 and reopen the terminal. Windows' Store alias is not a Python installation. Use an explicit compatible Python to invoke `tools/dev/dev.py setup` if needed. |
 | Node rejected / Vite engine error | Use Node 24 LTS or 22.12+. Old instructions mentioning Node 20 predate Vite 8. Reopen the terminal and rerun setup. |
 | Dependency installation fails | Inspect the installer output, disk space, configured package index and organization proxy. Resolve approved network access; do not copy a personal venv as a fresh-clone fix. Rerun setup. No production credentials are needed. |
