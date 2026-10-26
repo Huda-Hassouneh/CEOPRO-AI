@@ -141,6 +141,12 @@ def checkout_status(conn, tenant_id: str, session_id: str) -> dict:
     return {'state':'confirmed' if confirmed else 'pending', 'subscription_status':sub['status'] if sub else None}
 
 
+def checkout_trial_end(trial, now=None):
+    """The existing preserved-trial rule, shared with the customer review DTO."""
+    now = time.time() if now is None else now
+    return int(trial["ends_at"].timestamp()) if trial and trial["ends_at"].timestamp() > now + 48 * 3600 else None
+
+
 def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
                     plan_key: str, period_code: str, promotion_code: str | None = None,
                     actor_user_id: str | None = None, _attempt=None) -> dict:
@@ -163,8 +169,8 @@ def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: s
     # A company still inside its free trial keeps those days: billing starts
     # when the trial would have ended. The trial is never granted twice.
     trial = store.trial(conn, tenant_id)
-    if trial and trial["ends_at"].timestamp() > time.time() + 48 * 3600:
-        subscription_data["trial_end"] = int(trial["ends_at"].timestamp())
+    if checkout_trial_end(trial):
+        subscription_data["trial_end"] = checkout_trial_end(trial)
         subscription_data["trial_settings"] = {"end_behavior": {"missing_payment_method": "cancel"}}
 
     base = config.app_base_url()
