@@ -1,3 +1,6 @@
+import {Navigate} from 'react-router-dom';
+import {onboardingApi} from '../../onboarding/api/onboardingApi.js';
+import {useAuthStore} from '../../auth/store/authStore.js';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -8,6 +11,8 @@ export function CheckoutReturnNotice() {
   const { t } = useI18n();
   const result = params.get('checkout');
   const sessionId = params.get('session_id');
+  const tenant=useAuthStore(s=>s.tenantId);
+  const setup=useQuery({queryKey:['onboarding-state',tenant,'checkout-return'],queryFn:onboardingApi.getState,enabled:Boolean(result),retry:false});
   const close = useMutation({ mutationFn: async () => (await httpClient.post('/billing/checkout/cancel-pending')).data });
   const query = useQuery({ queryKey: ['checkout-return', sessionId], enabled: result === 'success' && Boolean(sessionId),
     queryFn: async () => (await httpClient.get('/billing/checkout-status', { params: { session_id: sessionId } })).data,
@@ -15,6 +20,10 @@ export function CheckoutReturnNotice() {
     retry: false,
   });
   if (!result) return null;
+  if(setup.data && !setup.data.isComplete && setup.data.highestCompletedStep>=5){
+    if(result==='success'&&query.data?.state==='confirmed')return <Navigate replace to={'/onboarding/plan/success?'+new URLSearchParams({session_id:sessionId})}/>;
+    if(result==='cancelled')return <Navigate replace to="/onboarding/plan/failed"/>;
+  }
   const key = result === 'cancelled' ? 'cancelled' : query.isError ? 'unavailable' : query.data?.state === 'confirmed' ? 'confirmed' : 'pending';
   return <div className="billing-inline-notice" role="status"><p>{t(`billing.returnState.${key}`)}</p>
     {result === 'cancelled' && <><Button size="sm" variant="outline" disabled={close.isSuccess} loading={close.isPending} onClick={() => close.mutate()}>{t('billing.returnState.closeCheckout')}</Button>

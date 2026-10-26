@@ -8,7 +8,7 @@ import '../styles/CustomPlan.css';
 export function CustomPlanCard({ returnTo = routePaths.billing }) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const target = routePaths.customPlanBuilder + '?returnTo=' + encodeURIComponent(returnTo);
+  const target = (returnTo === routePaths.onboardingPlan ? routePaths.onboardingPlanCustom : routePaths.customPlanBuilder) + '?returnTo=' + encodeURIComponent(returnTo);
   return <article className="ceopro-plan-card custom-plan-card">
     <header><span className="ceopro-plan-card__icon"><Landmark size={21} aria-hidden="true" /></span><div><h2>{t('billing.customPlan.cardTitle')}</h2><p>{t('billing.customPlan.cardDescription')}</p></div></header>
     <div className="ceopro-plan-card__price"><strong>{t('billing.plans.customPricing')}</strong></div>

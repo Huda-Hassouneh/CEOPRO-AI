@@ -2599,7 +2599,9 @@
       "providerNotice": "You will be redirected to Stripe to complete payment securely.",
       "redirecting": "Redirecting to Stripe...",
       "error": "Checkout could not be started. Please try again.",
-      "planTrial": "{{plan}} trial"
+      "planTrial": "{{plan}} trial",
+      "catalogBeforePromotion": "Catalog amount before promotion",
+      "stripeConfirmsPromotion": "Stripe confirms the final discounted amount before you pay."
     },
     "result": {
       "success": {
@@ -5567,5 +5569,291 @@
     "partialSalesFile": "The server received only part of this file. Re-upload the complete sales CSV to recover missing rows.",
     "stagedCountMismatch": "The number of staged sales does not match the full file.",
     "ragAnswerMissing": "No RAG answer returned"
+  },
+  "onboarding": {
+    "common": {
+      "setup": "Setup",
+      "userAvatar": "User profile",
+      "stepAccessible": "Step {{step}}",
+      "stepOf": "Step {{step}} of {{total}}",
+      "progressLabel": "Onboarding progress",
+      "back": "Back",
+      "continue": "Continue"
+    },
+    "account": {
+      "title": "Account profile",
+      "open": "Open account profile",
+      "close": "Close account profile",
+      "activeLanguage": "Active application language: {{language}}",
+      "company": "Company",
+      "notAvailable": "Not available"
+    },
+    "industry": {
+      "title": "Select your industry",
+      "subtitle": "Help us tailor your dashboard metrics and AI predictions by selecting your primary business sector.",
+      "options": {
+        "retail": "Retail",
+        "tech": "Tech",
+        "manufacturing": "Manufacturing",
+        "restaurants": "Restaurants",
+        "healthcare": "Healthcare",
+        "other": "Other"
+      }
+    },
+    "business": {
+      "title": "Tell us about your business",
+      "subtitle": "This helps us personalize your experience and provide more relevant insights.",
+      "sizeLabel": "Business size",
+      "sizeHint": "How many employees work at your company?",
+      "sizeDescriptions": {
+        "0": "Small",
+        "1": "Medium",
+        "2": "Enterprise"
+      },
+      "revenueLabel": "Annual revenue range",
+      "revenueHint": "What is your company's estimated annual revenue?",
+      "revenueOptions": {
+        "under-100k": "Under $100K",
+        "100k-500k": "$100K–$500K",
+        "500k-1m": "$500K–$1M",
+        "1m-10m": "$1M–$10M",
+        "10m-50m": "$10M–$50M",
+        "50m+": "$50M+"
+      }
+    },
+    "region": {
+      "title": "Regional Preferences",
+      "subtitle": "Help us tailor your experience with the right regional settings.",
+      "countryLabel": "Country",
+      "countryHint": "Select your country or business location",
+      "cityLabel": "City",
+      "cityHint": "Select your city",
+      "cityPlaceholder": "Select a city",
+      "languageLabel": "Language",
+      "languageHint": "Choose the language for your KEEL application",
+      "noteMarket": "Your country and city help KEEL show competitors relevant to your market.",
+      "noteLanguage": "Your language preference applies across the application and can be changed later in Settings.",
+      "countries": {
+        "belgium": "Belgium",
+        "france": "France",
+        "luxembourg": "Luxembourg",
+        "moldova": "Moldova",
+        "poland": "Poland",
+        "romania": "Romania",
+        "slovakia": "Slovakia",
+        "spain": "Spain",
+        "botswana": "Botswana",
+        "burkinaFaso": "Burkina Faso",
+        "cameroon": "Cameroon",
+        "centralAfricanRepublic": "Central African Republic",
+        "coteDIvoire": "Côte d’Ivoire",
+        "democraticRepublicCongo": "Democratic Republic of Congo",
+        "egypt": "Egypt",
+        "guinea": "Guinea",
+        "guineaBissau": "Guinea-Bissau",
+        "jordan": "Jordan",
+        "liberia": "Liberia",
+        "mali": "Mali",
+        "morocco": "Morocco",
+        "senegal": "Senegal",
+        "sierraLeone": "Sierra Leone",
+        "tunisia": "Tunisia"
+      },
+      "cities": {
+        "brussels": "Brussels",
+        "antwerp": "Antwerp",
+        "liege": "Liège",
+        "paris": "Paris",
+        "lyon": "Lyon",
+        "marseille": "Marseille",
+        "luxembourgCity": "Luxembourg City",
+        "eschSurAlzette": "Esch-sur-Alzette",
+        "chisinau": "Chișinău",
+        "balti": "Bălți",
+        "warsaw": "Warsaw",
+        "krakow": "Kraków",
+        "wroclaw": "Wrocław",
+        "bucharest": "Bucharest",
+        "clujNapoca": "Cluj-Napoca",
+        "iasi": "Iași",
+        "bratislava": "Bratislava",
+        "kosice": "Košice",
+        "madrid": "Madrid",
+        "barcelona": "Barcelona",
+        "valencia": "Valencia",
+        "gaborone": "Gaborone",
+        "francistown": "Francistown",
+        "ouagadougou": "Ouagadougou",
+        "boboDioulasso": "Bobo-Dioulasso",
+        "yaounde": "Yaoundé",
+        "douala": "Douala",
+        "bangui": "Bangui",
+        "bimbo": "Bimbo",
+        "abidjan": "Abidjan",
+        "yamoussoukro": "Yamoussoukro",
+        "bouake": "Bouaké",
+        "kinshasa": "Kinshasa",
+        "lubumbashi": "Lubumbashi",
+        "goma": "Goma",
+        "cairo": "Cairo",
+        "alexandria": "Alexandria",
+        "giza": "Giza",
+        "conakry": "Conakry",
+        "nzerekore": "Nzérékoré",
+        "bissau": "Bissau",
+        "bafata": "Bafatá",
+        "amman": "Amman",
+        "irbid": "Irbid",
+        "zarqa": "Zarqa",
+        "aqaba": "Aqaba",
+        "monrovia": "Monrovia",
+        "gbarnga": "Gbarnga",
+        "bamako": "Bamako",
+        "sikasso": "Sikasso",
+        "casablanca": "Casablanca",
+        "rabat": "Rabat",
+        "marrakesh": "Marrakesh",
+        "dakar": "Dakar",
+        "thies": "Thiès",
+        "saintLouis": "Saint-Louis",
+        "freetown": "Freetown",
+        "bo": "Bo",
+        "tunis": "Tunis",
+        "sfax": "Sfax",
+        "sousse": "Sousse",
+        "confirm": "Confirm city"
+      },
+      "languages": {
+        "english": "English",
+        "arabic": "Arabic"
+      }
+    },
+    "objectives": {
+      "title": "What are your main objectives?",
+      "subtitle": "Select all that apply. We'll tailor your dashboard to focus on these areas.",
+      "options": {
+        "competitors": {
+          "title": "Track Competitors",
+          "description": "Monitor market share, pricing changes, and feature releases across your industry segment."
+        },
+        "forecasting": {
+          "title": "Forecast Demand",
+          "description": "Predict future sales volume based on historical data and predictive market models."
+        },
+        "knowledge": {
+          "title": "Build AI Knowledge Assistant",
+          "description": "Deploy an internal RAG assistant to query company documents and metrics instantly."
+        }
+      }
+    },
+    "paymentSuccess": {
+      "continueSetup": "Continue setup"
+    },
+    "persistence": {
+      "error": "Could not save your progress. Try again.",
+      "currentTrial": "Continue with my current trial",
+      "pending": "Finish payment or choose your available trial to complete setup."
+    }
+  },
+  "dataConnections": {
+    "title": "Connect your data",
+    "subtitle": "Connect the tools and data sources you use to get the most out of KEEL. You may also complete setup now and connect them later.",
+    "statuses": {
+      "not-connected": "Not connected",
+      "connecting": "Connecting",
+      "connected": "Connected",
+      "error": "Connection unavailable",
+      "configured": "Saved — awaiting sync"
+    },
+    "connectedCount": "{{count}} data source(s) connected",
+    "completeSetup": "Complete Setup",
+    "skip": "Skip for now",
+    "analytics": {
+      "title": "Google Analytics",
+      "description": "Connect your Google Analytics account to get website and audience insights.",
+      "action": "Connect Account",
+      "oauthUnavailable": "Google Analytics OAuth is not connected in this frontend preview."
+    },
+    "website": {
+      "title": "Your Website / Online Store",
+      "description": "Enter your website or store URL to track your products, traffic and competitors.",
+      "inputLabel": "Website or store URL",
+      "action": "Add Website",
+      "error": "Enter a full HTTP or HTTPS website URL, for example https://example.com.",
+      "saveFailed": "The website could not be saved. Please try again.",
+      "added": "Website Added",
+      "configuredNotice": "Website saved. Synchronization has not run yet.",
+      "placeholder": "https://your-website.com"
+    },
+    "documents": {
+      "title": "Documents",
+      "description": "Add relevant documents about your business, including products, reports and market data.",
+      "action": "Upload files"
+    },
+    "businessSystem": {
+      "title": "Business System",
+      "description": "Connect your database, POS, or ERP system to import business data.",
+      "action": "Connect Business System",
+      "pageTitle": "Connect your data source",
+      "pageSubtitle": "Choose how you want to connect your business data.",
+      "back": "Back to Connect your data",
+      "backToSelection": "Back to Business System",
+      "select": "Select",
+      "placeholder": "Connection setup details will be added separately.",
+      "options": {
+        "database": {
+          "title": "Database",
+          "description": "Connect directly to your company database."
+        },
+        "pos": {
+          "title": "POS System",
+          "description": "Connect your point-of-sale system."
+        },
+        "erp": {
+          "title": "ERP System",
+          "description": "Connect your ERP system."
+        }
+      }
+    },
+    "database": {
+      "title": "Database",
+      "description": "Select your business database provider to prepare a future connection.",
+      "action": "Connect Database",
+      "back": "Back to Connect your data",
+      "pageTitle": "Connect your database",
+      "pageSubtitle": "Choose your business database provider. Credential collection is intentionally not included in this preview.",
+      "chooseType": "Choose your database type",
+      "securityTitle": "Your data is secure",
+      "securityDescription": "The future connection will use secure, encrypted transport. No credentials are collected in this preview.",
+      "test": "Test Connection",
+      "testUnavailable": "Connection testing will be enabled when the backend credential flow is available.",
+      "providers": {
+        "mysql": {
+          "title": "MySQL",
+          "description": "Select MySQL"
+        },
+        "postgresql": {
+          "title": "PostgreSQL",
+          "description": "Select PostgreSQL"
+        },
+        "sqlServer": {
+          "title": "Microsoft SQL Server",
+          "description": "Select SQL Server"
+        },
+        "mongodb": {
+          "title": "MongoDB",
+          "description": "Select MongoDB"
+        },
+        "oracle": {
+          "title": "Oracle",
+          "description": "Select Oracle"
+        },
+        "other": {
+          "title": "Other Database",
+          "description": "Select another provider"
+        }
+      }
+    },
+    "addedCount": "{{count}} data source(s) added."
   }
 }
