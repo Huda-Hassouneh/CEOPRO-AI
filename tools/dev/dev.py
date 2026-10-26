@@ -71,7 +71,8 @@ def write_json(path, value):
 
 
 def linked(path):
-    return path.is_symlink() or (getattr(path, "is_junction", lambda: False)())
+    import stat
+    return path.is_symlink() or (path.exists() and bool(getattr(path.lstat(), "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)))
 
 
 def private_state():
@@ -219,16 +220,30 @@ def compose_file(c):
     write_json(STATE / "compose.json", value)
 
 
+def docker_base():
+    """Never send development mutations to a remote Docker context."""
+    override = os.environ.get("DOCKER_HOST", "")
+    if override and not override.startswith(("npipe://", "unix://")):
+        raise DevError("Remote/TCP DOCKER_HOST is unsupported. Select an authorized local Docker context; no context was changed.")
+    name = run(["docker", "context", "show"], capture=True).strip()
+    details = json.loads(run(["docker", "context", "inspect", name], capture=True))
+    endpoint = details[0]["Endpoints"]["docker"]["Host"]
+    if not endpoint.startswith(("npipe://", "unix://")):
+        raise DevError("Development requires a local named-pipe/Unix Docker context. Remote/TCP/SSH contexts are never used.")
+    return ["docker", "--context", name]
+
+
 def docker(c, *args, capture=False):
-    return run(["docker", "compose", "--project-name", f"keeldev{c['id']}",
+    return run([*docker_base(), "compose", "--project-name", f"keeldev{c['id']}",
                 "--project-directory", ROOT, "-f", STATE / "compose.json", *args], capture=capture)
 
 
 def check_docker():
     try:
-        if run(["docker", "info", "--format", "{{.OSType}}"], capture=True).strip() != "linux":
+        base = docker_base()
+        if run([*base, "info", "--format", "{{.OSType}}"], capture=True).strip() != "linux":
             raise DevError("Use Docker Linux containers for PostgreSQL/Redis/MinIO.")
-        version = run(["docker", "compose", "version", "--short"], capture=True)
+        version = run([*base, "compose", "version", "--short"], capture=True)
         match = re.search(r"(\d+)\.(\d+)", version)
         if not match or tuple(map(int, match.groups())) < (2, 20):
             raise DevError("Docker Compose 2.20+ is required for readiness waiting.")
@@ -238,17 +253,18 @@ def check_docker():
 
 
 def verify_containers(c):
-    ids = run(["docker", "ps", "-aq", "--filter", f"label=com.docker.compose.project=keeldev{c['id']}"], capture=True).split()
+    base = docker_base()
+    ids = run([*base, "ps", "-aq", "--filter", f"label=com.docker.compose.project=keeldev{c['id']}"], capture=True).split()
     if ids:
-        for item in json.loads(run(["docker", "inspect", *ids], capture=True)):
+        for item in json.loads(run([*base, "inspect", *ids], capture=True)):
             labels = item["Config"].get("Labels") or {}
             if labels.get("com.keel.dev.root") != str(ROOT) or labels.get("com.keel.dev.id") != c["id"]:
                 raise DevError("Compose project ownership mismatch; refusing to change containers.")
 
 
-    volumes = run(["docker", "volume", "ls", "-q", "--filter", f"label=com.docker.compose.project=keeldev{c['id']}"], capture=True).split()
+    volumes = run([*base, "volume", "ls", "-q", "--filter", f"label=com.docker.compose.project=keeldev{c['id']}"], capture=True).split()
     if volumes:
-        for volume in json.loads(run(["docker", "volume", "inspect", *volumes], capture=True)):
+        for volume in json.loads(run([*base, "volume", "inspect", *volumes], capture=True)):
             labels = volume.get("Labels") or {}
             if labels.get("com.keel.dev.root") != str(ROOT) or labels.get("com.keel.dev.id") != c["id"]:
                 raise DevError("Compose volume ownership mismatch; refusing to mount it.")

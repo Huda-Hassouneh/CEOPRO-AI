@@ -24,7 +24,7 @@ Setup does not start application processes or populate a database. `up` starts i
 - `restart` keeps the last successful mode.
 - Stop before changing mode: `down`, then `up --mode full`.
 
-Each checkout receives a random Compose project ID, labeled containers/volumes, a dedicated DB and Redis instance. Ports bind to loopback and are selected once from available defaults. No existing API, DB, Redis or runtime is adopted. Native worker metrics use their existing binding behavior; avoid exposing development hosts to untrusted networks.
+Remote/TCP/SSH Docker contexts are rejected; only a local Unix socket or Windows named pipe is supported. The global Docker context is never changed. Each checkout receives a random Compose project ID, labeled containers/volumes, a dedicated DB and Redis instance. Ports bind to loopback and are selected once from available defaults. No existing API, DB, Redis or runtime is adopted. Native worker metrics use their existing binding behavior; avoid exposing development hosts to untrusted networks.
 
 Python/Node processes record PID, creation time, executable and exact command line. Shutdown refuses identity mismatches. Infrastructure operations verify the checkout labels. A launch failure leaves evidence/resources for diagnosis; `down` safely stops owned resources while preserving data. There is no automatic volume removal or database reset.
 

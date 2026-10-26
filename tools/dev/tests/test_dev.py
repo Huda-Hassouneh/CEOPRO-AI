@@ -175,6 +175,13 @@ class DevTests(unittest.TestCase):
     def test_foreign_volume_is_not_mounted(self):
         from unittest.mock import Mock
         responses = ["", "foreign-volume", json.dumps([{"Labels": {"com.keel.dev.root": "another clone"}}])]
-        with patch.object(dev, "run", side_effect=responses):
+        with patch.object(dev, "docker_base", return_value=["docker"]), patch.object(dev, "run", side_effect=responses):
             with self.assertRaisesRegex(dev.DevError, "volume ownership mismatch"):
                 dev.verify_containers(self.c)
+
+    def test_remote_docker_context_is_refused_before_engine_mutation(self):
+        replies = ["remote-test", json.dumps([{"Endpoints":{"docker":{"Host":"ssh://remote-host"}}}])]
+        with patch.dict(os.environ, {"DOCKER_HOST":""}), patch.object(dev, "run", side_effect=replies) as calls:
+            with self.assertRaisesRegex(dev.DevError, "Remote/TCP/SSH"):
+                dev.docker_base()
+        self.assertEqual(calls.call_count, 2)
