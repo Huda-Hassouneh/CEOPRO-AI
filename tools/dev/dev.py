@@ -56,7 +56,7 @@ def run(args, *, cwd=ROOT, env=None, capture=False):
     result = subprocess.run([str(x) for x in args], cwd=cwd, env=env, text=True,
                             encoding="utf-8", errors="replace",
                             stdout=subprocess.PIPE if capture else None,
-                            stderr=subprocess.PIPE if capture else None)
+                            stderr=subprocess.PIPE if capture else subprocess.STDOUT)
     if result.returncode:
         # Captured commands may contain provider diagnostics or credentials: keep errors local.
         raise DevError(f"{Path(str(args[0])).name} failed (exit {result.returncode}). "
