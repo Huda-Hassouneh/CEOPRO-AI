@@ -12,7 +12,7 @@ TARGET = ROOT / "docs/reference/ENVIRONMENT_INVENTORY.md"
 def inventory():
     rows = defaultdict(list)
     dynamic = []
-    for path in sorted((ROOT / "backend/src").rglob("*.py")):
+    for path in sorted([*(ROOT / "backend/src").rglob("*.py"), *(ROOT / "backend/image_server").rglob("*.py")]):
         if "tests" in path.parts or path.name.startswith("test_"):
             continue
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
@@ -39,7 +39,7 @@ def inventory():
                     dynamic.append(f"{relative}:{node.lineno}")
             if key and re.fullmatch("[A-Z][A-Z0-9_]+", key):
                 if re.search("SECRET|PASSWORD|TOKEN|API_KEY|MASTER_KEY|DSN|DATABASE_URL", key):
-                    default = "Private/optional; see source validation (values intentionally omitted)"
+                    default = "Private; inspect required/default validation (values intentionally omitted)"
                 rows[key].append((relative, node.lineno, default))
     for path in sorted((ROOT / "frontend/src").rglob("*")):
         if path.suffix not in (".js", ".jsx"):

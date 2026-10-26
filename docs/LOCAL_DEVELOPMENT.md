@@ -84,3 +84,9 @@ Ports and per-checkout secrets live only in `.dev/config.json`. Change ports whi
 `backend/docker-compose.yml` remains the legacy/Codespaces deployment topology, including telemetry and local LLM options. Its fixed container names/ports make it unsafe for parallel checkouts. The new command generates only a small isolated infra Compose file from the same service technologies and reuses the existing MinIO Dockerfile and migration/worker entry points. Do not mix its volumes with the new project.
 
 `tools/keel-verification/` remains the specialist synthetic acceptance harness. Its reset commands are intentionally excluded from everyday development.
+
+## Optional read-only browser smoke
+
+Run dev.ps1 test --suite browser after startup with Chrome/Chromium installed (or set CHROMIUM_PATH in private integrations.env). It checks actual English/Arabic login/signup rendering, mobile RTL, the Python proxy/public plans and unauthorized owner denial. It creates no accounts, quotes or payments. Screenshots/results remain private under .dev/evidence.
+
+Frontend test-file concurrency is bounded to two processes so simultaneous Vite SSR test servers do not exhaust a developer machine. Every existing assertion still runs.

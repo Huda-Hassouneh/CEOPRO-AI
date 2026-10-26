@@ -1,6 +1,5 @@
 """Local database commands; the only migration authority is scripts.apply_migrations."""
 import contextlib
-from datetime import date
 import json
 import os
 from pathlib import Path
@@ -92,13 +91,10 @@ def main():
     c = config()
     action = sys.argv[1]
     if action == "seed":
-        # Use original fixture generator without granting subscriptions, creating accounts, or bypassing OTP.
-        destination = STATE / "fixtures"
-        subprocess.run([sys.executable, "-m", "scripts.demo_companies.generate",
-                        "--out-dir", str(destination), "--end", date.today().isoformat()],
-                       cwd=ROOT / "backend", check=True)
-        print("Synthetic import files generated in .dev/fixtures. No database records or paid rights created.")
-        print("Sign up through the frontend, verify the OTP in Mailpit, then import the selected fixture.")
+        from fixtures import generate
+        target, created = generate(ROOT, STATE / "fixtures" / "quickstart")
+        print(f"Synthetic import file {'created' if created else 'preserved'}: {target}")
+        print("No database records or paid rights created. Sign up, verify OTP in Mailpit, then use import preview/review.")
     elif action == "migrate":
         from scripts.apply_migrations import run
         applied = run()

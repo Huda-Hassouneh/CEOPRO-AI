@@ -47,3 +47,7 @@ Mailpit is a dedicated local SMTP capture and inbox, included by default so OTP/
 ## Optional service boundaries
 
 External AI, merchant stores, Stripe CLI, model weights, OCR binaries, scraper browser binaries, SearXNG, telemetry and local inference servers are separate prerequisites for their respective features. Their absence is a feature limitation, not a reason to misreport the entire local API as unhealthy. Conversely, a missing required DB/Redis/storage/mail/selected worker makes startup fail.
+
+## Optional local image inference server
+
+The actual entry point is uvicorn image_server.server:app from backend/ (default example port 7860). It has its own backend/image_server/requirements.txt and needs an explicitly supplied KEEL_IMAGE_MODEL_DIR with legitimate model weights. LOCAL_IMAGE_BASE_URL(S) connects the existing image provider to it. Its /health reports model/device/busy state. This is a separate heavy inference provider, not an implicit core dependency: it is not started without weights/configuration, and no image inference is claimed by worker readiness.

@@ -291,6 +291,8 @@ def wait_for(description, check, timeout=90):
             if check():
                 print(f"OK  {description}", flush=True)
                 return
+        except DevError:
+            raise
         except (OSError, ValueError, RuntimeError):
             pass
         time.sleep(1)
@@ -596,7 +598,9 @@ def test(args):
     if args.suite == "tooling":
         return
     c = config()
-    if args.suite == "database":
+    if args.suite == "browser":
+        run(["node", ROOT / "tools/dev/browser_smoke.mjs"], env=environment(c))
+    elif args.suite == "database":
         database(c, "check")
         run([PYTHON, ROOT / "tools/dev/database.py", "test"], cwd=ROOT / "backend", env=environment(c, admin=True))
     else:
@@ -628,7 +632,7 @@ def main():
                                            "doctor", "migrate", "db-status", "db-check", "seed", "test"])
     parser.add_argument("--mode", choices=["core", "full"], default=None)
     parser.add_argument("--models", action="store_true", help="setup: also install the existing model requirements")
-    parser.add_argument("--suite", choices=["tooling", "frontend", "database"], default="tooling")
+    parser.add_argument("--suite", choices=["tooling", "frontend", "database", "browser"], default="tooling")
     parser.add_argument("--service", choices=["api", "frontend", *WORKERS])
     parser.add_argument("--tail", type=int, default=40)
     parser.add_argument("--follow", action="store_true")
@@ -643,8 +647,9 @@ def main():
                     up(args)
                 elif args.command in ("migrate", "db-status", "db-check", "seed"):
                     c = config()
-                    check_docker()
-                    verify_containers(c)
+                    if args.command != "seed":
+                        check_docker()
+                        verify_containers(c)
                     database(c, {"db-status": "status", "db-check": "check"}.get(args.command, args.command))
                 else:
                     globals()[args.command](args)
