@@ -75,7 +75,8 @@ def test_source_order_posts_once_then_cancellation_reconciles_owned_sales(source
     with psycopg2.connect(os.environ['AI_TEST_DATABASE_URL']) as c,c.cursor() as q:
         q.execute("SELECT count(*),min(sale_source) FROM transactions WHERE tenant_id=%s",(f[1][0],));assert q.fetchone()==(1,'POS')
         q.execute('SELECT count(*) FROM audit_logs WHERE tenant_id=%s AND action_type=%s',(f[1][0],'PROVIDER_ORDER_POSTED'));assert q.fetchone()==(2,)
-    assert post(f,item2,p2).json()['replayed']
+    replay=post(f,item2,p2);assert replay.json()['replayed']
+    assert replay.json()['canonical_write_performed'] is False
     f[0].headers['Authorization']='Bearer '+create_access_token(f[1][1],f[2][1],email_verified=True)[0]
     assert f[0].get('/onboarding/sources/'+f[3]+'/provider-records/'+item2['business_revision_id']+'/order-preview').status_code==404
 

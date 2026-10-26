@@ -73,7 +73,7 @@ def confirm(conn,tenant,actor,source,revision,preview_hash):
     plan,prior=describe(conn,tenant,source,revision)
     if prior and str(prior[0])==revision:
         if not plan['eligible']:raise HTTPException(409,{'findings':plan['reasons']})
-        return {**prior[5],'replayed':True}
+        return {**prior[5],'replayed':True,'canonical_write_performed':False}
     if plan['preview_hash']!=preview_hash:raise HTTPException(409,'Order, products or accounting changed. Review again.')
     if not plan['eligible']:raise HTTPException(409,{'findings':plan['reasons']})
     contract=plan['contract'];inv=contract['invoice'];iid=str(prior[1]) if prior else str(uuid4());old=prior[4] if prior else {};links={}
