@@ -3,7 +3,7 @@ from uuid import UUID
 
 import logging
 
-from fastapi import BackgroundTasks, HTTPException, APIRouter, Depends, Query
+from fastapi import BackgroundTasks, HTTPException, APIRouter, Depends, Query, Header
 from pydantic import BaseModel, Field
 
 from src.ai import db
@@ -23,10 +23,26 @@ logger = logging.getLogger("CEOPRO_AI_PRICING_ROUTER")
 
 
 @router.post("/recommend")
-def pricing_recommend(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def pricing_recommend(product_id: UUID, ctx: TenantContext = Depends(get_tenant_context), idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = pricing_pipeline.run_price_recommendation(conn, ctx.tenant_id, product_id)
+        product_id=str(product_id)
+        if isinstance(idempotency_key,str):
+            if not 1<=len(idempotency_key)<=200 or not idempotency_key.isascii() or any(ord(ch)<33 or ord(ch)>126 for ch in idempotency_key):
+                raise HTTPException(422,'Invalid pricing request identity.')
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT pg_advisory_xact_lock(hashtextextended(%s,0))',('pricing:'+ctx.tenant_id+':'+ctx.user_id+':'+idempotency_key,))
+                cursor.execute('SELECT product_id,response FROM keel_pricing_request_results WHERE tenant_id=%s AND actor_id=%s AND request_key=%s',(ctx.tenant_id,ctx.user_id,idempotency_key))
+                prior=cursor.fetchone()
+            if prior:
+                if str(prior[0])!=product_id:raise HTTPException(409,'Pricing request identity belongs to another product.')
+                conn.commit();return prior[1]
+            result=pricing_pipeline.run_price_recommendation(conn,ctx.tenant_id,product_id,commit=False)
+            from psycopg2.extras import Json
+            with conn.cursor() as cursor:
+                cursor.execute('INSERT INTO keel_pricing_request_results(tenant_id,actor_id,request_key,product_id,evidence_id,response) VALUES(%s,%s,%s,%s,%s,%s)',(ctx.tenant_id,ctx.user_id,idempotency_key,product_id,result['evidence_id'],Json(result)))
+        else:
+            result = pricing_pipeline.run_price_recommendation(conn, ctx.tenant_id, product_id)
         conn.commit()
         return result
     except pricing_pipeline.ProductNotFoundError:

@@ -197,6 +197,8 @@ app.include_router(competitor_enrichment.router, dependencies=[requires(usage.CO
 app.include_router(discovery.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT), Depends(permissions.forbid_read_only_writes)])
 app.include_router(alerts.router)
 app.include_router(notifications.router)
+from src.ai.routers import catalog
+app.include_router(catalog.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
 app.include_router(products.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
 app.include_router(settings.router)
 app.include_router(operator.router)

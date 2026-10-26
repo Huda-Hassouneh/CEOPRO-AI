@@ -36,6 +36,8 @@ const InvitationPage = page(() => import('../../features/auth/pages/InvitationPa
 const WelcomePage = page(() => import('../../features/system/pages/WelcomePage.jsx'));
 const CommandCenterPage = page(() => import('../../features/dashboard/pages/CommandCenterPage.jsx').then((m) => ({ default: m.CommandCenterPage })));
 const ProductsListPage = page(() => import('../../features/products/pages/ProductsListPage.jsx').then((m) => ({ default: m.ProductsListPage })));
+const CatalogPage = page(() => import('../../features/products/pages/CatalogPage.jsx').then(m=>({default:m.CatalogPage})));
+const CatalogProductPage = page(() => import('../../features/products/pages/CatalogProductPage.jsx').then(m=>({default:m.CatalogProductPage})));
 const ProductFormPage = page(() => import('../../features/products/pages/ProductFormPage.jsx').then((m) => ({ default: m.ProductFormPage })));
 const PriceComparisonReportPage = page(() => import('../../features/pricing/pages/PriceComparisonReportPage.jsx').then((m) => ({ default: m.PriceComparisonReportPage })));
 const PricingPage = page(() => import('../../features/pricing/pages/PricingPage.jsx').then((m) => ({ default: m.PricingPage })));
@@ -218,6 +220,8 @@ const routes = [
       </ProtectedRoute>
     ),
   },
+  {path:'/catalog',element:<ProtectedRoute><DashboardLayout><CatalogPage /></DashboardLayout></ProtectedRoute>},
+  {path:'/catalog/:productId',element:<ProtectedRoute><DashboardLayout><CatalogProductPage /></DashboardLayout></ProtectedRoute>},
   {
     path: routePaths.products,
     element: <ProtectedRoute><ProductsListPage /></ProtectedRoute>,

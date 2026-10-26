@@ -81,6 +81,7 @@ export function ProductsListPage() {
           subtitle={t('productsApex.subtitle')}
           actions={(
             <>
+              <ApexButton variant="secondary" onClick={() => navigate('/catalog')}>{t('catalog.title')}</ApexButton>
               <ApexButton variant="secondary" icon={ShoppingCart} onClick={() => setPickingSaleProduct(true)}>{t('productsApex.recordSale')}</ApexButton>
               <ApexButton variant="secondary" icon={Upload} onClick={() => navigate(routePaths.connectData)}>{t('productsApex.importSales')}</ApexButton>
               {canManageCatalog && <ApexButton icon={Plus} onClick={() => setAddingProduct(true)}>{t('products.list.addProduct')}</ApexButton>}
