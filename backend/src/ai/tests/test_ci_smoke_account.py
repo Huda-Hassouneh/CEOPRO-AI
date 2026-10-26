@@ -52,3 +52,56 @@ def test_synthetic_verification_fixture_refuses_non_loopback_api(api):
         _verify_synthetic_account(client, None, "ci@keel-ci.example", "synthetic-only")
 
     client.http.close()
+
+
+from scripts.ci_smoke_account import _complete_guided_onboarding
+
+
+class GuidedClient:
+    def __init__(self, highest=0, complete=False, access=True):
+        self.state = {"highestCompletedStep": highest, "revision": highest, "isComplete": complete}
+        self.access = access
+        self.calls = []
+
+    def request(self, method, path, **kwargs):
+        self.calls.append((method, path, kwargs))
+        if path == "/onboarding/state" and method == "GET":
+            return self.state.copy()
+        if path == "/billing/subscription":
+            return {"assigned": self.access, "hasAccess": self.access, "planId": "growth", "billingPeriod": "monthly"}
+        if method == "PUT":
+            body = kwargs["json"]
+            assert body["expected_revision"] == self.state["revision"]
+            assert body["step"] == self.state["highestCompletedStep"] + 1
+            self.state.update(highestCompletedStep=body["step"], revision=self.state["revision"] + 1)
+            return self.state.copy()
+        assert method == "POST" and path == "/settings/company/onboarding/complete"
+        assert self.state["highestCompletedStep"] == 5
+        return {"onboarding_completed_at": "2026-10-27T00:00:00Z"}
+
+
+@pytest.mark.parametrize("highest", [0, 1, 4, 5])
+def test_smoke_saves_missing_steps_then_acknowledges_actual_trial(highest):
+    client = GuidedClient(highest=highest)
+    company = SimpleNamespace(country="JO", city="Amman", language="en")
+    _complete_guided_onboarding(client, company)
+    writes = [kwargs["json"] for method, _, kwargs in client.calls if method == "PUT"]
+    assert [item["step"] for item in writes] == list(range(highest + 1, 6))
+    if writes:
+        assert writes[-1]["selectedPlan"] == "growth"
+        assert writes[-1]["billingPeriod"] == "monthly"
+    assert client.calls[-1][1] == "/settings/company/onboarding/complete"
+    assert not any("checkout" in path or path == "/billing/trial" for _, path, _ in client.calls)
+
+
+def test_completed_smoke_account_is_read_only_on_repeat():
+    client = GuidedClient(highest=5, complete=True)
+    _complete_guided_onboarding(client, None)
+    assert all(method == "GET" for method, _, _ in client.calls)
+
+
+def test_smoke_refuses_expired_or_unassigned_rights_instead_of_creating_payment():
+    client = GuidedClient(access=False)
+    with pytest.raises(RuntimeError, match="valid signup trial"):
+        _complete_guided_onboarding(client, None)
+    assert all(method == "GET" for method, _, _ in client.calls)

@@ -126,7 +126,9 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install --no-cache-dir -r src/ai/requirements.txt
+        run: |
+          pip install --no-cache-dir -r src/ai/requirements.txt
+          pip check
 
       # Known vulnerabilities in exactly what was just installed (PyPI's
       # advisory data). Fails the job on any finding.
@@ -134,27 +136,9 @@ jobs:
         run: |
           pip install --no-cache-dir pip-audit
           pip freeze --exclude-editable | grep -v '^pip-audit==' > "$RUNNER_TEMP/installed.txt"
-          # CVE-2026-106454 (Twisted IMAP *server* wildcardToRegexp ReDoS) is the only
-          # ignored advisory: Twisted is just Scrapy's transitive dependency, nothing here
-          # imports twisted.mail/imap4 or runs an IMAP server, 26.4.0 is already the newest
-          # release and no fixed version exists (checked 2026-10-17). Remove this ignore as
-          # soon as Twisted publishes a fix; every other finding still fails the job.
-          # CVE-2026-112395, -112397, -112400, -112404, -112895, -112896, -112897 and
-          # -112899 are Pillow 12.3.0 advisories, all fixed only in Pillow 13.0.0. rembg
-          # (background removal, up to its newest 2.0.85) requires pillow<13, so the
-          # upgrade is blocked (checked 2026-10-21). Remove these ignores once rembg
-          # allows Pillow 13 and both requirements files are raised; tracked as #123 in
-          # backend/PENDING_ACTIONS.md.
-          pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off \
-            --ignore-vuln CVE-2026-106454 \
-            --ignore-vuln CVE-2026-112395 \
-            --ignore-vuln CVE-2026-112397 \
-            --ignore-vuln CVE-2026-112400 \
-            --ignore-vuln CVE-2026-112404 \
-            --ignore-vuln CVE-2026-112895 \
-            --ignore-vuln CVE-2026-112896 \
-            --ignore-vuln CVE-2026-112897 \
-            --ignore-vuln CVE-2026-112899
+          # All findings fail this job. Patched Twisted and Pillow versions
+          # are declared in the application manifests; no advisory exceptions.
+          pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off
 
       # Same source build docker-compose.yml uses (Dockerfile.minio, pinned version).
       - name: Build and start MinIO
@@ -285,7 +269,9 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install --no-cache-dir -r src/ai/requirements.txt
+        run: |
+          pip install --no-cache-dir -r src/ai/requirements.txt
+          pip check
 
       - name: Apply database migrations
         working-directory: backend
@@ -296,7 +282,7 @@ jobs:
         run: |
           export CREDENTIAL_VAULT_MASTER_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
           nohup uvicorn src.ai.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/api.log" 2>&1 &
-          for i in $(seq 1 90); do curl -sf http://localhost:8000/health && exit 0; sleep 1; done
+          for i in $(seq 1 90); do curl -sf http://localhost:8000/health/ready && exit 0; sleep 1; done
           cat "$RUNNER_TEMP/api.log"; exit 1
 
       - name: Create the test company
