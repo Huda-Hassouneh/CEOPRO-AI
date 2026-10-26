@@ -177,7 +177,7 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
     {savedOrder&&<p role="status">{t('connectData.providerRecords.orderSaved')}: <code>{savedOrder.invoice_number}</code></p>}
     <Modal isOpen={Boolean(orderPlan)} title={t('connectData.providerRecords.orderPreview')} closeLabel={t('common.close')} onClose={()=>{if(!pending)setOrderPlan(null);}}>
       {orderPlan&&<><p>{t('connectData.providerRecords.orderBoundary')}</p><dl><dt>{t('connectData.providerRecords.orderNumber')}</dt><dd dir="ltr">{orderPlan.invoice_number}</dd><dt>{t('connectData.providerRecords.orderPayment')}</dt><dd>{orderPlan.contract?.invoice.paymentStatus||t('catalog.unknown')}</dd><dt>{t('connectData.providerRecords.orderTotal')}</dt><dd dir="ltr">{orderPlan.contract?.invoice.total} {orderPlan.contract?.invoice.currency}</dd></dl>
-      {orderPlan.contract?.invoice.items.map(line=><p key={line.externalId}>{line.name}: {line.quantity} ? {line.unitPrice} = {line.total} {line.currency}</p>)}
+      {orderPlan.contract?.invoice.items.map(line=><p key={line.externalId}>{line.name}: {line.quantity} {'\u00d7'} {line.unitPrice} = {line.total} {line.currency}</p>)}
       {orderPlan.reasons.map(reason=><p role="alert" key={reason}>{t(`connectData.providerRecords.orderFindings.${reason}`)}</p>)}
       <Button disabled={!orderPlan.eligible||Boolean(pending)} onClick={confirmOrder}>{t('connectData.providerRecords.orderConfirm')}</Button></>}
     </Modal>
