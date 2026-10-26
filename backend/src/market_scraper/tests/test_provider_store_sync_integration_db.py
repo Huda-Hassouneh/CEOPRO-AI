@@ -79,7 +79,9 @@ class _ShopifyFixture:
             ])
         return iter(records)
 
-    def iter_orders(self):
+    def iter_orders(self, *, modified_since=None):
+        if modified_since is not None:
+            assert modified_since == self.updated
         ShopifyGraphQLClient.require_scopes(self.verify_connection(), ("read_orders",))
         order = ShopifyRecord("order", self.order_id, {"id": self.order_id, "updatedAt": self.updated})
         line = ShopifyRecord("line_item", self.line_id,
@@ -182,7 +184,7 @@ def test_worker_dispatch_persists_all_streams_atomically_and_recovers(monkeypatc
     assert result["full_scan"] is True and result["canonical_promotion"] is False
     assert _rows("SELECT stream_key,continuation FROM keel_provider_sync_checkpoints "
                  "WHERE tenant_id=%s ORDER BY stream_key", (tenant,)) == [
-                     ("inventory", {}), ("orders", {}), ("products", {}),
+                     ("inventory", {}), ("orders", {"modified_since":"2026-10-20T10:00:00Z"}), ("products", {}),
                  ]
     assert _rows("SELECT entity_type,count(*) FROM keel_provider_record_identities "
                  "WHERE tenant_id=%s GROUP BY entity_type ORDER BY entity_type", (tenant,)) == [
@@ -326,15 +328,17 @@ def test_worker_dispatch_persists_all_streams_atomically_and_recovers(monkeypatc
     with psycopg2.connect(ADMIN_URL) as admin, admin.cursor() as cursor:
         cursor.execute("UPDATE data_sources SET last_synced_at=NULL WHERE tenant_id=%s AND source_id=%s",
                        (tenant, source))
+    assert _rows("SELECT checkpoint_version,continuation FROM keel_provider_sync_checkpoints WHERE tenant_id=%s AND stream_key='orders'",(tenant,)) == [(1,{'modified_since':'2026-10-20T10:00:00Z'})]
     state["mode"] = "retry"
     retry = connector_worker.run_connector_syncs_for_tenant(tenant)["provider_store"]
     assert len(retry) == 1 and retry[0]["checkpoint_advanced"] is True
+    assert retry[0]["full_scan"] is False
     assert _rows("SELECT count(*) FROM keel_provider_record_identities WHERE tenant_id=%s "
                  "AND provider_record_id='gid://shopify/Product/11999'", (tenant,))[0][0] == 1
     assert _rows("SELECT count(*) FROM keel_provider_record_identities WHERE tenant_id=%s", (tenant,))[0][0] == 6
     assert _rows("SELECT stream_key,checkpoint_version,continuation FROM keel_provider_sync_checkpoints "
                  "WHERE tenant_id=%s ORDER BY stream_key", (tenant,)) == [
-                     ("inventory", 2, {}), ("orders", 2, {}), ("products", 2, {}),
+                     ("inventory", 2, {}), ("orders", 2, {"modified_since":"2026-10-20T10:00:00Z"}), ("products", 2, {}),
                  ]
     after = {
         table: _rows(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (tenant,))[0][0]
