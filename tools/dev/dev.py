@@ -70,7 +70,13 @@ def write_json(path, value):
     temporary.replace(path)
 
 
+def linked(path):
+    return path.is_symlink() or (getattr(path, "is_junction", lambda: False)())
+
+
 def private_state():
+    if linked(STATE):
+        raise DevError(".dev is a link/junction. Preserve it and use a separate checkout-local state directory.")
     STATE.mkdir(exist_ok=True)
     if os.name == "nt":
         # DACL only; avoids Set-Acl's SeSecurityPrivilege/SACL failure.
@@ -220,10 +226,14 @@ def docker(c, *args, capture=False):
 
 def check_docker():
     try:
-        run(["docker", "info", "--format", "{{.ServerVersion}}"], capture=True)
-        run(["docker", "compose", "version"], capture=True)
+        if run(["docker", "info", "--format", "{{.OSType}}"], capture=True).strip() != "linux":
+            raise DevError("Use Docker Linux containers for PostgreSQL/Redis/MinIO.")
+        version = run(["docker", "compose", "version", "--short"], capture=True)
+        match = re.search(r"(\d+)\.(\d+)", version)
+        if not match or tuple(map(int, match.groups())) < (2, 20):
+            raise DevError("Docker Compose 2.20+ is required for readiness waiting.")
     except (DevError, FileNotFoundError):
-        raise DevError("Docker Desktop/Engine with Linux containers and Compose v2+ is required. "
+        raise DevError("Docker Desktop/Engine with Linux containers and Compose 2.20+ is required. "
                        "Start Docker Desktop and run doctor. Existing containers were not changed.") from None
 
 
@@ -234,6 +244,14 @@ def verify_containers(c):
             labels = item["Config"].get("Labels") or {}
             if labels.get("com.keel.dev.root") != str(ROOT) or labels.get("com.keel.dev.id") != c["id"]:
                 raise DevError("Compose project ownership mismatch; refusing to change containers.")
+
+
+    volumes = run(["docker", "volume", "ls", "-q", "--filter", f"label=com.docker.compose.project=keeldev{c['id']}"], capture=True).split()
+    if volumes:
+        for volume in json.loads(run(["docker", "volume", "inspect", *volumes], capture=True)):
+            labels = volume.get("Labels") or {}
+            if labels.get("com.keel.dev.root") != str(ROOT) or labels.get("com.keel.dev.id") != c["id"]:
+                raise DevError("Compose volume ownership mismatch; refusing to mount it.")
 
 
 def processes():
@@ -395,13 +413,24 @@ def setup(args):
              "vault": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()}
         write_json(STATE / "config.json", c)
     c = config()
-    if not PYTHON.exists():
+    new_venv = not PYTHON.exists()
+    if new_venv:
         run([sys.executable, "-m", "venv", STATE / "venv"])
     manifest = ROOT / "tools/dev/requirements.txt"
     source = [manifest, ROOT / "backend/src/ai/requirements.txt", ROOT / "backend/src/market_scraper/requirements.txt"]
     fingerprint = hashlib.sha256(b"".join(x.read_bytes() for x in source)).hexdigest()
     marker = STATE / "dependencies.json"
     prior = json.loads(marker.read_text()) if marker.exists() else {}
+    if new_venv:
+        prior.pop("python", None)
+        prior.pop("models", None)
+    if linked(ROOT / "frontend/node_modules"):
+        raise DevError("frontend/node_modules is a link/junction. Preserve it; setup requires checkout-owned dependencies.")
+    changes = prior.get("python") != fingerprint or (args.models and prior.get("models") != fingerprint)
+    node_hash = hashlib.sha256((ROOT / "frontend/package-lock.json").read_bytes()).hexdigest()
+    changes |= prior.get("node") != node_hash
+    if changes and any(owned(r) for r in processes().values()):
+        raise DevError("Dependency changes require stopping this checkout first: run down, then setup.")
     constraints = STATE / "constraints.txt"
     lines = []
     for dependency_file in source[1:]:

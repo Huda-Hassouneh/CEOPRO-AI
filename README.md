@@ -21,7 +21,7 @@ docs/           Current guides and preserved integration/decision evidence
 ## Prerequisites
 
 - Git, **64-bit CPython 3.11 or 3.12**, **Node 24 LTS** (22.12+ also supported) and npm.
-- Docker Desktop/Engine running **Linux containers**, with Docker Compose v2+.
+- Docker Desktop/Engine running **Linux containers**, with Docker Compose 2.20+.
 - Several GB of disk for Python/Node dependencies and container images. Optional model libraries/weights need substantially more memory and disk.
 - Windows PowerShell 5.1+; Linux/macOS use Bash and Python 3.11/3.12.
 
