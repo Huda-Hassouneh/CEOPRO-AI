@@ -1,3 +1,5 @@
+import {ProviderPromotionSettings} from './ProviderPromotionSettings.jsx';
+import {ProviderStockReview} from './ProviderStockReview.jsx';
 import Modal from '../../../shared/components/ui/Modal.jsx';
 import {useQueryClient} from '@tanstack/react-query';
 import {Link} from 'react-router-dom';
@@ -15,6 +17,8 @@ const label = (t, key) => {
 export function ProviderRecordsPanel({ source, refreshVersion, t }) {
   const queryClient=useQueryClient();
   const [catalogPlan,setCatalogPlan]=useState(null);
+  const [orderPlan,setOrderPlan]=useState(null);
+  const [savedOrder,setSavedOrder]=useState(null);
   const [postedProduct,setPostedProduct]=useState(null);
   const [items, setItems] = useState([]);
   const [offset, setOffset] = useState(0);
@@ -73,6 +77,22 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
     finally{setPending(null);}
   };
 
+  const prepareOrder=async(item)=>{
+    setPending(item.business_revision_id);setError(null);setSavedOrder(null);
+    try{setOrderPlan(await dataConnectionsApi.previewProviderOrder(source.source_id,item.business_revision_id));}
+    catch(e){setError(label(t,ERROR_KEY[e.response?.status]||'connectData.providerRecords.loadFailed'));}
+    finally{setPending(null);}
+  };
+  const confirmOrder=async()=>{
+    setPending(orderPlan.revision);setError(null);
+    try{
+      setSavedOrder(await dataConnectionsApi.postProviderOrder(source.source_id,{business_revision_id:orderPlan.revision,preview_hash:orderPlan.preview_hash}));
+      setOrderPlan(null);await load(offset);
+      for(const key of ['sales','invoices','dashboard-aggregate','product-catalog','products'])await queryClient.invalidateQueries({queryKey:[key]});
+    }catch(e){setError(label(t,ERROR_KEY[e.response?.status]||'connectData.providerRecords.reviewFailed'));}
+    finally{setPending(null);}
+  };
+
   const decide = async (item, decision) => {
     const message = label(t, decision === 'approve' ? 'connectData.providerRecords.confirmApprove' : 'connectData.providerRecords.confirmReject');
     if (!globalThis.confirm(message)) return;
@@ -119,6 +139,7 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
           </td>
           <td>{item.review_decision ? t(`connectData.providerRecords.decisions.${item.review_decision}`) : t('connectData.providerRecords.states.notReviewed')}{item.canonical_product_id&&<p><Link to={`/catalog/${item.canonical_product_id}`}>{t('connectData.providerRecords.catalogSaved')}</Link></p>}</td>
           <td><div className="provider-records__actions">
+            {item.entity_type==='order'&&<Button size="sm" variant="outline" disabled={Boolean(pending)||item.review_decision==='reject'} onClick={()=>prepareOrder(item)}>{t('connectData.providerRecords.orderPreview')}</Button>}
             {['product','variant'].includes(item.entity_type)&&<Button size="sm" variant="outline" disabled={pending===item.business_revision_id||item.validation_status==='invalid'||item.review_decision==='reject'} onClick={()=>prepareCatalog(item)}>{t('connectData.providerRecords.catalogPreview')}</Button>}
             <Button size="sm" variant="outline" leadingIcon={history[item.provider_record_identity_id] ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               disabled={historyBusy === item.provider_record_identity_id} onClick={() => toggleHistory(item.provider_record_identity_id)}>
@@ -153,6 +174,15 @@ export function ProviderRecordsPanel({ source, refreshVersion, t }) {
       {catalogPlan.reasons.map(reason=><p role="alert" key={reason}>{t(`connectData.providerRecords.catalogFindings.${reason}`)}</p>)}
       <Button disabled={!catalogPlan.eligible||Boolean(pending)} onClick={confirmCatalog}>{t(catalogPlan.action==='create'?'connectData.providerRecords.catalogCreate':'connectData.providerRecords.catalogLink')}</Button></>}
     </Modal>
+    {savedOrder&&<p role="status">{t('connectData.providerRecords.orderSaved')}: <code>{savedOrder.invoice_number}</code></p>}
+    <Modal isOpen={Boolean(orderPlan)} title={t('connectData.providerRecords.orderPreview')} closeLabel={t('common.close')} onClose={()=>{if(!pending)setOrderPlan(null);}}>
+      {orderPlan&&<><p>{t('connectData.providerRecords.orderBoundary')}</p><dl><dt>{t('connectData.providerRecords.orderNumber')}</dt><dd dir="ltr">{orderPlan.invoice_number}</dd><dt>{t('connectData.providerRecords.orderPayment')}</dt><dd>{orderPlan.contract?.invoice.paymentStatus||t('catalog.unknown')}</dd><dt>{t('connectData.providerRecords.orderTotal')}</dt><dd dir="ltr">{orderPlan.contract?.invoice.total} {orderPlan.contract?.invoice.currency}</dd></dl>
+      {orderPlan.contract?.invoice.items.map(line=><p key={line.externalId}>{line.name}: {line.quantity} ? {line.unitPrice} = {line.total} {line.currency}</p>)}
+      {orderPlan.reasons.map(reason=><p role="alert" key={reason}>{t(`connectData.providerRecords.orderFindings.${reason}`)}</p>)}
+      <Button disabled={!orderPlan.eligible||Boolean(pending)} onClick={confirmOrder}>{t('connectData.providerRecords.orderConfirm')}</Button></>}
+    </Modal>
+    <ProviderStockReview source={source} t={t}/>
+    <ProviderPromotionSettings source={source} t={t}/>
     <p className="provider-records__boundary">{t('connectData.providerRecords.notPosted')}</p>
   </section>;
 }

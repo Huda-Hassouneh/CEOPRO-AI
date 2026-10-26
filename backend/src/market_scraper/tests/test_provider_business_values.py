@@ -39,7 +39,7 @@ def test_shopify_order_retains_provider_status_and_distinct_totals():
     assert values["provider_totals"]["tax"]["amount"] == "2.40"
     assert values["provider_totals"]["shipping"]["amount"] == "4.00"
     assert "billingAddress" not in values and "email" not in str(values)
-    assert findings == []
+    assert findings == [{"field":"accounting","code":"provider_accounting_needs_review"}]
 
 
 def test_shopify_line_item_keeps_provider_product_and_variant_ids():
@@ -90,7 +90,7 @@ def test_woocommerce_order_preserves_status_totals_and_nonpi_refund_reference():
     assert values["provider_totals"]["shipping_total"] == "4.50"
     assert values["refund_references"] == [{"provider_refund_id": "33", "provider_amount": "-3.00"}]
     assert "billing" not in values and "private note" not in str(values)
-    assert findings == []
+    assert findings == [{"field":"accounting","code":"provider_accounting_needs_review"}]
 
 
 def test_woocommerce_line_items_keep_source_ids_without_customer_fields():

@@ -161,6 +161,7 @@ def persist_shopify_inventory_records(conn, source_id: str, records: Iterable[An
                                          ingestion_job_id=ingestion_job_id, receipt_id=receipt_id))
         else:
             raise InventoryProvenanceError("unsupported Shopify inventory record")
+    _scan_members(conn,source_id,ingestion_job_id,receipt_id,output)
     return output
 
 
@@ -200,6 +201,7 @@ def persist_woocommerce_inventory_records(conn, source_id: str, records: Iterabl
         output.append({"inventory_observation_id": str(observation_id), "reconciliation_status": status,
                        "duplicate": bool(duplicate), "provider": "woocommerce",
                        "quantity_semantics": "woocommerce_stock_quantity"})
+    _scan_members(conn,source_id,ingestion_job_id,receipt_id,output)
     return output
 
 
@@ -319,3 +321,10 @@ def list_provider_inventory_location_history(conn, source_id: str, *, limit: int
         )
         columns = [column.name for column in cursor.description]
         return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+
+def _scan_members(conn,source,job,receipt,observations):
+    if not job or not receipt:return
+    with conn.cursor() as c:
+        for row in observations:
+            c.execute('INSERT INTO keel_provider_stock_scan_members(tenant_id,source_id,ingestion_job_id,inventory_observation_id,receipt_id) VALUES(public.get_current_tenant(),%s,%s,%s,%s) ON CONFLICT DO NOTHING',(source,job,row['inventory_observation_id'],receipt))

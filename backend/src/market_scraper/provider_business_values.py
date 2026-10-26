@@ -148,6 +148,14 @@ def normalize_shopify_record(entity_type: str, payload: Mapping[str, Any]) -> tu
                   "discounted_total": _shop_money(payload.get("discountedTotalSet"), "discountedTotalSet")}
     else:
         raise ProviderBusinessValueError("unsupported Shopify provider record type")
+    if entity_type=='order':
+        # Only the allowlisted, validated accounting projection survives; never raw customer payloads.
+        from src.market_scraper.provider_order_values import validate_accounting_projection
+        contract=payload.get('keel_accounting')
+        if contract is not None:
+            try:values['accounting']=validate_accounting_projection(contract)
+            except (ValueError,TypeError,KeyError):return values,[{'field':'accounting','code':'provider_accounting_needs_review'}]
+        else:return values,[{'field':'accounting','code':'provider_accounting_needs_review'}]
     return values, _findings_for_identity(entity_type, values)
 
 
@@ -186,7 +194,7 @@ def normalize_woocommerce_record(entity_type: str, payload: Mapping[str, Any], *
                                                               "refund id", limit=40),
                                  "provider_amount": _decimal_text(refund.get("total"), "refund total")})
         values = {"status": _text(payload.get("status"), "status", limit=80),
-                  "currency_code": currency or _currency_code(payload.get("currency"), "currency"),
+                  "currency_code": _currency_code(payload.get("currency"), "currency"),
                   "provider_totals": {key: _decimal_text(payload.get(provider_key), provider_key) for key, provider_key in (
                       ("total", "total"), ("discount_total", "discount_total"),
                       ("shipping_total", "shipping_total"), ("tax_total", "total_tax"))},
@@ -210,6 +218,14 @@ def normalize_woocommerce_record(entity_type: str, payload: Mapping[str, Any], *
                   "currency_code": line_currency}
     else:
         raise ProviderBusinessValueError("unsupported WooCommerce provider record type")
+    if entity_type=='order':
+        # Only the allowlisted, validated accounting projection survives; never raw customer payloads.
+        from src.market_scraper.provider_order_values import validate_accounting_projection
+        contract=payload.get('keel_accounting')
+        if contract is not None:
+            try:values['accounting']=validate_accounting_projection(contract)
+            except (ValueError,TypeError,KeyError):return values,[{'field':'accounting','code':'provider_accounting_needs_review'}]
+        else:return values,[{'field':'accounting','code':'provider_accounting_needs_review'}]
     return values, _findings_for_identity(entity_type, values)
 
 
