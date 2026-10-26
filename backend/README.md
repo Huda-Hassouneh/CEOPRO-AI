@@ -36,3 +36,7 @@ Model libraries/weights, hosted services and cost configuration are feature prer
 ## Historical infrastructure evidence
 
 The previous Phase 1 infrastructure blueprint is preserved in [docs/archive/BACKEND_PHASE1_README.md](../docs/archive/BACKEND_PHASE1_README.md). It is not current startup/reset guidance.
+
+## First identity and Platform Owner access
+
+Use the frontend signup and verify the actual OTP in the printed Mailpit inbox. A workspace owner is a Tenant Owner, not a Platform Owner. Startup intentionally creates neither an account nor privileged membership. Platform access requires the existing authorized team/invitation or one-time operator bootstrap workflow; see scripts/bootstrap_platform_owner.py and the guarded keel_bootstrap_platform_owner SQL function. Never promote users by editing membership rows or weakening route/RLS checks. Bootstrap is an explicit operator action, not part of setup/seed, and was not exercised by this startup smoke.
