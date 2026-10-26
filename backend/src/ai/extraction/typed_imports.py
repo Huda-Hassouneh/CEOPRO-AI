@@ -19,9 +19,9 @@ class TypedImportError(ValueError):
 
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
 _SAFE_FIELDS = {
-    "sales": {"product_name", "quantity", "unit_price", "currency", "transaction_date", "invoice_id", "order_id", "amount_raw", "barcode"},
-    "invoice": {"invoice_id", "invoice_date", "currency", "product_id", "provider_product_id", "product_name", "quantity", "unit_price", "line_total"},
-    "inventory": {"product_id", "provider_product_id", "product_name", "quantity", "quantity_semantics", "unit", "location_id", "provider_location_id", "observed_at"},
+    "sales": {"sku", "product_id", "product_name", "quantity", "unit_price", "currency", "transaction_date", "invoice_id", "order_id", "amount_raw", "barcode"},
+    "invoice": {"sku", "invoice_id", "invoice_date", "currency", "product_id", "provider_product_id", "product_name", "quantity", "unit_price", "line_total"},
+    "inventory": {"sku", "product_id", "provider_product_id", "product_name", "quantity", "quantity_semantics", "unit", "location_id", "provider_location_id", "observed_at"},
 }
 
 
@@ -58,11 +58,11 @@ def validate_typed_import_row(category: str, values: Mapping[str, Any], *, sourc
     elif category == "invoice":
         for name in ("invoice_id", "invoice_date", "currency", "quantity", "unit_price"):
             required(name)
-        if not any(safe.get(k) not in (None, "") for k in ("product_id", "provider_product_id", "product_name")):
+        if not any(safe.get(k) not in (None, "") for k in ("product_id", "provider_product_id", "product_name", "sku")):
             findings.append({"field": "product_reference", "code": "required"})
     else:
         required("quantity")
-        if not any(safe.get(k) not in (None, "") for k in ("product_id", "provider_product_id")):
+        if not any(safe.get(k) not in (None, "") for k in ("product_id", "provider_product_id", "product_name", "sku")):
             findings.append({"field": "product_reference", "code": "required"})
         if not safe.get("quantity_semantics"):
             findings.append({"field": "quantity_semantics", "code": "required"})
@@ -71,9 +71,9 @@ def validate_typed_import_row(category: str, values: Mapping[str, Any], *, sourc
 
     for name in ("quantity",):
         if safe.get(name) not in (None, ""):
-            normalized = _decimal(safe[name], positive=True)
-            if normalized is None:
-                findings.append({"field": name, "code": "must_be_positive_number"})
+            normalized = _decimal(safe[name], positive=category != "inventory")
+            if normalized is None or (category == "inventory" and Decimal(normalized) < 0):
+                findings.append({"field": name, "code": "must_be_nonnegative_number" if category == "inventory" else "must_be_positive_number"})
             else:
                 safe[name] = normalized
     for name in ("unit_price", "line_total", "amount_raw"):
@@ -101,7 +101,7 @@ def validate_typed_import_row(category: str, values: Mapping[str, Any], *, sourc
 
     candidate = None
     if safe.get("product_id") is not None or safe.get("provider_product_id") is not None or safe.get("product_name") is not None:
-        candidate = {k: safe[k] for k in ("product_id", "provider_product_id", "product_name") if safe.get(k) is not None}
+        candidate = {k: safe[k] for k in ("product_id", "provider_product_id", "product_name", "sku") if safe.get(k) is not None}
     if category in {"invoice", "inventory"} and safe.get("provider_product_id") and not safe.get("product_id"):
         findings.append({"field": "product_reference", "code": "provider_identity_requires_review"})
     if category == "inventory" and safe.get("provider_location_id") and not safe.get("location_id"):
@@ -166,6 +166,26 @@ def persist_import_draft(conn, *, tenant_id: str, actor_id: str, source_id: str,
                 "review_required" if all(f["code"].endswith("requires_review") for f in output["validation_findings"])
                 else "invalid"
             )
+    if category in {'invoice','inventory'}:
+        from src.ai.extraction.product_identity import resolve_reference,normalize_sku
+        for output in validated:
+            values=output['typed_values']
+            if values.get('sku'):
+                try:values['sku']=normalize_sku(values['sku'])
+                except ValueError:
+                    output['validation_findings'].append({'field':'sku','code':'invalid_sku'})
+                    output['validation_outcome']='invalid';continue
+            # Provider identities remain source-bound review evidence; never guess a global mapping.
+            if values.get('provider_product_id') and not values.get('product_id'):continue
+            reference={k:values[k] for k in ('product_id','sku','product_name') if values.get(k)}
+            if not reference:continue
+            identity=resolve_reference(conn,tenant_id,reference)
+            if identity['status']=='matched':
+                values['product_id']=identity['product_id'];output['product_candidate']={**reference,'product_id':identity['product_id']}
+            else:
+                output['validation_findings'].append({'field':'product_reference','code':'product_'+identity['status']+'_requires_review'})
+                if output['validation_outcome']=='valid':output['validation_outcome']='review_required'
+                output['ambiguity_code']='product_'+identity['status']
     digest = _fingerprint(validated)
     idem = idempotency_key or f"{category}:{job_id}"
     with conn.cursor() as cursor:
@@ -243,6 +263,11 @@ def create_import_revision(conn, *, batch_id: str, category: str, rows: Sequence
                            provenance: Mapping[str, Any] | None = None) -> dict[str, Any]:
     if category not in _SAFE_FIELDS:
         raise TypedImportError("unsupported import category")
+    with conn.cursor() as cursor:
+        cursor.execute('SELECT tenant_id,import_category FROM keel_import_batches WHERE batch_id=%s',(batch_id,))
+        batch=cursor.fetchone()
+    if not batch or batch[1]!=category:raise TypedImportError('Import batch/category is not available in this tenant.')
+    tenant_id=str(batch[0])
     validated = [validate_typed_import_row(category, row.get("typed_values", row),
                  source_row_key=str(row.get("source_row_key", index)), staging_row_id=row.get("staging_row_id"),
                  row_number=int(row.get("row_number", index)), source_provenance=row.get("source_provenance"))
@@ -256,6 +281,26 @@ def create_import_revision(conn, *, batch_id: str, category: str, rows: Sequence
                 "review_required" if all(f["code"].endswith("requires_review") for f in output["validation_findings"])
                 else "invalid"
             )
+    if category in {'invoice','inventory'}:
+        from src.ai.extraction.product_identity import resolve_reference,normalize_sku
+        for output in validated:
+            values=output['typed_values']
+            if values.get('sku'):
+                try:values['sku']=normalize_sku(values['sku'])
+                except ValueError:
+                    output['validation_findings'].append({'field':'sku','code':'invalid_sku'})
+                    output['validation_outcome']='invalid';continue
+            # Provider identities remain source-bound review evidence; never guess a global mapping.
+            if values.get('provider_product_id') and not values.get('product_id'):continue
+            reference={k:values[k] for k in ('product_id','sku','product_name') if values.get(k)}
+            if not reference:continue
+            identity=resolve_reference(conn,tenant_id,reference)
+            if identity['status']=='matched':
+                values['product_id']=identity['product_id'];output['product_candidate']={**reference,'product_id':identity['product_id']}
+            else:
+                output['validation_findings'].append({'field':'product_reference','code':'product_'+identity['status']+'_requires_review'})
+                if output['validation_outcome']=='valid':output['validation_outcome']='review_required'
+                output['ambiguity_code']='product_'+identity['status']
     digest = _fingerprint(validated)
     with conn.cursor() as cursor:
         cursor.execute("SELECT * FROM public.keel_import_revision_create97(%s::uuid,%s,%s,%s,%s::jsonb,%s::jsonb)",

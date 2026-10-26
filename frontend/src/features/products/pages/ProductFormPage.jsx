@@ -8,7 +8,10 @@ import { routePaths } from '../../../app/router/routePaths.js';
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
 import Button from '../../../shared/components/ui/Button.jsx';
-import { ProductForm } from '../components/ProductForm.jsx';
+import { useState } from 'react';
+import { OriginalCatalogProductForm } from '../components/OriginalCatalogProductForm.jsx';
+import { useCompany } from '../../settings/hooks/useCompany.js';
+import '../catalog.css';
 import { ManualStockEditor } from '../components/ManualStockEditor.jsx';
 import { useProduct } from '../hooks/useProduct.js';
 import { useCreateProduct } from '../hooks/useCreateProduct.js';
@@ -20,14 +23,11 @@ import '../styles/Products.css';
 // to a single "en" value here to match ProductForm's single-locale
 // fields (see that component's own note on why: a full per-locale editor
 // is separate, larger scope).
-function localizedText(value) {
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  return value.en || value.ar || Object.values(value)[0] || '';
-}
 
 export function ProductFormPage() {
   const { t } = useI18n();
+  const companyQuery=useCompany();
+  const [initialStock,setInitialStock]=useState('');
   const roles = useAuthStore((state) => state.roles);
   const canManageCatalog = hasAnyRole(roles, ['owner', 'admin']);
   const navigate = useNavigate();
@@ -44,7 +44,8 @@ export function ProductFormPage() {
 
   const goBack = () => navigate(routePaths.products);
 
-  const submit = async (payload) => {
+  const submit = async (input) => {
+    const payload={product_name:input.name,brand:input.brand,category:input.category,description:input.description,sku:input.sku,barcode:input.gtin,current_price:Number(input.price),cost_price:input.costPrice===null?null:Number(input.costPrice),currency:input.currency,...(isEdit?{expected_version:input.expectedVersion}:{initial_stock_quantity:initialStock===''?undefined:Number(initialStock)})};
     try {
       if (isEdit) await updateMutation.mutateAsync({ id: productId, ...payload });
       else await createMutation.mutateAsync(payload);
@@ -62,11 +63,13 @@ export function ProductFormPage() {
     }
     const product = productQuery.data.product;
     initialValues = {
-      name: localizedText(product.product_name),
-      brand: localizedText(product.brand),
-      category: localizedText(product.category),
+      name: product.product_name,
+      id:product.product_id,version:product.version,sku:product.sku,gtin:product.barcode,
+      price:product.current_price,costPrice:product.cost_price,
+      brand: product.brand,
+      description:product.description,
+      category: product.category,
       currentPrice: product.current_price,
-      costPrice: product.cost_price ?? '',
       currency: product.currency,
     };
   }
@@ -75,11 +78,16 @@ export function ProductFormPage() {
     <button type="button" className="products-back-link" onClick={goBack}><ArrowLeft size={15} />{t('products.form.back')}</button>
     <section className="products-form-card">
       <h1>{t(isEdit ? 'products.form.editTitle' : 'products.form.createTitle')}</h1>
-      <ProductForm
-        mode={isEdit ? 'edit' : 'create'}
-        initialValues={initialValues}
+      <OriginalCatalogProductForm
+        key={isEdit ? productId : 'new'}
+        product={initialValues}
+        currencies={companyQuery.data?.company?.supportedCurrencies || [companyQuery.data?.company?.currency].filter(Boolean)}
+        primaryCurrency={companyQuery.data?.company?.currency}
+        initialStock={initialStock}
+        onInitialStockChange={isEdit ? undefined : setInitialStock}
+        onCancel={goBack}
         onSubmit={submit}
-        submitting={mutation.isPending}
+        pending={mutation.isPending}
         error={mutation.isError ? t('products.form.saveError') : null}
         t={t}
       />

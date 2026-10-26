@@ -69,6 +69,7 @@ from decimal import Decimal
 from typing import Dict, Optional
 
 from src.ai.core.barcode import normalize_barcode
+from src.ai.extraction.product_identity import normalize_sku, resolve_reference
 from src.ai.core import text_search
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
@@ -147,7 +148,7 @@ _CATEGORY_EXPR = "localized_text(p.category)"
 # from this can never interpolate an attacker-chosen column name. Every
 # value is still sent as a real parameterized query parameter.
 _UPDATABLE_JSONB_COLUMNS = ("product_name", "brand", "category", "description")
-_UPDATABLE_SCALAR_COLUMNS = ("current_price", "cost_price", "currency")
+_UPDATABLE_SCALAR_COLUMNS = ("current_price", "cost_price", "currency", "sku")
 # "barcode" is not a column: it lives in products.metadata->>'barcode' and is written
 # through its own branch in update_product() below.
 _UPDATABLE_COLUMNS = frozenset(_UPDATABLE_JSONB_COLUMNS) | frozenset(_UPDATABLE_SCALAR_COLUMNS) | {"barcode"}
@@ -189,6 +190,13 @@ class ProductCreateRequest(BaseModel):
     # Canonical quantities follow the approved NUMERIC(14,4) schema.
     initial_stock_quantity: Optional[Decimal] = Field(default=None, ge=0, le=1_000_000_000, max_digits=14, decimal_places=4)
     # EAN/UPC/GTIN. Optional; checked (length + GS1 check digit) and stored digits-only.
+    sku: Optional[str] = None
+
+    @field_validator("sku")
+    @classmethod
+    def _sku_is_valid(cls, value):
+        return normalize_sku(value)
+
     barcode: Optional[str] = None
 
     @field_validator("barcode")
@@ -205,6 +213,7 @@ class ProductCreateRequest(BaseModel):
 
 
 class ProductUpdateRequest(BaseModel):
+    expected_version: Optional[int] = Field(default=None,ge=1)
     """PATCH /products/{product_id} - every field is optional; only the
     fields actually present in the request body are written (the handler
     uses model_dump(exclude_unset=True), not exclude_none=True - a field
@@ -218,6 +227,13 @@ class ProductUpdateRequest(BaseModel):
     cost_price: Optional[float] = Field(default=None, ge=0)
     currency: Optional[str] = Field(default=None, pattern=r"^[A-Z]{3}$")
     # Sent as null (or "") it clears the stored barcode; omitted leaves it alone.
+    sku: Optional[str] = None
+
+    @field_validator("sku")
+    @classmethod
+    def _sku_is_valid(cls, value):
+        return normalize_sku(value)
+
     barcode: Optional[str] = None
 
     @field_validator("barcode")
@@ -263,9 +279,9 @@ def list_products(conn, tenant_id: str, limit: int = DEFAULT_LIMIT, offset: int 
     search_params: list = []
     if search:
         # Name in any language, brand or category - what the search box offers.
-        where_search = f" AND {text_search.product_match('p')}"
+        where_search = f" AND ({text_search.product_match('p')} OR p.sku ILIKE %s)"
         like_pattern = text_search.like_pattern(search)
-        search_params = [like_pattern, like_pattern, like_pattern]
+        search_params = [like_pattern, like_pattern, like_pattern,like_pattern]
 
     with conn.cursor() as cursor:
         cursor.execute(
@@ -277,7 +293,7 @@ def list_products(conn, tenant_id: str, limit: int = DEFAULT_LIMIT, offset: int 
         cursor.execute(
             f"""
             SELECT p.product_id, {_NAME_EXPR} AS name, {_BRAND_EXPR} AS brand, {_CATEGORY_EXPR} AS category,
-                   p.current_price, p.cost_price, p.currency, p.source, i.stock_quantity
+                   p.current_price, p.cost_price, p.currency, p.source, i.stock_quantity, p.sku,p.version
             FROM products p
             LEFT JOIN LATERAL (
                 SELECT stock_quantity FROM inventory
@@ -304,8 +320,10 @@ def list_products(conn, tenant_id: str, limit: int = DEFAULT_LIMIT, offset: int 
             "currency": currency,
             "source": source,
             "stock_quantity": as_quantity(stock_quantity),
+            "sku": sku,
+            "version": version,
         }
-        for product_id, name, brand, category, current_price, cost_price, currency, source, stock_quantity in rows
+        for product_id, name, brand, category, current_price, cost_price, currency, source, stock_quantity,sku,version in rows
     ]
 
     return {"products": products, "total": int(total), "limit": limit, "offset": offset}
@@ -322,7 +340,7 @@ def get_product(conn, tenant_id: str, product_id: str) -> Optional[dict]:
             """
             SELECT product_id, product_name, brand, category, description,
                    current_price, cost_price, currency, source, created_at, updated_at,
-                   metadata->>'barcode'
+                   metadata->>'barcode', sku, version
             FROM products
             WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;
             """,
@@ -333,7 +351,7 @@ def get_product(conn, tenant_id: str, product_id: str) -> Optional[dict]:
             return None
         (
             pid, product_name, brand, category, description,
-            current_price, cost_price, currency, source, created_at, updated_at, barcode,
+            current_price, cost_price, currency, source, created_at, updated_at, barcode, sku, version,
         ) = row
 
         # No uniqueness constraint on (tenant_id, product_id) in `inventory` -
@@ -374,6 +392,8 @@ def get_product(conn, tenant_id: str, product_id: str) -> Optional[dict]:
         "currency": currency,
         "source": source,
         "barcode": barcode,
+        "sku": sku,
+        "version": version,
         "created_at": created_at.isoformat() if created_at else None,
         "updated_at": updated_at.isoformat() if updated_at else None,
         "inventory": inventory,
@@ -384,7 +404,7 @@ def create_product(
     conn, tenant_id: str, user_id: Optional[str],
     product_name: Dict[str, str], brand: Optional[Dict[str, str]], category: Optional[Dict[str, str]],
     description: Optional[Dict[str, str]], current_price: float, cost_price: Optional[float],
-    currency: str, initial_stock_quantity: Optional[Decimal] = None, barcode: Optional[str] = None,
+    currency: str, initial_stock_quantity: Optional[Decimal] = None, barcode: Optional[str] = None, sku: Optional[str] = None,
 ) -> dict:
     """Inserts a new MANUAL product, plus an inventory row only when
     initial_stock_quantity is given (None = stock not tracked). JSONB columns are
@@ -395,8 +415,8 @@ def create_product(
             """
             INSERT INTO products
                 (tenant_id, product_name, brand, category, description, current_price,
-                 cost_price, currency, source, metadata, created_by_user_id, updated_by_user_id)
-            VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, 'MANUAL', %s::jsonb, %s, %s)
+                 cost_price, currency, source, metadata, created_by_user_id, updated_by_user_id, sku)
+            VALUES (%s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s, 'MANUAL', %s::jsonb, %s, %s, %s)
             RETURNING product_id;
             """,
             (
@@ -404,7 +424,7 @@ def create_product(
                 json.dumps(brand) if brand is not None else None,
                 json.dumps(category) if category is not None else None,
                 json.dumps(description) if description is not None else None,
-                current_price, cost_price, currency, json.dumps({"barcode": barcode} if barcode else {}), user_id, user_id,
+                current_price, cost_price, currency, json.dumps({"barcode": barcode} if barcode else {}), user_id, user_id, normalize_sku(sku),
             ),
         )
         product_id = str(cursor.fetchone()[0])
@@ -574,6 +594,18 @@ def list_products_endpoint(
         conn.close()
 
 
+class ProductReferenceRequest(BaseModel):
+    product_id: Optional[str] = None
+    sku: Optional[str] = None
+    product_name: Optional[str] = Field(default=None,max_length=255)
+    barcode: Optional[str] = None
+
+@router.post('/products/resolve-reference')
+def resolve_product_reference(body: ProductReferenceRequest, ctx: TenantContext=Depends(get_tenant_context)):
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:return resolve_reference(conn,ctx.tenant_id,body.model_dump(exclude_none=True))
+    finally:conn.close()
+
 @router.get("/products/{product_id}")
 def get_product_endpoint(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
@@ -604,9 +636,12 @@ def create_product_endpoint(body: ProductCreateRequest, ctx: TenantContext = Dep
             body.description, body.current_price, body.cost_price, body.currency,
             body.initial_stock_quantity, body.barcode,
         )
+        if body.sku:
+            result = update_product(conn, ctx.tenant_id, ctx.user_id, result['product_id'], {'sku':body.sku})
         conn.commit()
-    except Exception:
+    except Exception as exc:
         conn.rollback()
+        if getattr(exc,'pgcode',None)=='23505':raise HTTPException(409,'An active product already uses that SKU.') from None
         raise
     finally:
         conn.close()
@@ -628,7 +663,15 @@ def update_product_endpoint(product_id: str, body: ProductUpdateRequest, ctx: Te
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_catalog_admin(conn, ctx.tenant_id, ctx.user_id)
-        result = update_product(conn, ctx.tenant_id, ctx.user_id, product_id, body.model_dump(exclude_unset=True))
+        values=body.model_dump(exclude_unset=True)
+        expected=values.pop('expected_version',None)
+        if expected is not None:
+            with conn.cursor() as c:
+                c.execute('SELECT version FROM products WHERE tenant_id=%s AND product_id=%s AND deleted_at IS NULL FOR UPDATE',(ctx.tenant_id,product_id))
+                current=c.fetchone()
+                if not current:raise HTTPException(404,'Product not found')
+                if current[0]!=expected:raise HTTPException(409,'The product changed. Reload before saving.')
+        result = update_product(conn, ctx.tenant_id, ctx.user_id, product_id, values)
         conn.commit()
         if result is None:
             raise HTTPException(status_code=404, detail="Product not found")
@@ -636,8 +679,9 @@ def update_product_endpoint(product_id: str, body: ProductUpdateRequest, ctx: Te
     except HTTPException:
         conn.rollback()
         raise
-    except Exception:
+    except Exception as exc:
         conn.rollback()
+        if getattr(exc,'pgcode',None)=='23505':raise HTTPException(409,'An active product already uses that SKU.') from None
         raise
     finally:
         conn.close()

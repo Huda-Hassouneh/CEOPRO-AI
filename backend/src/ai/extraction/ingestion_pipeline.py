@@ -467,6 +467,7 @@ def process_records(
     minio_client=None,
     commit_every: Optional[int] = None,
     storage_preupload_callback=None,
+    existing_staging_ids=None,
 ) -> IngestionSummary:
     """
     Runs the full pipeline for one uploaded file or one batch of records
@@ -547,7 +548,10 @@ def process_records(
     for chunk_start in range(0, len(rows), bulk_chunk_size):
         chunk = rows[chunk_start : chunk_start + bulk_chunk_size]
 
-        if conn is not None:
+        if existing_staging_ids is not None:
+            if len(existing_staging_ids)!=len(rows):raise ValueError('Existing staging identity count differs from input.')
+            staged=[(sid,None) for sid in existing_staging_ids[chunk_start:chunk_start+len(chunk)]]
+        elif conn is not None:
             def _bulk_stage(chunk=chunk):
                 return [(sid, None) for sid in _bulk_insert_staging_rows(conn, tenant_id, job_id, chunk)]
 
@@ -622,6 +626,11 @@ def process_records(
                 for staging_row_id, status, errors_json in updates:
                     _update_staging_row_status(conn, staging_row_id, status, errors=errors_json)
 
+            if existing_staging_ids is not None:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT staging_row_id FROM import_staging_rows WHERE tenant_id=%s AND job_id=%s AND validation_status='COMMITTED'",(tenant_id,job_id))
+                    committed={row[0] for row in cursor.fetchall()}
+                pending_status_updates[:]=[u for u in pending_status_updates if u[0] not in committed]
             _run_bulk_or_fallback(conn, _BULK_SAVEPOINT_NAME, _bulk_status, _fallback_status)
 
         if commit_every and conn is not None:
