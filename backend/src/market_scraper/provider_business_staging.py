@@ -128,7 +128,7 @@ def list_provider_business_records(conn, source_id: str, *, limit: int = 50, off
         cursor.execute(
             "SELECT b.business_revision_id,b.provider_record_identity_id,b.entity_type,b.revision_number,"
             "b.typed_values,b.validation_findings,b.validation_status,b.created_at,i.provider_record_id,"
-            "i.mapping_status,r.decision,r.created_at,r.reason_code,i.canonical_product_id "
+            "i.mapping_status,r.decision,r.created_at,r.reason_code,i.canonical_product_id,i.canonical_invoice_id "
             "FROM public.keel_provider_business_revisions b "
             "JOIN public.keel_provider_record_identities i ON i.tenant_id=b.tenant_id "
             "AND i.source_id=b.source_id AND i.provider=b.provider AND i.provider_record_identity_id=b.provider_record_identity_id "
@@ -148,8 +148,9 @@ def list_provider_business_records(conn, source_id: str, *, limit: int = 50, off
         "validation_status": r[6], "created_at": r[7].isoformat(), "provider_record_id": r[8],
         "identity_status": r[9], "review_decision": r[10], "reviewed_at": r[11].isoformat() if r[11] else None,
         "review_reason_code": r[12],
-        "canonical_status": "linked" if r[13] else "not_posted",
+        "canonical_status": "linked" if r[13] or r[14] else "not_posted",
         "canonical_product_id":str(r[13]) if r[13] else None,
+        "canonical_invoice_id":str(r[14]) if r[14] else None,
     } for r in rows], "limit": limit, "offset": offset}
 
 

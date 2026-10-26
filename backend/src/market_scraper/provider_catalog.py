@@ -20,7 +20,7 @@ def _snapshot(conn,tenant,source,revision):
     identity,entity,values,findings,validation,provider,parent,associated,state,current_hash,value_hash,review=row
     if current_hash!=value_hash:raise HTTPException(409,'Provider identity changed. Synchronize and review its latest revision.')
     reasons=[]
-    if entity not in ('product','variant'):reasons.append('unsupported_entity')
+    if entity not in ('product','variant') or (provider=='shopify' and entity=='product') or (provider=='woocommerce' and entity=='product' and values.get('product_type') not in ('simple',None)):reasons.append('unsupported_entity')
     if validation=='invalid' or review=='reject' or state in ('conflict','unavailable'):reasons.append('validation_review')
     if any(x.get('field')!='provider_identity' or x.get('code')!='pending_review' for x in findings):reasons.append('validation_review')
     title=values.get('title')

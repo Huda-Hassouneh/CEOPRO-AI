@@ -470,6 +470,17 @@ def run_due_provider_syncs(conn, tenant_id: str, *, client_factory: Callable = S
             else:
                 result = sync_shopify_source(conn, tenant_id, source, receipt, client_factory=client_factory)
             operation_receipts.finish(conn, receipt, "completed")
+            # Evidence scan and canonical outcomes are reported separately. A held
+            # canonical row is durable/reviewable, never a second provider charge.
+            if os.getenv('KEEL_ALLOW_DISPOSABLE_PROVIDER_PROMOTION')=='YES':
+                from src.market_scraper.provider_promotion import reconcile
+                try:
+                    result['canonical_reconciliation']=reconcile(conn,tenant_id,source['source_id'],service_actor)
+                    result['canonical_promotion']=any(result['canonical_reconciliation'].get(k,0) for k in ('catalog_created','stock_updated'))
+                except Exception as exc:
+                    conn.rollback()
+                    result['canonical_reconciliation']={'enabled':True,'status':'review_required','error_type':type(exc).__name__}
+                    logger.warning('Provider canonical reconciliation held source_id=%s error_type=%s',source['source_id'],type(exc).__name__)
             result["provider"] = provider
             results.append(result)
         except Exception as exc:  # isolate one provider source without masking others

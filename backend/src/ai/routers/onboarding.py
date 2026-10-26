@@ -1,5 +1,5 @@
 from src.infrastructure.public_urls import frontend_origin
-from typing import Optional
+from typing import Optional, Literal
 import json
 import os
 from uuid import UUID
@@ -624,3 +624,85 @@ def provider_catalog_post(source_id:UUID,body:ProviderCatalogPost,ctx:TenantCont
         from src.ai.routers.products import _publish_discovery_request
         _publish_discovery_request(ctx.tenant_id)
     return result
+
+
+@router.get('/sources/{source_id}/provider-records/{revision_id}/order-preview')
+def provider_order_preview(source_id:UUID,revision_id:UUID,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_orders
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx);result=provider_orders.preview(conn,ctx.tenant_id,str(source_id),str(revision_id));conn.commit();return result
+    except Exception:conn.rollback();raise
+    finally:conn.close()
+
+@router.post('/sources/{source_id}/provider-records/order-post')
+def provider_order_post(source_id:UUID,body:ProviderCatalogPost,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_orders
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx);result=provider_orders.confirm(conn,ctx.tenant_id,ctx.user_id,str(source_id),str(body.business_revision_id),body.preview_hash);conn.commit();return result
+    except Exception as exc:
+        conn.rollback()
+        if getattr(exc,'pgcode',None)=='23505':raise HTTPException(409,'Source invoice identity conflicts with existing accounting.') from None
+        raise
+    finally:conn.close()
+
+
+class ProviderStockPost(BaseModel):
+    observation_id:UUID
+    preview_hash:str=Field(pattern=r'^[0-9a-f]{64}$')
+    model_config=ConfigDict(extra='forbid')
+
+@router.get('/sources/{source_id}/inventory-review')
+def provider_stock_review(source_id:UUID,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_stock
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx);result=provider_stock.list_review(conn,ctx.tenant_id,str(source_id));conn.commit();return result
+    except Exception:conn.rollback();raise
+    finally:conn.close()
+
+@router.post('/sources/{source_id}/inventory-post')
+def provider_stock_post(source_id:UUID,body:ProviderStockPost,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_stock
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx);result=provider_stock.confirm(conn,ctx.tenant_id,ctx.user_id,str(source_id),str(body.observation_id),body.preview_hash);conn.commit();return result
+    except Exception:conn.rollback();raise
+    finally:conn.close()
+
+
+class ProviderPromotionChoice(BaseModel):
+    category:Literal['catalog','inventory','orders']
+    enabled:bool
+    model_config=ConfigDict(extra='forbid')
+
+@router.get('/sources/{source_id}/promotion-settings')
+def provider_promotion_settings(source_id:UUID,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_promotion
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx);result=provider_promotion.settings(conn,ctx.tenant_id,str(source_id),ctx.user_id);conn.commit();return result
+    except Exception:conn.rollback();raise
+    finally:conn.close()
+
+@router.post('/sources/{source_id}/promotion-settings')
+def provider_promotion_choice(source_id:UUID,body:ProviderPromotionChoice,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_promotion
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx);result=provider_promotion.decide(conn,ctx.tenant_id,str(source_id),ctx.user_id,body.category,body.enabled);conn.commit();return result
+    except Exception:conn.rollback();raise
+    finally:conn.close()
+
+
+@router.post('/sources/{source_id}/promotion-retry')
+def provider_promotion_retry(source_id:UUID,ctx:TenantContext=Depends(get_tenant_context)):
+    from src.market_scraper import provider_promotion
+    conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
+    try:
+        _require_admin(conn,ctx)
+        if not provider_promotion.test_runtime(conn):raise HTTPException(409,'Disposable automatic promotion is disabled.')
+        return provider_promotion.reconcile(conn,ctx.tenant_id,str(source_id),ctx.user_id)
+    except Exception:conn.rollback();raise
+    finally:conn.close()

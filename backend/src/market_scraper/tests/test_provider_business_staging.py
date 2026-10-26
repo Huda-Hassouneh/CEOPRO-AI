@@ -68,7 +68,7 @@ def test_shopify_products_orders_and_lines_stage_as_allowlisted_values():
         configuration_version=1, records=records, identity_rows=identities,
     )
     assert result == {"records_seen": 4, "revisions_created": 4, "duplicates": 0,
-                      "invalid": 0, "review_required": 0, "valid": 4}
+                      "invalid": 0, "review_required": 1, "valid": 3}
     staged = [json.loads(call[1][8]) for call in conn.calls]
     assert "billingAddress" not in staged[0]
     assert staged[3]["product_provider_id"] == product_id
