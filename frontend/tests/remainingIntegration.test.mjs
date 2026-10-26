@@ -40,3 +40,14 @@ test('pricing requests preserve one retry identity until a successful acknowledg
 test('source order and stock review use authenticated Python contracts and explicit confirmation',()=>{const api=read('features/data-connections/api/dataConnectionsApi.js'),panel=read('features/data-connections/components/ProviderRecordsPanel.jsx'),stock=read('features/data-connections/components/ProviderStockReview.jsx');for(const path of ['order-preview','order-post','inventory-review','inventory-post'])assert.ok(api.includes(path));assert.match(panel,/preview_hash:orderPlan.preview_hash/);assert.match(stock,/preview_hash:selected.preview_hash/);assert.match(stock,/stockConfirm/);for(const locale of ['en','ar']){const d=JSON.parse(read(`assets/locales/${locale}.json`)).connectData.providerRecords;assert.ok(d.orderBoundary&&d.stockBoundary&&d.stockFindings.stock_conflict);}});
 
 test('source auto processing defaults to owner opt-in and keeps automatic invoices visibly blocked',()=>{const ui=read('features/data-connections/components/ProviderPromotionSettings.jsx'),api=read('features/data-connections/api/dataConnectionsApi.js');assert.match(ui,/!settings.can_change/);assert.match(ui,/!settings.disposable_runtime_enabled/);assert.match(ui,/checked=\{false\} disabled/);assert.match(ui,/promotionOrdersBlocked/);assert.match(api,/promotion-settings/);for(const locale of ['en','ar'])assert.ok(JSON.parse(read(`assets/locales/${locale}.json`)).connectData.providerRecords.promotionBoundary);});
+
+test('new Arabic source-review labels contain Arabic text, not encoding replacement question marks',()=>{
+ const records=JSON.parse(read('assets/locales/ar.json')).connectData.providerRecords;
+ const leaves=value=>typeof value==='string'?[value]:Object.values(value).flatMap(leaves);
+ for(const [key,value] of Object.entries(records).filter(([key])=>/^(order|stock|promotion)/.test(key))){
+  for(const text of leaves(value)){assert.match(text,/[\u0600-\u06ff]/,key);assert.doesNotMatch(text,/\?{2,}/,key);}
+ }
+ const stock=read('features/data-connections/components/ProviderStockReview.jsx');assert.ok(stock.includes('\\u2192'));
+});
+
+test('source tables keep accounting in its explicit review instead of dumping nested accounting JSON',()=>{const panel=read('features/data-connections/components/ProviderRecordsPanel.jsx');assert.equal(panel.split("filter(([key])=>key!=='accounting')").length-1,2);assert.match(panel,/orderPlan.contract/);for(const locale of ['en','ar']){const fields=JSON.parse(read(`assets/locales/${locale}.json`)).connectData.providerRecords.stockFields;assert.deepEqual(Object.keys(fields).sort(),['available','on_hand','woocommerce_stock_quantity']);}});

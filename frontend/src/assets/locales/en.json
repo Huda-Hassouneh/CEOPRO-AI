@@ -3373,6 +3373,7 @@
       "orderConfirm": "Confirm source accounting",
       "orderSaved": "Source accounting saved",
       "orderFindings": {"accounting_evidence": "Complete, reconciled provider accounting is missing. Synchronize and review the source.", "validation_review": "This source record needs validation or was rejected.", "unsupported_currency": "Configure the actual invoice currency for this company first.", "stale_order": "A newer or equal provider version already owns this invoice.", "unlinked_product": "Review and link every source product before posting its order.", "product_currency": "A linked product has a conflicting currency.", "unowned_invoice": "The invoice association has no source-owned posting receipt.", "canonical_changed": "The canonical invoice or sales were changed independently. Resolve the conflict before posting.", "invoice_collision": "This source invoice number is already used. No accounting will be overwritten."},
+      "stockFields": {"available": "Available stock", "on_hand": "On-hand stock", "woocommerce_stock_quantity": "WooCommerce managed stock quantity"},
       "stockReview": "Review current source stock",
       "stockBoundary": "Choose one actual source quantity field and location for this product. Values are not summed. Existing manual or conflicting stock is protected. Unknown, missing and unmanaged stock is never zero.",
       "stockSaved": "Selected source stock saved",
