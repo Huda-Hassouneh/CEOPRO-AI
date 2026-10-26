@@ -42,7 +42,15 @@ def check(c):
         cur.execute("""SELECT relname FROM pg_class WHERE relnamespace='public'::regnamespace
                        AND relkind='r' AND relrowsecurity AND NOT relforcerowsecurity""")
         unsafe = [r[0] for r in cur.fetchall()]
-        assert not unsafe, "RLS tables without FORCE: " + ", ".join(unsafe)
+        # Existing owner-run trigger/claim functions intentionally retain owner bypass.
+        # See 20261028000100_entitlement_version_tracking.sql (explicit NO FORCE),
+        # and 20261030000000_add_image_generation_jobs.sql (SECURITY DEFINER claims).
+        original_nonforce = {"entitlement_version_state", "entitlement_catalog_version", "image_generation_jobs"}
+        assert set(unsafe) == original_nonforce, "RLS/FORCE drift from declared schema: " + ", ".join(unsafe)
+        cur.execute("SELECT tablename FROM pg_policies WHERE schemaname='public' AND tablename=ANY(%s)", (list(original_nonforce),))
+        assert {r[0] for r in cur.fetchall()} == original_nonforce, "Original non-FORCE tables lost policies"
+        cur.execute("SELECT relname FROM pg_class WHERE relnamespace='public'::regnamespace AND pg_get_userbyid(relowner)='ceopro_app' AND relname=ANY(%s)", (list(original_nonforce),))
+        assert not cur.fetchall(), "Runtime role must not own owner-bypass tables"
         cur.execute("SELECT count(*) FROM pg_class WHERE relnamespace='public'::regnamespace AND relrowsecurity AND relforcerowsecurity")
         count = cur.fetchone()[0]
         assert count > 0, "No FORCE RLS tables"
@@ -117,6 +125,9 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except (DevError, AssertionError) as exc:
+        print(f"Database verification failed: {exc}", file=sys.stderr)
+        raise SystemExit(1)
     except Exception as exc:
         # Provider/DB exceptions can carry DSNs; report class only.
         print(f"Database command failed ({type(exc).__name__}). Check Docker/status and .dev configuration; no credentials printed.", file=sys.stderr)

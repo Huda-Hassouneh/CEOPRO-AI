@@ -6,5 +6,5 @@ if (-not (Test-Path -LiteralPath $runtime)) {
 }
 # Windows PowerShell 5.1 must not turn native stderr into a terminating exception.
 $ErrorActionPreference = 'Continue'
-& $runtime (Join-Path $PSScriptRoot 'tools/dev/dev.py') @args
+& $runtime (Join-Path $PSScriptRoot 'tools/dev/dev.py') @args 2>&1 | ForEach-Object { $_.ToString() }
 exit $LASTEXITCODE
