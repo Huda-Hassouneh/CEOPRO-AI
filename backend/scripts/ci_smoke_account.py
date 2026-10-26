@@ -8,7 +8,8 @@ real products and competitors to show; the rest shows its empty state.
 
   python -m scripts.ci_smoke_account --api http://localhost:8000 --email ci@example.com --password '...'
 
-Re-running is safe: an existing account is signed into instead.
+Re-running resumes saved onboarding and reuses the signup trial, products and
+competitor prices. No paid plan, Stripe object or trial reset is created.
 """
 import argparse
 import os
@@ -112,6 +113,41 @@ def _sign_in_existing_account(client: Client, email: str, password: str) -> dict
     return {"tenant_id": data.get("tenant_id"), "created": False}
 
 
+def _complete_guided_onboarding(client: Client, company) -> None:
+    """Use the same saved profile/plan acknowledgement as the six-step UI.
+
+    Signup normally grants the catalog's one-time trial. Reuse those actual
+    rights; never invent a plan, reset a trial, or create a Stripe Checkout.
+    Resume partial setup and leave completed accounts unchanged on a retry.
+    """
+    state = client.request("GET", "/onboarding/state")
+    subscription = client.request("GET", "/billing/subscription")
+    if not (subscription.get("assigned") and subscription.get("hasAccess")):
+        raise RuntimeError(
+            "The smoke account needs its valid signup trial or an existing active plan. "
+            "Use a fresh disposable CI database/account; this fixture never grants paid rights."
+        )
+    if state["isComplete"]:
+        return
+    choices = [
+        {"country": company.country, "city": company.city or "Amman",
+         "language": company.language if company.language in ("en", "ar") else "en"},
+        {"industry": "retail"},
+        {"businessSize": "1-50", "annualRevenue": "under-100k"},
+        {"objectives": ["competitors", "forecasting", "knowledge"]},
+        {"selectedPlan": subscription["planId"], "billingPeriod": subscription["billingPeriod"]},
+    ]
+    for step, values in enumerate(choices, start=1):
+        if step <= state["highestCompletedStep"]:
+            continue
+        state = client.request("PUT", "/onboarding/state", json={
+            "step": step, "expected_revision": state["revision"], **values,
+        })
+    company_state = client.request("POST", "/settings/company/onboarding/complete")
+    if not company_state.get("onboarding_completed_at"):
+        raise RuntimeError("The API did not confirm durable onboarding completion.")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--api", required=True)
@@ -134,13 +170,13 @@ def main():
         else _sign_in_existing_account(client, args.email, args.password)
     )
     configure_company(client, company)
+    _complete_guided_onboarding(client, company)
     product_ids = create_catalog(client, company)
     names = set(product_ids)
     company = replace(company, competitors=[
         replace(c, observed_prices={p: obs for p, obs in c.observed_prices.items() if p in names}) for c in company.competitors
     ])
     prices = add_competitors(client, company, product_ids, datetime.now(timezone.utc))
-    client.request("POST", "/settings/company/onboarding/complete")
     print(f"{company.business_name}: tenant {account['tenant_id']}, {len(product_ids)} products, "
           f"{len(company.competitors)} competitors, {len(prices)} competitor prices", flush=True)
 
