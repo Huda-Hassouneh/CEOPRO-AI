@@ -485,6 +485,16 @@ def setup(args):
     capabilities()
 
 
+def infra(_args):
+    """Initialize only the owned local infrastructure; never reset existing data."""
+    c = config()
+    check_docker()
+    compose_file(c)
+    verify_containers(c)
+    docker(c, "up", "-d", "--wait", "--wait-timeout", "180")
+    print("Local infrastructure ready. PostgreSQL creates the development DB only on first volume initialization; existing data retained.")
+
+
 def up(args):
     c = config()
     if not PYTHON.exists() or not (STATE / "dependencies.json").exists():
@@ -689,7 +699,7 @@ def command_lock():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["setup", "up", "down", "restart", "status", "logs",
-                                           "doctor", "migrate", "db-status", "db-check", "seed", "test"])
+                                           "doctor", "infra", "migrate", "db-status", "db-check", "seed", "test"])
     parser.add_argument("--mode", choices=["core", "full"], default=None)
     parser.add_argument("--models", action="store_true", help="setup: also install the existing model requirements")
     parser.add_argument("--suite", choices=["tooling", "frontend", "database", "browser"], default="tooling")

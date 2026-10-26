@@ -37,6 +37,7 @@ Only one mutating developer command runs at a time. If interrupted, inspect `.de
 .\dev.ps1 doctor
 .\dev.ps1 logs --tail 80
 .\dev.ps1 logs --service connectors --follow
+.\dev.ps1 infra
 .\dev.ps1 migrate
 .\dev.ps1 db-status
 .\dev.ps1 db-check
