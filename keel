@@ -26,7 +26,7 @@ cd "$ROOT"
 # Codespaces lifecycle remains below for its existing forwarded-port setup.
 if [ -z "${CODESPACE_NAME:-}" ]; then
   case "${1:-help}" in
-    setup|up|down|restart|status|logs|doctor|migrate|db-status|db-check|seed|test)
+    setup|up|down|restart|status|logs|doctor|infra|migrate|db-status|db-check|seed|test)
       exec bash "$ROOT/dev.sh" "$@" ;;
     start) shift; exec bash "$ROOT/dev.sh" up "$@" ;;
     stop) shift; exec bash "$ROOT/dev.sh" down "$@" ;;

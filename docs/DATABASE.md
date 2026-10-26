@@ -21,6 +21,8 @@ Administrative credentials are not passed to API or worker processes. The applic
 
 ## Commands
 
+- `dev.ps1 infra`: start only owned PostgreSQL/Redis/storage/mail. PostgreSQL creates the named development database on first volume initialization; it never resets an existing DB. Then use `migrate` separately. `up` combines these steps with the application.
+
 - `dev.ps1 migrate`: apply pending migrations. Failure is fatal; it is never downgraded to a warning.
 - `dev.ps1 db-status`: report applied/pending registry files.
 - `dev.ps1 db-check`: identity, vector extension, migration coverage, restricted password login and FORCE RLS checks.
