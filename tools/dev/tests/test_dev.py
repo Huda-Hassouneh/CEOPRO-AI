@@ -171,3 +171,10 @@ class DevTests(unittest.TestCase):
         with patch.object(dev.subprocess, "run", return_value=SimpleNamespace(returncode=1)):
             with self.assertRaisesRegex(dev.DevError, "Migration runner failed"):
                 dev.database(self.c, "migrate")
+
+    def test_foreign_volume_is_not_mounted(self):
+        from unittest.mock import Mock
+        responses = ["", "foreign-volume", json.dumps([{"Labels": {"com.keel.dev.root": "another clone"}}])]
+        with patch.object(dev, "run", side_effect=responses):
+            with self.assertRaisesRegex(dev.DevError, "volume ownership mismatch"):
+                dev.verify_containers(self.c)
