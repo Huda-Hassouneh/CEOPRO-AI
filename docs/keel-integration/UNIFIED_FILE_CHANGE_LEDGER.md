@@ -1865,3 +1865,8 @@ Existing Shopify/Woo OAuth/vault/adapters/fenced worker reused. Added restricted
 ### Remaining integration Phase 5 checkpoint ? 2026-10-26
 
 Original catalog/table/detail/GTIN components restored at additive /catalog routes, preserving Python main product pages and existing authorities. Added versioned audited archive/restore and strict atomic GTIN batch contracts. Fixed demonstrated multipart adapter defect. Read-only MPI history reuses evidence_records; tenant-bound frontend caches fixed. Optional pricing request replay is atomic with existing evidence, with no mathematical/metering change (forward migration129). Combined142 native tests and195 frontend tests passed/0 skipped; lint/build and real catalog/history/Arabic browser passed. Exact policy and provider limitations remain in current checkpoint; next Phase6 scoped differential and fresh/upgrade/repeat migration verification.
+
+
+### Differential verification defect remediation checkpoint ? 2026-10-26
+
+Affected143 regressions and fresh129/upgrade123+6/repeat0 proof passed;33 fresh API tests passed. Added impact tests exposed pricing receipt foreign keys blocking ordinary company deletion; additive130 cleanup migration fixes this without allowing direct result deletion. Existing M97 import retention constraints now surface explicit409 before any deletion rather than an SQL500; constraints not weakened. Cleanup group22 and catalog search10 passed. Reproducible disposable migration proof script added; final130 proof pending at this checkpoint.

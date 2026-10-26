@@ -60,3 +60,12 @@ def test_interruption_resumes_same_staging_and_preserves_once_only_allowance(set
     assert upload(client,k).json()==second.json()
 
 from contextlib import nullcontext as _expect_http_failure
+
+
+def test_company_deletion_reports_retained_durable_import_evidence(setup):
+    from src.ai import company_data
+    client,app,ts,us=setup;assert upload(client,str(uuid4())).status_code==200
+    with psycopg2.connect(os.environ['AI_TEST_DATABASE_URL']) as conn:
+        with pytest.raises(company_data.DeletionBlocked,match='integration_evidence_review'):company_data.delete_company(conn,ts[0])
+        conn.rollback()
+        with conn.cursor() as q:q.execute('SELECT count(*) FROM keel_file_upload_requests WHERE tenant_id=%s',(ts[0],));assert q.fetchone()==(1,)

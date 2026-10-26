@@ -61,3 +61,16 @@ def test_request_identity_conflicts_bad_uuid_and_cross_tenant_are_rejected(reque
     try:
         with c.cursor() as q:q.execute('SELECT * FROM keel_pricing_request_results');assert q.fetchall()==[]
     finally:c.close()
+
+
+def test_existing_company_deletion_still_works_after_pricing_replay_receipt(request_fixture):
+    from src.ai import company_data
+    client,ts,us,p=request_fixture;assert recommend(client,p,str(uuid4())).status_code==200
+    conn=psycopg2.connect(os.environ['AI_TEST_DATABASE_URL'])
+    try:
+        with conn.cursor() as q:
+            with pytest.raises(psycopg2.errors.ObjectNotInPrerequisiteState):q.execute('DELETE FROM keel_pricing_request_results WHERE tenant_id=%s',(ts[0],))
+        conn.rollback()
+        company_data.delete_company(conn,ts[0]);conn.commit()
+        with conn.cursor() as q:q.execute('SELECT count(*) FROM companies WHERE tenant_id=%s',(ts[0],));assert q.fetchone()==(0,)
+    finally:conn.close()
