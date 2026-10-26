@@ -372,8 +372,16 @@ def setup(args):
     fingerprint = hashlib.sha256(b"".join(x.read_bytes() for x in source)).hexdigest()
     marker = STATE / "dependencies.json"
     prior = json.loads(marker.read_text()) if marker.exists() else {}
+    constraints = STATE / "constraints.txt"
+    lines = []
+    for dependency_file in source[1:]:
+        for raw in dependency_file.read_text(encoding="utf-8").splitlines():
+            line = raw.split("#", 1)[0].strip()
+            if line:
+                lines.append(re.sub(r"\[[^]]+\]", "", line))
+    constraints.write_text("\n".join(lines) + "\n", encoding="utf-8")
     if prior.get("python") != fingerprint:
-        run([PYTHON, "-m", "pip", "install", "-r", manifest])
+        run([PYTHON, "-m", "pip", "install", "-c", constraints, "-r", manifest])
         run([PYTHON, "-m", "pip", "check"])
         prior["python"] = fingerprint
     if args.models and prior.get("models") != fingerprint:
