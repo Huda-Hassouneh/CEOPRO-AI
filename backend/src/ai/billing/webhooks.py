@@ -106,7 +106,28 @@ def sync_subscription(sys_conn, subscription_id: str, event_created: datetime, h
         raise WebhookRetry("subscription customer belongs to another company")
     if customer and not customer_tenant:
         store.save_customer(sys_conn, tenant_id, customer)
-    store.apply_subscription(sys_conn, tenant_id, stripe_sub, plan_key, period_code, event_created)
+    previous = store.current_subscription(sys_conn, tenant_id)
+    trial_payment_verified = False
+    if (previous and previous["stripe_subscription_id"] == subscription_id
+            and previous.get("trial_end") and previous["status"] != "active"
+            and stripe_sub.get("status") == "active"):
+        start, _end = store.period_bounds(stripe_sub)
+        # Invalid trial boundaries are rejected by apply_subscription without
+        # querying an unrelated invoice. An 'active' label alone is not proof
+        # of the first post-trial payment, including during invoice finalization.
+        if start and start >= previous["trial_end"] and store._ts(stripe_sub.get("trial_end")) == previous["trial_end"]:
+            latest = _id(stripe_sub.get("latest_invoice"))
+            invoice = stripe_api.retrieve_invoice(latest) if latest else {}
+            trial_payment_verified = bool(
+                latest and invoice.get("id") == latest and invoice.get("status") == "paid"
+                and _invoice_subscription_id(invoice) == subscription_id
+                and _id(invoice.get("customer")) == customer
+                and any((line.get("period") or {}).get("start", float("inf")) <= start.timestamp()
+                        < (line.get("period") or {}).get("end", 0)
+                        for line in (invoice.get("lines") or {}).get("data", []))
+            )
+    store.apply_subscription(sys_conn, tenant_id, stripe_sub, plan_key, period_code, event_created,
+                             trial_payment_verified=trial_payment_verified)
     entitlements.forget(tenant_id)  # the new plan's modules apply at once
     return tenant_id
 

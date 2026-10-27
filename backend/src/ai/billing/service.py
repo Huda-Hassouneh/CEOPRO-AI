@@ -18,6 +18,7 @@ Closed gaps from that implementation: the stored Stripe customer is reused
 with a live subscription can't open a second checkout.
 """
 import hashlib
+from copy import deepcopy
 import time
 from decimal import Decimal, InvalidOperation
 from src.ai.billing import checkout_attempts, config, promotions, store, stripe_api
@@ -534,9 +535,58 @@ def preview_plan_change(conn, tenant_id: str, plan_key: str, period_code: str) -
             'feature_changes':changes, 'activation':'verified_webhook', 'deletes_data':False}
 
 
+def _validate_transition_snapshot(local: dict, remote: dict) -> None:
+    """Missing/delayed reconciliation must not drive a provider action from stale rights."""
+    start, end = store.period_bounds(remote)
+    if (remote.get("id") != local["stripe_subscription_id"]
+            or store.STATUS_FROM_STRIPE.get(remote.get("status")) != local["status"]
+            or start != local.get("current_period_start") or end != local.get("current_period_end")
+            or store._ts(remote.get("trial_end")) != local.get("trial_end")):
+        raise BillingError(409, "billing_reconciling", "Subscription state is awaiting verified billing reconciliation. Try again after it completes.")
+    if remote.get("status") == "trialing" and (not remote.get("trial_end") or remote["trial_end"] <= time.time()):
+        raise BillingError(409, "payment_required", "The trial has ended. Wait for verified payment or use payment recovery.")
+
+
+# Stripe replaces phase settings when phases are submitted; omitted settings are
+# cleared. Preserve the supported current commercial terms, especially trial_end.
+_CURRENT_PHASE_FIELDS = (
+    "application_fee_percent", "automatic_tax", "billing_cycle_anchor", "billing_thresholds",
+    "collection_method", "currency", "default_payment_method", "default_tax_rates", "description",
+    "discounts", "invoice_settings", "metadata", "on_behalf_of", "proration_behavior", "transfer_data", "trial_end",
+)
+
+
+def _preserved_current_phase(phase: dict, subscription: dict) -> dict:
+    result = {key: deepcopy(phase[key]) for key in _CURRENT_PHASE_FIELDS if phase.get(key) is not None}
+    result.update(start_date=phase["start_date"], end_date=phase["end_date"], items=[])
+    for item in phase["items"]:
+        saved = {key: deepcopy(item[key]) for key in ("quantity", "tax_rates", "discounts", "billing_thresholds", "metadata") if item.get(key) is not None}
+        saved["price"] = item["price"]["id"] if isinstance(item.get("price"), dict) else item["price"]
+        saved.setdefault("quantity", 1)
+        result["items"].append(saved)
+    if phase.get("add_invoice_items"):
+        raise BillingError(409, "plan_transition_unclassified", "This schedule contains additional invoice items and needs billing review before changing plan.")
+    if subscription.get("status") == "trialing":
+        cutoff = subscription["trial_end"]
+        if phase.get("trial_end") not in (None, cutoff) or not phase["start_date"] < cutoff <= phase["end_date"]:
+            raise BillingError(409, "billing_reconciling", "The schedule trial boundary does not match the subscription.")
+        # The trial is the current entitlement term. The selected plan starts at
+        # its existing end, not at a newly invented calendar-month boundary.
+        result["trial_end"] = cutoff
+        result["end_date"] = cutoff
+    return result
+
+
 def change_plan(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str) -> dict:
+    # Serialize provider actions without holding a row lock across network calls.
+    with checkout_attempts.tenant_lock(sys_conn, "plan-transition:" + tenant_id):
+        return _change_plan_locked(conn, sys_conn, tenant_id, plan_key, period_code)
+
+
+def _change_plan_locked(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str) -> dict:
     sub, price, is_upgrade, _current, _target = _plan_change_context(conn, tenant_id, plan_key, period_code)
     stripe_sub = stripe_api.retrieve_subscription(sub["stripe_subscription_id"])
+    _validate_transition_snapshot(sub, stripe_sub)
     item_id = stripe_sub["items"]["data"][0]["id"]
     schedule_id = stripe_sub.get("schedule")
     schedule_id = schedule_id.get("id") if isinstance(schedule_id, dict) else schedule_id
@@ -574,31 +624,31 @@ def change_plan(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str)
         or next((p for p in phases if (p.get("end_date") or 0) > now), None)
     if not phase:
         raise BillingError(502, "schedule_unavailable", "The payment provider couldn't schedule this change. Try again.")
-    current_items = [
-        {"price": (i["price"]["id"] if isinstance(i.get("price"), dict) else i["price"]), "quantity": i.get("quantity") or 1}
-        for i in phase["items"]
-    ]
+    current_phase = _preserved_current_phase(phase, stripe_sub)
     stripe_api.modify_schedule(
-        schedule_id, end_behavior="release",
-        phases=[
-            {"start_date": phase["start_date"], "end_date": phase["end_date"], "items": current_items},
-            {"items": [{"price": price["stripe_price_id"], "quantity": 1}]},
-        ],
+        schedule_id, end_behavior="release", proration_behavior="none",
+        phases=[current_phase, {"items": [{"price": price["stripe_price_id"], "quantity": 1}]}],
     )
     store.set_schedule(sys_conn, tenant_id, sub["stripe_subscription_id"], plan_key, period_code)
     sys_conn.commit()
     return {
         "state": "scheduled", "timing": "period_end",
-        "effective_at": sub["current_period_end"].isoformat() if sub["current_period_end"] else None,
+        "effective_at": store._ts(current_phase["end_date"]).isoformat(),
     }
 
 
 def cancel_scheduled_change(conn, sys_conn, tenant_id: str) -> dict:
+    with checkout_attempts.tenant_lock(sys_conn, "plan-transition:" + tenant_id):
+        return _cancel_scheduled_change_locked(conn, sys_conn, tenant_id)
+
+
+def _cancel_scheduled_change_locked(conn, sys_conn, tenant_id: str) -> dict:
     _require_payments()
     sub = _live_subscription(conn, tenant_id)
     if not sub["scheduled_plan_key"]:
         raise BillingError(409, "nothing_scheduled", "No plan change is scheduled.")
     stripe_sub = stripe_api.retrieve_subscription(sub["stripe_subscription_id"])
+    _validate_transition_snapshot(sub, stripe_sub)
     schedule_id = stripe_sub.get("schedule")
     schedule_id = schedule_id.get("id") if isinstance(schedule_id, dict) else schedule_id
     if schedule_id:

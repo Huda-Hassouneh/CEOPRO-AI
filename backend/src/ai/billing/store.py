@@ -345,12 +345,27 @@ def subscription_price_id(stripe_sub: dict) -> Optional[str]:
 
 def apply_subscription(
     sys_conn, tenant_id: str, stripe_sub: dict, plan_key: str, period_code: str, event_created: datetime,
+    *, trial_payment_verified: bool = False,
 ) -> dict:
     """Stores Stripe's current view of a subscription and makes the company's
     plan follow it. Only ever called with a subscription freshly retrieved
     from Stripe, so a late or repeated event can't roll it back."""
     status = STATUS_FROM_STRIPE.get(stripe_sub.get("status"), "pending")
     period_start, period_end = period_bounds(stripe_sub)
+    previous = current_subscription(sys_conn, tenant_id)
+    if (previous and previous["stripe_subscription_id"] == stripe_sub["id"]
+            and (previous.get("trial_end") or previous["status"] == "trialing")
+            and status in config.CURRENT_STATUSES):
+        approved_end = previous.get("trial_end")
+        provider_end = _ts(stripe_sub.get("trial_end"))
+        if (not approved_end or provider_end != approved_end
+                or (status == "active" and (not period_start or period_start < approved_end))):
+            # A schedule update is not authority to shorten/extend an existing
+            # trial or grant an early paid period. Preserve the last good grant;
+            # Stripe can retry after the inconsistency is audited/reconciled.
+            raise ValueError("trial_boundary_conflict: verified trial terms changed without an authorized transition")
+        if status == "active" and previous["status"] != "active" and not trial_payment_verified:
+            raise ValueError("trial_payment_unverified: a paid invoice covering the first post-trial period is required")
     customer = stripe_sub.get("customer")
     customer = customer.get("id") if isinstance(customer, dict) else customer
     with sys_conn.cursor() as cursor:
