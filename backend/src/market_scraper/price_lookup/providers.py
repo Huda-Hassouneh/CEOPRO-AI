@@ -50,7 +50,7 @@ from src.market_scraper.price_lookup.models import PriceQuote, ProductContext, P
 
 logger = logging.getLogger("KEEL_PRICE_LOOKUP")
 TIMEOUT = float(os.getenv("PRICE_LOOKUP_TIMEOUT_SECONDS", "15"))
-USER_AGENT = os.getenv("MARKET_RESEARCH_USER_AGENT", "KEEL-MarketResearch/1.0")
+from src.market_scraper.user_agent import USER_AGENT  # noqa: E402
 
 # Currency a price symbol/word stands for when a listing shows no ISO code.
 _SYMBOLS = {"$": "USD", "£": "GBP", "€": "EUR", "د.أ": "JOD", "JD": "JOD", "SAR": "SAR", "AED": "AED", "ر.س": "SAR", "د.إ": "AED"}

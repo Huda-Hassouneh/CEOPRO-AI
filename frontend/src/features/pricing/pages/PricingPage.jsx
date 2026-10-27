@@ -19,6 +19,7 @@ import { PriceRecommendationHistoryModal } from '../components/PriceRecommendati
 import { PriceComparisonModal } from '../components/PriceComparisonModal.jsx';
 import { PositionPill, TIERS, TierPill } from '../components/PriceLadder.jsx';
 import { usePriceComparisonSummary, useRefreshComparisons } from '../hooks/usePriceComparisons.js';
+import { coverageBucket, marketPosition } from '../api/marketPosition.js';
 import '../styles/Pricing.css';
 
 // Margin here is computed the same way backend/src/ai/pricing/
@@ -71,11 +72,10 @@ export function PricingPage() {
   const refresh = useRefreshComparisons();
   const summaries = comparisons.data ?? {};
   const coverage = useMemo(() => {
-    const counts = { none: 0 };
+    const counts = { estimate: 0, none: 0 };
     TIERS.forEach((tier) => { counts[tier] = 0; });
     filtered.forEach((product) => {
-      const tier = summaries[product.product_id]?.headline?.tier;
-      counts[tier || 'none'] += 1;
+      counts[coverageBucket(summaries[product.product_id])] += 1;
     });
     return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,7 +99,8 @@ export function PricingPage() {
       <div className="pricing-coverage" role="group" aria-label={t('pricing.ladder.coverageTitle')}>
         <span className="pricing-coverage__title">{t('pricing.ladder.coverageTitle')}</span>
         {TIERS.map((tier) => <span key={tier} className="pricing-coverage__item"><TierPill tier={tier} t={t} /> <strong>{percentFormatter.format(coverage[tier])}</strong></span>)}
-        <span className="pricing-coverage__item"><Pill tone="warning">{t('pricing.ladder.noComparison')}</Pill> <strong>{percentFormatter.format(coverage.none)}</strong></span>
+        <span className="pricing-coverage__item"><Pill tone="neutral">{t('pricing.ladder.estimate.label')}</Pill> <strong>{percentFormatter.format(coverage.estimate)}</strong></span>
+        <span className="pricing-coverage__item"><Pill tone="warning">{t('pricing.ladder.estimate.noMarketData')}</Pill> <strong>{percentFormatter.format(coverage.none)}</strong></span>
       </div>
     )}
 
@@ -110,7 +111,8 @@ export function PricingPage() {
           <thead><tr><th>{t('pricing.table.product')}</th><th>{t('pricing.table.currentPrice')}</th><th>{t('pricing.table.cost')}</th><th>{t('pricing.table.markup')}</th><th>{t('pricing.table.position')}</th><th>{t('pricing.table.actions')}</th></tr></thead>
           <tbody>{filtered.map((product) => {
             const markup = markupOverCostPct(product.current_price, product.cost_price);
-            const headline = summaries[product.product_id]?.headline;
+            const position = marketPosition(summaries[product.product_id]);
+            const headline = position.headline;
             return <tr key={product.product_id}>
               <td><strong dir="auto">{product.product_name}</strong>{product.brand && <span className="pricing-table-sub">{product.brand}</span>}</td>
               <td>{currencyFormatter(product.current_price, product.currency)}</td>
@@ -119,7 +121,9 @@ export function PricingPage() {
               <td className="pricing-position">
                 {comparisons.isPending ? <span className="apex-muted">…</span> : headline
                   ? <><TierPill tier={headline.tier} t={t} /> <PositionPill pct={headline.position_pct} t={t} number={percentFormatter} /><span className="pricing-table-sub">{t('pricing.ladder.basedOn', { count: headline.count })}{headline.tier === 'SIMILAR' && (headline.direction === 'own_richer' || headline.direction === 'own_leaner') ? ` · ${t(`pricing.ladder.direction.${headline.direction}`)}` : ''}</span></>
-                  : <span className="apex-muted">{t('pricing.ladder.noComparison')}</span>}
+                  : position.kind === 'estimate'
+                    ? <><Pill tone="neutral">{t('pricing.ladder.estimate.label')}</Pill> <PositionPill pct={position.pct} t={t} number={percentFormatter} /><span className="pricing-table-sub">{t(`pricing.ladder.estimate.basis.${position.basis}`)} · {t('pricing.ladder.estimate.marketPrice', { price: currencyFormatter(position.marketPrice, product.currency) })}</span></>
+                    : <><span className="apex-muted">{t('pricing.ladder.estimate.noMarketData')}</span><span className="pricing-table-sub">{t('pricing.ladder.estimate.noMarketDataHint')}</span></>}
               </td>
               <td className="pricing-actions">
                 <button type="button" className="pricing-link-action" onClick={() => setCompareProduct(product)}><GitCompareArrows size={13} />{t('pricing.list.compare')}</button>

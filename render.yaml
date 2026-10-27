@@ -231,6 +231,11 @@ services:
       # (comma-separated addresses; not a secret). Unset: nobody does.
       - key: OPERATOR_EMAILS
         sync: false
+      # How competitor collectors can be contacted (an email address or a page about the
+      # service), sent in their User-Agent. Wikidata - the "Company database" source - and
+      # many websites refuse automated readers without one.
+      - key: MARKET_RESEARCH_CONTACT
+        sync: false
       - key: DISCOVERY_VISION_OCR
         value: "off"
       - key: GEMINI_API_KEYS
@@ -339,6 +344,8 @@ services:
 #        sync: false
 #      # The "provider key rejected" email is sent by the process that collected.
 #      - key: OPERATOR_EMAILS
+#        sync: false
+#      - key: MARKET_RESEARCH_CONTACT
 #        sync: false
 #      - key: DISCOVERY_VISION_OCR
 #        value: "off"

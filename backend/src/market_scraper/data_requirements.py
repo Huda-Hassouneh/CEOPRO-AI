@@ -66,6 +66,8 @@ FACETS: Dict[str, FacetRequirements] = {
 
 # Not a facet's need, but without it nobody can open Settings > Service setup to see or test the keys above.
 OPERATOR_SETTING = "OPERATOR_EMAILS"
+# How collectors can be contacted, in their User-Agent (user_agent.py): Wikidata and many sites refuse them without it.
+CONTACT_SETTING = "MARKET_RESEARCH_CONTACT"
 
 
 def _set(name: str) -> bool:
@@ -78,9 +80,9 @@ def missing(facet: str) -> List[Need]:
 
 
 def declared_names() -> List[str]:
-    """Every name a deployment must declare (aliases left out), plus OPERATOR_EMAILS, once each."""
+    """Every name a deployment must declare (aliases left out), plus OPERATOR_EMAILS and the contact, once each."""
     names = [name for facet in FACETS.values() for need in facet.needs for name in need.names]
-    return list(dict.fromkeys(names + [OPERATOR_SETTING]))
+    return list(dict.fromkeys(names + [OPERATOR_SETTING, CONTACT_SETTING]))
 
 
 def known_names() -> List[str]:

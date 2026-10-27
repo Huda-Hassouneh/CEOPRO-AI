@@ -231,6 +231,24 @@ def summarize(ladder: dict) -> dict:
     }
 
 
+def add_estimates(conn, tenant_id: str, summaries: Dict[str, dict]) -> None:
+    """For each summary without a headline (no competitor item matched), the market estimate the price
+    recommendation falls back to (estimation.py: market references, out-of-region prices, then the
+    product's cost against its peers), as summary["estimate"]. Labelled by its basis, never as a
+    competitor price. Read-only; the caller commits or rolls back."""
+    from src.ai.pricing import estimation
+
+    cache: dict = {}
+    for product_id, entry in summaries.items():
+        if entry.get("headline"):
+            continue
+        own = data_access.load_own_product(conn, tenant_id, product_id)
+        if own is None:
+            continue
+        estimate = estimation.build_estimate(conn, tenant_id, product_id, own, cache)
+        entry["estimate"] = estimation.summary(estimate, own["current_price"], own["currency"])
+
+
 TIER_WORDS = {
     EXACT: "the same product", EQUIVALENT: "the same item in another quantity, scaled to yours",
     SIMILAR: "a reference, not like for like", ADDED_VALUE: "the base item that yours adds something to",

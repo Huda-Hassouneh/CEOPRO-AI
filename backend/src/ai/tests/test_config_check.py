@@ -14,7 +14,8 @@ SETTINGS = ("JWT_SECRET", "DATABASE_URL", "APP_DB_PASSWORD", "REDIS_URL", "REDIS
             "LOCAL_LLM_BASE_URL", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "CLOUDFLARE_ACCOUNT_ID",
             "CLOUDFLARE_API_TOKEN", "GOOGLE_CUSTOM_SEARCH_API_KEY", "GOOGLE_CUSTOM_SEARCH_CX", "POSTGRES_PASSWORD",
             "TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "SEARXNG_INSTANCE_URL", "WEB_SEARCH_PROVIDERS",
-            *config_check.IGNORED_NAMES, *data_requirements.known_names())
+            *config_check.IGNORED_NAMES, *data_requirements.known_names(),
+            "MARKET_RESEARCH_USER_AGENT", "SCRAPER_USER_AGENT")
 
 
 @pytest.fixture
@@ -139,3 +140,12 @@ def test_missing_competitor_data_settings_name_what_they_block(env):
     assert "GOOGLE_PLACES_API_KEY" not in findings and "APIFY_API_TOKEN" not in findings and "TAVILY_API_KEY" not in findings
     assert "Service setup" in findings["OPERATOR_EMAILS"]
     assert not any("a-places-key" in m or "an-apify-key" in m for m in findings.values())
+
+
+def test_a_user_agent_without_a_contact_is_reported(env):
+    assert "MARKET_RESEARCH_CONTACT" in {f.setting for f in config_check.check_environment()}
+    env.setenv("MARKET_RESEARCH_CONTACT", "ops@example.com")
+    assert "MARKET_RESEARCH_CONTACT" not in {f.setting for f in config_check.check_environment()}
+    from src.market_scraper import user_agent
+
+    assert user_agent.build() == "KEEL-MarketResearch/1.0 (+ops@example.com; business intelligence; respects robots.txt and API terms)"

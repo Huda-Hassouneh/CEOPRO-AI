@@ -49,7 +49,7 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 TIMEOUT = float(os.getenv("MENTIONS_TIMEOUT_SECONDS", "20"))
 NEWS_MAX_AGE_DAYS = int(os.getenv("NEWS_MAX_AGE_DAYS", "180"))
 MAX_ITEMS = 10
-USER_AGENT = os.getenv("MARKET_RESEARCH_USER_AGENT", "KEEL-MarketResearch/1.0")
+from src.market_scraper.user_agent import USER_AGENT  # noqa: E402
 
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 YOUTUBE_COMMENTS_URL = "https://www.googleapis.com/youtube/v3/commentThreads"
