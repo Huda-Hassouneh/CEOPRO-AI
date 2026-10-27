@@ -113,7 +113,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertIn("keel_dev_admin:", account.args[2]["DATABASE_URL"])
 
     def test_local_browser_path_does_not_require_external_provider_configuration(self):
-        (self.state / "integrations.env").write_text("STRIPE_SECRET_KEY=sk_test_incomplete\nCHROMIUM_PATH=test-chrome\n")
+        (self.state / "integrations.env").write_text("STRIPE_SECRET_KEY=sk_test_\nCHROMIUM_PATH=test-chrome\n")
         self.assertEqual(dev.integrations(validate_providers=False)["CHROMIUM_PATH"], "test-chrome")
         with self.assertRaises(dev.DevError):
             dev.integrations()
