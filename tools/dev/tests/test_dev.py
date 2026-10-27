@@ -87,7 +87,7 @@ class DevTests(unittest.TestCase):
     def test_compose_scoped_names_volumes_and_loopback(self):
         dev.compose_file(self.c)
         c = json.loads((self.state / "compose.json").read_text())
-        self.assertEqual(set(c["services"]), {"postgres","redis","storage","mail"})
+        self.assertEqual(set(c["services"]), {"postgres","redis","storage","mail","test-redis","test-storage"})
         for service in c["services"].values():
             self.assertNotIn("container_name", service)
             self.assertEqual(service["labels"]["com.keel.dev.root"], str(self.root))

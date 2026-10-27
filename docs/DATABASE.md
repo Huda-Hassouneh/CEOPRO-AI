@@ -50,3 +50,7 @@ Backup your local data before intentionally removing a development volume. Keep 
 The original entitlement-version migration explicitly uses NO FORCE for entitlement_version_state and entitlement_catalog_version so owner-run trigger functions can maintain versions. The original image job migration enables RLS without FORCE for its SECURITY DEFINER claim path. These are not application-role bypasses: ceopro_app neither owns those tables nor has BYPASSRLS/superuser.
 
 Startup verifies these three exact existing exceptions still have policies and a separate owner, and rejects any other non-FORCE RLS table. It verifies FORCE on the other RLS tables without rewriting the original security architecture.
+
+## Recoverable CI-style suites
+
+`test --suite backend`, `browser-ci` and `a11y` create a fresh test database and use separate tmpfs Redis/MinIO services in the same checkout-owned Compose project. Running test APIs keep restricted credentials; only explicit migration/native-fixture setup uses the test admin. `test-cleanup` removes only those two disposable containers; databases/evidence and normal volumes are retained. See [Test environment recovery](TEST_ENVIRONMENT_RECOVERY.md) for exact commands and limits.
