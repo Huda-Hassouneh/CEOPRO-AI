@@ -14,21 +14,21 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dev import config, environment, DevError, STATE
 
 
-def connect(c, *, app=False, database=None):
+def connect(c, *, app=False, database=None, external=True):
     import psycopg2
-    env = environment(c, admin=not app)
+    env = environment(c, admin=not app, external=external)
     dsn = env["DATABASE_URL"]
     if database:
         dsn = urlunsplit(urlsplit(dsn)._replace(path="/" + database))
     return psycopg2.connect(dsn, connect_timeout=5)
 
 
-def check(c):
+def check(c, *, database=None):
     from scripts.apply_migrations import MIGRATIONS_DIR
     expected = {p.name for p in MIGRATIONS_DIR.glob("*.sql")}
-    with contextlib.closing(connect(c)) as conn, conn.cursor() as cur:
+    with contextlib.closing(connect(c, database=database, external=database is None)) as conn, conn.cursor() as cur:
         cur.execute("SELECT current_database()")
-        assert cur.fetchone()[0] == "keel_dev_" + c["id"], "Database identity mismatch"
+        assert cur.fetchone()[0] == (database or "keel_dev_" + c["id"]), "Database identity mismatch"
         cur.execute("SELECT extname FROM pg_extension WHERE extname='vector'")
         assert cur.fetchone(), "pgvector extension is missing"
         cur.execute("SELECT filename FROM schema_migrations")
@@ -53,7 +53,7 @@ def check(c):
         cur.execute("SELECT count(*) FROM pg_class WHERE relnamespace='public'::regnamespace AND relrowsecurity AND relforcerowsecurity")
         count = cur.fetchone()[0]
         assert count > 0, "No FORCE RLS tables"
-    with contextlib.closing(connect(c, app=True)) as conn, conn.cursor() as cur:
+    with contextlib.closing(connect(c, app=True, database=database, external=database is None)) as conn, conn.cursor() as cur:
         cur.execute("SELECT current_user")
         assert cur.fetchone() == ("ceopro_app",)
     print(f"OK database identity, pgvector, {len(expected)} migrations, restricted password login, {count} FORCE RLS tables")

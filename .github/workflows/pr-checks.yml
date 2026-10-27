@@ -159,6 +159,9 @@ jobs:
         working-directory: backend
         run: python scripts/validate_application_knowledge.py
 
+      - name: Verify developer environment recovery contracts
+        run: python -m unittest discover -s tools/dev/tests -v
+
       # Real, confirmed gap this fixes: only src/ai/tests ever ran here -
       # the entire src/market_scraper/tests suite (518 tests: Target
       # Markets, discovery, classification, connector workers, pricing

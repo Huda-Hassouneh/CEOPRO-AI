@@ -122,7 +122,7 @@ def config():
     return value
 
 
-def integrations():
+def integrations(*, validate_providers=True):
     path = STATE / "integrations.env"
     values = {}
     if path.exists():
@@ -138,6 +138,8 @@ def integrations():
             value = value.strip().strip("'\"")
             if value:
                 values[key] = value
+    if not validate_providers:
+        return values
     key = values.get("STRIPE_SECRET_KEY", "")
     if key and not key.startswith(("sk_test_", "rk_test_")):
         raise DevError("Only Stripe TEST MODE keys are accepted by local development tooling.")
@@ -148,7 +150,7 @@ def integrations():
     return values
 
 
-def environment(c, *, admin=False):
+def environment(c, *, admin=False, external=True):
     # Do not inherit an existing production/provider .env or another runtime's DB settings.
     safe_names = ("PATH", "SystemRoot", "WINDIR", "COMSPEC", "PATHEXT", "TEMP", "TMP",
                   "HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "LANG", "LC_ALL",
@@ -179,7 +181,8 @@ def environment(c, *, admin=False):
         "SENTRY_ENVIRONMENT": "development", "PYTHONUNBUFFERED": "1",
         "PYTHONIOENCODING": "utf-8", "API_DOCS_ENABLED": "true",
     })
-    env.update(integrations())
+    if external:
+        env.update(integrations())
     return env
 
 
@@ -215,7 +218,18 @@ def compose_file(c):
     mail = service("axllent/mailpit:latest", "smtp", 1025)
     mail["ports"].append(f"127.0.0.1:{p['inbox']}:8025")
     mail["healthcheck"] = {"test": ["CMD", "/mailpit", "readyz"], "interval": "3s", "timeout": "3s", "retries": 30}
-    value = {"services": {"postgres": pg, "redis": redis, "storage": storage, "mail": mail},
+    # Explicit test-only profile: never share a flushable Redis or test buckets
+    # with the application. Docker allocates available loopback host ports.
+    import copy
+    test_redis, test_storage = copy.deepcopy(redis), copy.deepcopy(storage)
+    for item, internal in ((test_redis, 6379), (test_storage, 9000)):
+        item.pop("volumes", None)
+        item["ports"] = [f"127.0.0.1::{internal}"]
+        item["profiles"] = ["tests"]
+        item["tmpfs"] = ["/data"]
+    test_redis["command"] = ["redis-server", "--save", "", "--appendonly", "no"]
+    value = {"services": {"postgres": pg, "redis": redis, "storage": storage, "mail": mail,
+                          "test-redis": test_redis, "test-storage": test_storage},
              "volumes": {n: {"labels": labels} for n in ("postgres", "redis", "storage")}}
     write_json(STATE / "compose.json", value)
 
@@ -285,7 +299,7 @@ def owned(record):
         return False
 
 
-def start_process(name, args, c):
+def start_process(name, args, c, *, env=None, cwd=None):
     import psutil
     records = processes()
     record = records.get(name)
@@ -298,8 +312,8 @@ def start_process(name, args, c):
     log.parent.mkdir(exist_ok=True)
     # Truncate only this stopped owned service's log. Logs can contain synthetic PII: keep local.
     with log.open("w", encoding="utf-8") as output:
-        process = subprocess.Popen([str(a) for a in args], cwd=ROOT / ("frontend" if name == "frontend" else "backend"),
-                                   env=environment(c), stdin=subprocess.DEVNULL, stdout=output,
+        process = subprocess.Popen([str(a) for a in args], cwd=cwd or ROOT / ("frontend" if name == "frontend" else "backend"),
+                                   env=environment(c) if env is None else env, stdin=subprocess.DEVNULL, stdout=output,
                                    stderr=subprocess.STDOUT,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
                                    start_new_session=os.name != "nt")
@@ -550,12 +564,16 @@ def up(args):
     capabilities()
 
 
-def down(_args):
+def stop_processes(names=None):
     import psutil
-    c = config()
     records = processes()
     for name, record in reversed(list(records.items())):
+        if names is not None and name not in names:
+            continue
         if not owned(record):
+            # A process recorded before this boot cannot own a current PID.
+            if record.get("created", float("inf")) < psutil.boot_time():
+                continue
             if psutil.pid_exists(record["pid"]):
                 raise DevError(f"{name} PID was reused or changed. Refusing to stop it; inspect doctor.")
             continue
@@ -578,7 +596,13 @@ def down(_args):
             except psutil.NoSuchProcess:
                 pass
         psutil.wait_procs(remaining, timeout=5)
-    write_json(STATE / "processes.json", {})
+    write_json(STATE / "processes.json", {n: r for n, r in records.items()
+                                         if names is not None and n not in names})
+
+
+def down(_args):
+    c = config()
+    stop_processes()
     check_docker()
     verify_containers(c)
     docker(c, "stop")
@@ -668,7 +692,10 @@ def test(args):
     if args.suite == "tooling":
         return
     c = config()
-    if args.suite == "browser":
+    if args.suite in ("backend", "browser-ci", "a11y", "audit"):
+        from testing import execute
+        execute(c, args)
+    elif args.suite == "browser":
         run(["node", ROOT / "tools/dev/browser_smoke.mjs"], env=environment(c))
     elif args.suite == "database":
         database(c, "check")
@@ -699,20 +726,26 @@ def command_lock():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["setup", "up", "down", "restart", "status", "logs",
-                                           "doctor", "infra", "migrate", "db-status", "db-check", "seed", "test"])
+                                           "doctor", "infra", "migrate", "db-status", "db-check", "seed", "test", "test-cleanup"])
     parser.add_argument("--mode", choices=["core", "full"], default=None)
     parser.add_argument("--models", action="store_true", help="setup: also install the existing model requirements")
-    parser.add_argument("--suite", choices=["tooling", "frontend", "database", "browser"], default="tooling")
-    parser.add_argument("--service", choices=["api", "frontend", "migrations", *WORKERS])
+    parser.add_argument("--suite", choices=["tooling", "frontend", "database", "browser", "backend", "browser-ci", "a11y", "audit"], default="tooling")
+    parser.add_argument("--pytest-args", nargs=argparse.REMAINDER, help="backend suite: explicit pytest selection")
+    parser.add_argument("--service", choices=["api", "frontend", "migrations", "test-api", "test-frontend", *WORKERS])
     parser.add_argument("--tail", type=int, default=40)
     parser.add_argument("--follow", action="store_true")
     args = parser.parse_args()
     try:
-        if args.command in ("logs", "doctor", "status", "test"):
+        if args.command in ("logs", "doctor", "status"):
             globals()[args.command](args)
         else:
             with command_lock():
-                if args.command == "restart":
+                if args.command == "test":
+                    test(args)
+                elif args.command == "test-cleanup":
+                    from testing import cleanup
+                    cleanup(config())
+                elif args.command == "restart":
                     down(args)
                     up(args)
                 elif args.command in ("migrate", "db-status", "db-check", "seed"):
@@ -737,4 +770,5 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.modules["dev"] = sys.modules[__name__]
     raise SystemExit(main())

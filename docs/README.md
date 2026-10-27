@@ -12,6 +12,7 @@
 - [Contributing](CONTRIBUTING.md)
 - [Developer tooling verification](DEVELOPER_EXPERIENCE_VERIFICATION.md)
 - [PR CI remediation and verification checkpoint](CI_REPAIR.md)
+- [Recover development and isolated test environments after reboot](TEST_ENVIRONMENT_RECOVERY.md)
 - Component guides: [backend](../backend/README.md), [frontend](../frontend/README.md)
 
 These are the root development-command instructions. Older Phase 7 and RUNNING_LOCALLY guides describe the earlier WSL/verification harness. The harness remains useful for specialist acceptance tests; it is not a fresh-clone requirement.
