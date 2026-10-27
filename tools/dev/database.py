@@ -50,12 +50,30 @@ def check(c, *, database=None):
         assert {r[0] for r in cur.fetchall()} == original_nonforce, "Original non-FORCE tables lost policies"
         cur.execute("SELECT relname FROM pg_class WHERE relnamespace='public'::regnamespace AND pg_get_userbyid(relowner)='ceopro_app' AND relname=ANY(%s)", (list(original_nonforce),))
         assert not cur.fetchall(), "Runtime role must not own owner-bypass tables"
+        for role, login in (("ceopro_billing_setup", True), ("ceopro_trial_issuer", False)):
+            cur.execute("SELECT rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication,rolcanlogin FROM pg_roles WHERE rolname=%s", (role,))
+            assert cur.fetchone() == (False, False, False, False, False, False, login), "Unsafe billing setup identity"
+            cur.execute("SELECT count(*) FROM pg_auth_members WHERE member=(SELECT oid FROM pg_roles WHERE rolname=%s)", (role,))
+            assert cur.fetchone()[0] == 0, "Billing setup role must have no inherited roles"
+            cur.execute("SELECT has_schema_privilege(%s,'public','CREATE'),has_database_privilege(%s,current_database(),'CREATE')", (role, role))
+            assert cur.fetchone() == (False, False), "Billing setup role must not have DDL privileges"
+        for table in ("billing_subscriptions", "billing_payments", "billing_trials", "tenant_plan_assignments", "tenant_credit_balances"):
+            cur.execute("SELECT has_any_column_privilege('ceopro_billing_setup',%s,'INSERT'),has_any_column_privilege('ceopro_billing_setup',%s,'UPDATE'),has_table_privilege('ceopro_billing_setup',%s,'DELETE')", (table, table, table))
+            assert cur.fetchone() == (False, False, False), "Setup identity gained financial/activation writes"
         cur.execute("SELECT count(*) FROM pg_class WHERE relnamespace='public'::regnamespace AND relrowsecurity AND relforcerowsecurity")
         count = cur.fetchone()[0]
         assert count > 0, "No FORCE RLS tables"
     with contextlib.closing(connect(c, app=True, database=database, external=database is None)) as conn, conn.cursor() as cur:
         cur.execute("SELECT current_user")
         assert cur.fetchone() == ("ceopro_app",)
+    if c.get("billing_setup_password"):
+        import psycopg2
+        parsed = urlsplit(environment(c, external=database is None)["DATABASE_URL"])
+        with contextlib.closing(psycopg2.connect(host=parsed.hostname, port=parsed.port,
+                dbname=database or parsed.path.lstrip("/"), user="ceopro_billing_setup",
+                password=c["billing_setup_password"], connect_timeout=5)) as conn, conn.cursor() as cur:
+            cur.execute("SELECT current_user")
+            assert cur.fetchone() == ("ceopro_billing_setup",), "Billing setup password login failed"
     print(f"OK database identity, pgvector, {len(expected)} migrations, restricted password login, {count} FORCE RLS tables")
 
 

@@ -168,6 +168,8 @@ def trial_eligibility(conn, tenant_id: str, plan_key: str, started_by_user_id: O
     reason it may not: one trial per company ever, one per person across
     their companies, never on top of a plan or subscription, and only on a
     self-serve plan that offers a trial."""
+    if getattr(conn, "billing_setup_only", False):
+        return _setup_trial_command(conn, tenant_id, started_by_user_id, plan_key, start=False).get("reason")
     with conn.cursor() as cursor:
         cursor.execute("SELECT trial_days, self_serve, is_active FROM usage_plans WHERE plan_key = %s;", (plan_key,))
         row = cursor.fetchone()
@@ -189,14 +191,31 @@ def trial_eligibility(conn, tenant_id: str, plan_key: str, started_by_user_id: O
     return None
 
 
+def _setup_trial_command(conn, tenant_id, user_id, plan_key, *, start):
+    if str(tenant_id) != conn._tenant_id or str(user_id) != conn._user_id:
+        raise ValueError("Trial identity must match the authenticated billing context.")
+    with conn.cursor() as cur:
+        cur.execute("SELECT public.billing_setup_trial(%s,%s)", (plan_key, start))
+        return cur.fetchone()[0]
+
+
 def start_trial(sys_conn, tenant_id: str, now: Optional[datetime] = None, *,
                 started_by_user_id: Optional[str] = None, plan_key: Optional[str] = None) -> Optional[dict]:
     """Gives a company its one free trial if it is eligible
     (trial_eligibility). The trial lasts the plan's trial_days from `now`, to
     the second (UTC). Returns the trial, or None when not granted. Caller
     commits."""
-    now = now or datetime.now(timezone.utc)
     plan_key = plan_key or config.trial_plan_key()
+    if getattr(sys_conn, "billing_setup_only", False):
+        if now is not None:
+            raise ValueError("The restricted trial command uses database time, not a caller-selected date.")
+        result = _setup_trial_command(sys_conn, tenant_id, started_by_user_id, plan_key, start=True)
+        if result.get("reason"):
+            return None
+        return {"plan_key": result["plan_key"],
+                "started_at": datetime.fromisoformat(result["started_at"]),
+                "ends_at": datetime.fromisoformat(result["ends_at"])}
+    now = now or datetime.now(timezone.utc)
     with sys_conn.cursor() as cursor:
         # Two sign-ups by the same person can't both pass the per-person check.
         cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",

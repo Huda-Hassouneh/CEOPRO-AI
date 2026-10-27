@@ -145,6 +145,39 @@ def system_connection():
     return psycopg2.connect(_admin_database_url())
 
 
+class _BillingSetupConnection(PooledTenantConnection):
+    """Context survives commits; this identity cannot confirm payments or grant paid rights."""
+    billing_setup_only = True
+
+
+def billing_setup_connection(tenant_id: str, user_id: str):
+    """Checkout coordination and one-time trials, without an administrative DSN.
+
+    Existing deployments without the separate credential retain their existing
+    trusted-connection configuration. Local dev explicitly provisions this role;
+    it never changes DATABASE_URL to the migration administrator.
+    """
+    password = os.getenv("BILLING_SETUP_DB_PASSWORD")
+    if not password:
+        return system_connection()
+    import psycopg2
+
+    parsed = urlparse(_admin_database_url())
+    netloc = f"ceopro_billing_setup:{quote(password, safe='')}@{parsed.hostname}:{parsed.port or 5432}"
+    raw = psycopg2.connect(urlunparse(parsed._replace(netloc=netloc)))
+    try:
+        with raw.cursor() as cur:
+            cur.execute("SELECT current_user,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication "
+                        "FROM pg_roles WHERE rolname=current_user")
+            if cur.fetchone() != ("ceopro_billing_setup", False, False, False, False, False, False):
+                raise RuntimeError("Billing setup requires the restricted ceopro_billing_setup role.")
+        raw.rollback()
+        return _BillingSetupConnection(_UnpooledOwner(), raw, tenant_id, user_id)
+    except Exception:
+        raw.close()
+        raise
+
+
 def auth_lookup_connection():
     """
     A plain, unpooled ceopro_app connection with NO tenant/user context set -

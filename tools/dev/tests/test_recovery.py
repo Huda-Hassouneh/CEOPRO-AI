@@ -107,6 +107,7 @@ class RecoveryTests(unittest.TestCase):
              patch.object(testing, "logged") as logged:
             testing.browser(self.c, env, self.state, "browser-ci")
         api_env = start.call_args_list[0].kwargs["env"]
+        self.assertNotIn(self.c["admin_password"], str(api_env))
         self.assertIn("ceopro_app:", api_env["DATABASE_URL"])
         self.assertNotIn("AI_TEST_DATABASE_URL", api_env)
         account = next(call for call in logged.call_args_list if call.args[1].name == "account.log")
