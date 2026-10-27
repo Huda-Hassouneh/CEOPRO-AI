@@ -624,7 +624,7 @@ def preview_plan_change(body: PlanChoice, ctx: TenantContext = Depends(get_tenan
 @router.post("/change-plan")
 def change_plan(body: PlanChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    sys_conn = db.system_connection()
+    sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
         return service.change_plan(conn, sys_conn, ctx.tenant_id, body.plan_key, body.period_code)
@@ -642,7 +642,7 @@ def change_plan(body: PlanChoice, ctx: TenantContext = Depends(get_tenant_contex
 @router.delete("/scheduled-change")
 def cancel_scheduled_change(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    sys_conn = db.system_connection()
+    sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
         return service.cancel_scheduled_change(conn, sys_conn, ctx.tenant_id)
@@ -697,7 +697,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(defaul
     except Exception:  # noqa: BLE001 - invalid signature or payload
         raise HTTPException(status_code=400, detail="Invalid Stripe signature.")
     event = event.to_dict() if hasattr(event, "to_dict") else dict(event)
-    sys_conn = db.system_connection()
+    sys_conn = db.billing_webhook_connection(event["id"])
     try:
         result = webhooks.handle_event(sys_conn, event)
     except webhooks.WebhookRetry:

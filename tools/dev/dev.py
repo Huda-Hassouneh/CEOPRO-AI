@@ -36,7 +36,7 @@ PORTS = {"api": 8000, "frontend": 5173, "postgres": 55432, "redis": 56379,
          "storage": 59000, "console": 59001, "smtp": 51025, "inbox": 58025,
          "prices_metrics": 59108, "maintenance_metrics": 59109}
 MANAGED = {
-    "DATABASE_URL", "APP_DB_PASSWORD", "BILLING_SETUP_DB_PASSWORD", "SCRAPER_DATABASE_URL", "JWT_SECRET",
+    "DATABASE_URL", "APP_DB_PASSWORD", "BILLING_SETUP_DB_PASSWORD", "BILLING_WEBHOOK_DB_PASSWORD", "CREDIT_ACCOUNTING_DB_PASSWORD", "SCRAPER_DATABASE_URL", "JWT_SECRET",
     "CREDENTIAL_VAULT_MASTER_KEY", "REDIS_URL", "REDIS_HOST", "REDIS_PORT",
     "REDIS_PASSWORD", "REDIS_TLS", "MINIO_ENDPOINT", "MINIO_ROOT_USER",
     "MINIO_ROOT_PASSWORD", "SMTP_HOST", "SMTP_PORT", "SMTP_USE_TLS", "SMTP_USERNAME",
@@ -109,6 +109,7 @@ def allocate_ports(preferred=PORTS):
 
 
 def config():
+    global PYTHON
     path = STATE / "config.json"
     if not path.exists():
         raise DevError("Local configuration is missing. Run dev.ps1 setup (or bash dev.sh setup).")
@@ -119,6 +120,11 @@ def config():
         raise DevError("Invalid or duplicate development ports in .dev/config.json.")
     if any(type(p) is not int or not 1024 <= p <= 65535 for p in value["ports"].values()):
         raise DevError("Development ports must be integers between 1024 and 65535.")
+    if value.get("runtime_python"):
+        runtime = Path(value["runtime_python"])
+        if not runtime.is_absolute() or not runtime.is_file():
+            raise DevError("Configured read-only Python is missing. Run setup --reuse-python with an existing compatible virtual environment.")
+        PYTHON = runtime
     return value
 
 
@@ -187,8 +193,12 @@ def environment(c, *, admin=False, external=True):
 
 
 def ensure_billing_setup_password(c):
-    if not c.get("billing_setup_password"):
-        c["billing_setup_password"] = secrets.token_hex(24)
+    changed = False
+    for key in ("billing_setup_password", "billing_webhook_password", "credit_accounting_password"):
+        if not c.get(key):
+            c[key] = secrets.token_hex(24)
+            changed = True
+    if changed:
         write_json(STATE / "config.json", c)
 
 
@@ -196,7 +206,12 @@ def api_environment(c, *, external=True):
     env = environment(c, external=external)
     if not c.get("billing_setup_password"):
         raise DevError("Billing setup credential missing. Run setup/up to provision the restricted role.")
-    env["BILLING_SETUP_DB_PASSWORD"] = c["billing_setup_password"]
+    for variable, key in (("BILLING_SETUP_DB_PASSWORD", "billing_setup_password"),
+                          ("BILLING_WEBHOOK_DB_PASSWORD", "billing_webhook_password"),
+                          ("CREDIT_ACCOUNTING_DB_PASSWORD", "credit_accounting_password")):
+        if not c.get(key):
+            raise DevError("Restricted billing credentials missing. Run setup/up to provision them.")
+        env[variable] = c[key]
     return env
 
 
@@ -235,15 +250,17 @@ def compose_file(c):
     # Explicit test-only profile: never share a flushable Redis or test buckets
     # with the application. Docker allocates available loopback host ports.
     import copy
-    test_redis, test_storage = copy.deepcopy(redis), copy.deepcopy(storage)
+    test_redis, test_storage, test_mail = copy.deepcopy(redis), copy.deepcopy(storage), copy.deepcopy(mail)
     for item, internal in ((test_redis, 6379), (test_storage, 9000)):
         item.pop("volumes", None)
         item["ports"] = [f"127.0.0.1::{internal}"]
         item["profiles"] = ["tests"]
         item["tmpfs"] = ["/data"]
+    test_mail["ports"] = ["127.0.0.1::1025", "127.0.0.1::8025"]
+    test_mail["profiles"] = ["tests"]
     test_redis["command"] = ["redis-server", "--save", "", "--appendonly", "no"]
     value = {"services": {"postgres": pg, "redis": redis, "storage": storage, "mail": mail,
-                          "test-redis": test_redis, "test-storage": test_storage},
+                          "test-redis": test_redis, "test-storage": test_storage, "test-mail": test_mail},
              "volumes": {n: {"labels": labels} for n in ("postgres", "redis", "storage")}}
     write_json(STATE / "compose.json", value)
 
@@ -366,7 +383,8 @@ def database(c, action):
         ensure_billing_setup_password(c)
     migration_env = environment(c, admin=True)
     if action == "migrate":
-        migration_env["BILLING_SETUP_DB_PASSWORD"] = c["billing_setup_password"]
+        migration_env.update({k: v for k, v in api_environment(c).items() if k in
+                              ("BILLING_SETUP_DB_PASSWORD", "BILLING_WEBHOOK_DB_PASSWORD", "CREDIT_ACCOUNTING_DB_PASSWORD")})
     args = [str(PYTHON), str(ROOT / "tools/dev/database.py"), action]
     if action != "migrate":
         run(args, cwd=ROOT / "backend", env=migration_env)
@@ -442,7 +460,20 @@ def capabilities():
     print("Pricing/paid AI require verified financial configuration. Setup creates no rates, offers or paid rights.")
 
 
+def delegate_to_runtime(runtime, argv):
+    """subprocess argument lists preserve Windows paths with spaces and exit status."""
+    return subprocess.run([str(runtime), str(Path(__file__).resolve()), *argv]).returncode
+
+
+def validate_reused_python(runtime, *, models=False):
+    """Validate an explicitly selected virtualenv without installing into it."""
+    checker = ROOT / "tools/dev/check_runtime.py"
+    run([runtime, checker, "--models" if models else "--core"])
+    run([runtime, "-m", "pip", "check"])
+
+
 def setup(args):
+    global PYTHON
     if sys.platform not in ("win32", "linux", "darwin"):
         raise DevError("Supported local platforms are Windows, Linux and macOS.")
     if sys.maxsize <= 2 ** 32:
@@ -462,6 +493,14 @@ def setup(args):
              "vault": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()}
         write_json(STATE / "config.json", c)
     c = config()
+    if getattr(args, "reuse_python", None):
+        candidate = Path(args.reuse_python).resolve()
+        if not candidate.is_file():
+            raise DevError("Selected virtualenv Python does not exist.")
+        validate_reused_python(candidate, models=args.models)
+        c["runtime_python"] = str(candidate)
+        write_json(STATE / "config.json", c)
+        PYTHON = candidate
     ensure_billing_setup_password(c)
     new_venv = not PYTHON.exists()
     if new_venv:
@@ -489,6 +528,12 @@ def setup(args):
             if line:
                 lines.append(re.sub(r"\[[^]]+\]", "", line))
     constraints.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if c.get("runtime_python"):
+        if not getattr(args, "reuse_python", None):
+            validate_reused_python(PYTHON, models=args.models)
+        prior["python"] = fingerprint
+        if args.models:
+            prior["models"] = fingerprint
     if prior.get("python") != fingerprint:
         free = shutil.disk_usage(ROOT).free
         if free < 1024 ** 3:
@@ -570,7 +615,8 @@ def up(args):
         and http(api + "/health/ready", origin)[1].get("Access-Control-Allow-Origin") == origin))
     names = CORE if args.mode == "core" else list(WORKERS)
     for name in names:
-        start_process(name, [PYTHON, "-m", WORKERS[name]], c)
+        start_process(name, [PYTHON, "-m", WORKERS[name]], c,
+                      env=dict(environment(c), CREDIT_ACCOUNTING_DB_PASSWORD=c["credit_accounting_password"]))
         wait_for(f"{name} worker initialization", lambda name=name: worker_ready(name, c), 45)
     start_process("frontend", ["node", ROOT / "frontend/node_modules/vite/bin/vite.js",
                               "--host", "127.0.0.1", "--port", c["ports"]["frontend"], "--strictPort"], c)
@@ -748,6 +794,7 @@ def main():
     parser.add_argument("command", choices=["setup", "up", "down", "restart", "status", "logs",
                                            "doctor", "infra", "migrate", "db-status", "db-check", "seed", "test", "test-cleanup"])
     parser.add_argument("--mode", choices=["core", "full"], default=None)
+    parser.add_argument("--reuse-python", help="setup: validate/reuse an existing virtualenv read-only; never install into it")
     parser.add_argument("--models", action="store_true", help="setup: also install the existing model requirements")
     parser.add_argument("--suite", choices=["tooling", "frontend", "database", "browser", "backend", "browser-ci", "a11y", "audit"], default="tooling")
     parser.add_argument("--pytest-args", nargs=argparse.REMAINDER, help="backend suite: explicit pytest selection")
@@ -756,6 +803,10 @@ def main():
     parser.add_argument("--follow", action="store_true")
     args = parser.parse_args()
     try:
+        if args.command != "setup" and (STATE / "config.json").exists():
+            c = config()
+            if c.get("runtime_python") and os.path.normcase(os.path.abspath(sys.executable)) != os.path.normcase(str(PYTHON)):
+                raise SystemExit(delegate_to_runtime(PYTHON, sys.argv[1:]))
         if args.command in ("logs", "doctor", "status"):
             globals()[args.command](args)
         else:

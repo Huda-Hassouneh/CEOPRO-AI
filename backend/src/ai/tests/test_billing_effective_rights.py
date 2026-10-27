@@ -86,6 +86,7 @@ def test_subscription_exposes_versioned_established_rights_without_changing_exis
         ),
     )
     monkeypatch.setattr(billing.db, "system_connection", lambda: system_conn)
+    monkeypatch.setattr(billing.db, "billing_setup_connection", lambda *_: system_conn)
     monkeypatch.setattr(
         billing.usage, "get_plan",
         lambda _conn, actual_tenant: calls["plan"].append(actual_tenant) or plan,

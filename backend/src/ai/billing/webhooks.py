@@ -86,6 +86,8 @@ def sync_subscription(sys_conn, subscription_id: str, event_created: datetime, h
         # Not one of ours (yet): fail so Stripe retries once checkout's own
         # event has linked the customer.
         raise WebhookRetry(f"no company found for subscription {subscription_id}")
+    if getattr(sys_conn, "verified_webhook_only", False):
+        sys_conn.bind_tenant(tenant_id)
     sub_metadata = stripe_sub.get("metadata") or {}
     if sub_metadata.get("billing_kind") == "custom_quote":
         return _sync_custom_quote_subscription(
@@ -348,6 +350,15 @@ def _handle_locked(sys_conn, event: dict) -> dict:
                 else:
                     promotions.checkout_completed(sys_conn, session=obj, tenant_id=tenant_id, stripe_event_id=event["id"])
         elif event_type == "checkout.session.expired":
+            if getattr(sys_conn, "verified_webhook_only", False):
+                redemption = promotions._metadata_redemption(obj)
+                if redemption:
+                    with sys_conn.cursor() as cur:
+                        cur.execute("SELECT public.billing_provider_tenant(%s,%s)", ("promotion",redemption))
+                        routed = cur.fetchone()[0]
+                    if routed:
+                        tenant_id = str(routed)
+                        sys_conn.bind_tenant(tenant_id)
             promotions.checkout_expired(sys_conn, session=obj, stripe_event_id=event["id"])
         elif event_type in SUBSCRIPTION_EVENTS:
             tenant_id = sync_subscription(sys_conn, obj["id"], created)

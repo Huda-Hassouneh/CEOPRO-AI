@@ -178,6 +178,85 @@ def billing_setup_connection(tenant_id: str, user_id: str):
         raise
 
 
+_ZERO_ACTOR = "00000000-0000-0000-0000-000000000000"
+
+
+def _service_socket(role: str, password: str):
+    """Fixed identity/host/database; credentials cannot redirect the connection."""
+    import psycopg2
+    parsed = urlparse(_admin_database_url())
+    netloc = f"{role}:{quote(password, safe='')}@{parsed.hostname}:{parsed.port or 5432}"
+    raw = psycopg2.connect(urlunparse(parsed._replace(netloc=netloc)))
+    try:
+        with raw.cursor() as cur:
+            cur.execute("SELECT current_user,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication "
+                        "FROM pg_roles WHERE rolname=current_user")
+            if cur.fetchone() != (role, False, False, False, False, False, False):
+                raise RuntimeError("Restricted billing identity has unexpected privileges.")
+        raw.rollback()
+        return raw
+    except Exception:
+        raw.close()
+        raise
+
+
+class _WebhookConnection(PooledTenantConnection):
+    verified_webhook_only = True
+
+    def __init__(self, raw, event_id):
+        self._event_id = event_id
+        super().__init__(_UnpooledOwner(), raw, _ZERO_ACTOR, _ZERO_ACTOR)
+
+    def _apply_tenant_context(self):
+        with self._raw.cursor() as cur:
+            cur.execute("SELECT set_config('app.billing_event_id',%s,true)", (self._event_id,))
+        super()._apply_tenant_context()
+
+    def bind_tenant(self, tenant_id):
+        tenant_id = str(tenant_id)
+        if self._tenant_id not in (_ZERO_ACTOR, tenant_id):
+            raise ValueError("A Stripe event cannot switch tenant identity.")
+        with self.cursor() as cur:
+            cur.execute("UPDATE public.billing_webhook_events SET tenant_id=%s "
+                        "WHERE stripe_event_id=%s AND processed_at IS NULL "
+                        "AND (tenant_id IS NULL OR tenant_id=%s) RETURNING tenant_id",
+                        (tenant_id, self._event_id, tenant_id))
+            if cur.fetchone() is None:
+                raise ValueError("An unprocessed Stripe receipt is required.")
+        self._tenant_id = tenant_id
+        self._apply_tenant_context()
+
+
+def billing_webhook_connection(event_id: str):
+    """Call only AFTER Stripe signature verification; never shared with Checkout."""
+    password = os.getenv("BILLING_WEBHOOK_DB_PASSWORD")
+    if not password:
+        return system_connection()  # Existing manual deployments retain their configuration.
+    raw = _service_socket("ceopro_billing_webhook", password)
+    try:
+        return _WebhookConnection(raw, event_id)
+    except Exception:
+        raw.close()
+        raise
+
+
+class _AccountingConnection(PooledTenantConnection):
+    credit_accounting_only = True
+
+
+def credit_accounting_connection(tenant_id: str, user_id: str = None):
+    """Usage settlement cannot write subscriptions, payment evidence or plan grants."""
+    password = os.getenv("CREDIT_ACCOUNTING_DB_PASSWORD")
+    if not password:
+        return system_connection()
+    raw = _service_socket("ceopro_credit_accounting", password)
+    try:
+        return _AccountingConnection(_UnpooledOwner(), raw, str(tenant_id), user_id or _ZERO_ACTOR)
+    except Exception:
+        raw.close()
+        raise
+
+
 def auth_lookup_connection():
     """
     A plain, unpooled ceopro_app connection with NO tenant/user context set -
