@@ -151,6 +151,13 @@ def _entities(ids: List[str], language: str = "en") -> dict:
     }, timeout=20, cache_key_extra="wikidata")
 
 
+def _why(exc: Exception) -> str:
+    """What went wrong, for the log: the HTTP status Wikimedia answered (403 usually means the User-Agent
+    gives no contact - set MARKET_RESEARCH_CONTACT; 429 means too many requests), or the network error."""
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    return f"HTTP {status}" if status else type(exc).__name__
+
+
 def search(query: DiscoveryQuery) -> ProviderResult:
     ok, reason = available()
     if not ok:
@@ -158,7 +165,7 @@ def search(query: DiscoveryQuery) -> ProviderResult:
     try:
         country_qid = country_item(query.country_code)
     except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("wikidata country lookup failed: %s", type(exc).__name__)
+        logger.warning("wikidata country lookup failed: %s", _why(exc))
         return ProviderResult(NAME, "failed", reason="unreachable", requests=1)
     if not country_qid:
         return ProviderResult(NAME, "skipped", reason="country_not_covered")
@@ -169,7 +176,7 @@ def search(query: DiscoveryQuery) -> ProviderResult:
             ids.extend(i for i in _search_ids(keyword, country_qid) if i not in ids)
         except (httpx.HTTPError, ValueError) as exc:
             failures += 1
-            logger.warning("wikidata search failed: %s", type(exc).__name__)
+            logger.warning("wikidata search failed: %s", _why(exc))
     if keywords and failures == len(keywords):
         return ProviderResult(NAME, "failed", reason="unreachable", requests=requests)
     if not ids:
@@ -178,6 +185,6 @@ def search(query: DiscoveryQuery) -> ProviderResult:
     try:
         payload = _entities(ids, query.language)
     except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("wikidata entities failed: %s", type(exc).__name__)
+        logger.warning("wikidata entities failed: %s", _why(exc))
         return ProviderResult(NAME, "failed", reason="unreachable", requests=requests)
     return ProviderResult(NAME, "ok", parse_entities(payload, query), requests=requests)

@@ -229,6 +229,7 @@ services:
       dockerfile: src/infrastructure/Dockerfile.market-scraper
     restart: unless-stopped
     environment:
+      MARKET_RESEARCH_CONTACT: ${MARKET_RESEARCH_CONTACT:-}
       SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
       # src/infrastructure/db_pool.py connection pool sizing for this
@@ -296,6 +297,7 @@ services:
     restart: unless-stopped
     command: ["python", "-m", "src.market_scraper.discovery_worker"]
     environment:
+      MARKET_RESEARCH_CONTACT: ${MARKET_RESEARCH_CONTACT:-}
       SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
       SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
@@ -342,6 +344,7 @@ services:
     restart: unless-stopped
     command: ["python", "-m", "src.market_scraper.enrichment_worker"]
     environment:
+      MARKET_RESEARCH_CONTACT: ${MARKET_RESEARCH_CONTACT:-}
       SCRAPER_DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_ACTOR_USER_ID: ${SCRAPER_ACTOR_USER_ID}
       SCRAPER_DB_POOL_MIN_SIZE: ${SCRAPER_DB_POOL_MIN_SIZE:-1}
@@ -476,6 +479,7 @@ services:
       dockerfile: Dockerfile.ai
     container_name: ceopro_ai
     environment:
+      MARKET_RESEARCH_CONTACT: ${MARKET_RESEARCH_CONTACT:-}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       # src/infrastructure/db_pool.py connection pool sizing for this

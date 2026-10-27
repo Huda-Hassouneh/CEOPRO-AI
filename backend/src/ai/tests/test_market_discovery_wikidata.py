@@ -104,3 +104,17 @@ def test_customers_see_a_company_database_with_a_link_to_check():
         ("company_database", "Public company database", "https://www.wikidata.org/wiki/Q111"),
         ("map_listing", "Public business listing", "https://www.openstreetmap.org/node/1"),
     ]
+
+
+def test_a_refused_request_logs_the_status_wikimedia_answered(monkeypatch, caplog):
+    import httpx
+
+    def refuse(*_args, **_kwargs):
+        request = httpx.Request("GET", wikidata.API_URL)
+        raise httpx.HTTPStatusError("forbidden", request=request, response=httpx.Response(403, request=request))
+
+    monkeypatch.setattr(wikidata, "request_json", refuse)
+    with caplog.at_level("WARNING", logger="KEEL_MARKET_DISCOVERY"):
+        result = wikidata.search(_query())
+    assert (result.status, result.reason) == ("failed", "unreachable")
+    assert "HTTP 403" in caplog.text

@@ -297,6 +297,18 @@
       "sectionTitle": "مقارنة السوق حسب الفئة",
       "coverageTitle": "مقارنة السوق في هذه الصفحة",
       "noComparison": "لا توجد مقارنة بعد",
+      "estimate": {
+        "label": "تقدير",
+        "basis": {
+          "COMPARABLE_ESTIMATE": "من أصناف قريبة لدى المنافسين",
+          "MARKET_REFERENCE": "من أسعار السوق المنشورة",
+          "REGIONAL_ESTIMATE": "من أسعار خارج منطقتك بعد تعديلها",
+          "PEER_ESTIMATE": "من تكلفتك وأسعار السوق لمنتجاتك الأخرى"
+        },
+        "marketPrice": "السوق ≈ {{price}}",
+        "noMarketData": "لا توجد بيانات سوق بعد",
+        "noMarketDataHint": "السعر محسوب من تكلفتك فقط. أضف تكلفته أو تابع منافساً يبيعه للمقارنة."
+      },
       "basedOn": "{{count}} منافس"
     },
     "modal": {

@@ -297,6 +297,18 @@
       "sectionTitle": "Market comparison by tier",
       "coverageTitle": "Market comparison on this page",
       "noComparison": "No comparison yet",
+      "estimate": {
+        "label": "Estimate",
+        "basis": {
+          "COMPARABLE_ESTIMATE": "From competitors' close items",
+          "MARKET_REFERENCE": "From public market prices",
+          "REGIONAL_ESTIMATE": "From prices outside your area, adjusted",
+          "PEER_ESTIMATE": "From your cost and your other products' market prices"
+        },
+        "marketPrice": "market ≈ {{price}}",
+        "noMarketData": "No market data yet",
+        "noMarketDataHint": "Priced from your cost only. Add its cost, or track a competitor that sells it, to compare."
+      },
       "basedOn": "{{count}} competitor(s)"
     },
     "modal": {
