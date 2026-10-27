@@ -25,6 +25,8 @@ def test_environment(c, name):
     env = dev.environment(c, admin=True, external=False)
     env["DATABASE_URL"] = urlunsplit(urlsplit(env["DATABASE_URL"])._replace(path="/" + name))
     env["AI_TEST_DATABASE_URL"] = env["DATABASE_URL"]
+    if c.get("billing_setup_password"):
+        env["BILLING_SETUP_DB_PASSWORD"] = c["billing_setup_password"]
     restricted = dev.environment(c, external=False)["DATABASE_URL"]
     env["SCRAPER_DATABASE_URL"] = urlunsplit(urlsplit(restricted)._replace(path="/" + name))
     env.update(AI_TEST_REDIS_HOST="127.0.0.1", AI_TEST_REDIS_PORT=env["REDIS_PORT"],
@@ -71,6 +73,7 @@ def cleanup(c):
 def isolated(c, suite):
     import database
     from psycopg2 import sql
+    dev.ensure_billing_setup_password(c)
     dev.check_docker()
     dev.compose_file(c)
     dev.verify_containers(c)

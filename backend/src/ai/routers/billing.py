@@ -389,7 +389,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     if not trial and not subscription:
         # The per-person check needs this person's other companies, which
         # this company's own connection can't see.
-        sys_conn = db.system_connection()
+        sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
         try:
             trial_available = store.trial_eligibility(sys_conn, ctx.tenant_id, config.trial_plan_key(), ctx.user_id) is None
         finally:
@@ -472,7 +472,7 @@ def start_trial(body: TrialChoice, ctx: TenantContext = Depends(get_tenant_conte
         conn.commit()
     finally:
         conn.close()
-    sys_conn = db.system_connection()
+    sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         reason = store.trial_eligibility(sys_conn, ctx.tenant_id, body.plan_key, ctx.user_id)
         if reason:
@@ -541,7 +541,7 @@ def validate_promotion(body: PromotionValidation, ctx: TenantContext = Depends(g
 @router.post("/checkout")
 def start_checkout(body: CheckoutChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    sys_conn = db.system_connection()
+    sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
         company_name, email = _company(conn, ctx.tenant_id, ctx.user_id)
@@ -594,7 +594,7 @@ def checkout_status(session_id: str, ctx: TenantContext = Depends(get_tenant_con
 @router.post("/checkout/cancel-pending")
 def cancel_pending_checkout(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn=db.app_role_connection(ctx.tenant_id,ctx.user_id)
-    sys_conn=db.system_connection()
+    sys_conn=db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn,ctx)
         return service.cancel_pending_checkout(conn,sys_conn,ctx.tenant_id)
@@ -760,7 +760,7 @@ def prepare_custom_offer_checkout_attempt(quote_id: UUID, body: CustomQuoteCheck
                                           ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """Create or resume the Stripe Checkout session for an accepted Custom offer."""
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    sys_conn = db.system_connection()
+    sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
         company_name, email = _company(conn, ctx.tenant_id, ctx.user_id)

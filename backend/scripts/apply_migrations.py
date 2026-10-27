@@ -103,6 +103,21 @@ def _sync_app_role_password(conn) -> None:
     logger.info("ceopro_app password synced from APP_DB_PASSWORD.")
 
 
+def _sync_billing_setup_password(conn) -> None:
+    """Provision only an explicitly supplied runtime credential; never store it in SQL history."""
+    password = os.getenv("BILLING_SETUP_DB_PASSWORD")
+    if not password:
+        return
+    with conn.cursor() as cur:
+        cur.execute("SELECT rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication "
+                    "FROM pg_roles WHERE rolname='ceopro_billing_setup'")
+        if cur.fetchone() != (False, False, False, False, False, False):
+            raise RuntimeError("Billing setup role missing or unexpectedly privileged; password not changed.")
+        cur.execute("ALTER ROLE ceopro_billing_setup WITH PASSWORD %s", (password,))
+    conn.commit()
+    logger.info("Restricted billing setup password synchronized.")
+
+
 def _role_exists(conn, role_name: str) -> bool:
     with conn.cursor() as cursor:
         cursor.execute("SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = %s);", (role_name,))
@@ -146,6 +161,7 @@ def run(conn=None) -> list:
                 raise
 
         _sync_app_role_password(conn)
+        _sync_billing_setup_password(conn)
 
         conn.commit()  # end any read-only transaction left open by the checks above, so a reused conn is idle on return
         logger.info(f"Migration run complete. Applied {len(applied_this_run)} new migration(s).")

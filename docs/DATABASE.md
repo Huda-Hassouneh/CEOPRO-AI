@@ -14,6 +14,8 @@ Do not use older `init_schema.sql` or Node/Prisma initialization for the unified
 |---|---|---|
 | `keel_dev_admin` | Initial database image setup, migration/check/test commands | This checkout's isolated cluster; administrative DDL |
 | `ceopro_app` + generated `APP_DB_PASSWORD` | FastAPI and all locally launched workers | Restricted, no superuser/BYPASSRLS/role or DB creation |
+| `ceopro_billing_setup` + generated `BILLING_SETUP_DB_PASSWORD` | Request-bound Checkout setup/trial command | Non-superuser, no BYPASSRLS/DDL/role memberships; scoped coordination writes, no paid activation |
+| `ceopro_trial_issuer` (NOLOGIN) | Owner of the one-time trial SQL command | Catalog reads and trial-only inserts; no assignment update/delete or paid activation |
 | Test admin DSN | Explicit `test --suite database` only | Separately generated disposable DB in this cluster |
 | Worker `SCRAPER_DATABASE_URL` | Existing worker data access | Same restricted role; existing service actor and tenant context |
 
@@ -36,6 +38,15 @@ The corresponding `bash dev.sh` commands are identical.
 Requests authenticate a real user, resolve tenant membership and permissions, then use transaction-local tenant/user context. The pooled wrapper restores that context after commits/rollbacks. Tenant foreign keys, RLS and authorized SQL functions protect canonical records and financial state.
 
 Global owner administration uses existing platform authorization and approved database functions; Tenant Owner and Platform Owner are different roles.
+
+### Checkout setup boundary
+
+`db.billing_setup_connection(tenant_id, user_id)` reuses transaction-local context and re-applies it after commits/rollbacks. The setup credential goes only to the API and the short-lived migration provisioner. Workers and frontend keep their existing restricted credentials. `up` provisions it without replacing existing secrets; `db-check` checks role attributes and password login.
+
+The setup role maintains Checkout attempts, Stripe customer references, unpaid promotion reservations and their coordination audit. It cannot settle payments/redemptions or write subscriptions, credit balances or plan assignments directly. One-time trials use an execute-only function owned by `ceopro_trial_issuer`, with existing eligibility rules and catalog snapshot triggers.
+
+**This does not authorize every `db.system_connection()` caller.** Signed-payment reconciliation, credit accounting, owner maintenance and other trusted paths retain their existing configuration. The restricted local launcher is not proof that those global operations work. Do not put a migration administrator into the API to bypass errors. See [the privilege review](CHECKOUT_DATABASE_PRIVILEGE_REVIEW.md) for the exact tested scope and remaining boundary.
+
 
 ## Fixtures and recovery
 

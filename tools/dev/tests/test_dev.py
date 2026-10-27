@@ -59,6 +59,49 @@ class DevTests(unittest.TestCase):
     def test_only_migration_environment_gets_admin_password(self):
         self.assertIn("keel_dev_admin:admin-test@", dev.environment(self.c, admin=True)["DATABASE_URL"])
 
+    def test_setup_credential_is_only_in_api_environment(self):
+        self.c["billing_setup_password"] = "setup-test-password"
+        api = dev.api_environment(self.c, external=False)
+        self.assertIn("ceopro_app:", api["DATABASE_URL"])
+        self.assertEqual(api["BILLING_SETUP_DB_PASSWORD"], "setup-test-password")
+        self.assertNotIn("admin-test", str(api))
+        for env in (dev.environment(self.c, external=False), dev.environment(self.c, admin=True, external=False)):
+            self.assertNotIn("BILLING_SETUP_DB_PASSWORD", env)
+
+    def test_up_supplies_only_the_api_with_setup_credentials(self):
+        import argparse
+        self.c["billing_setup_password"] = "setup-test-password"
+        python = self.root / "python.exe"
+        python.touch()
+        (self.state / "dependencies.json").write_text("{}")
+        with patch.object(dev, "PYTHON", python), patch.object(dev, "config", return_value=self.c), \
+             patch.object(dev, "check_docker"), patch.object(dev, "integrations", return_value={}), \
+             patch.object(dev, "compose_file"), patch.object(dev, "verify_containers"), \
+             patch.object(dev, "processes", return_value={}), patch.object(dev, "docker", return_value=""), \
+             patch.object(dev, "available", return_value=True), patch.object(dev, "database"), \
+             patch.object(dev, "wait_for"), patch.object(dev, "run", return_value="test-revision"), \
+             patch.object(dev, "start_process") as start:
+            dev.up(argparse.Namespace(mode="core"))
+        api = next(call for call in start.call_args_list if call.args[0] == "api")
+        self.assertIn("ceopro_app:", api.kwargs["env"]["DATABASE_URL"])
+        self.assertEqual(api.kwargs["env"]["BILLING_SETUP_DB_PASSWORD"], "setup-test-password")
+        self.assertNotIn("admin-test", str(api.kwargs["env"]))
+        for call in start.call_args_list:
+            if call.args[0] != "api":
+                self.assertNotIn("env", call.kwargs)
+
+    def test_setup_credential_upgrade_is_repeatable(self):
+        dev.ensure_billing_setup_password(self.c)
+        first = self.c["billing_setup_password"]
+        dev.ensure_billing_setup_password(self.c)
+        self.assertEqual(self.c["billing_setup_password"], first)
+        self.assertEqual(dev.config()["billing_setup_password"], first)
+
+    def test_integrations_cannot_override_setup_credential(self):
+        (self.state / "integrations.env").write_text("BILLING_SETUP_DB_PASSWORD=forged")
+        with self.assertRaises(dev.DevError):
+            dev.integrations()
+
     def test_exact_frontend_api_pair(self):
         env = dev.environment(self.c)
         self.assertEqual(env["CORS_ALLOWED_ORIGINS"], env["FRONTEND_BASE_URL"])

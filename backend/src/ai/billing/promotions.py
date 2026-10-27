@@ -546,16 +546,24 @@ def reserve(conn, *, tenant_id: str, actor_user_id: str, code: str, plan_key: st
         # Pending and reconciliation-required reservations hold a slot; only
         # verified rejection releases it. NULL is accepted only when the
         # corresponding term key is explicitly present and approved on active rows.
-        cur.execute("SELECT count(*) FROM public.billing_promotion_redemptions WHERE promotion_id=%s "
-                    "AND state IN ('pending','settled','reconciliation_required');", (promo_id,))
-        global_uses = cur.fetchone()[0]
-        if terms["max_uses"] is not None and global_uses >= terms["max_uses"]:
-            raise PromotionError(409, "promotion_exhausted", "This promotion is no longer available.")
-        cur.execute("SELECT count(*) FROM public.billing_promotion_redemptions WHERE tenant_id=%s AND promotion_id=%s "
-                    "AND state IN ('pending','settled','reconciliation_required');", (tenant_id, promo_id))
-        tenant_uses = cur.fetchone()[0]
-        if terms["max_uses_per_tenant"] is not None and tenant_uses >= terms["max_uses_per_tenant"]:
-            raise PromotionError(409, "promotion_tenant_limit", "This promotion is no longer available.")
+        if getattr(conn, "billing_setup_only", False):
+            # Existing aggregate authority checks the global cap without exposing
+            # another tenant's redemption rows to this tenant-scoped service role.
+            cur.execute("SELECT public.billing_promotion_capacity_reason(%s)", (promo_id,))
+            capacity_reason = cur.fetchone()[0]
+            if capacity_reason:
+                raise PromotionError(409, capacity_reason, "This promotion is no longer available.")
+        else:
+            cur.execute("SELECT count(*) FROM public.billing_promotion_redemptions WHERE promotion_id=%s "
+                        "AND state IN ('pending','settled','reconciliation_required');", (promo_id,))
+            global_uses = cur.fetchone()[0]
+            if terms["max_uses"] is not None and global_uses >= terms["max_uses"]:
+                raise PromotionError(409, "promotion_exhausted", "This promotion is no longer available.")
+            cur.execute("SELECT count(*) FROM public.billing_promotion_redemptions WHERE tenant_id=%s AND promotion_id=%s "
+                        "AND state IN ('pending','settled','reconciliation_required');", (tenant_id, promo_id))
+            tenant_uses = cur.fetchone()[0]
+            if terms["max_uses_per_tenant"] is not None and tenant_uses >= terms["max_uses_per_tenant"]:
+                raise PromotionError(409, "promotion_tenant_limit", "This promotion is no longer available.")
         cur.execute(
             "INSERT INTO public.billing_promotion_redemptions(tenant_id,promotion_id,state,request_key,request_fingerprint,plan_key,period_code) "
             "VALUES(%s,%s,'pending',%s,%s,%s,%s) RETURNING redemption_id;",
