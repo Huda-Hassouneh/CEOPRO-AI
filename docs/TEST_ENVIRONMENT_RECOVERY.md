@@ -105,6 +105,7 @@ For a non-mutating public-page smoke against your normal running dev environment
 |---|---|---|
 | PostgreSQL 17 + pgvector (Docker) | `keel_dev_<checkout-id>` | New `keel_billing_test_dev_<random-id>` in the same **owned local cluster**, never a customer/shared DB. |
 | Migration/test admin | Generated `keel_dev_admin` | Can create disposable DBs and apply existing migrations; never used by test API. |
+| API-only setup credential | Restricted `ceopro_billing_setup` | Checkout coordination/trial command; no paid activation or ledger writes. Worker/frontend do not receive it. |
 | API/worker role | Restricted `ceopro_app` | Same restricted role/password; workers receive the restricted test DB DSN. Native test fixtures may use the separate admin DSN for fixture DDL. |
 | Redis (Docker) | Own persistent instance | Separate `test-redis`, tmpfs, no persistence; destructive test flushes cannot reach normal Redis. |
 | MinIO (Docker, existing pinned source Dockerfile) | Own persistent storage | Separate `test-storage`, tmpfs; test bucket cleanup cannot reach normal storage. |
@@ -182,9 +183,11 @@ Completed runs and failures after test initialization stop their owned API/front
 
 ### Existing interactive signup boundary
 
-The existing `db.system_connection()` trial bootstrap requires an administrative setup connection. Giving the CI account fixture only `ceopro_app` reproduced `permission denied for table billing_trials`, leaving the account without a trial; the safe runner now passes the separate test-admin environment to that **fixture process only**, as established by CI. The real browser API remains restricted. No grant, billing rule or application code was changed.
+The original recovery verification used the CI fixture's separate administrative connection for trial bootstrap, with a restricted browser API. That remains historical evidence, not proof of interactive signup.
 
-A brand-new interactive signup/trial through the normal restricted-only development API was not certified here. Its system-write authority is a separate application/security concern; do not solve it by granting `ceopro_app` financial-table writes. For this task's authenticated UI testing, use the reproducible isolated browser fixture above.
+**Checkout permission follow-up:** the API now receives a separate `BILLING_SETUP_DB_PASSWORD`, provisioned by the existing migration runner. It uses `ceopro_billing_setup` for request-bound Checkout coordination and an execute-only, non-login-owned trial command. The default `DATABASE_URL`, tenant connections and worker credentials remain `ceopro_app`. Native HTTP tests verify Checkout persistence/idempotency and trial issuance with the restricted setup identity; no Stripe call occurs in those tests.
+
+The two forward permissions migrations bring this revision to **140 migrations**. Existing recovery results below remain their original 138-migration observations. Signed webhook activation, global credit reconciliation and owner maintenance are separate trusted paths; this scoped fix does not certify them under a restricted-only local runtime. See [the privilege review](CHECKOUT_DATABASE_PRIVILEGE_REVIEW.md).
 
 ## 8. Recovery inventory and verification
 
@@ -212,6 +215,6 @@ These fresh `powershell.exe -NoProfile -NonInteractive` checks reused existing i
 
 The previous 171-package zero-advisory result in `CI_REPAIR.md` is historical evidence and is not substituted for the failed current consistency check. A positive default-environment audit must be rerun after the documented clean setup. The default repository manifests exclude optional rembg; this task does not change that extra's financial/model/security policy or modify its installed environment.
 
-Remaining manual prerequisites are installation/network access, Docker Desktop startup, Chrome, optional OCR binaries/fonts, provider authorization/credentials and model downloads. Essential local infrastructure and test fixtures are now version-controlled; fully automated real merchant/Stripe/model acceptance is not claimed. The interactive normal-development trial-bootstrap limitation above remains separate from the passing isolated fixture workflow.
+Remaining manual prerequisites are installation/network access, Docker Desktop startup, Chrome, optional OCR binaries/fonts, provider authorization/credentials and model downloads. Essential local infrastructure and test fixtures are now version-controlled; fully automated real merchant/Stripe/model acceptance is not claimed. The Checkout/trial follow-up above is separately verified; other trusted global operations retain the limitations stated there.
 
 Only developer tooling, its tests, the focused CI test step and documentation changed. No application source, migrations, original Node/React repository, protected runtime or production data was modified. Protected `backend/.env.example` SHA256 remains `6850C0B739FF783FE57466C509105DB4DF3F03AED16E1D939CBA870167EF2F28`. No push, merge into main or deployment occurred.

@@ -255,7 +255,7 @@ def _start_free_trial(tenant_id: str, user_id: str) -> None:
     from src.ai.billing import store as billing_store
 
     try:
-        sys_conn = db.system_connection()
+        sys_conn = db.billing_setup_connection(tenant_id, user_id)
     except Exception:  # noqa: BLE001
         logger.exception("Could not open a system connection to start the trial (tenant=%s)", tenant_id)
         return

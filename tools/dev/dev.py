@@ -36,7 +36,7 @@ PORTS = {"api": 8000, "frontend": 5173, "postgres": 55432, "redis": 56379,
          "storage": 59000, "console": 59001, "smtp": 51025, "inbox": 58025,
          "prices_metrics": 59108, "maintenance_metrics": 59109}
 MANAGED = {
-    "DATABASE_URL", "APP_DB_PASSWORD", "SCRAPER_DATABASE_URL", "JWT_SECRET",
+    "DATABASE_URL", "APP_DB_PASSWORD", "BILLING_SETUP_DB_PASSWORD", "SCRAPER_DATABASE_URL", "JWT_SECRET",
     "CREDENTIAL_VAULT_MASTER_KEY", "REDIS_URL", "REDIS_HOST", "REDIS_PORT",
     "REDIS_PASSWORD", "REDIS_TLS", "MINIO_ENDPOINT", "MINIO_ROOT_USER",
     "MINIO_ROOT_PASSWORD", "SMTP_HOST", "SMTP_PORT", "SMTP_USE_TLS", "SMTP_USERNAME",
@@ -183,6 +183,20 @@ def environment(c, *, admin=False, external=True):
     })
     if external:
         env.update(integrations())
+    return env
+
+
+def ensure_billing_setup_password(c):
+    if not c.get("billing_setup_password"):
+        c["billing_setup_password"] = secrets.token_hex(24)
+        write_json(STATE / "config.json", c)
+
+
+def api_environment(c, *, external=True):
+    env = environment(c, external=external)
+    if not c.get("billing_setup_password"):
+        raise DevError("Billing setup credential missing. Run setup/up to provision the restricted role.")
+    env["BILLING_SETUP_DB_PASSWORD"] = c["billing_setup_password"]
     return env
 
 
@@ -348,14 +362,19 @@ def wait_for(description, check, timeout=90):
 
 
 def database(c, action):
+    if action == "migrate":
+        ensure_billing_setup_password(c)
+    migration_env = environment(c, admin=True)
+    if action == "migrate":
+        migration_env["BILLING_SETUP_DB_PASSWORD"] = c["billing_setup_password"]
     args = [str(PYTHON), str(ROOT / "tools/dev/database.py"), action]
     if action != "migrate":
-        run(args, cwd=ROOT / "backend", env=environment(c, admin=True))
+        run(args, cwd=ROOT / "backend", env=migration_env)
         return
     log = STATE / "logs/migrations.log"
     log.parent.mkdir(exist_ok=True)
     with log.open("w", encoding="utf-8") as output:
-        result = subprocess.run(args, cwd=ROOT / "backend", env=environment(c, admin=True),
+        result = subprocess.run(args, cwd=ROOT / "backend", env=migration_env,
                                 stdout=output, stderr=subprocess.STDOUT)
     if result.returncode:
         raise DevError("Migration runner failed. Inspect logs --service migrations; no migration success assumed.")
@@ -443,6 +462,7 @@ def setup(args):
              "vault": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()}
         write_json(STATE / "config.json", c)
     c = config()
+    ensure_billing_setup_password(c)
     new_venv = not PYTHON.exists()
     if new_venv:
         run([sys.executable, "-m", "venv", STATE / "venv"])
@@ -542,7 +562,7 @@ def up(args):
     database(c, "migrate")
     database(c, "check")
     start_process("api", [PYTHON, "-m", "uvicorn", "src.ai.main:app", "--host", "127.0.0.1",
-                          "--port", c["ports"]["api"]], c)
+                          "--port", c["ports"]["api"]], c, env=api_environment(c))
     origin = f"http://127.0.0.1:{c['ports']['frontend']}"
     api = f"http://127.0.0.1:{c['ports']['api']}"
     wait_for("FastAPI database/Redis readiness and exact CORS", lambda: (
