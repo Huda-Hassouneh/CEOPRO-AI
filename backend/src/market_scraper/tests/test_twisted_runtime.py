@@ -75,4 +75,3 @@ def test_app_and_worker_manifests_use_the_same_security_fixed_twisted():
     for package in ("ai", "market_scraper"):
         lines = (backend / "src" / package / "requirements.txt").read_text(encoding="utf-8").splitlines()
         assert "Twisted==26.10.0rc1" in lines
-
