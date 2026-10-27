@@ -92,6 +92,8 @@ Without credentials, local navigation, authentication, data management and non-p
 
 The command interface tests developer tooling by default. It does not run expensive billing or AI-provider acceptance suites implicitly. See [LOCAL_DEVELOPMENT](docs/LOCAL_DEVELOPMENT.md) for focused Python tests, debugging, individual processes and infrastructure logs.
 
+For reboot recovery and isolated backend/browser/audit suites, see [Test environment recovery](docs/TEST_ENVIRONMENT_RECOVERY.md).
+
 ## Troubleshooting and contribution
 
 Start with `doctor`, `status` and the failed service log. [Troubleshooting](docs/TROUBLESHOOTING.md) covers Docker, ports, dependencies, migrations, email, CORS and missing providers. [Contributing](docs/CONTRIBUTING.md) explains scoped changes, tests, migrations and security boundaries.

@@ -36,3 +36,6 @@ python-bidi
 Pillow
 pytesseract
 boto3
+
+# Developer security command; not an application runtime dependency.
+pip-audit>=2.10,<3.0

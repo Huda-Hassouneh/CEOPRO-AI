@@ -93,3 +93,7 @@ Run dev.ps1 test --suite browser after startup with Chrome/Chromium installed (o
 Frontend test-file concurrency is bounded to two processes so simultaneous Vite SSR test servers do not exhaust a developer machine. Every existing assertion still runs.
 
 If multiple Python versions are installed, Unix can select one with KEEL_PYTHON=python3.12 bash dev.sh setup. On Windows invoke a compatible interpreter explicitly against tools/dev/dev.py setup before using dev.ps1. Do not copy another checkout's venv.
+
+## Reboot and isolated CI recovery
+
+See [Test environment recovery](TEST_ENVIRONMENT_RECOVERY.md) for repository-backed backend, authenticated browser, accessibility and audit suites. `test --suite backend`, `browser-ci` and `a11y` create fresh test databases and separate test Redis/storage. `test-cleanup` removes only disposable test containers, retaining databases and all normal volumes. No previous temp script or remembered port is required.
