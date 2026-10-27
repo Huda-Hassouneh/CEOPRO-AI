@@ -151,6 +151,9 @@ def _to_http(err: service.BillingError) -> HTTPException:
 
 
 def _provider_failure(err: Exception) -> HTTPException:
+    from src.ai.billing.test_clock import TestClockError
+    if isinstance(err, TestClockError):
+        return err
     logger.exception("Stripe request failed: %s", err)
     return HTTPException(status_code=502, detail={
         "reason": "provider_error", "message": "The payment provider didn't respond. Please try again in a moment.",
