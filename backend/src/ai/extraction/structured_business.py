@@ -200,7 +200,8 @@ def confirm(conn,tenant,actor,batch,choices,review_hash):
             iid=str(uuid4());ids.append(iid)
             c.execute('INSERT INTO invoices(invoice_id,tenant_id,invoice_number,customer_name,issue_date,due_date,subtotal,tax_amount,total_amount,currency,payment_status,created_by_user_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',(iid,tenant,invoice['invoice_number'],invoice.get('customer_name') or None,invoice['issue_date'],invoice['due_date'],invoice['subtotal'],invoice['tax_amount'],invoice['total_amount'],invoice['currency'],invoice['payment_status'],actor))
             for row in [x for x in parsed['items'] if x['invoice_number'].casefold()==invoice['invoice_number'].casefold()]:
-                pid=assignments[row['key']];c.execute('INSERT INTO invoice_items(tenant_id,invoice_id,product_id,quantity,unit_price,total_price) VALUES(%s,%s,%s,%s,%s,%s)',(tenant,iid,pid,row['quantity'],row['unit_price'],row['total_price']))
+                pid=assignments[row['key']];adjustment=Decimal(row['total_price'])-Decimal(row['quantity'])*Decimal(row['unit_price'])
+                c.execute('INSERT INTO invoice_items(tenant_id,invoice_id,product_id,quantity,unit_price,total_price,rounding_adjustment) VALUES(%s,%s,%s,%s,%s,%s,%s)',(tenant,iid,pid,row['quantity'],row['unit_price'],row['total_price'],adjustment))
                 if invoice['payment_status']=='PAID':
                     c.execute("INSERT INTO transactions(tenant_id,product_id,quantity_sold,unit_price,total_price,original_currency,sale_source,transaction_date) VALUES(%s,%s,%s,%s,%s,%s,'POS',%s) RETURNING transaction_id",(tenant,pid,row['quantity'],row['unit_price'],row['total_price'],invoice['currency'],invoice['issue_date']));transaction_ids.append(str(c.fetchone()[0]))
         for row in parsed['inventory']:

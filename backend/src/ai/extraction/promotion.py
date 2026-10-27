@@ -96,17 +96,28 @@ class _EligibleRow:
         # Otherwise line_total stays exactly what the customer paid. A paid
         # total like 15.53 for 3 units has no exact 4-dp unit price; the
         # stored effective_unit_price reproduces it to within 0.00005 per
-        # unit, which is what chk_total_price_consistent allows (migration
-        # 20261006020000). It used to be snapped instead, so recorded
-        # revenue drifted from the money actually received.
+        # unit. The invoice mirror records that exact residual explicitly,
+        # as required by chk_total_price_consistent (20261110000100).
+        # Never snap the paid line total to the rounded unit price.
 
     @property
     def effective_unit_price(self) -> Decimal:
-        """Unit price actually paid (after any discount) - stored as unit_price
-        so quantity x unit_price == total_price in every table."""
-        if not self.quantity or self.line_total == _round4(self.quantity * self.unit_price):
-            return self.unit_price  # no discount: the list price, exactly
+        """Stored effective paid price; the invoice retains the exact paid total."""
+        if not self.quantity:
+            return self.unit_price
+        if self.line_total == _round4(self.quantity * self.unit_price):
+            residual = self.line_total - self.quantity * self.unit_price
+            if abs(residual) <= self.quantity * Decimal("0.00005"):
+                return self.unit_price
+        # Owner-approved compatibility rule: when line rounding would exceed
+        # the existing per-unit bound, derive the effective paid unit price.
+        # The source unit price stays in staging and product creation data.
         return _round4(self.line_total / self.quantity)
+
+    @property
+    def rounding_adjustment(self) -> Decimal:
+        """Exact reconciliation of the paid total and the stored 4-dp unit price."""
+        return self.line_total - self.quantity * self.effective_unit_price
 
 
 _CENT4 = Decimal("0.0001")
@@ -593,17 +604,17 @@ def _insert_invoices_mirror_batch(
     for row, (invoice_id,) in zip(batch, invoice_ids):
         item_values.append((
             tenant_id, str(invoice_id), known[row.product_name_normalized], row.quantity,
-            row.effective_unit_price, row.line_total,
+            row.effective_unit_price, row.line_total, row.rounding_adjustment,
         ))
     with conn.cursor() as cursor:
         execute_values(
             cursor,
             """
-            INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price)
+            INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price, rounding_adjustment)
             VALUES %s;
             """,
             item_values,
-            template="(%s, %s, %s, %s, %s, %s)",
+            template="(%s, %s, %s, %s, %s, %s, %s)",
         )
 
 
@@ -628,10 +639,10 @@ def _insert_invoice_mirror_row(
         invoice_id = str(cursor.fetchone()[0])
         cursor.execute(
             """
-            INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price)
-            VALUES (%s, %s, %s, %s, %s, %s);
+            INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price, rounding_adjustment)
+            VALUES (%s, %s, %s, %s, %s, %s, %s);
             """,
-            (tenant_id, invoice_id, known[row.product_name_normalized], row.quantity, row.effective_unit_price, total_price),
+            (tenant_id, invoice_id, known[row.product_name_normalized], row.quantity, row.effective_unit_price, total_price, row.rounding_adjustment),
         )
 
 
