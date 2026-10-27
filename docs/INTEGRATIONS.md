@@ -14,6 +14,8 @@ Controlled fixture/worker/database evidence exists in the integration acceptance
 
 ## Stripe TEST MODE (optional)
 
+For optional, isolated lifecycle simulation see the [local Stripe Test Clock guide](STRIPE_TEST_CLOCK_LOCAL_GUIDE.md). Disabled by default; not part of production deployment.
+
 The existing Python billing authority owns Products/Prices, promotions, quotes, Checkout, signed webhook reconciliation, entitlements and Credits.
 
 Configure only an authorized `sk_test_` / `rk_test_` key and the real `whsec_` signing secret from your listener in private `.dev/integrations.env`. Restart after changes. The launcher refuses LIVE keys and incomplete signing configuration.

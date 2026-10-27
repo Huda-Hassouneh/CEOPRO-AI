@@ -141,6 +141,9 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
     Limits are the plan's, replaced by an approved contract override
     (tenant_entitlement_overrides), or the plan's trial allowance while the
     company is on a free trial. A free trial ends at its exact UTC time."""
+    if now is None and today is None:
+        from src.ai.billing import test_clock
+        now = test_clock.tenant_now(conn, tenant_id)
     now = now or datetime.now(timezone.utc)
     today = today or now.date()
     with conn.cursor() as cursor:

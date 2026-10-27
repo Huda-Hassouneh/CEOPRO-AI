@@ -5,7 +5,7 @@ one place. Uses the official stripe-python SDK.
 """
 import stripe
 
-from src.ai.billing import config
+from src.ai.billing import config, test_clock
 
 
 def _plain(obj):
@@ -21,6 +21,7 @@ class PaymentsNotConfigured(Exception):
 
 
 def _client():
+    test_clock.adapter()  # Reject accidental enabled mode before any provider operation.
     key = config.stripe_secret_key()
     if not key:
         raise PaymentsNotConfigured("STRIPE_SECRET_KEY is not set.")
@@ -30,10 +31,16 @@ def _client():
 
 
 def create_customer(email: str, company_name: str, tenant_id: str, idempotency_key: str):
-    return _plain(_client().Customer.create(
+    client = _client()
+    local = test_clock.adapter()
+    options = local.creation_options(client) if local else {}
+    customer = _plain(client.Customer.create(
         email=email, name=company_name, metadata={"tenant_id": tenant_id},
-        idempotency_key=idempotency_key,
+        idempotency_key=idempotency_key, **options,
     ))
+    if local:
+        local.validate_customer(customer, tenant_id)
+    return customer
 
 
 def create_checkout_session(params: dict, idempotency_key: str):
@@ -150,3 +157,10 @@ def activate_promotion_code(promotion_code_id: str):
 
 def expire_checkout_session(session_id: str):
     return _plain(_client().checkout.Session.expire(session_id))
+
+
+def customer_clock_time(customer_id, tenant_id, *, require_clock=False):
+    local = test_clock.adapter()
+    if local is None:
+        return None
+    return local.customer_time(_client(), customer_id, tenant_id, require_clock=require_clock)
