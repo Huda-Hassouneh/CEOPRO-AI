@@ -36,6 +36,9 @@ def oauth_env(monkeypatch):
     monkeypatch.setenv("SHOPIFY_CLIENT_ID", "local-client-id")
     monkeypatch.setenv("SHOPIFY_CLIENT_SECRET", "local-app-secret-with-32-plus-bytes")
     monkeypatch.setenv("SHOPIFY_REDIRECT_URI", "https://local.example.test/onboarding/shopify/callback")
+    # Keep this OAuth fixture independent of the CI/runtime public-origin aliases.
+    for key in ("PUBLIC_FRONTEND_ORIGIN", "FRONTEND_BASE_URL", "APP_BASE_URL"):
+        monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("FRONTEND_URL", "https://local.example.test")
     redis = _Redis()
     monkeypatch.setattr(oauth, "get_redis_client", lambda: redis)
