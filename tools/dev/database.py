@@ -50,7 +50,9 @@ def check(c, *, database=None):
         assert {r[0] for r in cur.fetchall()} == original_nonforce, "Original non-FORCE tables lost policies"
         cur.execute("SELECT relname FROM pg_class WHERE relnamespace='public'::regnamespace AND pg_get_userbyid(relowner)='ceopro_app' AND relname=ANY(%s)", (list(original_nonforce),))
         assert not cur.fetchall(), "Runtime role must not own owner-bypass tables"
-        for role, login in (("ceopro_billing_setup", True), ("ceopro_trial_issuer", False)):
+        for role, login in (("ceopro_billing_setup", True), ("ceopro_trial_issuer", False),
+                            ("ceopro_billing_webhook", True), ("ceopro_credit_accounting", True),
+                            ("ceopro_billing_lookup", False), ("ceopro_schedule_writer", False)):
             cur.execute("SELECT rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication,rolcanlogin FROM pg_roles WHERE rolname=%s", (role,))
             assert cur.fetchone() == (False, False, False, False, False, False, login), "Unsafe billing setup identity"
             cur.execute("SELECT count(*) FROM pg_auth_members WHERE member=(SELECT oid FROM pg_roles WHERE rolname=%s)", (role,))

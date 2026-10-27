@@ -60,7 +60,7 @@ class DevTests(unittest.TestCase):
         self.assertIn("keel_dev_admin:admin-test@", dev.environment(self.c, admin=True)["DATABASE_URL"])
 
     def test_setup_credential_is_only_in_api_environment(self):
-        self.c["billing_setup_password"] = "setup-test-password"
+        self.c.update(billing_setup_password="setup-test-password", billing_webhook_password="webhook-test-password", credit_accounting_password="accounting-test-password")
         api = dev.api_environment(self.c, external=False)
         self.assertIn("ceopro_app:", api["DATABASE_URL"])
         self.assertEqual(api["BILLING_SETUP_DB_PASSWORD"], "setup-test-password")
@@ -70,7 +70,7 @@ class DevTests(unittest.TestCase):
 
     def test_up_supplies_only_the_api_with_setup_credentials(self):
         import argparse
-        self.c["billing_setup_password"] = "setup-test-password"
+        self.c.update(billing_setup_password="setup-test-password", billing_webhook_password="webhook-test-password", credit_accounting_password="accounting-test-password")
         python = self.root / "python.exe"
         python.touch()
         (self.state / "dependencies.json").write_text("{}")
@@ -87,8 +87,14 @@ class DevTests(unittest.TestCase):
         self.assertEqual(api.kwargs["env"]["BILLING_SETUP_DB_PASSWORD"], "setup-test-password")
         self.assertNotIn("admin-test", str(api.kwargs["env"]))
         for call in start.call_args_list:
-            if call.args[0] != "api":
+            if call.args[0] == "frontend":
                 self.assertNotIn("env", call.kwargs)
+            elif call.args[0] != "api":
+                worker = call.kwargs["env"]
+                self.assertNotIn("BILLING_SETUP_DB_PASSWORD", worker)
+                self.assertNotIn("BILLING_WEBHOOK_DB_PASSWORD", worker)
+                self.assertEqual(worker["CREDIT_ACCOUNTING_DB_PASSWORD"], "accounting-test-password")
+                self.assertNotIn("admin-test", worker["DATABASE_URL"])
 
     def test_setup_credential_upgrade_is_repeatable(self):
         dev.ensure_billing_setup_password(self.c)
@@ -130,7 +136,7 @@ class DevTests(unittest.TestCase):
     def test_compose_scoped_names_volumes_and_loopback(self):
         dev.compose_file(self.c)
         c = json.loads((self.state / "compose.json").read_text())
-        self.assertEqual(set(c["services"]), {"postgres","redis","storage","mail","test-redis","test-storage"})
+        self.assertEqual(set(c["services"]), {"postgres","redis","storage","mail","test-redis","test-storage","test-mail"})
         for service in c["services"].values():
             self.assertNotIn("container_name", service)
             self.assertEqual(service["labels"]["com.keel.dev.root"], str(self.root))

@@ -15,6 +15,8 @@ All rows below require a restart after changes. Setup supplies them; missing/inv
 | DATABASE_URL | Migration connection or restricted runtime endpoint | Generated loopback PostgreSQL URL for keel_dev_<id>; admin only in migration commands | DB operations fail |
 | APP_DB_PASSWORD | API/worker restricted password | Generated unique secret | Restricted login fails |
 | BILLING_SETUP_DB_PASSWORD | API-only Checkout coordination and execute-only trial command; migration provisioner sets role password | Generated once in private config; never in integrations.env or VITE variables | New local API setup path cannot authenticate; manual deployments without this variable retain their pre-existing trusted-connection configuration |
+| BILLING_WEBHOOK_DB_PASSWORD | API-only fixed `ceopro_billing_webhook` identity, opened after Stripe signature verification | Generated private local secret; never put in integrations.env/frontend | Verified webhook persistence cannot authenticate; restart API after changing |
+| CREDIT_ACCOUNTING_DB_PASSWORD | API/worker fixed `ceopro_credit_accounting` usage authority; no payment/plan writes | Generated private local secret | Credit reservation/settlement fails closed; restart affected processes after changing |
 | SCRAPER_DATABASE_URL | Market/commerce worker DB | Same local DB, ceopro_app | Worker cannot operate |
 | JWT_SECRET | Python session signatures | Generated 32-byte secret, retained | Authentication fails |
 | CREDENTIAL_VAULT_MASTER_KEY | Connector credential encryption | Generated Fernet key, retained | Stored credentials cannot be opened; never rotate casually |

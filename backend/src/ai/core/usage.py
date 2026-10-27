@@ -398,7 +398,7 @@ def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
     Fails closed: no accounting connection, no request."""
     from src.ai import db
 
-    conn = (conn_factory or db.system_connection)()
+    conn = (conn_factory or (lambda: db.credit_accounting_connection(tenant_id, actor_user_id)))()
     try:
         with conn.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
@@ -406,10 +406,15 @@ def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
             cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
                            (f"keel_metered:{tenant_id}:{feature_code}",))
             if actor_user_id is not None:
-                cursor.execute("SELECT 1 FROM tenant_users WHERE tenant_id=%s AND user_id=%s "
-                               "AND removed_at IS NULL AND keel_active_principal(%s,%s) FOR SHARE;",
-                               (tenant_id, actor_user_id, actor_user_id, tenant_id))
-                if cursor.fetchone() is None:
+                if getattr(conn, "credit_accounting_only", False):
+                    cursor.execute("SELECT public.billing_accounting_principal(%s,%s)", (tenant_id, actor_user_id))
+                    active = cursor.fetchone()[0] is True
+                else:
+                    cursor.execute("SELECT 1 FROM tenant_users WHERE tenant_id=%s AND user_id=%s "
+                                   "AND removed_at IS NULL AND keel_active_principal(%s,%s) FOR SHARE;",
+                                   (tenant_id, actor_user_id, actor_user_id, tenant_id))
+                    active = cursor.fetchone() is not None
+                if not active:
                     raise HTTPException(status_code=403, detail="An active company membership is required.")
         plan = get_plan(conn, tenant_id)
         _require_active(plan, feature_code)
@@ -469,7 +474,7 @@ def release_request(reservation: Optional[dict], conn_factory=None) -> None:
         return
     from src.ai import db
 
-    conn = (conn_factory or db.system_connection)()
+    conn = (conn_factory or (lambda: db.credit_accounting_connection(reservation["tenant_id"])))()
     try:
         # Old in-flight receipts fail closed rather than refund a new attempt.
         if not reservation.get("request_id"):

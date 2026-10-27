@@ -15,18 +15,23 @@ import uuid
 
 import dev
 
-TEST_SERVICES = ("test-redis", "test-storage")
+TEST_SERVICES = ("test-redis", "test-storage", "test-mail")
 TEST_PROCESSES = {"test-api", "test-frontend"}
 
 
 def test_environment(c, name):
-    if not name.startswith("keel_billing_test_dev_"):
+    if not name.startswith("keel_billing_test_dev"):
         raise dev.DevError("Test database name is outside the disposable namespace.")
     env = dev.environment(c, admin=True, external=False)
     env["DATABASE_URL"] = urlunsplit(urlsplit(env["DATABASE_URL"])._replace(path="/" + name))
     env["AI_TEST_DATABASE_URL"] = env["DATABASE_URL"]
-    if c.get("billing_setup_password"):
-        env["BILLING_SETUP_DB_PASSWORD"] = c["billing_setup_password"]
+    env["BILLING_TEST_DATABASE_URL"] = env["DATABASE_URL"]
+    env["BILLING_DATABASE_TESTS"] = "1"
+    for variable, key in (("BILLING_SETUP_DB_PASSWORD", "billing_setup_password"),
+                          ("BILLING_WEBHOOK_DB_PASSWORD", "billing_webhook_password"),
+                          ("CREDIT_ACCOUNTING_DB_PASSWORD", "credit_accounting_password")):
+        if c.get(key):
+            env[variable] = c[key]
     restricted = dev.environment(c, external=False)["DATABASE_URL"]
     env["SCRAPER_DATABASE_URL"] = urlunsplit(urlsplit(restricted)._replace(path="/" + name))
     env.update(AI_TEST_REDIS_HOST="127.0.0.1", AI_TEST_REDIS_PORT=env["REDIS_PORT"],
@@ -66,7 +71,7 @@ def cleanup(c):
     dev.stop_processes(TEST_PROCESSES)
     dev.docker(c, "stop", *TEST_SERVICES)
     dev.docker(c, "rm", "-f", *TEST_SERVICES)
-    print("Removed only owned test Redis/storage containers. Application services, volumes, test databases and evidence retained.")
+    print("Removed only owned test Redis/storage/mail containers. Application services, volumes, test databases and evidence retained.")
 
 
 @contextlib.contextmanager
@@ -84,12 +89,14 @@ def isolated(c, suite):
     cleanup(c)
     dev.docker(c, "up", "-d", "--wait", "--wait-timeout", "180", "postgres", *TEST_SERVICES)
     run_id = uuid.uuid4().hex[:12]
-    name = "keel_billing_test_dev_" + run_id
+    name = "keel_billing_test_dev" + run_id
     target = dev.STATE / "evidence" / "tests" / run_id
     target.mkdir(parents=True)
     local = {**c, "ports": {**c["ports"], **dev.allocate_ports({"api": 18000, "frontend": 15173})}}
     local["ports"].update(redis=published_port(c, "test-redis", 6379),
-                          storage=published_port(c, "test-storage", 9000))
+                          storage=published_port(c, "test-storage", 9000),
+                          smtp=published_port(c, "test-mail", 1025),
+                          inbox=published_port(c, "test-mail", 8025))
     metadata = {"id": run_id, "database": name, "suite": suite, "ports": local["ports"],
                 "revision": dev.run(["git", "rev-parse", "HEAD"], capture=True).strip(),
                 "status": "preparing", "created": time.time()}
@@ -136,7 +143,8 @@ def browser(c, env, target, suite):
     env = dict(env, FRONTEND_BASE_URL=origin, CORS_ALLOWED_ORIGINS=origin)
     # API uses only the restricted app DSN. Tests/seeding use public APIs.
     runtime = dict(env, DATABASE_URL=env["SCRAPER_DATABASE_URL"])
-    runtime.pop("AI_TEST_DATABASE_URL", None)
+    for key in ("AI_TEST_DATABASE_URL", "BILLING_TEST_DATABASE_URL", "BILLING_DATABASE_TESTS"):
+        runtime.pop(key, None)
     runtime.update(KEEL_API_PROXY_TARGET=api, VITE_API_BASE_URL="/api",
                    DISCOVERY_REFRESH_ENABLED="false", NOTIFICATION_DIGEST_ENABLED="false")
     dev.start_process("test-api", [dev.PYTHON, "-m", "uvicorn", "src.ai.main:app", "--host", "127.0.0.1",
@@ -194,7 +202,7 @@ def execute(c, args):
         return
     if args.suite == "backend":
         marker = dev.STATE / "dependencies.json"
-        if not marker.exists() or not json.loads(marker.read_text()).get("models"):
+        if args.pytest_args is None and (not marker.exists() or not json.loads(marker.read_text()).get("models")):
             raise dev.DevError("Full backend collection needs declared model libraries. Run setup --models first; no models are mocked.")
     with isolated(c, args.suite) as (local, env, target):
         if args.suite == "backend":

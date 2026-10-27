@@ -98,6 +98,7 @@ def test_percentage_promotion_is_currency_agnostic_but_fixed_amount_requires_cur
 def test_managed_checkout_uses_stripe_discount_without_hosted_code_stacking(monkeypatch, memory_checkout_reservations):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setenv("APP_BASE_URL", "https://keel.example.test")
+    monkeypatch.setenv("PUBLIC_FRONTEND_ORIGIN", "https://keel.example.test")
     monkeypatch.setenv("KEEL_MANAGED_PROMOTIONS_ENABLED", "true")
     monkeypatch.setattr(store, "current_subscription", lambda *args: None)
     monkeypatch.setattr(store, "current_price", lambda *args: {

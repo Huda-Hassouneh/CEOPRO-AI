@@ -53,7 +53,7 @@ On Linux/macOS the same commands use `bash dev.sh`; those platforms need their o
 | Migration state | `schema_migrations` in each DB | Forward runner resumes; no reset or historical migration rewrite. |
 | Process identity and source revision | `.dev/processes.json` | Processes must be relaunched. Old pre-boot PIDs are never killed even if Windows reused their numbers. Same-boot identity mismatches are refused. |
 | Test DB inventory and results | `.dev/test-databases.json`, `.dev/evidence/tests/<run-id>/` | Inspect locally; test commands create a new DB each time. |
-| Test Redis/object data | Test-only tmpfs containers | Intentionally disposable. Each new run starts empty test services. |
+| Test Redis/object/mail data | Separate ephemeral test containers | Intentionally disposable. Each new run starts empty test services. |
 
 Back up private local configuration and any valuable local data through your normal secure backup process. Git alone cannot restore a lost password for an existing volume. Losing `.dev/config.json` is not permission to adopt or reset its old cluster: preserve the volumes and investigate ownership first. A new clone creates a new independent project.
 
@@ -218,3 +218,51 @@ The previous 171-package zero-advisory result in `CI_REPAIR.md` is historical ev
 Remaining manual prerequisites are installation/network access, Docker Desktop startup, Chrome, optional OCR binaries/fonts, provider authorization/credentials and model downloads. Essential local infrastructure and test fixtures are now version-controlled; fully automated real merchant/Stripe/model acceptance is not claimed. The Checkout/trial follow-up above is separately verified; other trusted global operations retain the limitations stated there.
 
 Only developer tooling, its tests, the focused CI test step and documentation changed. No application source, migrations, original Node/React repository, protected runtime or production data was modified. Protected `backend/.env.example` SHA256 remains `6850C0B739FF783FE57466C509105DB4DF3F03AED16E1D939CBA870167EF2F28`. No push, merge into main or deployment occurred.
+
+
+## Restricted billing recovery (2026-10-27)
+
+The API keeps `DATABASE_URL` as `ceopro_app`. `up` provisions three separate generated
+credentials in this checkout's private `.dev/config.json`, passes all three only to
+the API, and gives workers only the accounting credential. Migrations use the local
+administrator in a separate short-lived process. Never put the administrator URL
+into the API environment or copy another checkout's configuration.
+
+- `BILLING_SETUP_DB_PASSWORD`: Checkout/customer coordination and execute-only trial/schedule commands.
+- `BILLING_WEBHOOK_DB_PASSWORD`: receipt-bound reconciliation after Stripe SDK signature validation.
+- `CREDIT_ACCOUNTING_DB_PASSWORD`: tenant-scoped usage reservations, settlement and reconciliation; no paid-plan/payment writes.
+
+After updating source, use `dev.ps1 restart`. Forward migrations provision missing
+roles/passwords; no volumes, accounts or imported records are reset. Existing
+Stripe listener secrets are not replaced. Restart your real Stripe TEST listener
+separately if its process stopped after reboot; use its actual signing secret.
+The launcher does not create a Stripe listener or claim external payment success.
+
+To reuse an already compatible virtualenv without installing packages into it:
+
+```powershell
+.\dev.ps1 setup --reuse-python 'C:\path with spaces\existing checkout\.dev\venv\Scripts\python.exe'
+.\dev.ps1 doctor
+```
+
+This is optional. Normal fresh-clone setup still creates its own virtualenv. Reuse
+validates repository constraints and `pip check`; missing model libraries remain
+missing and full model-test collection is refused. No model installation is needed
+for the scoped billing command below:
+
+```powershell
+.\dev.ps1 test --suite backend --pytest-args tests/billing src/ai/tests/test_credits_integration_db.py src/ai/tests/test_usage_integration_db.py src/ai/tests/test_billing_effective_rights.py src/ai/tests/test_billing_consistency.py src/ai/tests/test_rls_integration_db.py -q
+.\dev.ps1 test --suite browser-ci
+```
+
+Each test invocation uses a newly recorded `keel_billing_test_dev<run-id>` database
+in this checkout's cluster. It explicitly enables the billing native-test guard;
+tests must not be reported successful if skipped. Test Redis, storage **and Mailpit**
+have separate dynamically assigned loopback ports. Tests never use the normal dev
+inbox, Redis instance, storage buckets or tenant database. The browser API receives
+restricted credentials only; fixture/migration administrator URLs are removed from
+its environment.
+
+Test commands stop owned test processes/services and retain private evidence and
+databases. `dev.ps1 test-cleanup` removes only owned disposable test containers;
+it does not drop databases, remove volumes or stop normal development services.

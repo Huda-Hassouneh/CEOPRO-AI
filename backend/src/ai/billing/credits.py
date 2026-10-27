@@ -200,6 +200,13 @@ def _system_connection():
     return db.system_connection()
 
 
+def _scoped_connection(tenant_id, actor_user_id=None):
+    if not os.getenv("CREDIT_ACCOUNTING_DB_PASSWORD"):
+        return _system_connection()
+    from src.ai import db
+    return db.credit_accounting_connection(tenant_id, actor_user_id)
+
+
 def policy(conn) -> dict:
     with conn.cursor() as cursor:
         cursor.execute(
@@ -312,7 +319,7 @@ def ensure_available(tenant_id: str, budget_kind: str, conn_factory: Callable = 
     if _bypassed_for_tests():
         return
     try:
-        conn = (conn_factory or _system_connection)()
+        conn = (conn_factory or (lambda: _scoped_connection(tenant_id)))()
     except Exception as exc:  # noqa: BLE001
         raise BudgetError("ACCOUNTING_UNAVAILABLE", budget_kind, detail=type(exc).__name__) from exc
     try:
@@ -370,6 +377,9 @@ def _provider_controls(cursor, provider: str, model: Optional[str]) -> list:
 def _provider_month_spend(cursor, provider: Optional[str], model: Optional[str], month_start: datetime) -> Decimal:
     """This month's spend (settled, or estimated while in flight) for one
     provider, one of its models, or - provider None - every provider."""
+    if os.getenv("CREDIT_ACCOUNTING_DB_PASSWORD"):
+        cursor.execute("SELECT public.billing_provider_month_spend(%s,%s,%s)", (provider, model, month_start))
+        return Decimal(cursor.fetchone()[0])
     cursor.execute(
         """
         SELECT COALESCE(SUM(COALESCE(actual_cost_usd, estimated_cost_usd)), 0) FROM usage_ledger
@@ -405,7 +415,7 @@ def reserve(budget_kind: str, provider: str, operation: str, estimated_units: Di
     if _bypassed_for_tests():
         return Reservation(None, ctx.tenant_id if ctx else "", budget_kind, provider, operation, None,
                            Decimal("0"), Decimal("0"), free=True)
-    factory = conn_factory or _system_connection
+    factory = conn_factory or (lambda: _scoped_connection(ctx.tenant_id if ctx else "00000000-0000-0000-0000-000000000000", ctx.actor_user_id if ctx else None))
     try:
         conn = factory()
     except Exception as exc:  # noqa: BLE001 - no accounting, no paid call
@@ -534,7 +544,7 @@ def settle(reservation: Reservation, measured_units: Optional[Dict[str, float]],
     (expire_stale_reservations() charges it later)."""
     if reservation.free or reservation.settled or not reservation.ledger_id:
         return Decimal("0")
-    factory = conn_factory or _system_connection
+    factory = conn_factory or (lambda: _scoped_connection(reservation.tenant_id))
     try:
         conn = factory()
     except Exception:  # noqa: BLE001

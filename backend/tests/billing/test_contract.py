@@ -105,6 +105,7 @@ def test_checkout_recovery_provider_errors_have_a_controlled_http_contract(clien
     client.app.dependency_overrides[billing.get_tenant_context]=lambda:TenantContext('synthetic-tenant','synthetic-owner')
     monkeypatch.setattr(billing.db,'app_role_connection',lambda *args:Connection())
     monkeypatch.setattr(billing.db,'system_connection',lambda:Connection())
+    monkeypatch.setattr(billing.db,'billing_setup_connection',lambda *args:Connection())
     monkeypatch.setattr(billing,'_require_billing_role',lambda *args:None)
     def unavailable(*args): raise TimeoutError('Synthetic provider timeout')
     monkeypatch.setattr(service,operation,unavailable)

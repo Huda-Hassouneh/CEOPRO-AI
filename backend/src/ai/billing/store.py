@@ -1,8 +1,8 @@
 """
 Billing persistence. Reads take a tenant-scoped connection (row-level
-security applies); writes take db.system_connection() because only the
-billing service - acting on a verified Stripe event or the one-time trial -
-may change a company's plan.
+security applies). Local writes use separate restricted setup, verified-webhook
+and accounting capabilities. Existing manual deployments retain their trusted
+connection configuration; an administrator DSN is never a local API default.
 """
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -263,6 +263,8 @@ def customer_id(conn, tenant_id: str) -> Optional[str]:
 
 
 def save_customer(sys_conn, tenant_id: str, stripe_customer_id: str) -> None:
+    if getattr(sys_conn, "verified_webhook_only", False):
+        sys_conn.bind_tenant(tenant_id)
     with sys_conn.cursor() as cursor:
         cursor.execute(
             """
@@ -274,6 +276,11 @@ def save_customer(sys_conn, tenant_id: str, stripe_customer_id: str) -> None:
 
 
 def tenant_for_customer(sys_conn, stripe_customer_id: str) -> Optional[str]:
+    if getattr(sys_conn, "verified_webhook_only", False):
+        with sys_conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_provider_tenant(%s,%s)", ("customer", stripe_customer_id))
+            row = cursor.fetchone()
+            return str(row[0]) if row and row[0] else None
     with sys_conn.cursor() as cursor:
         cursor.execute("SELECT tenant_id FROM billing_customers WHERE stripe_customer_id = %s;", (stripe_customer_id,))
         row = cursor.fetchone()
@@ -281,6 +288,11 @@ def tenant_for_customer(sys_conn, stripe_customer_id: str) -> Optional[str]:
 
 
 def tenant_for_subscription(sys_conn, stripe_subscription_id: str) -> Optional[str]:
+    if getattr(sys_conn, "verified_webhook_only", False):
+        with sys_conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_provider_tenant(%s,%s)", ("subscription", stripe_subscription_id))
+            row = cursor.fetchone()
+            return str(row[0]) if row and row[0] else None
     with sys_conn.cursor() as cursor:
         cursor.execute(
             "SELECT tenant_id FROM billing_subscriptions WHERE stripe_subscription_id = %s;", (stripe_subscription_id,)
@@ -410,6 +422,10 @@ def apply_subscription(
 
 
 def set_schedule(sys_conn, tenant_id: str, stripe_subscription_id: str, plan_key, period_code) -> None:
+    if getattr(sys_conn, "billing_setup_only", False):
+        with sys_conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_setup_schedule(%s,%s,%s)", (stripe_subscription_id,plan_key,period_code))
+        return
     with sys_conn.cursor() as cursor:
         cursor.execute(
             """
@@ -508,7 +524,11 @@ def claim_event(sys_conn, event_id: str, event_type: str, created: datetime, pay
             "SELECT processed_at FROM billing_webhook_events WHERE stripe_event_id = %s FOR UPDATE;", (event_id,)
         )
         row = cursor.fetchone()
-    return row is not None and row[0] is None
+    pending = row is not None and row[0] is None
+    if pending and getattr(sys_conn, "verified_webhook_only", False):
+        with sys_conn.cursor() as cursor:
+            cursor.execute("UPDATE billing_webhook_events SET error=NULL WHERE stripe_event_id=%s", (event_id,))
+    return pending
 
 
 def finish_event(sys_conn, event_id: str, tenant_id: Optional[str], error: Optional[str] = None) -> None:
@@ -516,7 +536,7 @@ def finish_event(sys_conn, event_id: str, tenant_id: Optional[str], error: Optio
         cursor.execute(
             """
             UPDATE billing_webhook_events
-            SET processed_at = CASE WHEN %s IS NULL THEN CURRENT_TIMESTAMP ELSE NULL END, error = %s, tenant_id = %s
+            SET processed_at = CASE WHEN %s IS NULL THEN CURRENT_TIMESTAMP ELSE NULL END, error = %s, tenant_id = COALESCE(%s,tenant_id)
             WHERE stripe_event_id = %s;
             """,
             (error, error, tenant_id, event_id),

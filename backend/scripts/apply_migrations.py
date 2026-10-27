@@ -104,18 +104,22 @@ def _sync_app_role_password(conn) -> None:
 
 
 def _sync_billing_setup_password(conn) -> None:
-    """Provision only an explicitly supplied runtime credential; never store it in SQL history."""
-    password = os.getenv("BILLING_SETUP_DB_PASSWORD")
-    if not password:
-        return
-    with conn.cursor() as cur:
-        cur.execute("SELECT rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication "
-                    "FROM pg_roles WHERE rolname='ceopro_billing_setup'")
-        if cur.fetchone() != (False, False, False, False, False, False):
-            raise RuntimeError("Billing setup role missing or unexpectedly privileged; password not changed.")
-        cur.execute("ALTER ROLE ceopro_billing_setup WITH PASSWORD %s", (password,))
-    conn.commit()
-    logger.info("Restricted billing setup password synchronized.")
+    """Provision explicit restricted credentials; never persist them in SQL history."""
+    from psycopg2 import sql
+    for role, variable in (("ceopro_billing_setup", "BILLING_SETUP_DB_PASSWORD"),
+                           ("ceopro_billing_webhook", "BILLING_WEBHOOK_DB_PASSWORD"),
+                           ("ceopro_credit_accounting", "CREDIT_ACCOUNTING_DB_PASSWORD")):
+        password = os.getenv(variable)
+        if not password:
+            continue
+        with conn.cursor() as cur:
+            cur.execute("SELECT rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication "
+                        "FROM pg_roles WHERE rolname=%s", (role,))
+            if cur.fetchone() != (False, False, False, False, False, False):
+                raise RuntimeError("Restricted billing identity missing or unexpectedly privileged; password not changed.")
+            cur.execute(sql.SQL("ALTER ROLE {} WITH PASSWORD %s").format(sql.Identifier(role)), (password,))
+        conn.commit()
+        logger.info("Restricted billing credential synchronized: %s", role)
 
 
 def _role_exists(conn, role_name: str) -> bool:
