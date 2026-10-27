@@ -510,7 +510,7 @@
   border: 1px dashed var(--ceopro-border);
   border-radius: 14px;
   background: #fff;
-  color: var(--ceopro-text-muted);
+  color: #565c6b;
   font-size: 11px;
   text-align: center;
 }
@@ -562,7 +562,7 @@
   border: 1px dashed var(--ceopro-border);
   border-radius: 10px;
   background: #fff;
-  color: var(--ceopro-text-muted);
+  color: #565c6b;
   font-size: 11px;
   text-align: center;
 }

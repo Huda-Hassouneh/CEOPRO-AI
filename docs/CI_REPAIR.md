@@ -78,7 +78,11 @@ Verification:
 
 The original `#73758b` small description text on `#f1efff` failed axe color contrast in English desktop and dark mobile. Only the description color in `Billing.css` and `BillingCatalogOriginal.css` changes to the existing banner violet `#5553a9`. Wording, typography, layout, background, responsiveness and navigation remain unchanged. Two numerical WCAG AA regression checks were added. A separately approved correction also changes only the empty-state text color in `PlansSubscription.css` and `BillingCatalogPlansOriginal.css` to the existing `#565c6b`, keeping their white backgrounds and all geometry unchanged. Two more contrast regressions cover these original selectors.
 
-Final frontend checks: **205 passed, zero failed/skipped**, lint passed, Vite 8.3.5 production build passed. Updated real-browser/axe results and final backend diagnostic results are being recorded before final handoff.
+Final frontend checks: **205 passed, zero failed/skipped**, lint passed, Vite 8.3.5 production build passed. Real browser smoke passed all three original configurations: 27/27 screens each in English desktop, Arabic mobile and English dark mobile. Axe passed with **zero findings** in those three configurations and an additional Arabic dark mobile run. Each configuration also audited six existing price-comparison dialogs. Browser calls used the real Python API and reserved synthetic tenant; no new financial operation or real provider call was performed.
+
+Only color declarations changed in the four original stylesheets. A source comparison proved every other byte of their normalized content is unchanged, including all typography, spacing, dimensions, backgrounds and responsive rules. English/Arabic wording/components are unchanged.
+
+Final full backend execution is in progress with the corrected fresh CI database and public-origin configuration. Earlier runs with missing origin/custom CORS are diagnostic evidence, not passing final suites.
 
 ## Local commits
 
