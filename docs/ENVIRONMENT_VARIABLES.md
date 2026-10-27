@@ -47,6 +47,7 @@ All require process restart unless the source reference states otherwise. Missin
 | Variables | Owner / purpose | Example format/default | Feature / consequence |
 |---|---|---|---|
 | STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET | Billing TEST account / exact listener signing | sk_test_<private> / whsec_<private>; unset | Checkout unavailable; both required together; LIVE refused |
+| STRIPE_TEST_CLOCK_ENABLED / STRIPE_TEST_CLOCK_ID | Local-only clock association and tenant billing time | false / empty | Optional; enabled requires local launcher, TEST key, ready clock; restart required. See [guide](STRIPE_TEST_CLOCK_LOCAL_GUIDE.md). Production rejects enabled mode. |
 | GROQ_API_KEY / GROQ_MODEL | Hosted assistant | private key / existing model default | No configured Groq inference; verified costs still required |
 | HUGGINGFACE_API_TOKEN / HUGGINGFACE_LLM_MODEL | Hosted AI | private token / model identifier; unset | Hosted capability unavailable |
 | LOCAL_LLM_BASE_URL | Existing local inference service | http://127.0.0.1:<port>/v1; unset | No local LLM |

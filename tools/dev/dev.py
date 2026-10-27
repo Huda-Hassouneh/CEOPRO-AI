@@ -44,7 +44,7 @@ MANAGED = {
     "CORS_ALLOWED_ORIGINS", "VITE_API_BASE_URL", "KEEL_API_PROXY_TARGET",
     "SCRAPER_METRICS_PORT", "SCRAPER_MAINTENANCE_METRICS_PORT",
     "AI_SERVICE_ACTOR_USER_ID", "SCRAPER_ACTOR_USER_ID", "SENTRY_ENVIRONMENT",
-    "KEEL_ALLOW_DISPOSABLE_PROVIDER_PROMOTION", "KEEL_DEV_ISOLATED",
+    "KEEL_ALLOW_DISPOSABLE_PROVIDER_PROMOTION", "KEEL_DEV_ISOLATED", "KEEL_LOCAL_TEST_CLOCKS",
 }
 
 
@@ -153,6 +153,12 @@ def integrations(*, validate_providers=True):
         raise DevError("Configure both Stripe TEST key and listener webhook secret, or neither.")
     if values.get("STRIPE_WEBHOOK_SECRET") and not values["STRIPE_WEBHOOK_SECRET"].startswith("whsec_"):
         raise DevError("Use the signing secret from your actual Stripe CLI listener.")
+    flag = values.get("STRIPE_TEST_CLOCK_ENABLED", "false").lower()
+    if flag not in ("true", "false", "1", "0", "yes", "no", "on", "off"):
+        raise DevError("STRIPE_TEST_CLOCK_ENABLED must be true or false.")
+    if flag in ("true", "1", "yes", "on"):
+        if not key or not re.fullmatch(r"clock_[A-Za-z0-9]+", values.get("STRIPE_TEST_CLOCK_ID", "")):
+            raise DevError("Enabled Stripe Test Clocks need TEST credentials and STRIPE_TEST_CLOCK_ID=clock_...")
     return values
 
 
@@ -180,7 +186,7 @@ def environment(c, *, admin=False, external=True):
         "EMAIL_FROM_ADDRESS": "local@keel.example", "EMAIL_LOG_UNSENT_BODIES": "false",
         "FRONTEND_BASE_URL": f"http://127.0.0.1:{p['frontend']}",
         "CORS_ALLOWED_ORIGINS": f"http://127.0.0.1:{p['frontend']}",
-        "KEEL_DEV_ISOLATED": "1", "VITE_API_BASE_URL": "/api", "KEEL_API_PROXY_TARGET": f"http://127.0.0.1:{p['api']}",
+        "KEEL_DEV_ISOLATED": "1", "STRIPE_TEST_CLOCK_ENABLED": "false", "VITE_API_BASE_URL": "/api", "KEEL_API_PROXY_TARGET": f"http://127.0.0.1:{p['api']}",
         "SCRAPER_METRICS_PORT": str(p["prices_metrics"]),
         "SCRAPER_MAINTENANCE_METRICS_PORT": str(p["maintenance_metrics"]),
         "AI_SERVICE_ACTOR_USER_ID": actor, "SCRAPER_ACTOR_USER_ID": actor,
@@ -189,6 +195,8 @@ def environment(c, *, admin=False, external=True):
     })
     if external:
         env.update(integrations())
+        if env.get("STRIPE_TEST_CLOCK_ENABLED", "false").lower() in ("true", "1", "yes", "on"):
+            env["KEEL_LOCAL_TEST_CLOCKS"] = "1"
     return env
 
 
@@ -455,6 +463,7 @@ def capabilities():
     }.items():
         print(f"{label}: " + ("configured; provider/cost verification still required" if all(values.get(k) for k in keys)
                              else "UNAVAILABLE / not configured"))
+    print("Stripe Test Clock: " + ("ENABLED (local only; up validates the ready clock)" if values.get("STRIPE_TEST_CLOCK_ENABLED", "false").lower() in ("true", "1", "yes", "on") else "DISABLED"))
     print("WooCommerce: requires a tenant's verified test-store connection; none is created by setup.")
     print("Local sentiment/semantic RAG: setup --models installs libraries; first use may download weights.")
     print("Pricing/paid AI require verified financial configuration. Setup creates no rates, offers or paid rights.")
@@ -606,6 +615,9 @@ def up(args):
     docker(c, "up", "-d", "--wait", "--wait-timeout", "180")
     database(c, "migrate")
     database(c, "check")
+    if api_environment(c).get("KEEL_LOCAL_TEST_CLOCKS") == "1":
+        check = "from src.ai.billing import test_clock,stripe_api; a=test_clock.adapter(); a.clock(stripe_api._client()); print('OK Stripe TEST clock is ready')"
+        run([PYTHON, "-c", check], cwd=ROOT / "backend", env=api_environment(c))
     start_process("api", [PYTHON, "-m", "uvicorn", "src.ai.main:app", "--host", "127.0.0.1",
                           "--port", c["ports"]["api"]], c, env=api_environment(c))
     origin = f"http://127.0.0.1:{c['ports']['frontend']}"

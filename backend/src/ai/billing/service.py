@@ -21,7 +21,7 @@ import hashlib
 from copy import deepcopy
 import time
 from decimal import Decimal, InvalidOperation
-from src.ai.billing import checkout_attempts, config, promotions, store, stripe_api
+from src.ai.billing import checkout_attempts, config, promotions, store, stripe_api, test_clock
 from src.ai.billing.stripe_api import PaymentsNotConfigured
 from src.ai.core import usage
 
@@ -56,11 +56,19 @@ def _price_or_error(conn, plan_key: str, period_code: str) -> dict:
 def _ensure_customer(conn, sys_conn, tenant_id: str, email: str, company_name: str) -> str:
     existing = store.customer_id(conn, tenant_id)
     if existing:
+        stripe_api.customer_clock_time(existing, tenant_id, require_clock=True)
         return existing
     customer = stripe_api.create_customer(email, company_name, tenant_id, idempotency_key=f"apex-customer-{tenant_id}")
     store.save_customer(sys_conn, tenant_id, customer["id"])
     sys_conn.commit()
     return customer["id"]
+
+
+def _check_clock_customer(conn, tenant_id):
+    if test_clock.adapter() is not None:
+        customer = store.customer_id(conn, tenant_id)
+        if customer:
+            stripe_api.customer_clock_time(customer, tenant_id, require_clock=True)
 
 
 def _check_legacy_provider_contracts(conn,sys_conn,tenant_id,attempt):
@@ -95,6 +103,7 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
     _price_or_error(conn, plan_key, period_code)
     request_key = hashlib.sha256(f'{plan_key}:{period_code}:{(promotion_code or "").strip().upper()}:{origin}'.encode()).hexdigest()
     with checkout_attempts.tenant_lock(sys_conn, tenant_id):
+        _check_clock_customer(conn, tenant_id)
         if store.current_subscription(conn, tenant_id):
             raise BillingError(409, 'subscription_exists', 'Your company already has a subscription. Use its plan-change or recovery action.')
         if store.has_custom_contract(conn, tenant_id):
@@ -170,8 +179,10 @@ def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: s
     # A company still inside its free trial keeps those days: billing starts
     # when the trial would have ended. The trial is never granted twice.
     trial = store.trial(conn, tenant_id)
-    if checkout_trial_end(trial):
-        subscription_data["trial_end"] = checkout_trial_end(trial)
+    simulated = stripe_api.customer_clock_time(customer, tenant_id)
+    trial_end = checkout_trial_end(trial, now=simulated.timestamp() if simulated else None)
+    if trial_end:
+        subscription_data["trial_end"] = trial_end
         subscription_data["trial_settings"] = {"end_behavior": {"missing_payment_method": "cancel"}}
 
     base = config.app_base_url()
@@ -285,6 +296,7 @@ def create_custom_quote_checkout(conn, sys_conn, tenant_id: str, email: str, com
     _require_payments()
     key=f"custom:{quote_id}:{config.app_base_url()}"
     with checkout_attempts.tenant_lock(sys_conn,tenant_id):
+        _check_clock_customer(conn, tenant_id)
         if store.current_subscription(conn,tenant_id):
             raise BillingError(409,'subscription_exists','Your company already has a subscription.')
         shared=checkout_attempts.active(sys_conn,tenant_id)
@@ -535,7 +547,7 @@ def preview_plan_change(conn, tenant_id: str, plan_key: str, period_code: str) -
             'feature_changes':changes, 'activation':'verified_webhook', 'deletes_data':False}
 
 
-def _validate_transition_snapshot(local: dict, remote: dict) -> None:
+def _validate_transition_snapshot(local: dict, remote: dict, tenant_id: str):
     """Missing/delayed reconciliation must not drive a provider action from stale rights."""
     start, end = store.period_bounds(remote)
     if (remote.get("id") != local["stripe_subscription_id"]
@@ -543,8 +555,11 @@ def _validate_transition_snapshot(local: dict, remote: dict) -> None:
             or start != local.get("current_period_start") or end != local.get("current_period_end")
             or store._ts(remote.get("trial_end")) != local.get("trial_end")):
         raise BillingError(409, "billing_reconciling", "Subscription state is awaiting verified billing reconciliation. Try again after it completes.")
-    if remote.get("status") == "trialing" and (not remote.get("trial_end") or remote["trial_end"] <= time.time()):
+    simulated = stripe_api.customer_clock_time(remote.get("customer"), tenant_id)
+    now = simulated.timestamp() if simulated else time.time()
+    if remote.get("status") == "trialing" and (not remote.get("trial_end") or remote["trial_end"] <= now):
         raise BillingError(409, "payment_required", "The trial has ended. Wait for verified payment or use payment recovery.")
+    return now
 
 
 # Stripe replaces phase settings when phases are submitted; omitted settings are
@@ -586,7 +601,7 @@ def change_plan(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str)
 def _change_plan_locked(conn, sys_conn, tenant_id: str, plan_key: str, period_code: str) -> dict:
     sub, price, is_upgrade, _current, _target = _plan_change_context(conn, tenant_id, plan_key, period_code)
     stripe_sub = stripe_api.retrieve_subscription(sub["stripe_subscription_id"])
-    _validate_transition_snapshot(sub, stripe_sub)
+    transition_now = _validate_transition_snapshot(sub, stripe_sub, tenant_id)
     item_id = stripe_sub["items"]["data"][0]["id"]
     schedule_id = stripe_sub.get("schedule")
     schedule_id = schedule_id.get("id") if isinstance(schedule_id, dict) else schedule_id
@@ -616,7 +631,7 @@ def _change_plan_locked(conn, sys_conn, tenant_id: str, plan_key: str, period_co
     if not schedule_id:
         schedule_id = stripe_api.create_schedule_from_subscription(sub["stripe_subscription_id"])["id"]
     schedule = stripe_api.retrieve_schedule(schedule_id)
-    now = int(time.time())
+    now = int(transition_now)
     current = schedule.get("current_phase") or {}
     phases = schedule.get("phases") or []
     phase = next((p for p in phases if p.get("start_date") == current.get("start_date")
@@ -648,7 +663,7 @@ def _cancel_scheduled_change_locked(conn, sys_conn, tenant_id: str) -> dict:
     if not sub["scheduled_plan_key"]:
         raise BillingError(409, "nothing_scheduled", "No plan change is scheduled.")
     stripe_sub = stripe_api.retrieve_subscription(sub["stripe_subscription_id"])
-    _validate_transition_snapshot(sub, stripe_sub)
+    _validate_transition_snapshot(sub, stripe_sub, tenant_id)
     schedule_id = stripe_sub.get("schedule")
     schedule_id = schedule_id.get("id") if isinstance(schedule_id, dict) else schedule_id
     if schedule_id:

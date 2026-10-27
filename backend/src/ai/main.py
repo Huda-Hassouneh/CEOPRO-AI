@@ -49,6 +49,8 @@ from src.ai.routers import (
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    from src.ai.billing import test_clock
+    test_clock.adapter()  # Local adapter absent/forbidden in production; disabled is a no-op.
     # The connection pool (src/infrastructure/db_pool.py) is still created
     # lazily on first real use (db.py's own established convention -
     # importing/starting this service must never itself require a
