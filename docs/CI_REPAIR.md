@@ -44,6 +44,17 @@ The broad suite exposed a stale assumption that every non-public route uses a cu
 - Fresh database: 137 baseline migrations passed; restricted `ceopro_app` is neither superuser nor BYPASSRLS; 120 tables have FORCE RLS.
 - Broader diagnostic run: 1,258 passed and five failed before its diagnostic stop. Three stale security-contract failures were corrected and passed in the 719-test run.
 
+## CI configuration and remaining stale fixture corrections
+
+The broader suite exposed CI setup defects previously masked by the dependency audit:
+
+- Disposable-only provider-promotion tests correctly rejected `keel_ci`/`localhost`. The backend job now creates `keel_billing_test_ci`, connects through explicit `127.0.0.1`, and gives workers `ceopro_app` credentials. Migration/test administration retains its existing separate admin role. No production guard was weakened and no global automatic-promotion opt-in was enabled.
+- Billing and notification composition require an explicit public frontend origin. Both CI API environments now declare `FRONTEND_BASE_URL=http://localhost:5173`, matching the browser job. No Stripe credentials or payment bypass is introduced.
+- The unexpected-error regression used product ID `p1` after the API adopted UUID validation, so it received 422 before the deliberately failing model pipeline. Its fixture is now a valid UUID; exact generic 500, rollback and no-information-leak assertions remain.
+- Local browser CORS (`127.0.0.1:5210`) initially leaked into the backend test harness and failed two default-origin tests. The backend harness now uses the same default CORS and public origin as CI. Browser and backend jobs use separate databases and Redis state. Native consumer tests flush Redis database 0, so the final backend run uses a separately labelled, ephemeral Redis with no volume; shared browser/DX state is not its target.
+
+**147 tests passed, zero failed/skipped** for workflow invariants, native billing, main startup/error/CORS and disposable owner-only provider-promotion behavior. Knowledge Registry validation passed all 12 entries. The final full workflow run uses a fresh database and the corrected configuration; earlier diagnostic failures are retained in private evidence and are not described as passing runs.
+
 ## Authorized invoice compatibility fix
 
 Root cause: migration `20261110000100_provider_order_post_receipts.sql` introduced explicit `rounding_adjustment` and exact equality, but existing import, structured-invoice and quick-sale writers still omitted that field. Its `numeric(12,4)` type also truncated valid residuals: `877.1350 - 912.3500 * 0.9614 = 0.00171000`, stored as `0.0017`, fails the equality.
@@ -65,14 +76,15 @@ Verification:
 
 ## Accessibility follow-up
 
-The original `#73758b` small description text on `#f1efff` failed axe color contrast in English desktop and dark mobile. Only the description color in `Billing.css` and `BillingCatalogOriginal.css` changes to the existing banner violet `#5553a9`. Wording, typography, layout, background, responsiveness and navigation remain unchanged. Two numerical WCAG AA regression checks were added.
+The original `#73758b` small description text on `#f1efff` failed axe color contrast in English desktop and dark mobile. Only the description color in `Billing.css` and `BillingCatalogOriginal.css` changes to the existing banner violet `#5553a9`. Wording, typography, layout, background, responsiveness and navigation remain unchanged. Two numerical WCAG AA regression checks were added. A separately approved correction also changes only the empty-state text color in `PlansSubscription.css` and `BillingCatalogPlansOriginal.css` to the existing `#565c6b`, keeping their white backgrounds and all geometry unchanged. Two more contrast regressions cover these original selectors.
 
-Final frontend checks: **203 passed, zero failed/skipped**, lint passed, Vite 8.3.5 production build passed. Updated real-browser/axe results and final backend diagnostic results are being recorded before final handoff.
+Final frontend checks: **205 passed, zero failed/skipped**, lint passed, Vite 8.3.5 production build passed. Updated real-browser/axe results and final backend diagnostic results are being recorded before final handoff.
 
 ## Local commits
 
 - `2e4fb20ea05c7637a48b39f16a7c7d04a2eccecd`: dependency, onboarding fixture and route-security test contract corrections.
-- Invoice and accessibility changes are recorded in subsequent commits on the same integration branch.
+- `fb58d37af1d93c222c96efb1c02f91d5860c125a`: approved exact invoice persistence, migration and accounting regressions.
+- Subsequent CI configuration and accessibility evidence are recorded on the same integration branch.
 
 ## Evidence and preservation
 
