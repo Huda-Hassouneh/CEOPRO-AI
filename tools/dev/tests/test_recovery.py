@@ -30,6 +30,35 @@ class RecoveryTests(unittest.TestCase):
             p.stop()
         self.temp.cleanup()
 
+    def test_runtime_delegation_preserves_spaces_arguments_and_exit_status(self):
+        executable = self.root / "existing venv/Scripts/python.exe"
+        with patch.object(dev.subprocess, "run") as run:
+            run.return_value.returncode = 17
+            self.assertEqual(dev.delegate_to_runtime(executable, ["test", "--pytest-args", "tests/a b.py"]), 17)
+        self.assertEqual(run.call_args.args[0], [str(executable), str(Path(dev.__file__).resolve()), "test", "--pytest-args", "tests/a b.py"])
+        self.assertNotIn("shell", run.call_args.kwargs)
+
+    def test_reused_runtime_validation_never_installs_packages(self):
+        with patch.object(dev, "run") as run:
+            dev.validate_reused_python(self.root / "venv with spaces/python.exe")
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(commands[-1][-3:], ["-m", "pip", "check"])
+        self.assertFalse(any("install" in cmd for cmd in commands))
+
+    def test_native_billing_database_guards_are_explicit_and_compatible(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "backend"))
+        from scripts.billing_verification import validate_test_environment
+        env = testing.test_environment(self.c, "keel_billing_test_devabcdef123456")
+        self.assertEqual(env["BILLING_DATABASE_TESTS"], "1")
+        self.assertEqual(validate_test_environment(env, database=True), env["AI_TEST_DATABASE_URL"])
+
+    def test_test_mail_is_a_separate_ephemeral_inbox(self):
+        dev.compose_file(self.c)
+        mail = json.loads((self.state / "compose.json").read_text())["services"]["test-mail"]
+        self.assertEqual(mail["profiles"], ["tests"])
+        self.assertEqual(mail["ports"], ["127.0.0.1::1025", "127.0.0.1::8025"])
+        self.assertNotIn("volumes", mail)
+
     def test_test_services_are_opt_in_loopback_tmpfs_without_volumes(self):
         dev.compose_file(self.c)
         services = json.loads((self.state / "compose.json").read_text())["services"]
@@ -44,11 +73,11 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(services["storage"]["volumes"], ["storage:/data"])
 
     def test_backend_database_and_worker_credentials_are_separate(self):
-        env = testing.test_environment(self.c, "keel_billing_test_dev_abcdef123456")
+        env = testing.test_environment(self.c, "keel_billing_test_devabcdef123456")
         self.assertEqual(env["AI_TEST_DATABASE_URL"], env["DATABASE_URL"])
         self.assertIn("keel_dev_admin:", env["DATABASE_URL"])
         self.assertIn("ceopro_app:", env["SCRAPER_DATABASE_URL"])
-        self.assertTrue(env["SCRAPER_DATABASE_URL"].endswith("/keel_billing_test_dev_abcdef123456"))
+        self.assertTrue(env["SCRAPER_DATABASE_URL"].endswith("/keel_billing_test_devabcdef123456"))
         self.assertNotIn("KEEL_ALLOW_DISPOSABLE_PROVIDER_PROMOTION", env)
         self.assertNotIn("CORS_ALLOWED_ORIGINS", env)
         self.assertEqual(env["FRONTEND_BASE_URL"], "http://localhost:5173")
@@ -57,7 +86,7 @@ class RecoveryTests(unittest.TestCase):
     def test_test_environment_does_not_import_provider_keys_or_opt_ins(self):
         (self.state / "integrations.env").write_text("GROQ_API_KEY=private-test\nAI_TEST_EMBEDDINGS=1\n")
         with patch.dict(os.environ, {"STRIPE_E2E_SECRET_KEY": "sk_live_fake", "AI_TEST_SENTIMENT": "1"}):
-            env = testing.test_environment(self.c, "keel_billing_test_dev_abcdef123456")
+            env = testing.test_environment(self.c, "keel_billing_test_devabcdef123456")
         for key in ("GROQ_API_KEY", "STRIPE_E2E_SECRET_KEY", "AI_TEST_SENTIMENT", "AI_TEST_EMBEDDINGS"):
             self.assertNotIn(key, env)
 
@@ -65,14 +94,14 @@ class RecoveryTests(unittest.TestCase):
         with self.assertRaises(dev.DevError):
             testing.test_environment(self.c, "keel_dev_protected")
 
-    def test_cleanup_targets_only_the_two_disposable_services(self):
+    def test_cleanup_targets_only_disposable_services(self):
         with patch.object(dev, "check_docker"), patch.object(dev, "compose_file"), \
              patch.object(dev, "verify_containers"), patch.object(dev, "stop_processes") as stop, \
              patch.object(dev, "docker") as docker:
             testing.cleanup(self.c)
         stop.assert_called_once_with({"test-api", "test-frontend"})
         self.assertEqual([call.args[1:] for call in docker.call_args_list],
-                         [("stop", "test-redis", "test-storage"), ("rm", "-f", "test-redis", "test-storage")])
+                         [("stop", "test-redis", "test-storage", "test-mail"), ("rm", "-f", "test-redis", "test-storage", "test-mail")])
 
     def test_cleanup_refuses_foreign_ownership_before_stopping_anything(self):
         with patch.object(dev, "check_docker"), patch.object(dev, "compose_file"), \
@@ -101,7 +130,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(dev.processes()["test-api"], record)
 
     def test_browser_api_is_restricted_but_existing_auth_fixture_has_admin_setup(self):
-        env = testing.test_environment(self.c, "keel_billing_test_dev_abcdef123456")
+        env = testing.test_environment(self.c, "keel_billing_test_devabcdef123456")
         with patch.object(dev, "start_process") as start, patch.object(dev, "wait_for"), \
              patch.object(dev, "integrations", return_value={"CHROMIUM_PATH": "test-chrome"}), \
              patch.object(testing, "logged") as logged:
