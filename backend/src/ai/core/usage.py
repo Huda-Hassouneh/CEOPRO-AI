@@ -162,6 +162,15 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
         else:
             plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = (
                 DEFAULT_PLAN_KEY, "none", None, None, None, "monthly", None, None)
+        # Stripe trial access also expires without a timely webhook. A date-only
+        # assignment cannot silently keep a trial alive after its provider cutoff.
+        if status == "trialing" and source == "stripe":
+            cursor.execute("SELECT trial_end FROM billing_subscriptions WHERE tenant_id=%s AND status='trialing' "
+                           "ORDER BY created_at DESC LIMIT 1", (tenant_id,))
+            provider_trial = cursor.fetchone()
+            trial_ends_at = provider_trial[0] if provider_trial else trial_ends_at
+            if trial_ends_at is None or trial_ends_at <= now:
+                status = "expired"
         # A free trial ends at its exact end time unless a paid subscription took over.
         trial_over = (trial_ends_at <= now) if trial_ends_at is not None else bool(period_end and period_end < today)
         if status == "trialing" and ((source == "trial" and trial_over)

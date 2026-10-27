@@ -200,7 +200,7 @@ def test_missing_stripe_key_has_controlled_failure(monkeypatch):
 
 
 @pytest.mark.parametrize("trialing", [False, True])
-def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, trialing):
+def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, trialing, memory_checkout_reservations):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setattr(store, "has_custom_contract", lambda *a: False)
     plan_rights = {
@@ -225,6 +225,9 @@ def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, tria
         "cancel_at_period_end": False,
         "scheduled_plan_key": None,
         "scheduled_period_code": None,
+        "current_period_start": datetime.fromtimestamp(1800000000, UTC),
+        "current_period_end": datetime.fromtimestamp(1900000000, UTC),
+        "trial_end": datetime.fromtimestamp(1900000000, UTC) if trialing else None,
     }
     monkeypatch.setattr(store, "current_subscription", lambda *a: sub)
     monkeypatch.setattr(
@@ -242,6 +245,9 @@ def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, tria
     )
     monkeypatch.setattr(store, "plan_tier", lambda *a: 2)
     live = {
+        "id": "sub_existing",
+        "current_period_start": 1800000000,
+        "current_period_end": 1900000000,
         "status": sub["status"],
         "trial_end": 1900000000 if trialing else None,
         "schedule": None,
@@ -290,7 +296,7 @@ def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, tria
         ].startswith("https://invoice.stripe.com/")
 
 
-def test_existing_downgrade_is_scheduled_without_replacing_paid_period(monkeypatch):
+def test_existing_downgrade_is_scheduled_without_replacing_paid_period(monkeypatch, memory_checkout_reservations):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     monkeypatch.setattr(store, "has_custom_contract", lambda *a: False)
     plan_rights = {
@@ -307,7 +313,7 @@ def test_existing_downgrade_is_scheduled_without_replacing_paid_period(monkeypat
     }
     monkeypatch.setattr(service.usage, "get_plan", lambda *a: plan_rights)
     monkeypatch.setattr(store, "configured_plan_rights", lambda *a, **kw: plan_rights)
-    end = datetime.now(UTC) + timedelta(days=20)
+    end = (datetime.now(UTC) + timedelta(days=20)).replace(microsecond=0)
     sub = {
         "stripe_subscription_id": "sub_existing",
         "plan_key": "enterprise",
@@ -317,6 +323,8 @@ def test_existing_downgrade_is_scheduled_without_replacing_paid_period(monkeypat
         "scheduled_plan_key": None,
         "scheduled_period_code": None,
         "current_period_end": end,
+        "current_period_start": end - timedelta(days=30),
+        "trial_end": None,
     }
     monkeypatch.setattr(store, "current_subscription", lambda *a: sub)
     monkeypatch.setattr(
@@ -334,7 +342,10 @@ def test_existing_downgrade_is_scheduled_without_replacing_paid_period(monkeypat
     monkeypatch.setattr(
         stripe_api,
         "retrieve_subscription",
-        lambda sid: {"schedule": None, "items": {"data": [{"id": "si_existing"}]}},
+        lambda sid: {"id": "sub_existing", "status": "active", "trial_end": None,
+                     "current_period_start": int(sub["current_period_start"].timestamp()),
+                     "current_period_end": int(end.timestamp()),
+                     "schedule": None, "items": {"data": [{"id": "si_existing"}]}},
     )
     monkeypatch.setattr(
         stripe_api,
