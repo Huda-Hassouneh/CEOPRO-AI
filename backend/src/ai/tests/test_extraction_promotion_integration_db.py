@@ -543,8 +543,9 @@ def test_fractional_quantities_are_imported_exactly(conn, seeded_tenant):
         (Decimal("2.5000"), Decimal("1.2000"), Decimal("3.0000")),
         (Decimal("1.5000"), Decimal("40.0000"), Decimal("60.0000")),
         (Decimal("12.7500"), Decimal("3.1000"), Decimal("39.5250")),
-        # 0.4 x 12.3456 = 4.93824 -> rounded half-up to 4 dp, as the CHECK does
-        (Decimal("0.4000"), Decimal("12.3456"), Decimal("4.9382")),
+        # Owner-approved effective paid price: 4.9382 / 0.4 = 12.3455.
+        # The source 12.3456 remains in staging/product evidence; paid total is unchanged.
+        (Decimal("0.4000"), Decimal("12.3455"), Decimal("4.9382")),
     }
 
 

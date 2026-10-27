@@ -44,11 +44,35 @@ The broad suite exposed a stale assumption that every non-public route uses a cu
 - Fresh database: 137 baseline migrations passed; restricted `ceopro_app` is neither superuser nor BYPASSRLS; 120 tables have FORCE RLS.
 - Broader diagnostic run: 1,258 passed and five failed before its diagnostic stop. Three stale security-contract failures were corrected and passed in the 719-test run.
 
-## Authorized follow-up in progress
+## Authorized invoice compatibility fix
 
-The remaining two failures exposed an existing invoice persistence mismatch introduced before this task. Existing banner contrast also failed axe in English desktop/dark; Arabic light mobile passed. Owner approval explicitly expanded this task to those narrow compatibility/accessibility corrections, including a separate approval for effective paid unit-price normalization when required by the existing bound.
+Root cause: migration `20261110000100_provider_order_post_receipts.sql` introduced explicit `rounding_adjustment` and exact equality, but existing import, structured-invoice and quick-sale writers still omitted that field. Its `numeric(12,4)` type also truncated valid residuals: `877.1350 - 912.3500 * 0.9614 = 0.00171000`, stored as `0.0017`, fails the equality.
 
-Invoice paid totals, tax, currency, payment state and the database equality/bound must remain unchanged. A forward-only precision migration is necessary because a product of two scale-4 values requires scale 8; historical migrations stay immutable. Final retest and commit evidence will be recorded here before handoff.
+The owner explicitly authorized the narrow persistence fix and a necessary forward-only precision migration. New migration `20261111000000_invoice_rounding_adjustment_precision.sql` removes only the numeric typmod. Unconstrained exact NUMERIC retains historical Decimal scales (and therefore source ownership hashes), unlike forcing every old value to scale 8. The unchanged equality and quantity-relative bound still constrain all values. No constraint, grant, RLS policy, default or NOT NULL restriction was removed.
+
+The three existing canonical writers now store the exact residual. Paid totals, tax, currency, payment status, document validation, stock semantics, idempotency and transaction boundaries retain their existing calculations/authorities.
+
+An additional incompatibility needed a separate owner decision: `0.4 * 12.3456` rounds to paid total `4.9382`; residual `-0.00004` exceeds the existing `0.4 * 0.00005` bound. The owner expressly approved deriving the stored effective paid unit price (`12.3455`) only where the original representation exceeds that bound. Original source price remains in staging/product evidence; paid total does not change. The exact regression expectation was updated to this approved representation, with strict assertions for original product price, paid total, residual and database rejection of invalid adjustments.
+
+Verification:
+
+- **115 passed, zero failed/skipped:** new invoice residual/rollback/replay tests plus existing extraction promotion, quick-sale, structured imports, provider-order and Credit accounting regressions.
+- Both batch and forced row fallback preserve exactly one invoice/item/sale on retry.
+- PAID and UNPAID structured invoices preserve tax, currency and payment status; only PAID produces a sale; replay preserves one posting/audit event.
+- Existing constraint still rejects an excessive residual or a residual inconsistent with the paid total.
+- **138 fresh migrations**, **137-to-138 upgrade**, **no-op repeat** passed on dedicated disposable databases. The upgrade preserved the JSON serialization of 202 existing invoice items, exact constraint text, RLS and grants.
+- No previously applied migration was edited. No Stripe, subscription, entitlement or Credit business implementation changed.
+
+## Accessibility follow-up
+
+The original `#73758b` small description text on `#f1efff` failed axe color contrast in English desktop and dark mobile. Only the description color in `Billing.css` and `BillingCatalogOriginal.css` changes to the existing banner violet `#5553a9`. Wording, typography, layout, background, responsiveness and navigation remain unchanged. Two numerical WCAG AA regression checks were added.
+
+Final frontend checks: **203 passed, zero failed/skipped**, lint passed, Vite 8.3.5 production build passed. Updated real-browser/axe results and final backend diagnostic results are being recorded before final handoff.
+
+## Local commits
+
+- `2e4fb20ea05c7637a48b39f16a7c7d04a2eccecd`: dependency, onboarding fixture and route-security test contract corrections.
+- Invoice and accessibility changes are recorded in subsequent commits on the same integration branch.
 
 ## Evidence and preservation
 
