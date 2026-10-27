@@ -35,14 +35,11 @@ The fixture now reads saved progress and actual subscription rights, saves each 
 
 The broad suite exposed a stale assumption that every non-public route uses a customer JWT. Shopify delivery intake authenticates the exact body with provider HMAC. Its UUID path placeholder previously produced 422 before handler execution. The test now explicitly distinguishes that route and asserts missing/invalid signatures are 401 before any database lookup, even with a forged JWT; absent server configuration is 503. No application authorization changed. Native signed-provider, tenant isolation and RLS tests remain enabled.
 
-## Verification checkpoint
+## Verification scope
 
-- Initial new regressions: 17 passed, no failures/skips; includes real Scrapy local-HTTP crawling through the asyncio reactor.
-- Final CI/security/worker/native billing/RLS selection: 719 passed, no failures/skips.
-- Initial browser smoke: 27/27 screens each in English desktop, Arabic mobile and English dark mobile; actual login, tenant data/API reads and Platform Owner denial. The existing smoke harness separately stubs recommendation-dialog responses for two presentation assertions; these are not AI inference acceptance.
-- Frontend serial retry: 201 passed, no failures/skips. Earlier parallel run had two native allocation failures, not assertion failures. Lint and Vite 8.3.5 production build passed.
-- Fresh database: 137 baseline migrations passed; restricted `ceopro_app` is neither superuser nor BYPASSRLS; 120 tables have FORCE RLS.
-- Broader diagnostic run: 1,258 passed and five failed before its diagnostic stop. Three stale security-contract failures were corrected and passed in the 719-test run.
+Verification uses the existing Windows/Python 3.12 environment with an isolated dependency overlay, disposable PostgreSQL 17 databases, dedicated Redis and verified local MinIO. No real Stripe or merchant operation is needed. Frontend verification uses the existing independently installed lockfile dependencies (Vite 8.3.5) in the path-with-spaces fresh checkout, with the exact four authorized stylesheet changes and new contrast test copied from this integration source.
+
+Initial focused regressions passed 17 tests. The final CI/security/worker/native billing/RLS selection passed 719 tests with zero failures/skips. These selections overlap the full suite and must not be added together as unique coverage. Earlier stopped diagnostic runs exposed the stale fixtures and configuration mismatches documented below; their logs are retained, not counted as successful full runs.
 
 ## CI configuration and remaining stale fixture corrections
 
@@ -50,6 +47,7 @@ The broader suite exposed CI setup defects previously masked by the dependency a
 
 - Disposable-only provider-promotion tests correctly rejected `keel_ci`/`localhost`. The backend job now creates `keel_billing_test_ci`, connects through explicit `127.0.0.1`, and gives workers `ceopro_app` credentials. Migration/test administration retains its existing separate admin role. No production guard was weakened and no global automatic-promotion opt-in was enabled.
 - Billing and notification composition require an explicit public frontend origin. Both CI API environments now declare `FRONTEND_BASE_URL=http://localhost:5173`, matching the browser job. No Stripe credentials or payment bypass is introduced.
+- The Shopify OAuth fixture set its own `FRONTEND_URL` but inherited CI's different `FRONTEND_BASE_URL`. The existing shared origin validator correctly rejected disagreement. The fixture now clears inherited aliases before setting its test origin; all six OAuth tests pass, preserving HMAC, tenant binding and single-use state assertions. No OAuth implementation or URL safety check changed.
 - The unexpected-error regression used product ID `p1` after the API adopted UUID validation, so it received 422 before the deliberately failing model pipeline. Its fixture is now a valid UUID; exact generic 500, rollback and no-information-leak assertions remain.
 - Local browser CORS (`127.0.0.1:5210`) initially leaked into the backend test harness and failed two default-origin tests. The backend harness now uses the same default CORS and public origin as CI. Browser and backend jobs use separate databases and Redis state. Native consumer tests flush Redis database 0, so the final backend run uses a separately labelled, ephemeral Redis with no volume; shared browser/DX state is not its target.
 
@@ -78,20 +76,77 @@ Verification:
 
 The original `#73758b` small description text on `#f1efff` failed axe color contrast in English desktop and dark mobile. Only the description color in `Billing.css` and `BillingCatalogOriginal.css` changes to the existing banner violet `#5553a9`. Wording, typography, layout, background, responsiveness and navigation remain unchanged. Two numerical WCAG AA regression checks were added. A separately approved correction also changes only the empty-state text color in `PlansSubscription.css` and `BillingCatalogPlansOriginal.css` to the existing `#565c6b`, keeping their white backgrounds and all geometry unchanged. Two more contrast regressions cover these original selectors.
 
-Final frontend checks: **205 passed, zero failed/skipped**, lint passed, Vite 8.3.5 production build passed. Real browser smoke passed all three original configurations: 27/27 screens each in English desktop, Arabic mobile and English dark mobile. Axe passed with **zero findings** in those three configurations and an additional Arabic dark mobile run. Each configuration also audited six existing price-comparison dialogs. Browser calls used the real Python API and reserved synthetic tenant; no new financial operation or real provider call was performed.
+Final frontend checks: **205 passed, zero failed/skipped**, lint passed, Vite 8.3.5 production build passed. Real browser smoke passed all three original configurations: 27/27 screens each in English desktop, Arabic mobile and English dark mobile. Axe passed with **zero findings** in those three configurations and an additional Arabic dark mobile run. Each configuration also audited six existing price-comparison dialogs. Browser calls used the real Python API and reserved synthetic tenant; no new financial operation or real provider call was performed. The separate workflow assistant-evidence presentation checks also passed in English and Arabic; their answer fixtures are explicitly synthetic and do not certify real model execution.
 
 Only color declarations changed in the four original stylesheets. A source comparison proved every other byte of their normalized content is unchanged, including all typography, spacing, dimensions, backgrounds and responsive rules. English/Arabic wording/components are unchanged.
 
-Final full backend execution is in progress with the corrected fresh CI database and public-origin configuration. Earlier runs with missing origin/custom CORS are diagnostic evidence, not passing final suites.
+## Final acceptance evidence
+
+**READY TO PUSH FOR GITHUB CI VERIFICATION.** No known CI-remediation defect remains locally. GitHub-hosted status is still unverified.
+
+| Check | Actual result | Private evidence |
+|---|---|---|
+| Full existing `python -m pytest src/ -q` suite | **4,286 passed, 0 failed, 0 errors, 22 skipped**, 4,308 collected, 420.57 seconds | `backend-final.xml`, `backend-final.log` |
+| Invoice/import/accounting selection | 115 passed, 0 failed/skipped; overlaps full suite | `invoices-verified.xml` |
+| CI/security/worker/native billing/RLS selection | 719 passed, 0 failed/skipped; overlaps full suite | `ci-final.xml` |
+| Workflow/config/main/provider selection | 147 passed, 0 failed/skipped; overlaps full suite | `ci-config-verified.xml` |
+| Frontend, bounded concurrency | 205 passed, 0 failed/skipped | `frontend-accepted.log` |
+| Frontend lint and production build | Passed; existing nonfatal chunk/dynamic-import warnings retained | `frontend-lint-accepted.log`, `frontend-build-accepted.log` |
+| Actual browser screen smoke | 27/27 each, English desktop / Arabic mobile / English dark mobile | `smoke-final.log` |
+| Axe WCAG AA | 0 findings across four configurations, including Arabic dark mobile; six comparison dialogs each | `a11y-accepted.json`, corresponding logs |
+| Assistant presentation checks | English and Arabic passed; answer response explicitly served by test | `assistant-final.json`, corresponding logs |
+| Dependency audit and consistency | 171 available local packages, 0 advisories, no exceptions; `pip check` passed | `audit-patched-local.json`, `pip-check.log` |
+| Migrations | 138 fresh; 137-to-138 upgrade; repeat applied 0 | `migration-fresh.log`, `migration-upgrade-initial.log`, `migration-repeat.log` |
+| Final role/RLS/constraint recheck | 138 migrations, 120 FORCE RLS tables; `ceopro_app` not superuser/BYPASSRLS; strict invoice constraint unchanged | `database-final-check.json` |
+| Application Knowledge Registry | All 12 entries verified | Validator output |
+
+The 22 skips are **not passes**: 17 existing opt-in model-download tests, one live Groq test, one live Stripe test and three real OCR tests lacking local Tesseract/font prerequisites. No test gate was added or relaxed. CI already installs OCR prerequisites and must confirm those three checks on Ubuntu. No unrelated expensive model/provider acceptance was enabled for this CI repair.
+
+The final backend run used disposable database `keel_billing_test_ci_final_20261027`, restricted worker credentials and task-owned ephemeral Redis on 56410, independently of the browser account/database. Earlier runs with missing origin/custom CORS or inherited OAuth aliases are diagnostic evidence, not passing final suites. Existing deprecation and deliberately short synthetic-JWT fixture warnings remain visible; no warning filter was added.
+
+All executable changes were present for their relevant passing checks. The final checkpoint only records evidence and removes a test-file trailing blank line in addition to the verified OAuth fixture correction.
+
+## Changed files and purpose
+
+| Area | Files | Purpose |
+|---|---|---|
+| CI and dependencies | `.github/workflows/pr-checks.yml`, both `backend/src/{ai,market_scraper}/requirements.txt` | Exact patched Twisted pin, unsuppressed audit, dependency consistency, readiness and correct disposable job configuration. |
+| Onboarding fixture | `backend/scripts/ci_smoke_account.py`, `test_ci_smoke_account.py`, `test_ci_smoke_onboarding_integration_db.py` | Save durable onboarding through public APIs; prove one trial, no paid subscription, no duplicate completion/audit. |
+| Existing test contracts | `test_api_security_contract.py`, `test_main.py`, `test_shopify_oauth.py` | Preserve HMAC/JWT security distinctions, valid UUID error-path input and isolated OAuth origin settings. |
+| CI/dependency regressions | `test_pr_ci_contract.py`, `test_twisted_runtime.py` | Guard workflow configuration and exercise real Scrapy/reactor plus vulnerable parser boundaries. |
+| Approved invoice persistence | `extraction/promotion.py`, `extraction/structured_business.py`, `sales/quick_sale.py`, migration `20261111000000` | Store exact paid-total residuals, conditionally normalize the approved effective unit-price representation, preserve existing constraints and historical serialization. |
+| Invoice regressions | `test_invoice_rounding_integration_db.py`, `test_extraction_promotion_integration_db.py` | Verify exact money, source evidence, tax/currency/payment state, batch/fallback, rollback, duplicate replay and constraint enforcement. |
+| Approved contrast | Four original billing stylesheets, `frontend/tests/trialBannerContrast.test.mjs` | Six color substitutions only, with four WCAG AA regressions and real axe verification. |
+| Developer checkpoint | `docs/CI_REPAIR.md`, `docs/README.md` | Record evidence, security tradeoff and remaining hosted verification. |
+
+Test basenames above are under their existing `backend/src/ai/tests` or `backend/src/market_scraper/tests` directory. No source/test file is excluded from the existing CI suite. No audit finding, assertion or required job is disabled.
 
 ## Local commits
 
 - `2e4fb20ea05c7637a48b39f16a7c7d04a2eccecd`: dependency, onboarding fixture and route-security test contract corrections.
 - `fb58d37af1d93c222c96efb1c02f91d5860c125a`: approved exact invoice persistence, migration and accounting regressions.
-- Subsequent CI configuration and accessibility evidence are recorded on the same integration branch.
+- `95267e8e66b682c70e2315009e25ac066da0d07b`: guarded CI database/worker credentials, explicit frontend origin and workflow assertions.
+- `53351fda0a3fbd14b567a4acc56751e3782260ec`: owner-authorized color-only contrast corrections and frontend/browser evidence.
+- The final checkpoint commit adds the isolated OAuth fixture correction and completed evidence to this same branch.
 
 ## Evidence and preservation
 
 Private local evidence: `%TEMP%\KEEL\CiRepair-20261027`. Logs, JUnit, browser reports and runtime secrets are not committed. The isolated API/frontend use ports 8030/5210 and database `keel_ci_repair_20261027`, on verified disposable infrastructure. No real merchant or Stripe calls were needed.
 
 Protected `backend/.env.example` SHA256: `6850C0B739FF783FE57466C509105DB4DF3F03AED16E1D939CBA870167EF2F28`. It is excluded from every commit. No original Node/React source, protected runtime, remote branch, main branch or production resource is modified.
+
+## Hosted verification and follow-up
+
+GitHub Actions has not been rerun by this task. After pushing this branch to its existing PR, confirm all three hosted jobs pass, including Ubuntu/Python 3.11 dependency resolution, the unsuppressed audit, MinIO source build, migrations, complete backend suite, Node 20 frontend checks, browser smoke and axe. Local success does not establish hosted CI status.
+
+The Twisted security pin is a tested release candidate, not a stable production release. Replace it with the maintainer's stable security release when published and rerun the same checks. No other production dependency is changed through the temporary local overlay.
+
+Optional model-download and external-provider acceptance tests retain their existing opt-in gates. No skips count as passes. The local host lacks Tesseract/Unicode font prerequisites for three real OCR checks; the workflow already installs English/Arabic Tesseract and DejaVu, so those checks require hosted confirmation. Deployments must apply the new forward-only invoice precision migration through normal review; no protected database was migrated here.
+
+To trigger the existing PR's checks (run manually, not executed by this task):
+
+```powershell
+git -C 'C:\Users\Mohamamd-P\Desktop\Mahmoud\Orange Summer Challenge\KEEL\CEOPRO-AI-full-migration' push origin integration/keel-full-migration
+```
+
+The workflow runs on every pull request. A branch push without an open PR does not trigger its push filter, which is limited to `main` and `KEEL_Test`.
