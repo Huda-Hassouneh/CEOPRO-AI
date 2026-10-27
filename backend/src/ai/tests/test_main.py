@@ -1215,7 +1215,7 @@ def test_unhandled_exception_returns_a_generic_500_not_a_leaked_message():
              "src.ai.routers.pricing.pricing_pipeline.run_price_recommendation",
              side_effect=RuntimeError("some internal detail that must never reach the caller"),
          ):
-        response = error_client.post("/pricing/recommend", params={"product_id": "p1"}, headers=_auth())
+        response = error_client.post("/pricing/recommend", params={"product_id": "00000000-0000-0000-0000-000000000001"}, headers=_auth())
 
     assert response.status_code == 500
     assert response.json() == {"detail": "Internal server error."}
