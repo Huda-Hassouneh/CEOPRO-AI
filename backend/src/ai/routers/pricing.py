@@ -80,8 +80,15 @@ def pricing_comparisons_summary(
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         ladders = price_comparisons.get_ladders(conn, ctx.tenant_id, ids)
+        summaries = {pid: price_comparisons.summarize(ladder) for pid, ladder in ladders.items()}
         conn.commit()
-        return {"products": {pid: price_comparisons.summarize(ladder) for pid, ladder in ladders.items()}}
+        try:
+            price_comparisons.add_estimates(conn, ctx.tenant_id, summaries)
+            conn.commit()
+        except Exception:  # noqa: BLE001 - the list still shows every competitor comparison without the estimates
+            conn.rollback()
+            logger.exception("pricing summary: market estimates failed")
+        return {"products": summaries}
     except Exception:
         conn.rollback()
         raise

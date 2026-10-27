@@ -1,16 +1,12 @@
 """Safe defaults for the KEEL market scraper."""
 
-import os
+from src.market_scraper.user_agent import USER_AGENT  # noqa: F401 - Scrapy reads it from here
 
 BOT_NAME = "ceopro_market_scraper"
 SPIDER_MODULES = ["src.market_scraper.spiders"]
 NEWSPIDER_MODULE = "src.market_scraper.spiders"
 
 ROBOTSTXT_OBEY = True
-USER_AGENT = os.getenv(
-    "SCRAPER_USER_AGENT",
-    "KEEL-MarketResearch/1.0 (business intelligence; respects robots.txt and API terms)",
-)
 CONCURRENT_REQUESTS = 8
 CONCURRENT_REQUESTS_PER_DOMAIN = 4
 DOWNLOAD_DELAY = 0.25

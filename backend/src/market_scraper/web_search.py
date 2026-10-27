@@ -33,7 +33,7 @@ logger = logging.getLogger("KEEL_WEB_SEARCH")
 
 DEFAULT_ORDER = "google_cse,brave,tavily,searxng"
 TIMEOUT = float(os.getenv("WEB_SEARCH_TIMEOUT_SECONDS", "15"))
-USER_AGENT = os.getenv("MARKET_RESEARCH_USER_AGENT", "KEEL-MarketResearch/1.0")
+from src.market_scraper.user_agent import USER_AGENT  # noqa: E402
 
 GOOGLE_CSE_URL = "https://www.googleapis.com/customsearch/v1"
 BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"

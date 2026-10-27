@@ -252,3 +252,47 @@ def test_the_number_of_owner_set_bands_is_capped():
 def test_read_premium_bands():
     with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), patch(f"{R}._bands_payload", return_value=PAYLOAD):
         assert client.get("/pricing/premium-bands", headers=_auth()).json() == PAYLOAD
+
+
+def test_a_product_without_a_competitor_match_gets_the_labelled_market_estimate():
+    from src.ai.pricing import estimation
+
+    no_match = comparisons.build_ladder(PRODUCT, [], [])
+    estimate = estimation.Estimate(estimation.PEER_ESTIMATE, [{"price_entry_id": None, "price_found": 5.0, "currency": "JOD"}],
+                                   0.3, "Estimated from cost.")
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.price_comparisons.get_ladders", return_value={PID: no_match}), \
+         patch("src.ai.pricing.data_access.load_own_product", return_value={"current_price": 6.0, "currency": "JOD", "cost": 3.0}), \
+         patch("src.ai.pricing.estimation.build_estimate", return_value=estimate) as build:
+        body = client.get(f"/pricing/comparisons?product_ids={PID}", headers=_auth()).json()
+    entry = body["products"][PID]
+    assert entry["headline"] is None
+    assert entry["estimate"] == {"basis": "PEER_ESTIMATE", "market_price": 5.0, "position_pct": 20.0, "count": 1,
+                                 "confidence_cap": 0.3, "note": "Estimated from cost."}
+    assert isinstance(build.call_args.args[4], dict)  # one snapshot cache for the whole page
+
+
+def test_a_product_with_a_competitor_headline_gets_no_estimate_and_a_failed_estimate_keeps_the_list():
+    matched = comparisons.build_ladder(PRODUCT, [_row("EXACT", "a", 5.0)], [])
+    with patch(f"{R}.db.app_role_connection", return_value=MagicMock()), \
+         patch(f"{R}.price_comparisons.get_ladders", return_value={PID: matched}), \
+         patch("src.ai.pricing.estimation.build_estimate") as build:
+        body = client.get(f"/pricing/comparisons?product_ids={PID}", headers=_auth()).json()
+    assert body["products"][PID]["headline"]["tier"] == "EXACT" and "estimate" not in body["products"][PID]
+    build.assert_not_called()
+
+    conn = MagicMock()
+    with patch(f"{R}.db.app_role_connection", return_value=conn), \
+         patch(f"{R}.price_comparisons.get_ladders", return_value={PID: comparisons.build_ladder(PRODUCT, [], [])}), \
+         patch("src.ai.pricing.data_access.load_own_product", side_effect=RuntimeError("db hiccup")):
+        response = client.get(f"/pricing/comparisons?product_ids={PID}", headers=_auth())
+    assert response.status_code == 200 and "estimate" not in response.json()["products"][PID]
+    conn.rollback.assert_called_once()
+
+
+def test_nothing_external_yet_is_reported_without_a_market_price():
+    from src.ai.pricing import estimation
+
+    internal = estimation.Estimate(estimation.INTERNAL_ONLY, [], 0.15, "Cost and margin only.")
+    assert estimation.summary(internal, 6.0, "JOD") == {"basis": "INTERNAL_ONLY", "market_price": None, "position_pct": None,
+                                                        "count": 0, "confidence_cap": 0.15, "note": "Cost and margin only."}

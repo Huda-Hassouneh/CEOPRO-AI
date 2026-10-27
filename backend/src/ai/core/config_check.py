@@ -235,6 +235,13 @@ def check_environment() -> List[Finding]:
                                          f"limits {', '.join(partly)}" if partly else ""]))
         add(WARNING, names[0], f"is not set ({need.why}) - competitor data: {effect} for every company. Set "
                                f"{' or '.join(names)} on the API service and on the worker that collects competitor data")
+    from src.market_scraper import user_agent
+
+    if not user_agent.has_contact():
+        add(WARNING, data_requirements.CONTACT_SETTING, "is not set - the collectors' User-Agent gives no contact, and "
+                                                        "Wikidata (the 'Company database' competitor source) and many "
+                                                        "websites refuse such readers; set an email address or a page "
+                                                        "about the service")
     if is_deployed and not _env(data_requirements.OPERATOR_SETTING):
         add(WARNING, data_requirements.OPERATOR_SETTING, "is not set - nobody can open Settings > Service setup to see "
                                                          "which provider keys are missing or test them")

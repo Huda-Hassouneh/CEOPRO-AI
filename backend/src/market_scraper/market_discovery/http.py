@@ -9,10 +9,7 @@ from typing import Optional
 import httpx
 
 logger = logging.getLogger("APEX_MARKET_DISCOVERY")
-USER_AGENT = os.getenv(
-    "MARKET_RESEARCH_USER_AGENT",
-    "KEEL-MarketResearch/1.0 (business intelligence; respects robots.txt and API terms)",
-)
+from src.market_scraper.user_agent import USER_AGENT  # noqa: E402
 CACHE_TTL_SECONDS = int(os.getenv("DISCOVERY_CACHE_TTL_SECONDS", str(24 * 3600)))
 
 

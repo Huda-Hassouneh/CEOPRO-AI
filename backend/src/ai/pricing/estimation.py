@@ -35,7 +35,7 @@ confidence - an estimate is never presented as a measured local price.
 import os
 import statistics
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from src.ai.core.money import format_money, round_money
 from src.ai.pricing import currency as currency_service
@@ -154,8 +154,18 @@ def _comparable_estimate(conn, tenant_id: str, product_id: str, own_currency: st
     return None
 
 
-def build_estimate(conn, tenant_id: str, product_id: str, own: dict) -> Estimate:
-    """Always returns an Estimate - the last rung is INTERNAL_ONLY."""
+def _snapshot(conn, tenant_id: str, cache: Optional[dict]) -> List[dict]:
+    """The tenant's market snapshot, loaded once per `cache` (estimating a page of products reads it once)."""
+    if cache is None:
+        return data_access.load_tenant_market_snapshot(conn, tenant_id)
+    if "snapshot" not in cache:
+        cache["snapshot"] = data_access.load_tenant_market_snapshot(conn, tenant_id)
+    return cache["snapshot"]
+
+
+def build_estimate(conn, tenant_id: str, product_id: str, own: dict, cache: Optional[dict] = None) -> Estimate:
+    """Always returns an Estimate - the last rung is INTERNAL_ONLY. Pass the same `cache` dict when
+    estimating several products of one tenant."""
     own_currency = own["currency"]
     money = lambda amount: format_money(amount, own_currency)  # noqa: E731
 
@@ -170,7 +180,7 @@ def build_estimate(conn, tenant_id: str, product_id: str, own: dict) -> Estimate
         foreign_present = any(r["currency"] != own_currency for r in references)
         factor, samples = (1.0, 0)
         if foreign_present:
-            snapshot = data_access.load_tenant_market_snapshot(conn, tenant_id)
+            snapshot = _snapshot(conn, tenant_id, cache)
             factor, samples = learn_regional_factor(conn, snapshot, own_currency)
 
         adjusted, unconverted, conversions = [], set(), []
@@ -216,7 +226,7 @@ def build_estimate(conn, tenant_id: str, product_id: str, own: dict) -> Estimate
             )
 
     if own.get("cost"):
-        snapshot = snapshot or data_access.load_tenant_market_snapshot(conn, tenant_id)
+        snapshot = snapshot or _snapshot(conn, tenant_id, cache)
         category = next((p["category"] for p in snapshot if p["product_id"] == product_id), None)
         peer = peer_market_price(snapshot, product_id, category, own["cost"], own_currency)
         if peer is not None:
@@ -235,3 +245,19 @@ def build_estimate(conn, tenant_id: str, product_id: str, own: dict) -> Estimate
         "No competitor price is available for this product or comparable ones yet; this decision uses the "
         "product's own cost and margin only, and market collection for it is still being widened.",
     )
+
+
+def summary(estimate: Estimate, own_price: float, currency: str) -> Dict:
+    """The compact form for lists: what the estimate rests on, the estimated market price and where
+    the product's price sits against it. market_price is None for INTERNAL_ONLY (nothing external yet)."""
+    prices = [float(p["price_found"]) for p in estimate.prices if p.get("price_found")]
+    market = round_money(statistics.median(prices), currency) if prices else None
+    return {
+        "basis": estimate.basis,
+        "market_price": market,
+        # Positive = you are dearer than the estimated market price.
+        "position_pct": round((own_price - market) / market * 100, 1) if market else None,
+        "count": len(prices),
+        "confidence_cap": estimate.confidence_cap,
+        "note": estimate.note,
+    }
