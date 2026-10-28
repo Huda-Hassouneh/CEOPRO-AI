@@ -13,6 +13,7 @@ Same cost_price honesty discipline as financial_summary.py: a product's
 line_gross_profit is null (never a fabricated 0) whenever that product's
 cost_price is unset - never silently treated as free-to-acquire.
 """
+import uuid
 from datetime import datetime, timezone
 from typing import Iterator, Optional
 
@@ -120,21 +121,14 @@ def iter_sales_rows(
     end_date: Optional[datetime] = None,
     batch_size: int = EXPORT_BATCH_SIZE,
 ) -> Iterator[dict]:
-    """Every line item in the period, most recent first, read in batches by
-    keyset (issue_date, line item id) so a large history never sits in
-    memory at once and later batches don't slow down like OFFSET would."""
-    cursor_key = None
-    while True:
-        params = {"tenant_id": tenant_id, "start_date": start_date, "end_date": end_date, "limit": batch_size}
-        after = ""
-        if cursor_key is not None:
-            after = "AND (i.issue_date, ii.invoice_item_id) < (%(after_date)s, %(after_id)s)"
-            params.update(after_date=cursor_key[0], after_id=cursor_key[1])
-        with conn.cursor() as cursor:
-            cursor.execute(f"{_SELECT} WHERE {_FILTER} {after} {_ORDER} LIMIT %(limit)s;", params)
-            batch = cursor.fetchall()
-        for record in batch:
+    """Every line item in the period, most recent first, streamed from one
+    server-side cursor `batch_size` rows at a time, so a large history never
+    sits in memory at once. One query, one sort: the order spans two tables,
+    so no index can serve it, and the earlier keyset batches re-sorted the
+    whole history once per batch (27 sorts for a 53,000-line export)."""
+    params = {"tenant_id": tenant_id, "start_date": start_date, "end_date": end_date}
+    with conn.cursor(name=f"sales_export_{uuid.uuid4().hex}") as cursor:
+        cursor.itersize = batch_size
+        cursor.execute(f"{_SELECT} WHERE {_FILTER} {_ORDER};", params)
+        for record in cursor:
             yield _row(record)
-        if len(batch) < batch_size:
-            return
-        cursor_key = (batch[-1][2], batch[-1][12])
