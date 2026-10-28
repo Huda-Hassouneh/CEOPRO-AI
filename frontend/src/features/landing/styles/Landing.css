@@ -571,3 +571,28 @@
 .lp-spline.is-ready .lp-spline__canvas { position: relative; opacity: 1; }
 .lp-spline__fallback { position: relative; }
 @media (max-width: 760px) { .lp-spline { min-height: 0; } }
+
+/* --- The living hero (HeroNetwork.jsx, LandingPage's pointer effects) --- */
+.ceopro-landing .lp-hero-network { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); mask-image: linear-gradient(to bottom, #000 70%, transparent); animation: apex-rise 1600ms var(--apex-ease) 200ms both; }
+.ceopro-landing .lp-hero > .lp-container { position: relative; z-index: 1; }
+
+/* The dashboard tilts toward the pointer in 3D, with a moving glare; the floating cards drift against it. */
+.ceopro-landing .lp-hero-art .lp-browser { transition: transform 700ms var(--apex-ease); transform-style: preserve-3d; }
+.ceopro-landing .lp-hero-art.is-tilting .lp-browser { transform: rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg)) translateY(-6px); transition: transform 180ms ease-out; }
+.ceopro-landing .lp-hero-art .lp-browser::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 0%), rgba(255, 255, 255, 0.38), transparent 46%); opacity: 0; transition: opacity 400ms ease; }
+:root[data-theme="dark"] .ceopro-landing .lp-hero-art .lp-browser::after { background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 0%), rgba(154, 160, 255, 0.22), transparent 46%); }
+.ceopro-landing .lp-hero-art.is-tilting .lp-browser::after { opacity: 1; }
+.ceopro-landing .lp-hero-art .lp-floating { transition: translate 600ms var(--apex-ease); }
+.ceopro-landing .lp-hero-art.is-tilting .lp-floating { translate: calc(var(--px, 0) * -34px) calc(var(--py, 0) * -26px); transition: translate 220ms ease-out; }
+.ceopro-landing .lp-hero-art.is-tilting .lp-floating--insight { translate: calc(var(--px, 0) * -52px) calc(var(--py, 0) * -38px); }
+
+/* Glass cards light up where the pointer is. */
+.ceopro-landing :is(.lp-feature, .lp-visual, .lp-trust-grid > *) { position: relative; }
+.ceopro-landing :is(.lp-feature, .lp-visual, .lp-trust-grid > *)::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(380px circle at var(--spot-x, 50%) var(--spot-y, 50%), color-mix(in srgb, var(--apex-accent) 22%, transparent), transparent 62%); opacity: 0; transition: opacity 350ms ease; }
+.ceopro-landing :is(.lp-feature, .lp-visual, .lp-trust-grid > *)::before { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; padding: 1.5px; pointer-events: none; background: radial-gradient(260px circle at var(--spot-x, 50%) var(--spot-y, 50%), color-mix(in srgb, var(--apex-accent) 85%, transparent), transparent 70%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); opacity: 0; transition: opacity 350ms ease; }
+.ceopro-landing :is(.lp-feature, .lp-visual, .lp-trust-grid > *):hover::before, .ceopro-landing :is(.lp-feature, .lp-visual, .lp-trust-grid > *):hover::after { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ceopro-landing .lp-hero-network { animation: none; }
+  .ceopro-landing .lp-hero-art .lp-browser, .ceopro-landing .lp-hero-art .lp-floating { transition: none; }
+}
