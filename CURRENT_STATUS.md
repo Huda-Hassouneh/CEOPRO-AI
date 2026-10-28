@@ -75,6 +75,10 @@ or simulated.
   Studio has "Make many images" with progress. Measured: ~24-27 images/hour per 4-core CPU server, 10.2 GB peak
   memory. Campaign copy can come from Qwen3-4B (Apache-2.0) locally. See `docs/ZERO_COST_IMAGE_GENERATION.md`.
 
+- **Hands-on audit (2026-10-28):** every screen and 464 controls exercised in a real browser, AI features run
+  with and without a model (including the free local Qwen3-4B fallback), 11 defects fixed with regression
+  tests. Results, remaining gaps and the measured cost of the local model: `docs/QA_AUDIT_2026-10-28.md`.
+
 ## Verification (latest run)
 
 | Check | Result |
