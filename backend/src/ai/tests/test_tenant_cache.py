@@ -102,3 +102,55 @@ def test_ttl_zero_disables_caching():
     tenant_cache.get_or_compute("ns", "t1", 30, compute("a"), ttl=0)
     tenant_cache.get_or_compute("ns", "t1", 30, compute("b"), ttl=0)
     assert calls == ["a", "b"]
+
+
+class _FakeRedis:
+    def __init__(self):
+        self.values, self.calls = {}, 0
+
+    def get(self, key):
+        self.calls += 1
+        return self.values.get(key)
+
+    def incr(self, key):
+        self.values[key] = str(int(self.values.get(key, "0")) + 1)
+
+    def expire(self, *_):
+        pass
+
+
+def test_a_write_in_another_api_process_invalidates_this_ones_entry(monkeypatch):
+    """With several worker processes, bump() in one must reach the others."""
+    shared = _FakeRedis()
+    monkeypatch.setattr(tenant_cache, "_shared_store", lambda: shared)
+    computed = []
+    compute = lambda: computed.append(1) or len(computed)  # noqa: E731
+    assert tenant_cache.get_or_compute("ns", "t1", None, compute, ttl=60) == 1
+    assert tenant_cache.get_or_compute("ns", "t1", None, compute, ttl=60) == 1  # cached
+    shared.incr(tenant_cache.SHARED_KEY_PREFIX + "t1")  # another process's bump()
+    assert tenant_cache.get_or_compute("ns", "t1", None, compute, ttl=60) == 2
+    assert tenant_cache.get_or_compute("ns", "t2", None, compute, ttl=60) == 3  # other companies unaffected
+    shared.incr(tenant_cache.SHARED_KEY_PREFIX + "t1")
+    assert tenant_cache.get_or_compute("ns", "t2", None, compute, ttl=60) == 3
+
+
+def test_without_redis_the_cache_still_works_and_stops_asking_for_a_while(monkeypatch):
+    class Down:
+        calls = 0
+
+        def get(self, key):
+            Down.calls += 1
+            raise ConnectionError("refused")
+
+        incr = get
+
+    down = Down()
+    monkeypatch.setattr(tenant_cache, "_shared_down_until", 0.0)
+    monkeypatch.setattr("src.ai.core.redis_client.get_shared_redis_client", lambda **_: down)
+    computed = []
+    compute = lambda: computed.append(1) or len(computed)  # noqa: E731
+    assert tenant_cache.get_or_compute("ns", "t1", None, compute, ttl=60) == 1
+    assert tenant_cache.get_or_compute("ns", "t1", None, compute, ttl=60) == 1
+    tenant_cache.bump("t1")  # this process's own invalidation still works
+    assert tenant_cache.get_or_compute("ns", "t1", None, compute, ttl=60) == 2
+    assert Down.calls == 1  # Redis was asked once, then left alone for SHARED_RETRY_SECONDS
