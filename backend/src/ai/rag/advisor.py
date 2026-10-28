@@ -166,9 +166,17 @@ def _w(key: str, language: str, **values) -> str:
     return (arabic if language == "ar" else english).format(**values)
 
 
-_STOP = {"the", "and", "for", "with", "what", "how", "why", "are", "is", "my", "our", "your", "this", "that", "of",
-         "to", "in", "on", "a", "an", "do", "does", "can", "should", "about", "me", "we", "i",
-         "ما", "ماذا", "كيف", "لماذا", "هل", "في", "من", "على", "عن", "الى", "إلى", "شو", "ليش", "قديش", "انا", "أنا"}
+_STOP_WORDS = {"the", "and", "for", "with", "what", "how", "why", "are", "is", "my", "our", "your", "this", "that",
+               "of", "to", "in", "on", "a", "an", "do", "does", "can", "should", "about", "me", "we", "i",
+               # Question and helper words match any sentence that happens to use them ("Who won ..." matched
+               # "customers who aren't happy"), so they never count as a shared topic.
+               "who", "whom", "whose", "which", "when", "where", "was", "were", "did", "has", "have", "had",
+               "been", "will", "would", "could", "you", "they", "their", "them", "its", "from", "there", "than",
+               "then", "متى", "أين", "وين", "مين", "ايش", "هذا", "هذه", "كان", "كانت",
+               "ما", "ماذا", "كيف", "لماذا", "هل", "في", "من", "على", "عن", "الى", "إلى", "شو", "ليش", "قديش",
+               "انا", "أنا"}
+# Compared after the same normalisation as the text (أ -> ا, ى -> ي), or the Arabic ones never match.
+_STOP = {understanding._norm(w) for w in _STOP_WORDS}
 
 
 def _language(question: str) -> str:
@@ -242,8 +250,12 @@ def _top_product(conn, tenant_id: str, catalog: List[dict], access: acl.Access) 
     return by_id.get(str(row[0])) if row else None
 
 
+_ARABIC_PUNCTUATION = re.compile("[\u060c\u061b\u061f\u066a-\u066d\u06d4]")
+
+
 def _content_words(text: str) -> set:
-    words = re.findall(r"[\w؀-ۿ]{3,}", understanding._norm(text))
+    # Arabic punctuation sits inside the Arabic letter range: "طلب؟" must still be the word "طلب".
+    words = re.findall(r"[\w؀-ۿ]{3,}", _ARABIC_PUNCTUATION.sub(" ", understanding._norm(text)))
     return {w[2:] if w.startswith("ال") and len(w) > 4 else w for w in words if w not in _STOP}
 
 
@@ -879,7 +891,11 @@ def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "ev
     # question matching no topic brings every record section, which would
     # otherwise crowd out the one document that answers it.
     documents = [i for i in ranked if i.kind == ev.COMPANY_DOCUMENT][:3]
-    others = [i for i in ranked if i.kind != ev.COMPANY_DOCUMENT][:8 - len(documents)]
+    # Records are cut to size by how well they match, not by kind alone: the
+    # named product's own price record must not lose its place to five
+    # "top products" lines that merely come first.
+    others = sorted((i for i in ranked if i.kind != ev.COMPANY_DOCUMENT), key=lambda i: (-overlap(i), rank(i)))
+    others = others[:8 - len(documents)]
     items = sorted(documents + others, key=lambda i: (-overlap(i), rank(i)))
     shares = any(overlap(i) for i in items)
     if shares:
