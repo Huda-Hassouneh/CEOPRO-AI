@@ -163,9 +163,10 @@ def choose_forecast(daily: pd.DataFrame, sufficiency, current_price, current_sto
     validation = walk_forward_validate(feature_frame, MIN_TRAIN_SIZE_FOR_VALIDATION, cold_start.MIN_VALIDATION_FOLDS)
     baseline_val_predictions = {}
     splits = expanding_window_splits(len(feature_frame), MIN_TRAIN_SIZE_FOR_VALIDATION, cold_start.MIN_VALIDATION_FOLDS)
+    quantity = feature_frame["quantity"]
     for name in baselines.BASELINE_FUNCTIONS:
-        in_sample = baselines.baseline_in_sample_predictions(feature_frame["quantity"], name)
-        baseline_val_predictions[name] = [in_sample[val_idx[0] - 1] for _, val_idx in splits if val_idx[0] - 1 < len(in_sample)]
+        baseline_val_predictions[name] = [baselines.baseline_prediction_at(quantity, name, val_idx[0])
+                                          for _, val_idx in splits if 1 <= val_idx[0] < len(quantity)]
     comparison = evaluation.compare_to_baselines(validation["predictions"], validation["actuals"], baseline_val_predictions)
     metrics = {
         "mae": evaluation.mae(validation["actuals"], validation["predictions"]),

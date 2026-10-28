@@ -84,3 +84,12 @@ def baseline_in_sample_predictions(history: pd.Series, name: str) -> List[float]
         window = pd.Series(values[:i])
         preds.append(float(BASELINE_FUNCTIONS[name](window, 1)[0]))
     return preds
+
+
+def baseline_prediction_at(history: pd.Series, name: str, position: int) -> float:
+    """The one-step-ahead prediction for day `position` from the days before
+    it - element `position - 1` of baseline_in_sample_predictions(), without
+    computing every other day's (validation needs one per fold, and the full
+    list was most of a forecast's run time)."""
+    values = history.to_numpy()
+    return float(BASELINE_FUNCTIONS[name](pd.Series(values[:position]), 1)[0])
