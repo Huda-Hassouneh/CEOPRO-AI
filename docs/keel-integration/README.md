@@ -1,4 +1,9 @@
-> Current Phase 1A update (2026-10-20): the owner explicitly authorized bounded production authentication/platform implementation in an isolated copy. Historical Phase 0/0R/0V statements about missing implementation permission describe their original stage. Current source, limits and actual tests: [PHASE1A_IMPLEMENTATION_REPORT.md](PHASE1A_IMPLEMENTATION_REPORT.md). Native verification and production release remain blocked.
+> Historical integration records: use the [developer documentation index](../README.md)
+> for current setup, architecture and feature guidance. Statements and verdicts
+> below belong to their recorded stages; they do not supersede current source
+> or later dated verification. Approved decisions and audit evidence remain preserved.
+
+> Recorded Phase 1A update (2026-10-20): the owner explicitly authorized bounded production authentication/platform implementation in an isolated copy. Historical Phase 0/0R/0V statements about missing implementation permission describe their original stage. Source, limits and tests at that stage: [PHASE1A_IMPLEMENTATION_REPORT.md](PHASE1A_IMPLEMENTATION_REPORT.md). Native verification and production release remained blocked at that stage.
 
 > **Phase 0V — BLOCKED:** exact supplied Task 6 content and 13 selected policies verified; clean reviewed commit/native PG17/full runtime regression gates remain open. Read [SOURCE_BASELINE_VERIFICATION.md](SOURCE_BASELINE_VERIFICATION.md), [PHASE0V_NATIVE_VERIFICATION.md](PHASE0V_NATIVE_VERIFICATION.md) and [NEXT_IMPLEMENTATION_HANDOFF.md](NEXT_IMPLEMENTATION_HANDOFF.md). No production implementation authorized.
 

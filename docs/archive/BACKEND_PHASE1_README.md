@@ -27,7 +27,7 @@ Use these native Docker Compose commands to manage the infrastructure locally:
 - `check_connectivity.py`: Python automation health check confirming real-time connections pass successfully (Item 1.8).
 
 ## 4. Web Crawling / Market Data Collection
-The standalone scraper service lives in [`src/market_scraper/`](src/market_scraper/README.md).
+The standalone scraper service lives in [`src/market_scraper/`](../../backend/src/market_scraper/README.md).
 It implements deny-by-default collection policy decisions, Redis worker allocation, tenant-scoped
 product mappings, respectful Scrapy collection, ingestion-job tracking, canonical PostgreSQL
 `competitor_prices` persistence, JSONL demo output, and offline tests. The repository's approved
@@ -86,4 +86,4 @@ marketing spend are deliberately excluded from this formula - they're real costs
 and (for marketing) customer-acquisition cost, not per-request cost-of-service, so they belong in a
 separate periodic margin report rather than a live per-scrape gate. Full details, the env var list,
 and the underlying reasoning live in
-[`src/market_scraper/README.md`](src/market_scraper/README.md#scraping-cost-ledger-and-the-dynamic-cost-to-margin-gate-cost_ledgerpy).
+[`src/market_scraper/README.md`](../../backend/src/market_scraper/README.md#scraping-cost-ledger-and-the-dynamic-cost-to-margin-gate-cost_ledgerpy).
