@@ -85,16 +85,17 @@ _PRICE_WEAKNESS_THRESHOLD = 4.0
 _SENTIMENT_LABEL_THRESHOLD = 0.1
 
 
-def _load_price_comparisons(conn, tenant_id: str, global_competitor_id: str) -> list:
-    """Per-product your-price-vs-their-price for one specific competitor,
-    same source shape as competitor_pricing.py's own query but scoped to
-    a single global_competitor_id instead of averaged across all of
-    them - a RELEVANT competitor's card shows where THEY specifically
-    differ, not a market-wide average."""
+def _load_price_comparisons(conn, tenant_id: str) -> dict:
+    """Per-product your-price-vs-their-price for each competitor
+    ({global_competitor_id: [...]}), same source shape as
+    competitor_pricing.py's own query but kept per competitor instead of
+    averaged across all of them - a RELEVANT competitor's card shows where
+    THEY specifically differ, not a market-wide average. One query for every
+    competitor (it used to run once per competitor on every directory load)."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT localized_text(p.product_name) AS product_name,
+            SELECT cpm.global_competitor_id, localized_text(p.product_name) AS product_name,
                    p.current_price, p.currency, latest.scraped_price
             FROM competitor_product_mappings cpm
             JOIN products p ON p.tenant_id = cpm.tenant_id AND p.product_id = cpm.product_id
@@ -105,22 +106,22 @@ def _load_price_comparisons(conn, tenant_id: str, global_competitor_id: str) -> 
                 ORDER BY cpr.observed_at DESC
                 LIMIT 1
             ) latest ON TRUE
-            WHERE cpm.tenant_id = %s AND cpm.global_competitor_id = %s
+            WHERE cpm.tenant_id = %s
               AND cpm.is_active = TRUE AND p.deleted_at IS NULL
-            ORDER BY product_name;
+            ORDER BY cpm.global_competitor_id, product_name;
             """,
-            (tenant_id, global_competitor_id),
+            (tenant_id,),
         )
         rows = cursor.fetchall()
-    return [
-        {
+    by_competitor: dict = {}
+    for global_competitor_id, product_name, your_price, currency, their_price in rows:
+        by_competitor.setdefault(str(global_competitor_id), []).append({
             "product_name": product_name,
             "your_price": float(your_price),
             "their_price": float(their_price),
             "currency": currency,
-        }
-        for product_name, your_price, currency, their_price in rows
-    ]
+        })
+    return by_competitor
 
 
 def _avg_raw_price_competitiveness(price_pairs: list) -> Optional[float]:
@@ -272,6 +273,7 @@ def get_competitor_directory(
         logger.exception("could not load data completeness for tenant %s", tenant_id)
         completeness_by_competitor = {}
 
+    price_pairs_by_competitor = _load_price_comparisons(conn, tenant_id)
     strategic = []
     relevant = []
     possible = []
@@ -284,7 +286,7 @@ def get_competitor_directory(
         if max_distance_km is not None and (distance_km is None or distance_km > max_distance_km):
             continue
         global_competitor_id = str(global_competitor_id)
-        price_pairs = _load_price_comparisons(conn, tenant_id, global_competitor_id)
+        price_pairs = price_pairs_by_competitor.get(global_competitor_id, [])
 
         sentiment_score = sentiment_by_competitor.get(global_competitor_id, {}).get("sentiment_score")
         sentiment_label = None
