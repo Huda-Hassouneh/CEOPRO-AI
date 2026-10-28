@@ -728,3 +728,19 @@ def test_retries_for_a_cut_off_answer_stop_at_the_ceiling(monkeypatch):
     monkeypatch.setattr(llm_client.httpx, "post", fake_post)
     _ask(api_key="k", max_tokens=1500)
     assert calls == [1500, 3000, 6000, llm_client.MAX_TOKENS_ON_RETRY]
+
+
+def test_a_read_timeout_is_not_sent_again(monkeypatch):
+    """The provider was still generating: a second copy repeats the work, and on a
+    single-slot local server queues behind the first, so it times out as well."""
+    monkeypatch.setattr(llm_client.time, "sleep", lambda *a: None)
+    calls = []
+
+    def time_out(*a, **k):
+        calls.append(1)
+        raise httpx.ReadTimeout("timed out")
+
+    monkeypatch.setattr(llm_client.httpx, "post", time_out)
+    with pytest.raises(llm_client.LLMError, match="LLM provider request failed"):
+        _ask(api_key="test-key")
+    assert len(calls) == 1

@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 
 from src.ai import db
-from src.ai.core import permissions, usage
+from src.ai.core import permissions, tenant_cache, usage
 from src.ai.rag import access
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import financial_summary as dashboard_financial_summary
@@ -36,14 +36,9 @@ def sales_report(
     period downloads from /reports/sales/export.
     """
     _check_range(start_date, end_date)
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    try:
-        result = dashboard_reports.get_sales_report(
-            conn, ctx.tenant_id, start_date=start_date, end_date=end_date, limit=limit, offset=offset)
-        conn.commit()
-        return result
-    finally:
-        conn.close()
+    return tenant_cache.cached_read("sales_report", ctx, (start_date, end_date, limit, offset), lambda conn: (
+        dashboard_reports.get_sales_report(
+            conn, ctx.tenant_id, start_date=start_date, end_date=end_date, limit=limit, offset=offset)))
 
 
 # Column order and headers match the Reports page's own table.
@@ -185,13 +180,8 @@ def financial_summary_report(
     asking the chat. Gross profit only - see that module's own docstring
     for why this is never labeled "net profit".
     """
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    try:
-        result = dashboard_financial_summary.get_profitability_summary(conn, ctx.tenant_id, window_days=window_days)
-        conn.commit()
-        return result
-    finally:
-        conn.close()
+    return tenant_cache.cached_read("financial_summary", ctx, window_days, lambda conn: (
+        dashboard_financial_summary.get_profitability_summary(conn, ctx.tenant_id, window_days=window_days)))
 
 
 @router.get("/price-comparison", dependencies=[permissions.require_capabilities(access.CATALOG, access.COMPETITORS)])

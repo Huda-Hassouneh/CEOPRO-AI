@@ -329,6 +329,11 @@
         "raise": "Your price {{price}} is more than 5% below the average of {{count}} competitor price(s), {{average}} (range {{min}}–{{max}}).",
         "hold": "Your price {{price}} is within 5% of the average of {{count}} competitor price(s), {{average}} (range {{min}}–{{max}})."
       },
+      "estimate": {
+        "lower": "Your price {{price}} is more than 5% above the estimated market price, {{average}}.",
+        "raise": "Your price {{price}} is more than 5% below the estimated market price, {{average}}.",
+        "hold": "Your price {{price}} is within 5% of the estimated market price, {{average}}."
+      },
       "hold": {
         "stock_short": "The market would suggest a lower price, but your stock ({{stock}}) covers only about {{days}} days of the {{forecast}} units forecast for the next 30 days. A lower price would sell out sooner and give away margin on units that would sell anyway — restock first.",
         "demand_rising": "The market would suggest a lower price, but sales are up {{pct}}% on the previous 30 days at your current price ({{recent}} vs {{previous}} units). Demand does not need a price cut.",
@@ -1206,6 +1211,7 @@
         "existing": "This email already belongs to a workspace member.",
         "pending": "An invitation is already pending for this email.",
         "unavailable": "Invitation delivery is not connected. No invitation was sent.",
+        "savedNotEmailed": "The invitation was saved, but no email was sent: email isn't set up for KEEL, or delivery failed.",
         "sent": "Invitation sent.",
         "failed": "The invitation could not be sent."
       }
@@ -1302,6 +1308,7 @@
       "newPassword": "New Password",
       "confirmPassword": "Confirm New Password",
       "currentRequired": "Current password is required.",
+      "currentIncorrect": "Current password is incorrect.",
       "changePassword": "Change Password",
       "changing": "Changing password...",
       "passwordUnavailable": "Password change is not connected. Your password was not changed.",
