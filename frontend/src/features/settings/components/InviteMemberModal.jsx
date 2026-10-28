@@ -29,7 +29,8 @@ export default function InviteMemberModal({ open, capabilities, permissions, onC
       const result = await runLocked(() => mutation.mutateAsync({ companyId, email: normalizedEmail, role: values.role }));
       if (result === undefined) return; // a second click while the first invitation is being sent
       if (!result.sent) return onNotice('info', t('settings.team.invite.unavailable'));
-      onNotice('success', t('settings.team.invite.sent'));
+      if (result.emailed === false) onNotice('info', t('settings.team.invite.savedNotEmailed'));
+      else onNotice('success', t('settings.team.invite.sent'));
       close();
     } catch { onNotice('error', t('settings.team.invite.failed')); }
   };

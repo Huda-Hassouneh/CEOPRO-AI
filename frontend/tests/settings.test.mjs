@@ -67,6 +67,7 @@ test('api layer sends the real request shape and translates the real response sh
         return res.end(JSON.stringify({ members: [{ tenant_user_id: 'tu1', user_id: 'u1', email: 'a@b.com', full_name: 'Account Name', role_key: 'owner', joined_at: '2026-01-01T00:00:00Z' }] }));
       }
       if (req.url === '/settings/team/invitations' && req.method === 'POST') {
+        if (parsed.email === 'unsent@example.com') return res.end(JSON.stringify({ ok: true, email_sent: false }));
         assert.deepEqual(parsed, { email: 'new@example.com', role_key: 'staff' });
         return res.end(JSON.stringify({ ok: true }));
       }
@@ -120,6 +121,8 @@ test('api layer sends the real request shape and translates the real response sh
   assert.equal(team.members[0].status, 'active');
 
   assert.equal((await teamApi.inviteMember({ email: 'new@example.com', role: 'staff' })).sent, true);
+  // Saved but not emailed (no email service): the screen must not say "sent".
+  assert.deepEqual(await teamApi.inviteMember({ email: 'unsent@example.com', role: 'staff' }), { sent: true, emailed: false });
   assert.equal((await securityApi.changePassword({ currentPassword: 'old', newPassword: 'new' })).changed, true);
 
   // Genuinely, structurally unable to ever return real sessions (stateless
