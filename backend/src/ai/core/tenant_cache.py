@@ -99,3 +99,22 @@ def get_or_compute(namespace: str, tenant_id, key: Hashable, compute: Callable[[
         with _lock:
             _inflight.pop(full_key, None)
         event.set()
+
+
+def cached_read(namespace: str, ctx, key: Hashable, read: Callable[[object], object], ttl: float = None):
+    """get_or_compute() for a read on the caller's own company connection:
+    `read(conn)` runs on a fresh row-level-security connection for
+    ctx.tenant_id / ctx.user_id, and only when the value isn't cached. Only for
+    results that depend on the company's data alone, never on who asks
+    (role checks belong in the endpoint's dependencies, before this)."""
+    from src.ai import db
+
+    def compute():
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+        try:
+            return read(conn)
+        finally:
+            conn.rollback()  # reads only: nothing to keep
+            conn.close()
+
+    return get_or_compute(namespace, ctx.tenant_id, key, compute, ttl)

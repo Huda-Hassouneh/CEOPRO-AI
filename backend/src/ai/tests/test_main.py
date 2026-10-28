@@ -667,7 +667,7 @@ def test_dashboard_metrics_returns_the_pipeline_result():
 
     assert response.status_code == 200
     assert response.json() == fake_result
-    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()  # a read: the connection goes back, nothing to commit
     mock_metrics.assert_called_once_with(fake_conn, "t1", window_days=30)
 
 
