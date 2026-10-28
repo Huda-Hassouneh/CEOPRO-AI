@@ -247,6 +247,11 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
         )
     else:
         recent_std = float(history.tail(14).std()) if len(history) > 1 else 0.0
+        if not recent_std > 0:
+            # A quiet or perfectly flat fortnight says nothing about how much
+            # sales vary: a product that sold 1-20 units on scattered days and
+            # nothing in the last 14 days must not get a zero-width range.
+            recent_std = float(history.tail(90).std()) if len(history) > 1 else 0.0
         spread = recent_std if recent_std == recent_std else 0.0
         confidence_score = 0.4 if sufficiency.sufficient else 0.2
         reason = (
