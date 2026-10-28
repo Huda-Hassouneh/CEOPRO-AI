@@ -27,6 +27,8 @@ export function ProductForm({ mode = 'create', initialValues, onSubmit, submitti
   const update = (key) => (event) => {
     if (key === 'currency') currencyTouchedRef.current = true;
     setValues({ ...values, [key]: event.target.value });
+    // An error is about the old value; editing the field clears it.
+    if (fieldErrors[key]) setFieldErrors(({ [key]: _cleared, ...rest }) => rest);
   };
 
   // A new product defaults to the company's own primary currency (what
