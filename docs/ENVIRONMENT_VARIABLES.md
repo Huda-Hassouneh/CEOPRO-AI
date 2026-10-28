@@ -48,7 +48,7 @@ All require process restart unless the source reference states otherwise. Missin
 |---|---|---|---|
 | STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET | Billing TEST account / exact listener signing | sk_test_<private> / whsec_<private>; unset | Checkout unavailable; both required together; LIVE refused |
 | STRIPE_TEST_CLOCK_ENABLED / STRIPE_TEST_CLOCK_ID | Local-only clock association and tenant billing time | false / empty | Optional; enabled requires local launcher, TEST key, ready clock; restart required. See [guide](STRIPE_TEST_CLOCK_LOCAL_GUIDE.md). Production rejects enabled mode. |
-| GROQ_API_KEY / GROQ_MODEL | Hosted assistant | private key / existing model default | No configured Groq inference; verified costs still required |
+| GROQ_API_KEY / GROQ_MODEL | Hosted assistant and marketing text | private key / openai/gpt-oss-20b | No configured Groq inference without key; approved default costs initialize through migrations; other models need their own approved schedules |
 | HUGGINGFACE_API_TOKEN / HUGGINGFACE_LLM_MODEL | Hosted AI | private token / model identifier; unset | Hosted capability unavailable |
 | LOCAL_LLM_BASE_URL | Existing local inference service | http://127.0.0.1:<port>/v1; unset | No local LLM |
 | RAG_EMBEDDING_BACKEND | Existing semantic encoder | torch default; setup --models installs libraries | Missing libraries/weights prevent semantic model loading; no substitute added |
@@ -57,6 +57,7 @@ All require process restart unless the source reference states otherwise. Missin
 | GOOGLE_CUSTOM_SEARCH_API_KEY / GOOGLE_CUSTOM_SEARCH_CX | Google CSE | private key / engine ID; unset | CSE unavailable |
 | APIFY_API_TOKEN | Provider collection | private token; unset | Apify unavailable |
 | SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET | OAuth and authenticated webhook integration | App ID / private secret; unset | Shopify connection/webhook configuration unavailable |
+| SHOPIFY_REDIRECT_URI | Exact callback registered with the Shopify app | Public HTTPS API URL ending /onboarding/shopify/callback; unset | OAuth refuses installation without a safe configured callback; see [store setup](INTEGRATIONS.md#shopify-and-woocommerce) |
 | SEARXNG_INSTANCE_URL | Optional self-hosted discovery | http://127.0.0.1:<port>; unset | No local SearXNG fallback |
 | SENTRY_DSN | Optional error monitoring | Private project DSN; unset | Monitoring disabled |
 | VITE_SPLINE_HERO_SCENE / VITE_SENTRY_DSN / VITE_SUPPORT_EMAIL | Public frontend presentation/monitoring | Empty by default | Static hero/no browser reporting/no optional contact override |

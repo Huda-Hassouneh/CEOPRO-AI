@@ -1,4 +1,10 @@
-# KEEL - current status
+# Historical product status — 2026-10-08
+
+This is retained evidence from its recorded date, not the current acceptance
+matrix or setup guide. For today's implementation boundaries use
+[Features](docs/FEATURES.md); for measured onboarding and branch limits use
+[Repository readiness](docs/REPOSITORY_READINESS.md). Start development at
+[README.md](README.md).
 
 Last updated 2026-10-08. Earlier session logs are in `docs/archive/`.
 

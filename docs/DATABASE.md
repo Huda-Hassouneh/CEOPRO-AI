@@ -158,7 +158,7 @@ The setup role maintains Checkout attempts, Stripe customer references, unpaid p
 
 ## Fixtures and recovery
 
-`seed` generates synthetic business import files under `.dev/fixtures/quickstart`. Load selected files through normal authenticated import/review endpoints after signup/OTP. No provider costs, binding offers or paid subscriptions are seeded.
+`seed` generates synthetic business import files under `.dev/fixtures/quickstart`. Load selected files through normal authenticated import/review endpoints after signup/OTP. This fixture command seeds no provider costs, binding offers or paid subscriptions; approved catalog initialization is a separate startup migration step.
 
 Fresh database tests retain their generated DBs and names for diagnosis. There is intentionally no implicit cleanup/reset command. If manually removing disposable resources, first inspect their project/root labels and generated names. Never run `docker compose down -v` against an unidentified project.
 
@@ -172,4 +172,35 @@ Startup verifies these three exact existing exceptions still have policies and a
 
 ## Recoverable CI-style suites
 
-`test --suite backend`, `browser-ci` and `a11y` create a fresh test database and use separate tmpfs Redis/MinIO services in the same checkout-owned Compose project. Running test APIs keep restricted credentials; only explicit migration/native-fixture setup uses the test admin. `test-cleanup` removes only those two disposable containers; databases/evidence and normal volumes are retained. See [Test environment recovery](TEST_ENVIRONMENT_RECOVERY.md) for exact commands and limits.
+`test --suite backend`, `browser-ci` and `a11y` create a fresh test database and use separate tmpfs Redis/MinIO/Mailpit services in the same checkout-owned Compose project. Running test APIs keep restricted credentials; only explicit migration/native-fixture setup uses the test admin. `test-cleanup` removes only those three disposable containers; databases/evidence and normal volumes are retained. See [Testing](TESTING.md) for suite selection and [Test environment recovery](TEST_ENVIRONMENT_RECOVERY.md) for interrupted-run details.
+
+## Developing a schema change
+
+1. Trace the existing router/service/table and identify tenant, financial and
+   historical-record constraints before proposing a schema change.
+2. Add a new uniquely ordered `<14-digit-timestamp>_<description>.sql` under
+   `backend/src/infrastructure/database/migrations/`. Do not rewrite an applied
+   file, change its recorded filename or mark a failed migration applied manually.
+3. Keep runtime roles least-privileged, preserve FORCE RLS and tenant foreign
+   keys, and give any guarded function an explicit fixed search path and grants.
+   Avoid application-startup DDL or a second migration runner.
+4. Run fresh, populated-upgrade and repeat tests on disposable databases. Verify
+   old rows and financial values survive, and native restricted-role/foreign
+   tenant queries are denied. Use [Testing](TESTING.md) for supported commands.
+5. Review the SQL and recoverable backup/restore plan before applying to a
+   valuable development/customer DB. The runner commits each migration and its
+   registry row together; failure rolls that migration back and stops startup.
+
+## Backups and recovery
+
+Keep consistent PostgreSQL dumps, role/config recovery material and object-store
+backups private and outside Git. Confirm the exact checkout/project/database
+identity first. A database dump alone does not preserve MinIO assets or the vault
+key needed to decrypt source credentials. Protect those secrets separately.
+
+Verify a backup by restoring to a **different disposable database**, checking
+schema/data fingerprints and required restricted roles. Never test restore over
+the active development database. The optional meeting fixture's `prepare` action
+demonstrates a retained restore-and-fingerprint workflow; it is not permission
+to reseed or repair an existing customer environment. Use forward corrective
+migrations for schema recovery rather than deleting history or resetting volumes.
