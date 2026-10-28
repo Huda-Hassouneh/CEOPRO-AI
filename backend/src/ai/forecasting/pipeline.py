@@ -163,9 +163,10 @@ def choose_forecast(daily: pd.DataFrame, sufficiency, current_price, current_sto
     validation = walk_forward_validate(feature_frame, MIN_TRAIN_SIZE_FOR_VALIDATION, cold_start.MIN_VALIDATION_FOLDS)
     baseline_val_predictions = {}
     splits = expanding_window_splits(len(feature_frame), MIN_TRAIN_SIZE_FOR_VALIDATION, cold_start.MIN_VALIDATION_FOLDS)
+    quantity = feature_frame["quantity"]
     for name in baselines.BASELINE_FUNCTIONS:
-        in_sample = baselines.baseline_in_sample_predictions(feature_frame["quantity"], name)
-        baseline_val_predictions[name] = [in_sample[val_idx[0] - 1] for _, val_idx in splits if val_idx[0] - 1 < len(in_sample)]
+        baseline_val_predictions[name] = [baselines.baseline_prediction_at(quantity, name, val_idx[0])
+                                          for _, val_idx in splits if 1 <= val_idx[0] < len(quantity)]
     comparison = evaluation.compare_to_baselines(validation["predictions"], validation["actuals"], baseline_val_predictions)
     metrics = {
         "mae": evaluation.mae(validation["actuals"], validation["predictions"]),
@@ -247,6 +248,11 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
         )
     else:
         recent_std = float(history.tail(14).std()) if len(history) > 1 else 0.0
+        if not recent_std > 0:
+            # A quiet or perfectly flat fortnight says nothing about how much
+            # sales vary: a product that sold 1-20 units on scattered days and
+            # nothing in the last 14 days must not get a zero-width range.
+            recent_std = float(history.tail(90).std()) if len(history) > 1 else 0.0
         spread = recent_std if recent_std == recent_std else 0.0
         confidence_score = 0.4 if sufficiency.sufficient else 0.2
         reason = (
