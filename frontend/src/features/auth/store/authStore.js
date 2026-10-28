@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { resetAccountState, resetForIdentityChange } from './identityBoundary.js';
 import {
   authSessionStorage,
   normalizeAuthSession,
@@ -35,6 +36,7 @@ export const useAuthStore = create((set, get) => ({
   initialize: () => {
     if (get().isHydrated) return;
     const session = authSessionStorage.read();
+    resetForIdentityChange(get(), session);
 
     set({
       ...(session ?? emptySessionState),
@@ -47,6 +49,7 @@ export const useAuthStore = create((set, get) => ({
 
   setSession: (session) => {
     const normalizedSession = normalizeAuthSession(session);
+    resetForIdentityChange(get(), normalizedSession);
     authSessionStorage.write(normalizedSession);
     set({
       ...normalizedSession,
@@ -61,6 +64,7 @@ export const useAuthStore = create((set, get) => ({
 
   clearSession: () => {
     authSessionStorage.clear();
+    resetAccountState();
     set({
       ...emptySessionState,
       status: AUTH_STATUS.UNAUTHENTICATED,
@@ -75,6 +79,7 @@ export const useAuthStore = create((set, get) => ({
   // the user at an unexplained sign-in form.
   expireSession: () => {
     authSessionStorage.clear();
+    resetAccountState();
     set({
       ...emptySessionState,
       status: AUTH_STATUS.UNAUTHENTICATED,
@@ -88,18 +93,21 @@ export const useAuthStore = create((set, get) => ({
   // without writing it back to storage.
   adoptSession: (session) => {
     const normalizedSession = normalizeAuthSession(session ?? {});
+    resetForIdentityChange(get(), normalizedSession);
     set({
       ...normalizedSession,
       status: isAuthenticatedSession(normalizedSession)
         ? AUTH_STATUS.AUTHENTICATED
         : AUTH_STATUS.UNAUTHENTICATED,
       isHydrated: true,
+      emailVerificationBlocked: false,
       sessionExpired: false,
     });
   },
 
   // Swaps in a renewed access token, keeping everything else.
-  setAccessToken: (accessToken) => {
+  setAccessToken: (accessToken, expectedToken) => {
+    if (expectedToken !== undefined && get().accessToken !== expectedToken) return;
     const nextSession = normalizeAuthSession({ ...get(), accessToken });
     authSessionStorage.write(nextSession);
     set({ accessToken, emailVerificationBlocked: false });
@@ -107,6 +115,7 @@ export const useAuthStore = create((set, get) => ({
 
   setUser: (user) => {
     const nextSession = normalizeAuthSession({ ...get(), user });
+    resetForIdentityChange(get(), nextSession);
     if (isAuthenticatedSession(nextSession)) authSessionStorage.write(nextSession);
     else authSessionStorage.clear();
     set({
