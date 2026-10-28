@@ -194,6 +194,15 @@ def rag_query(
             headers={"Retry-After": str(retry_after), ASSISTANT_REASON_HEADER: "provider_busy",
                      ASSISTANT_SESSION_HEADER: str(session_id)},
         )
+    except rag_llm_client.LLMPricingNotConfiguredError:
+        logger.warning("RAG query refused: configured AI provider has no confirmed pricing")
+        conn.rollback()
+        refusal = credits.BudgetError("COST_NOT_CONFIGURED", credits.AI).as_http()
+        raise HTTPException(
+            status_code=refusal.status_code, detail=refusal.detail,
+            headers={ASSISTANT_REASON_HEADER: "cost_not_configured",
+                     ASSISTANT_SESSION_HEADER: str(session_id)},
+        ) from None
     except rag_llm_client.LLMNotConfiguredError as err:
         # An operator problem, not a transient one: say so instead of "try again".
         logger.error("RAG query: no language model is configured: %s", err)

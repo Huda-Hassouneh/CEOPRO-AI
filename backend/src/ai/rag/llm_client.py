@@ -425,6 +425,14 @@ class LLMNotConfiguredError(LLMError):
     An operator must fix it; retrying won't help."""
 
 
+class LLMPricingNotConfiguredError(LLMNotConfiguredError):
+    """A configured provider was refused before invocation: no confirmed cost.
+
+    Remains an LLM error so the existing grounded evidence fallback is preserved;
+    the HTTP/UI boundary can distinguish pricing from missing credentials.
+    """
+
+
 class LLMRequestTooLargeError(LLMError):
     """The provider refused the request for its size (413, e.g. a free tier's
     tokens-per-minute ceiling) - a smaller prompt may still succeed."""
