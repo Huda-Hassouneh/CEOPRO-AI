@@ -5,7 +5,8 @@ export function useCreateCampaign() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: marketingApi.createCampaign,
-    onSuccess: () => {
+    // A failed attempt is saved too (as "Failed"), so the list is refreshed either way.
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing-campaigns'] });
     },
   });
