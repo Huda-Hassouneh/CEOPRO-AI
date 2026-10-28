@@ -134,7 +134,7 @@ export function CompetitorIntel({ competitor, t, locale }) {
                       <td dir="auto">
                         {p.name}
                         <div className="price-origin">
-                          {intelChannel(p) && <Pill tone="neutral">{t(`intel.channel.${p.channel}`, { defaultValue: p.channel })}</Pill>}
+                          {intelChannel(p) && <Pill tone="neutral">{t(`intel.channel.${p.channel}`, { defaultValue: p.channel })}{p.platform ? ` · ${p.platform}` : ''}</Pill>}
                           {intelOrigin(p) !== 'page' && <span className="apex-muted">{t(`intel.origin.${intelOrigin(p)}`)}</span>}
                           {p.also_seen_in?.length > 0 && <span className="apex-muted">{t('intel.alsoSeen', { count: p.also_seen_in.length })}</span>}
                           {needsCheck(p) && <span className="price-origin__check">{t('intel.review.checkThis')}</span>}

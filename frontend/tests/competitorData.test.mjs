@@ -195,6 +195,15 @@ test('PRICES and SOCIAL_CONTENT get their own buttons, and "load more" only once
   assert.deepEqual(retryableFacets(facets({ can_retry: true, status: 'FAILED' }, {})), ['PROFILE']);
 });
 
+test('MARKET_MENUS (delivery apps and menu photos) is an on-request facet with its own button, never in the plain Retry', () => {
+  const completeness = { facets: { MARKET_MENUS: { can_retry: true, status: 'PENDING' } } };
+  assert.ok(FACET_ORDER.includes('MARKET_MENUS'));
+  assert.deepEqual(onRequestAction(completeness, 'MARKET_MENUS'), { canRun: true, canLoadMore: false, hasData: false });
+  completeness.facets.MARKET_MENUS.status = 'PARTIAL';
+  assert.equal(onRequestAction(completeness, 'MARKET_MENUS').canLoadMore, true);
+  assert.ok(!RETRYABLE_FACETS.includes('MARKET_MENUS'));
+});
+
 test('the new price and social reasons have translations keys, unknown ones fall back', () => {
   for (const code of ['NO_PRICES_PUBLISHED', 'JS_RENDERED', 'OCR_NOT_AVAILABLE', 'NOT_OWN_SITE', 'NO_POSTS']) {
     assert.ok(REASON_CODES.includes(code));
@@ -218,6 +227,8 @@ test('a price fact says how it was read and whether it needs a look', () => {
   assert.equal(needsCheck({ extracted_by: 'caption' }), true);
   assert.equal(needsCheck({ extracted_by: 'pdf_text' }), false); // a PDF's own text layer is not a guess
   assert.equal(needsCheck({ extracted_by: 'vision', verified: true }), false);
+  assert.equal(needsCheck({ channel: 'delivery', extracted_by: 'platform_data', listing_verified: false }), true);
+  assert.equal(needsCheck({ channel: 'delivery', extracted_by: 'platform_data', listing_verified: true }), false);
   assert.equal(needsCheck({}), false);
   assert.equal(intelChannel({ channel: 'instagram' }), 'instagram');
   assert.equal(intelChannel({ channel: 'website' }), null);
