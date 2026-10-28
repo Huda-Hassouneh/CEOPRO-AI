@@ -28,8 +28,10 @@ from typing import List, Optional
 # see its own lazy orchestrator import).
 MAX_HISTORY_MESSAGES = 12
 
-# A session list is a small sidebar/dropdown, not a paginated archive.
-DEFAULT_SESSION_LIST_LIMIT = 20
+# No cap by default: every conversation the user has had stays listed and
+# reopenable. A cap of 20 made older conversations vanish from the history
+# even though their messages were still stored. Pass a limit to page.
+DEFAULT_SESSION_LIST_LIMIT: Optional[int] = None
 
 _TITLE_MAX_LENGTH = 80
 
@@ -144,8 +146,9 @@ def save_session_state(conn, tenant_id: str, session_id: str, state: dict) -> No
                        (json.dumps(state, ensure_ascii=False, default=str), tenant_id, session_id))
 
 
-def list_sessions(conn, tenant_id: str, user_id: str, limit: int = DEFAULT_SESSION_LIST_LIMIT) -> List[dict]:
+def list_sessions(conn, tenant_id: str, user_id: str, limit: Optional[int] = DEFAULT_SESSION_LIST_LIMIT) -> List[dict]:
     with conn.cursor() as cursor:
+        # LIMIT NULL is LIMIT ALL in Postgres.
         cursor.execute(
             "SELECT session_id, title, created_at, updated_at FROM conversation_sessions "
             "WHERE tenant_id = %s AND user_id = %s ORDER BY updated_at DESC LIMIT %s;",
