@@ -96,13 +96,13 @@ export const knowledgeBaseApi = {
   chat: async ({ question, sessionId, signal } = {}) => {
     if (!question?.trim()) return { available: false, message: null };
     try {
-      const response = await httpClient.post('/rag/query', null, {
-        params: {
-          query_text: question,
-          session_id: sessionId || undefined,
-        },
-        signal,
-      });
+      // In the body, not the URL: a message can be any length (pasted
+      // reports, exports), and the backend recalls whatever part of it, or
+      // of the conversation, the answer needs.
+      const response = await httpClient.post('/rag/query', {
+        query_text: question,
+        session_id: sessionId || undefined,
+      }, { signal });
       return {
         available: true,
         sessionId: response.data.session_id,

@@ -14,10 +14,10 @@ belonging to a different tenant or a different user within the same
 tenant simply will not be visible to a SELECT/UPDATE/DELETE on this
 connection, regardless of what caller passes in.
 
-Bounded, not unbounded: load_session_history() caps how many prior
-messages are returned, same MAX_HISTORY_MESSAGES bound llm_client.py's
-own _sanitize_history() already enforces server-side - this module
-enforces it at the query level too (LIMIT), not just after the fact.
+load_session_history() returns the newest MAX_HISTORY_MESSAGES by default;
+the assistant itself asks for every message (limit=None) and decides what
+reaches the model (rag/conversation_memory.py), so nothing said in a
+conversation is forgotten however long it runs.
 """
 import json
 from typing import List, Optional
@@ -88,10 +88,12 @@ def session_exists(conn, tenant_id: str, session_id: str) -> bool:
         return cursor.fetchone() is not None
 
 
-def load_session_history(conn, tenant_id: str, session_id: str, limit: int = MAX_HISTORY_MESSAGES) -> List[dict]:
+def load_session_history(conn, tenant_id: str, session_id: str,
+                         limit: Optional[int] = MAX_HISTORY_MESSAGES) -> List[dict]:
     """Returns [{"role": ..., "content": ...}, ...] oldest-first - the
     exact shape rag/llm_client.py::answer_query()'s own `history` param
-    already expects, so this can be passed straight through unchanged."""
+    already expects, so this can be passed straight through unchanged.
+    limit=None: every message (LIMIT NULL is LIMIT ALL in Postgres)."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
