@@ -56,7 +56,9 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
         return {"status": "PLAN_LIMIT", "analyzed_count": 0}
     if left is not None:
         batch_size = min(batch_size, left)
-    reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=batch_size)
+    # Star-rating stand-ins (written while the model was unavailable) come
+    # after never-analyzed reviews and are replaced once the model answers.
+    reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=batch_size, include_rating_fallbacks=True)
     if not reviews:
         return {"status": "OK", "analyzed_count": 0}
 
@@ -76,6 +78,7 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
         reviews, predictions = [r for r, _ in pairs], [p for _, p in pairs]
 
     analyzed_count = 0
+    upgraded_count = 0
     failed_count = 0
     for review, prediction in zip(reviews, predictions):
         with conn.cursor() as cursor:
@@ -100,12 +103,19 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
         else:
             with conn.cursor() as cursor:
                 cursor.execute(f"RELEASE SAVEPOINT {_SAVEPOINT_NAME};")
-            analyzed_count += 1
+            if review.get("upgrade"):
+                upgraded_count += 1
+            else:
+                analyzed_count += 1
+    # Re-reading a review the plan already paid for is not counted again.
     usage.record(conn, tenant_id, usage.SENTIMENT_ANALYSIS, analyzed_count)
     conn.commit()
 
-    logger.info(f"Classified {analyzed_count} reviews for tenant={tenant_id} ({failed_count} failed)")
-    return {"status": "OK", "analyzed_count": analyzed_count, "failed_count": failed_count, "method": method}
+    logger.info(f"Classified {analyzed_count} reviews for tenant={tenant_id} ({upgraded_count} upgraded from star ratings, {failed_count} failed)")
+    result = {"status": "OK", "analyzed_count": analyzed_count, "failed_count": failed_count, "method": method}
+    if upgraded_count:
+        result["upgraded_count"] = upgraded_count
+    return result
 
 
 def get_subject_sentiment_summary(
