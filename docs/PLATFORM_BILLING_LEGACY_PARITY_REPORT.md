@@ -202,10 +202,84 @@ rerun covers four English/Arabic desktop/mobile pairs and reports no current-UI
 console errors. The reference harness's missing favicon is harmless and recorded.
 
 Preservation: `preservation.json` verifies all 84 reference file hashes, all prior
-English/Arabic values and the protected local configuration hashes. No protected
+English/Arabic values and the protected local configuration hashes before the separately approved inbox-port change below. No protected
 `.env.example`, AI models, customer financial records or original source files
 were edited. Account-B identity isolation remains implemented at baseline f856317;
 no subscription ownership repair or new authentication rewrite was performed.
 
-Commit and local rollout evidence follows after actual completion. Until rollout,
-the normal development API remains stopped on the baseline migration state.
+## Local commit and completed E: rollout
+
+Implementation commit: `dd9bd4d37062ae3284e530456e64a5b58be5ae49`.
+The final report-only follow-up commit is discoverable with
+`git log -1 --format=%H -- docs/PLATFORM_BILLING_LEGACY_PARITY_REPORT.md`.
+Application processes were started from the implementation commit; the follow-up
+changes this report only and requires no application restart.
+
+- PASS: recoverable private database/roles/configuration backup; restored copy
+  tested before applying the two forward permissions migrations.
+- PASS: actual development database upgraded 144 to 146; repeat no-op. All existing
+  application-table fingerprints matched before and after migration, including
+  customer subscriptions, financial evidence and credits. No account was repaired.
+- PASS: normal restricted password identities, pgvector and 120 FORCE RLS tables.
+- PASS: FastAPI readiness, exact CORS, frontend-to-API proxy and all eight worker
+  initialization/heartbeat checks: forecast, images, connectors, prices, analysis,
+  discovery, enrichment and maintenance. PostgreSQL, Redis, MinIO and Mailpit healthy.
+- PASS: existing local-only TEST Clock preflight reports ready; read-only provider
+  validation only. No Checkout, payment, subscription or coupon was created.
+- PASS: normal-runtime fresh anonymous browser reaches login from the owner route;
+  API/proxy readiness 200, protected owner APIs 401, no browser exceptions.
+- Authenticated owner mutations against normal customer data: UNRUN intentionally.
+  They passed in the disposable real-API browser environment instead. An existing
+  normal Platform Owner is present; no normal-development account was promoted.
+
+Startup initially failed because Windows reserved TCP 57943-58042 after reboot,
+including the old Mailpit inbox port 58025. The owner explicitly approved changing
+**only** private `.dev/config.json` `ports.inbox` to **58043**. The owned ephemeral
+Mailpit container was recreated. SMTP remains 51025; all other configuration values,
+secrets and application ports are preserved; the original config is backed up.
+No Windows port reservation or system setting was changed. Evidence:
+`approved-port-change.json`, `development-migration.json`, `development-rollout.log`,
+`development-status.log` and `development-browser.json` under the evidence root.
+
+The equivalent inactive promotion-dialog rerun is in
+`visual-promotion-equivalent/`: four English/Arabic desktop/mobile pairs, identical
+status/dates, original form geometry retained, no current console errors. Its
+screenshots are not byte-identical; minor shadow differences remain. This is
+additional evidence rather than a claim that every visual state is identical.
+
+## Owner acceptance and remaining boundaries
+
+**Ready for owner acceptance of the restored, approved workflows. Full legacy
+parity is not declared.** Policy-gated original actions remain visibly unavailable
+as listed above. No known critical integration defect remains in the tested scope.
+
+1. Open `http://127.0.0.1:5173/platform/billing` (redirects to `/admin/billing`).
+2. Sign in using the existing Platform Owner; select **KEEL Platform** if workspace
+   selection is offered. A tenant's Owner role alone cannot access this page.
+3. Inspect all seven original tabs; begin with Custom Quotas for policy versions,
+   vendor/infrastructure rates, quotes and in-place review. Inspect existing data
+   read-only first. Synthetic test inputs are not approved production pricing.
+4. Review the documented blocked controls and explicit approval/payment boundaries.
+   No real-provider promotion publication or new payment is part of this acceptance.
+
+Useful local commands from `E:\KEEL START\CEOPRO-AI`:
+
+```powershell
+.\dev.ps1 up --mode full
+.\dev.ps1 status
+.\dev.ps1 restart
+```
+
+Frontend: `http://127.0.0.1:5173`; API: `http://127.0.0.1:8000`;
+Mailpit: `http://127.0.0.1:58043`.
+
+Remaining limits: exact pixel parity is unproven; small shadow differences remain;
+commercial catalog transitions, canonical semantic changes, arbitrary contract
+status overrides and automatic approval thresholds need the stated decisions.
+Infrastructure edit/supersession, plan availability, quote rejection and promotion
+linking have API/native coverage but not new browser-mutation coverage here.
+Populated real-customer contracts/subscriptions and live provider promotion/payment
+journeys were not exercised in this run. This is not production certification.
+
+All changes are local on `integration/keel-full-migration`. No push, main merge,
+history rewrite, production deployment or original-repository modification occurred.
