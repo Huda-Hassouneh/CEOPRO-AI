@@ -702,3 +702,19 @@ def test_paid_provider_still_takes_priority_over_hugging_face(monkeypatch):
     monkeypatch.setattr(llm_client, "HUGGINGFACE_LLM_MODEL", "openai/gpt-oss-20b")
     monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
     assert llm_client.active_provider() == "paid"
+
+
+def test_a_read_timeout_is_not_sent_again(monkeypatch):
+    """The provider was still generating: a second copy repeats the work, and on a
+    single-slot local server queues behind the first, so it times out as well."""
+    monkeypatch.setattr(llm_client.time, "sleep", lambda *a: None)
+    calls = []
+
+    def time_out(*a, **k):
+        calls.append(1)
+        raise httpx.ReadTimeout("timed out")
+
+    monkeypatch.setattr(llm_client.httpx, "post", time_out)
+    with pytest.raises(llm_client.LLMError, match="LLM provider request failed"):
+        _ask(api_key="test-key")
+    assert len(calls) == 1
