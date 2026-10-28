@@ -39,8 +39,9 @@ export const teamApi = {
 
   // Owner/admin only server-side (settings.py::invite_team_member).
   inviteMember: async ({ email, role } = {}) => {
-    await httpClient.post('/settings/team/invitations', { email, role_key: role });
-    return { sent: true };
+    const response = await httpClient.post('/settings/team/invitations', { email, role_key: role });
+    // Saved, but the email may not have gone out (no email service configured).
+    return { sent: true, emailed: response?.data?.email_sent !== false };
   },
 
   // Owner/admin only server-side; rejects demoting the tenant's last owner.

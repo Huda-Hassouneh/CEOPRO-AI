@@ -1211,6 +1211,7 @@
         "existing": "This email already belongs to a workspace member.",
         "pending": "An invitation is already pending for this email.",
         "unavailable": "Invitation delivery is not connected. No invitation was sent.",
+        "savedNotEmailed": "The invitation was saved, but no email was sent: email isn't set up for KEEL, or delivery failed.",
         "sent": "Invitation sent.",
         "failed": "The invitation could not be sent."
       }

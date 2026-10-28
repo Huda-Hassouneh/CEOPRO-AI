@@ -611,8 +611,11 @@ def invite_team_member(body: InviteTeamMemberRequest, ctx: TenantContext = Depen
             )
         conn.commit()
 
-        notifications.send_team_invitation_email(body.email, business_name, raw_token)
-        return {"ok": True}
+        # The invitation is saved either way; say whether the email went out
+        # (no email service configured, or the send failed) so the screen
+        # never reports "sent" for an invitation nobody received.
+        email_sent = notifications.send_team_invitation_email(body.email, business_name, raw_token)
+        return {"ok": True, "email_sent": bool(email_sent)}
     except HTTPException:
         conn.rollback()
         raise
