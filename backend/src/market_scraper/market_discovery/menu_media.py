@@ -52,6 +52,11 @@ VISION_MODE = os.getenv("DISCOVERY_VISION_OCR", "off").lower()
 VISION_MAX_FILES = int(os.getenv("DISCOVERY_VISION_MAX_FILES", "3"))
 VISION_MODEL = os.getenv("DISCOVERY_VISION_MODEL", "gemini-2.5-flash")
 VISION_URL = os.getenv("GEMINI_VISION_URL", "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent")
+# Which vision model reads the pictures: gemini (GEMINI_API_KEYS) or groq (GROQ_API_KEY, an OpenAI-compatible vision
+# model). auto = Gemini when its key is set, otherwise Groq. Both are metered the same way (provider_billing.py).
+VISION_PROVIDER = os.getenv("DISCOVERY_VISION_PROVIDER", "gemini").lower()
+GROQ_VISION_MODEL = os.getenv("DISCOVERY_GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+GROQ_VISION_URL = os.getenv("GROQ_VISION_URL", "https://api.groq.com/openai/v1/chat/completions")
 VISION_MAX_SIDE = 2000
 VISION_PROMPT = ("This is a picture of a menu or price list. Transcribe every item that has a price, one per line, as "
                  "`item name  price currency` exactly as printed (keep Arabic and English as written; keep the printed "
@@ -342,16 +347,22 @@ def read_media(data: bytes, content_type: str = "", ocr: Optional[Callable] = No
 
 
 def vision_engine(limit: Optional[int] = None) -> Optional[Callable]:
-    """A callable PIL image -> text that asks a vision model (Gemini) to
-    transcribe a menu picture, or None when VISION_MODE is off or no key is
-    set. At most `limit` calls (default VISION_MAX_FILES) per engine, so one
-    site can only spend a bounded amount; each call is a metered paid request
-    (refused, never sent, when the budget or the provider price do not allow
-    it - the call then simply returns '' and OCR's result stands)."""
+    """A callable PIL image -> text that asks a vision model (Gemini, or Groq -
+    DISCOVERY_VISION_PROVIDER) to transcribe a menu picture, or None when
+    VISION_MODE is off or no key is set. At most `limit` calls (default
+    VISION_MAX_FILES) per engine, so one site can only spend a bounded amount;
+    each call is a metered paid request (refused, never sent, when the budget
+    or the provider price do not allow it - the call then simply returns ''
+    and OCR's result stands)."""
     if VISION_MODE not in ("fallback", "always"):
         return None
-    keys = [k.strip() for k in os.getenv("GEMINI_API_KEYS", "").split(",") if k.strip()]
-    if not keys:
+    gemini_keys = [k.strip() for k in os.getenv("GEMINI_API_KEYS", "").split(",") if k.strip()]
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+    if VISION_PROVIDER == "groq" or (VISION_PROVIDER == "auto" and not gemini_keys):
+        ask = (lambda image: _ask_groq(image, groq_key)) if groq_key else None
+    else:
+        ask = (lambda image: _ask_gemini(image, gemini_keys[0])) if gemini_keys else None
+    if ask is None:
         return None
     left = [VISION_MAX_FILES if limit is None else limit]
 
@@ -359,8 +370,42 @@ def vision_engine(limit: Optional[int] = None) -> Optional[Callable]:
         if left[0] <= 0:
             return ""
         left[0] -= 1
-        return _ask_gemini(image, keys[0])
+        return ask(image)
     return read
+
+
+def _jpeg(image) -> bytes:
+    rgb = image.convert("RGB")
+    if max(rgb.size) > VISION_MAX_SIDE:
+        scale = VISION_MAX_SIDE / max(rgb.size)
+        rgb = rgb.resize((max(1, int(rgb.width * scale)), max(1, int(rgb.height * scale))))
+    buffer = io.BytesIO()
+    rgb.save(buffer, "JPEG", quality=85)
+    return buffer.getvalue()
+
+
+def _ask_groq(image, key: str) -> str:
+    """The same transcription through Groq's OpenAI-compatible chat API with a vision model."""
+    import httpx
+
+    from src.market_scraper.provider_billing import metered_request
+
+    data_url = "data:image/jpeg;base64," + base64.b64encode(_jpeg(image)).decode()
+    body = {"model": GROQ_VISION_MODEL, "temperature": 0, "max_completion_tokens": 2048,
+            "messages": [{"role": "user", "content": [{"type": "text", "text": VISION_PROMPT},
+                                                      {"type": "image_url", "image_url": {"url": data_url}}]}]}
+
+    def send():
+        response = httpx.post(GROQ_VISION_URL, headers={"Authorization": f"Bearer {key}"}, json=body, timeout=60)
+        response.raise_for_status()
+        return response.json()
+
+    try:
+        data = metered_request(GROQ_VISION_URL, send, json_body=None)
+        return data["choices"][0]["message"]["content"] or ""
+    except Exception as exc:  # noqa: BLE001 - refused budget, HTTP error or odd answer: OCR's result stands
+        logger.warning("vision reading of a menu picture failed: %s", type(exc).__name__)
+        return ""
 
 
 def _ask_gemini(image, key: str) -> str:
@@ -368,14 +413,8 @@ def _ask_gemini(image, key: str) -> str:
 
     from src.market_scraper.provider_billing import metered_request
 
-    rgb = image.convert("RGB")
-    if max(rgb.size) > VISION_MAX_SIDE:
-        scale = VISION_MAX_SIDE / max(rgb.size)
-        rgb = rgb.resize((max(1, int(rgb.width * scale)), max(1, int(rgb.height * scale))))
-    buffer = io.BytesIO()
-    rgb.save(buffer, "JPEG", quality=85)
     body = {"contents": [{"parts": [{"text": VISION_PROMPT},
-                                    {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(buffer.getvalue()).decode()}}]}],
+                                    {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(_jpeg(image)).decode()}}]}],
             "generationConfig": {"temperature": 0}}
     url = VISION_URL.format(model=VISION_MODEL)
 

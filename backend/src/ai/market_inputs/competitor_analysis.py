@@ -131,6 +131,11 @@ def market_evidence(conn, tenant_id: str) -> List[dict]:
             payload = payload or {}
             text = (f"{name} lists {payload.get('name')} at {payload.get('price')} {payload.get('currency') or ''}".strip()
                     if payload.get("name") else f"{name} advertises: {payload.get('text')}")
+            # Prices outside the website say where they were seen: a delivery-app price is often above the in-store one.
+            where = {"delivery": "delivery app price", "maps_photos": "menu photo on Google Maps",
+                     "web_photos": "menu photo on the web"}.get(payload.get("channel"))
+            if where:
+                text += f" (on {payload['platform']}, {where})" if payload.get("platform") else f" ({where})"
             evidence.append({"text": text, "url": url})
     return evidence
 

@@ -27,6 +27,7 @@ _PAID: Dict[Tuple[str, str], Tuple[str, str, str]] = {
     ("api.apify.com", "/"): ("apify", "actor_run", "record"),
     # Reading a menu picture with a vision model (menu_media.py); refused until an operator sets a price.
     ("generativelanguage.googleapis.com", "/"): ("gemini_vision", "read_image", "request"),
+    ("api.groq.com", "/"): ("groq_vision", "read_image", "request"),
 }
 
 # Public services with no charge (their cost_schedule rows are 0). Hosts set

@@ -160,7 +160,8 @@ def test_serpapi_needs_a_key_parses_results_and_never_leaks_the_key(monkeypatch)
 
 def test_configured_order_defaults_cheapest_first_and_ignores_unknown_names(monkeypatch):
     monkeypatch.delenv("PRICE_LOOKUP_PROVIDERS", raising=False)
-    assert providers.configured_order() == ["open_prices", "web_offers", "serpapi_shopping"]
+    assert providers.configured_order() == ["open_prices", "web_offers", "delivery_menus", "search_snippets", "menu_photos",
+                                            "serpapi_shopping"]
     monkeypatch.setenv("PRICE_LOOKUP_PROVIDERS", "web_offers,nope")
     assert providers.configured_order() == ["web_offers"]
 

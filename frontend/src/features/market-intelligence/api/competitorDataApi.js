@@ -26,7 +26,7 @@ export const competitorDataApi = {
   dataStatus: async (id) => (await httpClient.get(`/competitors/${encodeURIComponent(id)}/data-status`)).data,
 
   // Retry one competitor now (waits for the result) or in the background.
-  // facets: optional subset of PROFILE | SOCIAL_LINKS | REVIEWS | NEWS | COMMENTS | PRICES | SOCIAL_CONTENT.
+  // facets: optional subset of PROFILE | SOCIAL_LINKS | REVIEWS | NEWS | COMMENTS | PRICES | SOCIAL_CONTENT | MARKET_MENUS.
   // depth 'deep' = "load more" (PRICES reads more pages and menu files, SOCIAL_CONTENT more posts); slow, so
   // pair it with background: true.
   retry: async (id, { facets, background = false, depth = 'standard' } = {}) => {
@@ -57,13 +57,14 @@ export const competitorDataApi = {
 
 export const THEMES = ['service', 'waiting', 'price', 'quality', 'cleanliness', 'staff', 'delivery', 'availability'];
 
-export const FACET_ORDER = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS', 'COMMENTS', 'PRICES', 'SOCIAL_CONTENT'];
+export const FACET_ORDER = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS', 'COMMENTS', 'PRICES', 'SOCIAL_CONTENT', 'MARKET_MENUS'];
 // Facets the plain Retry button re-collects (free or already-budgeted sources); sent explicitly so the button keeps
 // its behaviour as the server learns new facets.
 export const RETRYABLE_FACETS = ['PROFILE', 'SOCIAL_LINKS', 'REVIEWS', 'NEWS', 'COMMENTS'];
 // Facets with their own button, always run in the background: PRICES re-reads the competitor's website and its
-// menu files (OCR), SOCIAL_CONTENT reads social posts through a paid provider.
-export const ON_REQUEST_FACETS = ['PRICES', 'SOCIAL_CONTENT'];
+// menu files (OCR), SOCIAL_CONTENT reads social posts through a paid provider, MARKET_MENUS reads the competitor's
+// delivery-app listings and menu photos on Google Maps and the web (searches, photo calls and OCR).
+export const ON_REQUEST_FACETS = ['PRICES', 'SOCIAL_CONTENT', 'MARKET_MENUS'];
 
 // What an on-request facet's buttons should offer right now: whether it can run at all, and whether
 // "load more" makes sense (something was already collected that a deeper read can extend).
@@ -196,12 +197,15 @@ export function intelOrigin(fact) {
   return ['pdf_text', 'ocr', 'vision', 'caption'].includes(by) ? by : 'page';
 }
 
-// A read that is not the site's own structured data is worth a second look: only these show "check this".
+// A read that is not the site's own structured data is worth a second look: only these show "check this". So is a
+// delivery-app listing whose page only partly names the competitor (it may be another branch or business).
 export function needsCheck(fact) {
-  return !fact?.verified && ['ocr', 'vision', 'caption'].includes(intelOrigin(fact));
+  if (fact?.verified) return false;
+  return ['ocr', 'vision', 'caption'].includes(intelOrigin(fact)) || (fact?.channel === 'delivery' && !fact?.listing_verified);
 }
 
-// The platform a social-post fact came from, if any ('instagram' | 'facebook').
+// Where a fact came from outside the website, if anywhere: 'instagram' | 'facebook' (posts), 'delivery' (a delivery
+// or menu app listing), 'maps_photos' (Google Maps photos) or 'web_photos' (a menu picture found on the web).
 export function intelChannel(fact) {
   return fact?.channel && fact.channel !== 'website' ? fact.channel : null;
 }
