@@ -618,3 +618,33 @@ def test_an_evidence_summary_in_another_language_than_the_question_carries_a_not
                                          "evidence", "ar").get("note") is None
     assert advisor._flag_foreign_summary(summary, "ai", "ar") is summary  # the model answers in the question's language
     assert advisor._flag_foreign_summary(None, "evidence", "ar") is None
+
+
+def test_the_middle_of_a_very_long_message_reaches_the_model_and_the_prompt_stays_bounded(model, monkeypatch):
+    filler = " ".join(f"row{i} value{i}" for i in range(30000))
+    question = f"Here is our supplier export: {filler} Nablus Olive Co charged 3.75 JOD per litre. {filler} " \
+               "What did Nablus Olive Co charge per litre?"
+    reply = _reply(("Nablus Olive Co charged 3.75 JOD per litre.", "fact", ["E1"]))
+    _, fake = _answer_with_sales(model, monkeypatch, reply, reply, question=question)
+    prompt = fake.prompts[0][-1]["content"]
+    assert "Nablus Olive Co charged 3.75 JOD per litre" in prompt  # recalled as the user's own input
+    assert len(prompt) < 40000 < len(question)
+
+
+def test_a_message_from_far_back_in_the_conversation_is_still_remembered(model, monkeypatch):
+    history = [{"role": "user", "content": "Our warehouse rent is 1450 JOD a month."},
+               {"role": "assistant", "content": "Noted."}]
+    history += [{"role": "user" if i % 2 == 0 else "assistant", "content": f"small talk {i}"} for i in range(200)]
+    _, fake = _answer_with_sales(model, monkeypatch, _reply(("Rent is 1450 JOD.", "fact", ["E1"])),
+                                 question="How much is our warehouse rent?", history=history)
+    messages = fake.prompts[0]
+    assert "1450 JOD" in messages[-1]["content"]  # recalled as evidence
+    assert len(messages) == 2 + advisor.HISTORY_MESSAGES  # system, newest turns, question
+
+
+def test_with_the_ai_allowance_used_up_the_chat_still_answers_from_the_evidence(model, monkeypatch):
+    result, fake = _answer_with_sales(model, monkeypatch, use_ai=False)
+    assert fake.prompts == []  # no paid call
+    assert result["answer_mode"] == "evidence" and result["references"]
+    assert {"need": "answer_writing", "status": "allowance_used"} in result["evidence_status"]
+    assert "allowance" in result["answer"]

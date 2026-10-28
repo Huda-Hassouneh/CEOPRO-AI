@@ -2185,6 +2185,7 @@
     },
     "status": {
       "answerNotConfigured": "The AI writing service isn't set up on this server. Please ask your administrator to enable it.",
+      "answerAllowanceUsed": "Your plan's AI allowance for this period is used up, so this answer shows the evidence KEEL found without an AI summary. Upgrade your plan in Billing for AI-written answers.",
       "researchNotConfigured": "Public research isn't set up on this server, so this answer uses only your own data and documents.",
       "researchBudget": "Today's public research allowance is used up, so this answer could not check public sources.",
       "researchFailed": "Public research couldn't be completed right now, so public sources weren't checked.",

@@ -1316,3 +1316,96 @@ def test_readiness_reports_each_dependency_and_503_when_one_is_down(monkeypatch)
     assert failing.status_code == 503
     assert failing.json()["checks"]["redis"] == {"ok": False, "ms": failing.json()["checks"]["redis"]["ms"], "error": "ConnectionError"}
     assert "refused" not in failing.text, "error details stay in the server log"
+
+
+def test_rag_query_takes_a_message_of_any_length_in_the_body():
+    """The URL form keeps its length cap; a JSON body has none of its own -
+    the assistant recalls whatever part of the text the answer needs."""
+    from src.ai.routers.rag import _MAX_QUERY_TEXT_LENGTH
+
+    message = "Our full price list: " + "x" * (_MAX_QUERY_TEXT_LENGTH * 50)
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.rag.rag_advisor.answer", return_value={"answer": "Done."}) as mock_answer, \
+         patch("src.ai.routers.rag.conversation_store.create_session", return_value="sess-1"), \
+         patch("src.ai.routers.rag.conversation_store.append_message") as mock_append_message:
+        response = client.post("/rag/query", json={"query_text": message}, headers=_auth())
+
+    assert response.status_code == 200, response.text
+    assert mock_answer.call_args.args[2] == message
+    assert mock_append_message.call_args_list[0].args[5] == message  # stored in full
+
+
+def test_rag_query_loads_the_whole_conversation_for_a_session():
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.rag.rag_advisor.answer", return_value={"answer": "Done."}), \
+         patch("src.ai.routers.rag.conversation_store.session_exists", return_value=True), \
+         patch("src.ai.routers.rag.conversation_store.load_session_state", return_value=None), \
+         patch("src.ai.routers.rag.conversation_store.load_session_history", return_value=[]) as mock_history, \
+         patch("src.ai.routers.rag.conversation_store.append_message"):
+        response = client.post("/rag/query", json={"query_text": "q", "session_id": "sess-1"}, headers=_auth())
+
+    assert response.status_code == 200, response.text
+    assert mock_history.call_args.kwargs["limit"] is None
+
+
+def test_rag_query_rejects_an_empty_body_message():
+    response = client.post("/rag/query", json={"query_text": ""}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_rag_query_keeps_answering_when_the_plan_allowance_is_used_up():
+    from src.ai.core import usage as usage_module
+
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.rag.usage.reserve",
+               side_effect=usage_module.PlanLimitReached("QUOTA_EXHAUSTED", usage_module.RAG_ASSISTANT)), \
+         patch("src.ai.routers.rag.usage.release") as mock_release, \
+         patch("src.ai.routers.rag.rag_advisor.answer",
+               return_value={"answer": "Evidence.", "answer_mode": "evidence"}) as mock_answer, \
+         patch("src.ai.routers.rag.conversation_store.create_session", return_value="sess-1"), \
+         patch("src.ai.routers.rag.conversation_store.append_message"):
+        response = client.post("/rag/query", json={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 200, response.text
+    assert mock_answer.call_args.kwargs["use_ai"] is False
+    mock_release.assert_not_called()  # nothing was reserved
+
+
+def test_rag_query_keeps_answering_when_the_ai_credits_run_out_mid_question():
+    from src.ai.billing import credits as credits_module
+
+    fake_conn = MagicMock()
+    calls = []
+
+    def answer(*args, **kwargs):
+        calls.append(kwargs["use_ai"])
+        if kwargs["use_ai"]:
+            raise credits_module.BudgetError("BUDGET_EXHAUSTED", "ai")
+        return {"answer": "Evidence.", "answer_mode": "evidence"}
+
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.rag.usage.release") as mock_release, \
+         patch("src.ai.routers.rag.rag_advisor.answer", side_effect=answer), \
+         patch("src.ai.routers.rag.conversation_store.create_session", return_value="sess-1"), \
+         patch("src.ai.routers.rag.conversation_store.append_message"):
+        response = client.post("/rag/query", json={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 200, response.text
+    assert calls == [True, False]
+    mock_release.assert_called_once()  # the evidence answer used no allowance
+
+
+def test_rag_query_still_refuses_a_company_without_an_active_subscription():
+    from src.ai.core import usage as usage_module
+
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.rag.usage.reserve",
+               side_effect=usage_module.PlanLimitReached("SUBSCRIPTION_INACTIVE", usage_module.RAG_ASSISTANT)), \
+         patch("src.ai.routers.rag.rag_advisor.answer") as mock_answer:
+        response = client.post("/rag/query", json={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 402
+    mock_answer.assert_not_called()
