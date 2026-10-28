@@ -13,6 +13,17 @@ matching.py) and none raises for "nothing found" - only ProviderUnavailable
                   Honours robots.txt, public addresses only, no logins.
   serpapi_shopping  Google Shopping results through SerpAPI (paid, opt in with
                   SERPAPI_API_KEY): price, seller, rating, review count.
+  delivery_menus  The same dish / item on delivery and menu platforms
+                  (Talabat, Careem, HungerStation, Deliveroo, Zomato...) found
+                  through the configured web search: each listing's menu data
+                  (market_menus.py) - seller is the restaurant on the listing.
+                  Honours robots.txt, public addresses only.
+  search_snippets Prices printed in the web search results themselves (title
+                  and snippet) for "<product> price"; no page is fetched, so it
+                  is the cheapest way to see many sellers' prices at once.
+  menu_photos     Menu pictures on the web that list the product (image
+                  search + OCR / vision, menu_media.py). Needs an image-capable
+                  search provider and the OCR engine or a vision model.
 
 FLAGGED, NOT HIDDEN: the Open Prices and SerpAPI response field names below
 come from the vendors' public documentation and have not been exercised
@@ -337,8 +348,149 @@ class SerpApiShopping:
         return quotes
 
 
-PROVIDERS = {cls.name: cls for cls in (OpenPrices, WebOffers, SerpApiShopping)}
-DEFAULT_ORDER = "open_prices,web_offers,serpapi_shopping"  # free first, paid last
+# ------------------------------------------------- menus and search results
+
+def _search_or_raise(search, query: str, limit: int, country: Optional[str]):
+    try:
+        return search(query, max_results=limit, country=country)[1]
+    except web_search.SearchFailed as exc:
+        if str(exc) == "not_configured":
+            raise ProviderUnavailable("no web search provider is configured") from exc
+        raise ProviderError("web search failed") from exc
+
+
+def _matching_items(ctx: ProductContext, items: List[dict]) -> List[dict]:
+    return [item for item in items if item.get("price") is not None and item.get("currency")
+            and matching.is_match(matching.match_score(ctx.name, item["name"]))]
+
+
+def _host_name(url: str) -> str:
+    return (urlsplit(url).hostname or "").removeprefix("www.")
+
+
+class DeliveryMenus:
+    """The product on delivery / menu platform listings in the company's country (restaurants, cafes, shops)."""
+    name = "delivery_menus"
+    MAX_RESULTS = 10
+    MAX_PAGES = 4
+
+    def __init__(self, search=web_search.search, fetch_page: Optional[Callable[[str], Optional[str]]] = None):
+        self._search, self._fetch_page = search, fetch_page
+
+    def available(self) -> bool:
+        return web_search.is_configured()
+
+    def search(self, ctx: ProductContext) -> List[PriceQuote]:
+        from src.market_scraper import market_menus
+
+        where = f" {country_name(ctx.country_code)}" if ctx.country_code else ""
+        query = f"\"{ctx.name}\"{where} talabat OR careem OR hungerstation OR jahez OR deliveroo OR zomato OR elmenus"
+        results = _search_or_raise(self._search, query, self.MAX_RESULTS, ctx.country_code)
+        fetch = self._fetch_page or market_menus.fetch_page
+        quotes: List[PriceQuote] = []
+        pages = 0
+        for result in results:
+            if pages >= self.MAX_PAGES or not market_menus.platform_of(result.url):
+                continue
+            pages += 1
+            html = fetch(result.url)
+            if not html:
+                continue
+            items, _fees = market_menus.platform_items(html, ctx.country_code)
+            items = items or page_reader_items(html, ctx.country_code)
+            seller = market_menus.listing_title(html) or result.title
+            platform = market_menus.platform_of(result.url)
+            for item in _matching_items(ctx, items)[:3]:
+                quotes.append(PriceQuote(provider=self.name, title=item["name"], price=item["price"], currency=item["currency"],
+                                         seller=f"{seller} ({platform})"[:200], url=result.url))
+        return quotes
+
+
+def page_reader_items(html: str, country: Optional[str]) -> List[dict]:
+    """A page's priced items when it has no platform menu data: schema.org data, then the page text."""
+    from src.market_scraper.market_discovery import intel
+
+    items = [i for i in intel.structured_products(html, country) if i.get("price") is not None]
+    return items or intel.text_prices(intel.visible_text_lines(html), country, True)
+
+
+class SearchSnippets:
+    """Prices printed in the search results for the product (title + snippet), one quote per seller site."""
+    name = "search_snippets"
+    MAX_RESULTS = 20
+
+    def __init__(self, search=web_search.search):
+        self._search = search
+
+    def available(self) -> bool:
+        return web_search.is_configured()
+
+    def search(self, ctx: ProductContext) -> List[PriceQuote]:
+        from src.market_scraper.market_discovery import intel
+
+        where = f" {country_name(ctx.country_code)}" if ctx.country_code else ""
+        results = _search_or_raise(self._search, f"\"{ctx.name}\" price{where}", self.MAX_RESULTS, ctx.country_code)
+        quotes: List[PriceQuote] = []
+        seen = set()
+        for result in results:
+            host = _host_name(result.url)
+            if not host or host in seen:
+                continue
+            lines = [result.title] + re.split(r"(?<=[.!?])\s+|\s[|•·]\s|\n", result.snippet or "")
+            items = intel.text_prices([line for line in lines if line], ctx.country_code, False)
+            for item in _matching_items(ctx, items)[:1]:
+                seen.add(host)
+                quotes.append(PriceQuote(provider=self.name, title=item["name"], price=item["price"], currency=item["currency"],
+                                         seller=host, url=result.url))
+        return quotes
+
+
+class MenuPhotos:
+    """Menu pictures on the web that show the product with a price (image search, then OCR / vision)."""
+    name = "menu_photos"
+    MAX_PICTURES = 4
+
+    def __init__(self, image_search=web_search.image_search, fetch_media: Optional[Callable] = None, ocr: Optional[Callable] = None):
+        self._image_search, self._fetch_media, self._ocr = image_search, fetch_media, ocr
+
+    def available(self) -> bool:
+        from src.market_scraper.market_discovery import menu_media
+
+        providers = web_search.configured_providers()
+        can_read = self._ocr is not None or menu_media.ocr_available() or menu_media.vision_engine(limit=0) is not None
+        return can_read and any(p in web_search.IMAGE_PROVIDERS for p in providers)
+
+    def search(self, ctx: ProductContext) -> List[PriceQuote]:
+        from src.market_scraper import market_menus
+        from src.market_scraper.market_discovery import intel, menu_media
+
+        where = f" {country_name(ctx.country_code)}" if ctx.country_code else ""
+        try:
+            _provider, pictures = self._image_search(f"\"{ctx.name}\" menu price{where}", max_results=12, country=ctx.country_code)
+        except web_search.SearchFailed as exc:
+            if str(exc) == "not_configured":
+                raise ProviderUnavailable("no image search provider is configured") from exc
+            raise ProviderError("image search failed") from exc
+        fetch = self._fetch_media or market_menus.fetch_media
+        vision = menu_media.vision_engine(limit=self.MAX_PICTURES)
+        ready = self._ocr is not None or menu_media.ocr_available()
+        quotes: List[PriceQuote] = []
+        for picture in pictures[: self.MAX_PICTURES]:
+            data = fetch(picture.image_url)
+            if not data:
+                continue
+            lines, _method = menu_media.read_media(data[0], data[1], ocr=self._ocr, ocr_ready=ready, vision=vision)
+            items = intel.text_prices(lines, ctx.country_code, True) if lines else []
+            source = picture.page_url or picture.image_url
+            for item in _matching_items(ctx, items)[:1]:
+                quotes.append(PriceQuote(provider=self.name, title=item["name"], price=item["price"], currency=item["currency"],
+                                         seller=_host_name(source) or None, url=source))
+        return quotes
+
+
+PROVIDERS = {cls.name: cls for cls in (OpenPrices, WebOffers, DeliveryMenus, SearchSnippets, MenuPhotos, SerpApiShopping)}
+# Free first, paid last; menu photos cost OCR time and a search, so they come after the page readers.
+DEFAULT_ORDER = "open_prices,web_offers,delivery_menus,search_snippets,menu_photos,serpapi_shopping"
 
 
 def configured_order() -> List[str]:

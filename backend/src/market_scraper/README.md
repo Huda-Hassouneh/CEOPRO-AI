@@ -926,3 +926,28 @@ that does, not something bundled into the always-on test suite above.
 
 Playwright should be added only for an approved source that genuinely requires JavaScript
 rendering. Installing a browser runtime for a static page is expensive YAGNI cosplay.
+
+## Menus and prices outside the competitor's website (`market_menus.py`)
+
+The `MARKET_MENUS` competitor facet ("Read delivery apps & menu photos", on request only, `deep` = load more) adds
+three sources on top of the website reader and the social post reader:
+
+| Channel | Source | Needs |
+|---|---|---|
+| `delivery` | The competitor's listing on Talabat, Careem, HungerStation, Jahez, Keeta, Deliveroo, Uber Eats, Zomato, elmenus, Noon, Wolt, Glovo, Restaurant Guru... found by web search. Reads the platform's embedded menu data (every item, price, price before discount, section, options, availability) plus delivery fee / minimum order / service fee (`type="fee"`). robots.txt honoured. | A web search provider (`TAVILY_API_KEY`, `BRAVE_SEARCH_API_KEY` or `SEARXNG_INSTANCE_URL`) |
+| `maps_photos` | Photos on the competitor's Google Maps listing, kept only when OCR finds a price list. | `GOOGLE_PLACES_API_KEY`, `PLACES_TERMS_APPROVAL_REFERENCE` |
+| `web_photos` | Menu pictures anywhere on the web (image search), kept only when they name the business and show a price list. | An image-capable search provider (Tavily, Brave or SearXNG) |
+
+A delivery listing whose page names the business feeds automatic price matching (marked `price_context="delivery_app"`);
+partly-matching listings and photo prices wait for the owner's confirmation. Pictures are read with tesseract, and with a
+vision model when `DISCOVERY_VISION_OCR=fallback|always`: Gemini (`GEMINI_API_KEYS`, default) or Groq
+(`DISCOVERY_VISION_PROVIDER=groq`, `GROQ_API_KEY`, model `DISCOVERY_GROQ_VISION_MODEL`). Both are metered and refused
+until an operator prices `gemini_vision` / `groq_vision` (migration `20261101000000`).
+
+Single-product price lookup (`price_lookup/providers.py`) gained three providers, in the default order after
+`web_offers`: `delivery_menus` (the product on delivery platform listings), `search_snippets` (prices printed in search
+results, one per seller site) and `menu_photos` (menu pictures + OCR). `PRICE_LOOKUP_ALL_PROVIDERS=true` collects from
+every provider instead of stopping at the first that finds a price.
+
+Limits: platform field names are read loosely and were not exercised against live platform pages from the build
+environment; a first real run should confirm them per platform.

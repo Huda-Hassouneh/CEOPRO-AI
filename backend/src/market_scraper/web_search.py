@@ -177,6 +177,78 @@ def _searxng_news(fetch: Fetch, query: str, limit: int, country: Optional[str]) 
 NEWS_PROVIDERS: Dict[str, Callable] = {"brave": _brave_news, "tavily": _tavily_news, "searxng": _searxng_news}
 
 
+@dataclass(frozen=True)
+class ImageResult:
+    """One picture an image search found: the picture's address, the page it sits on (when stated) and the
+    words the provider gives with it (title / description), which is how a caller checks whose picture it is."""
+    image_url: str
+    page_url: Optional[str]
+    title: str
+
+
+BRAVE_IMAGES_URL = "https://api.search.brave.com/res/v1/images/search"
+
+
+def _tavily_images(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[ImageResult]:
+    body = {"query": query, "max_results": min(limit, 20), "search_depth": "basic", "include_images": True,
+            "include_image_descriptions": True}
+    payload = fetch("POST", TAVILY_URL, json=body, headers={"Authorization": f"Bearer {os.environ['TAVILY_API_KEY']}"})
+    out = []
+    for image in payload.get("images") or []:
+        url, description = (image, "") if isinstance(image, str) else (image.get("url"), image.get("description") or "")
+        if url:
+            out.append(ImageResult(image_url=url, page_url=None, title=description[:300]))
+    return out[:limit]
+
+
+def _brave_images(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[ImageResult]:
+    params = {"q": query, "count": min(limit, 50)}
+    if country:
+        params["country"] = country.upper()
+    payload = fetch("GET", BRAVE_IMAGES_URL, params=params,
+                    headers={"Accept": "application/json", "X-Subscription-Token": os.environ["BRAVE_SEARCH_API_KEY"]})
+    out = []
+    for item in payload.get("results") or []:
+        url = (item.get("properties") or {}).get("url") or (item.get("thumbnail") or {}).get("src")
+        if url:
+            out.append(ImageResult(image_url=url, page_url=item.get("url"), title=item.get("title") or ""))
+    return out[:limit]
+
+
+def _searxng_images(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[ImageResult]:
+    base = os.environ["SEARXNG_INSTANCE_URL"].rstrip("/")
+    payload = fetch("GET", f"{base}/search", params={"q": query, "format": "json", "categories": "images"})
+    out = []
+    for item in payload.get("results") or []:
+        url = item.get("img_src")
+        if url:
+            out.append(ImageResult(image_url=url, page_url=item.get("url"), title=item.get("title") or item.get("content") or ""))
+    return out[:limit]
+
+
+# Only providers with an image mode; a Google CSE key is skipped for images.
+IMAGE_PROVIDERS: Dict[str, Callable] = {"brave": _brave_images, "tavily": _tavily_images, "searxng": _searxng_images}
+
+
+def image_search(query: str, max_results: int = 10, country: Optional[str] = None,
+                 fetch: Optional[Fetch] = None) -> Tuple[str, List[ImageResult]]:
+    """(provider, pictures) from the first configured provider that has an image mode and answers - used to find
+    menu and price-list photos published anywhere on the web. Raises SearchFailed ("not_configured" /
+    "unreachable") like search()."""
+    fetch = fetch or _default_fetch
+    providers = [p for p in configured_providers() if p in IMAGE_PROVIDERS]
+    if not providers:
+        raise SearchFailed("not_configured")
+    failures = []
+    for name in providers:
+        try:
+            return name, IMAGE_PROVIDERS[name](fetch, query, max_results, country)
+        except (httpx.HTTPError, ValueError, KeyError, SearchFailed) as exc:
+            failures.append(_failure(name, exc))
+            logger.warning("image search failed - %s", failures[-1])
+    raise SearchFailed("unreachable", failures)
+
+
 PROVIDERS: Dict[str, Tuple[Tuple[str, ...], Callable]] = {
     "google_cse": (("GOOGLE_CUSTOM_SEARCH_API_KEY", "GOOGLE_CUSTOM_SEARCH_CX"), _google_cse),
     "brave": (("BRAVE_SEARCH_API_KEY",), _brave),

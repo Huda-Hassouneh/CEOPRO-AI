@@ -56,7 +56,7 @@ export function useRetryCompetitor() {
   });
 }
 
-// Starts one competitor's PRICES / SOCIAL_CONTENT collection in the background (deep = "load more"). The job takes
+// Starts one competitor's PRICES / SOCIAL_CONTENT / MARKET_MENUS collection in the background (deep = "load more"). The job takes
 // a while, so what is shown is refreshed now and again shortly, and the data-status poll keeps going while queued.
 export function useRetryFacet() {
   const queryClient = useQueryClient();
