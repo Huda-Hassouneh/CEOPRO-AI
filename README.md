@@ -45,7 +45,7 @@ Setup creates a private, Git-ignored `.dev/` directory, a new venv, frontend dep
 
 Required database, Redis, JWT, vault, storage, SMTP and URL configuration is generated once in `.dev/config.json`. Keep this directory private and out of Git. Never copy it between checkouts.
 
-Optional provider settings belong in `.dev/integrations.env`; start with [the safe example](tools/dev/integrations.env.example). Empty/missing provider credentials mean those capabilities are unavailable. Setup creates no financial rates, promotions, quotes, subscriptions or Credits.
+Optional provider settings belong in `.dev/integrations.env`; start with [the safe example](tools/dev/integrations.env.example). Empty/missing provider credentials mean those capabilities are unavailable. Setup creates no promotions, quotes, subscriptions or Credits. Startup migrations install the [approved AI provider pricing catalog](docs/DATABASE.md#approved-ai-provider-pricing-catalog), preserving configured rates; other paid models still need approved costs.
 
 For model-dependent development, install the existing model libraries explicitly:
 

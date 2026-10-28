@@ -170,8 +170,16 @@ Prices are never invented. Seeded at $0:
 - the local llama-server;
 - the keyless Pollinations image endpoint.
 
-Every paid provider below starts unpriced. **Its calls are refused
-(`COST_NOT_CONFIGURED`) until an operator records the confirmed price:**
+Installation migrations now include the approved `ai-provider-pricing-v1`
+catalog: Groq `openai/gpt-oss-20b`, USD 0.075/million input tokens and
+USD 0.30/million output tokens (approved 2026-10-28). Fresh databases receive
+these rates automatically; existing configured rates remain unchanged.
+See [catalog installation, preservation and future approvals](DATABASE.md#approved-ai-provider-pricing-catalog).
+Customer Credits, credit conversion policy and subscription prices are separate.
+
+Other paid providers/models below remain unpriced until approved costs are
+configured. **Missing costs refuse calls with `COST_NOT_CONFIGURED`; they are
+never assumed to be zero:**
 
 | Budget | Provider (operation) | Unit | Where the real price comes from |
 |---|---|---|---|
@@ -185,22 +193,23 @@ Every paid provider below starts unpriced. **Its calls are refused
 | Data | `brave_search`, `tavily`, `serpapi` (`search`) | request | provider plan |
 | Data | `apify` (`actor_run`) | record (reconciled) | Apify actor pricing / run cost |
 
-The assistant's default model (`GROQ_MODEL=openai/gpt-oss-20b`) at
-Groq's listed price. Run this on every new database (local, staging,
-production) before the assistant can answer; `./keel llm-check` reports a
-missing price. Cached input tokens are charged at the input price unless a
-`cache_read_token` price is recorded too.
+No Platform Owner credentials or manual `set-price` command are required on
+normal startup for the approved default model. Credentials, entitlements,
+spending controls and credit accounting must still be configured independently.
+Cached input tokens are charged at the input price unless a `cache_read_token`
+price is recorded too.
+
+Intentional operator changes use the existing authenticated owner command
+below, with an active Platform Owner UUID and `--owner-token-stdin`. Supply
+the real owner token securely on stdin, never as a command argument or in Git.
+These are administrative changes, not startup steps; substitute independently
+approved values rather than running placeholders:
 
 ```bash
 cd backend   # DATABASE_URL = the schema-owning role
-python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \
-  --unit input_token --usd-per-million 0.075 --source "Groq Supported Models page (console.groq.com/docs/models)" \
-  --verified-on 2026-10-17 --by "<name>" --reason "Groq list price"
-python -m scripts.billing_admin set-price --budget ai --provider groq --operation openai/gpt-oss-20b \
-  --unit output_token --usd-per-million 0.30 --source "Groq Supported Models page (console.groq.com/docs/models)" \
-  --verified-on 2026-10-17 --by "<name>" --reason "Groq list price"
 python -m scripts.billing_admin set-price --budget data --provider google_places --operation text_search \
-  --unit request --usd <confirmed> --source "..." --verified-on 2026-10-20 --by "<name>" --reason "..."
+  --unit request --usd <confirmed> --source "<approved source>" --verified-on <approval-date> \
+  --by "<PLATFORM_OWNER_USER_UUID>" --owner-token-stdin --reason "<approved reason>"
 ```
 
 The marketing image chain skips an unpriced provider and tries the next

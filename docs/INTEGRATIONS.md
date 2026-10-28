@@ -35,6 +35,7 @@ Prior Stripe acceptance is historical evidence; no Stripe E2E is rerun by `dev.p
 - `setup --models` installs the existing CPU/model libraries. Model weights may download from their actual hosts on first use. The launcher never substitutes dummy predictions.
 - Hosted LLM/image/search credentials belong in `.dev/integrations.env`. Read `backend/KEYS_AND_ACCOUNTS_NEEDED.md` and `docs/SUBSCRIPTIONS_AND_CREDITS.md`.
 - Configured credentials alone do not authorize spending. Verified cost schedules, entitlements, Credits and reservation/settlement rules still apply. See [RAG provider pricing and 503 diagnosis](RAG_ASSISTANT_503_FIX.md) for the separate credential and verified-cost requirements.
+- Startup migrations install the [approved AI provider pricing catalog](DATABASE.md#approved-ai-provider-pricing-catalog), initially Groq `openai/gpt-oss-20b`, while preserving configured rates. No Platform Owner login or provider call is needed for bootstrap. Other models still need their own approved costs.
 - Without confirmed financial inputs, pricing/paid operations remain unavailable with their existing messages. No fabricated rates/margins are inserted.
 - SearXNG, local LLM/image servers and telemetry exist in the legacy Compose topology but are optional. They are not started as hidden prerequisites by the new local command.
 - Browser-assisted scraping needs `python -m playwright install chromium` in the developer venv and may need OS dependencies. It is unnecessary for ordinary startup.
