@@ -5,7 +5,7 @@ import useSWR from "../../../shared/lib/useSWRCompat.js";
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 import { routePaths } from "../../../app/router/routePaths.js";
 import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
-import Badge from "../../../shared/components/ui/Badge.jsx";
+import Badge from "../components/OriginalBillingBadge.jsx";
 import Button from "../../../shared/components/ui/Button.jsx";
 import Card from "../../../shared/components/ui/Card.jsx";
 import EmptyState from "../../../shared/components/ui/EmptyState.jsx";
@@ -21,6 +21,7 @@ import { billingApi } from "../api/billingApi.js";
 import { getApiError, isForbiddenBillingError } from "../api/catalogPresentationErrors.js";
 import "../styles/BillingCatalogOriginal.css";
 import "../styles/BillingCatalogPlansOriginal.css";
+import "../styles/BillingLegacyTheme.css";
 
 const swrOptions = { shouldRetryOnError: false, revalidateOnFocus: false };
 const DEFAULT_BILLING_OPTIONS = [
@@ -253,7 +254,7 @@ function PlanFormModal({
           <Button variant="outline" onClick={onClose} disabled={saving}>
             {t("common.cancel")}
           </Button>
-          <Button type="submit" form="billing-plan-form" loading={saving}>
+          <Button type="submit" form="billing-plan-form" loading={saving} disabled={api.capabilities?.planTerms === false}>
             {t("common.save")}
           </Button>
         </>
@@ -264,6 +265,7 @@ function PlanFormModal({
         className="billing-catalog-form"
         onSubmit={handleSubmit}
       >
+        {api.capabilities?.planTerms === false && <p role="note" className="billing-catalog-permission-note">{t("billing.catalog.legacyRestoration.planTermsGuard")}</p>}
         <div className="billing-catalog-form-grid">
           <Input
             label={t("billing.catalog.fields.name")}
@@ -808,7 +810,7 @@ function FeatureFormModal({
           <Button variant="outline" onClick={onClose} disabled={saving}>
             {t("common.cancel")}
           </Button>
-          <Button type="submit" form="billing-feature-form" loading={saving}>
+          <Button type="submit" form="billing-feature-form" loading={saving} disabled={!editing && api.capabilities?.featureDefinitions === false}>
             {t("common.save")}
           </Button>
         </>
@@ -819,6 +821,7 @@ function FeatureFormModal({
         className="billing-catalog-form"
         onSubmit={handleSubmit}
       >
+        {api.capabilities?.featureDefinitions === false && <p role="note" className="billing-catalog-permission-note">{t("billing.catalog.legacyRestoration.featureGuard")}</p>}
         <div className="billing-catalog-form-grid">
           {!editing && (
             <Input
@@ -847,7 +850,7 @@ function FeatureFormModal({
           />
           <Select
             label={t("billing.catalog.fields.type")}
-            value={form.type}
+            value={form.type} disabled={api.capabilities?.featureDefinitions === false}
             onChange={(event) => setForm({ ...form, type: event.target.value })}
             options={[
               {
@@ -863,7 +866,7 @@ function FeatureFormModal({
                 label={t("billing.catalog.fields.unit")}
                 hint={t("billing.catalog.features.unitHint")}
                 maxLength={50}
-                value={form.unit}
+                value={form.unit} disabled={api.capabilities?.featureDefinitions === false}
                 onChange={(event) =>
                   setForm({ ...form, unit: event.target.value })
                 }
@@ -871,7 +874,7 @@ function FeatureFormModal({
               <Input
                 label={t("billing.catalog.fields.unitAr")}
                 maxLength={50}
-                value={form.unit_ar}
+                value={form.unit_ar} disabled={api.capabilities?.featureDefinitions === false}
                 onChange={(event) =>
                   setForm({ ...form, unit_ar: event.target.value })
                 }
@@ -879,7 +882,7 @@ function FeatureFormModal({
               />
               <Select
                 label={t("billing.catalog.fields.aggregation")}
-                value={form.aggregation_type}
+                value={form.aggregation_type} disabled={api.capabilities?.featureDefinitions === false}
                 onChange={(event) => {
                   const aggregation_type = event.target.value;
                   setForm({
@@ -897,7 +900,7 @@ function FeatureFormModal({
               <Select
                 label={t("billing.catalog.fields.resetCycle")}
                 value={form.reset_cycle}
-                disabled={form.aggregation_type === "max"}
+                disabled={api.capabilities?.featureDefinitions === false || form.aggregation_type === "max"}
                 onChange={(event) =>
                   setForm({ ...form, reset_cycle: event.target.value })
                 }
@@ -1425,6 +1428,8 @@ function PlatformCustomPlansManager({ api, t, locale, canManage }) {
                       variant="outline"
                       size="sm"
                       onClick={() => setTarget(plan)}
+                      disabled={api.capabilities?.customContractToggle === false}
+                      title={api.capabilities?.customContractToggle === false ? t("billing.catalog.legacyRestoration.contractGuard") : undefined}
                     >
                       {t(plan.isActive ? "common.disable" : "common.enable")}
                     </Button>
@@ -1631,6 +1636,10 @@ export function BillingCatalogPage({
   canManage = true,
   canManagePricing = true
 }) {
+  useEffect(()=>{
+    document.body.classList.add('keel-owner-billing-legacy');
+    return ()=>document.body.classList.remove('keel-owner-billing-legacy');
+  },[]);
   const { t, locale, dir } = useI18n();
   const navigate = useNavigate();
   const [planModal, setPlanModal] = useState({ open: false, plan: null });
@@ -1878,6 +1887,8 @@ export function BillingCatalogPage({
                 variant="outline"
                 size="sm"
                 onClick={() => setFeatureRemoveTarget(feature)}
+                disabled={api.capabilities?.featureDefinitions === false}
+                title={api.capabilities?.featureDefinitions === false ? t("billing.catalog.legacyRestoration.featureGuard") : undefined}
                 leadingIcon={<Trash2 size={13} />}
               >
                 {t("common.remove")}
@@ -2240,6 +2251,7 @@ export function BillingCatalogPage({
             </Button>
             <Button
               loading={featureRemoveBusy}
+              disabled={api.capabilities?.featureDefinitions === false}
               onClick={async () => {
                 if (!featureRemoveTarget) return;
                 setFeatureRemoveBusy(true);

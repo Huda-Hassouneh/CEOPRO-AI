@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, field_validator
 
 from src.ai import db
-from src.ai.billing import admin as billing_admin, custom_offers, custom_plan_pricing_service, promotions
+from src.ai.billing import admin as billing_admin, custom_offers, custom_plan_pricing_service, promotions, owner_promotions
 from src.ai.core import auth_throttle, security
 from src.ai.core.authorization import require_platform_permission
 from src.ai.core.security import TenantContext, get_tenant_context
@@ -236,9 +236,9 @@ def _promotion_error(error: promotions.PromotionError) -> HTTPException:
 @router.get("/billing/promotions")
 def promotion_definitions(ctx: Ctx):
     _promotion_operator(ctx)
-    conn = db.system_connection()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = promotions.list_definitions(conn, ctx.user_id)
+        result = owner_promotions.list_definitions(conn, ctx.user_id)
         conn.commit()
         return {"items": result}
     except promotions.PromotionError as exc:
@@ -251,9 +251,9 @@ def promotion_definitions(ctx: Ctx):
 @router.post("/billing/promotions", status_code=201)
 def create_promotion_draft(body: PromotionDraft, ctx: Ctx):
     _promotion_operator(ctx)
-    conn = db.system_connection()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = promotions.save_draft(conn, actor_user_id=ctx.user_id, code=body.code, name=body.name,
+        result = owner_promotions.save_draft(conn, actor_user_id=ctx.user_id, code=body.code, name=body.name,
                                        description=body.description, terms=body.terms,
                                        plan_keys=body.plan_keys, reason=body.reason)
         conn.commit()
@@ -274,9 +274,9 @@ def create_promotion_draft(body: PromotionDraft, ctx: Ctx):
 @router.patch("/billing/promotions/{promotion_id}")
 def update_promotion_draft(promotion_id: UUID, body: PromotionDraft, ctx: Ctx):
     _promotion_operator(ctx)
-    conn = db.system_connection()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = promotions.save_draft(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id),
+        result = owner_promotions.save_draft(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id),
                                        code=body.code, name=body.name, description=body.description,
                                        terms=body.terms, plan_keys=body.plan_keys, reason=body.reason)
         conn.commit()
@@ -297,9 +297,9 @@ def update_promotion_draft(promotion_id: UUID, body: PromotionDraft, ctx: Ctx):
 @router.post("/billing/promotions/{promotion_id}/disable")
 def disable_promotion(promotion_id: UUID, body: Reason, ctx: Ctx):
     _promotion_operator(ctx)
-    conn = db.system_connection()
+    conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = promotions.disable(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id), reason=body.reason)
+        result = owner_promotions.disable(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id), reason=body.reason)
         conn.commit()
         return result
     except promotions.PromotionError as exc:
@@ -312,9 +312,9 @@ def disable_promotion(promotion_id: UUID, body: Reason, ctx: Ctx):
 @router.post("/billing/promotions/{promotion_id}/activate")
 def activate_promotion(promotion_id: UUID, body: PromotionActivation, ctx: Ctx):
     _promotion_operator(ctx)
-    conn = db.system_connection()
+    conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = promotions.activate(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id),
+        result = owner_promotions.activate(conn, actor_user_id=ctx.user_id, promotion_id=str(promotion_id),
                                      approval_reference=body.approval_reference, reason=body.reason)
         conn.commit()
         return result
@@ -584,12 +584,14 @@ def create_custom_quote(body: CustomQuoteDraft, ctx: Ctx):
 @router.get("/billing/custom-quotes/{quote_id}")
 def get_custom_quote(quote_id: UUID, ctx: Ctx):
     _custom_quote_operator(ctx)
-    conn = db.system_connection()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = custom_offers.quote_detail(conn, str(quote_id), include_private=True)
+        result = custom_offers.admin_quote_detail(conn, str(quote_id))
         if result is None:
             raise HTTPException(status_code=404, detail="Quote not found.")
         return result
+    except custom_offers.CustomOfferError as exc:
+        raise _custom_quote_http_error(exc)
     finally:
         conn.close()
 
@@ -962,11 +964,11 @@ def platform_billing_admin_view(view: Literal["quotes", "plans", "subscriptions"
 def update_platform_plan_feature(plan_key: str, body: PlanFeatureMutation, ctx: Ctx):
     """Update the latest catalog feature contract; existing tenant assignments remain snapshotted."""
     _custom_quote_operator(ctx)
-    conn = db.system_connection()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = billing_admin.set_plan_feature(
+        result = billing_admin.owner_catalog_command(
             conn, plan_key=plan_key, feature_code=body.feature_code, included=body.included,
-            limit_value=body.limit_value, approved_by=ctx.user_id, reason=body.reason,
+            limit_value=body.limit_value, reason=body.reason,
         )
         conn.commit()
         return result
@@ -984,10 +986,10 @@ def update_platform_plan_feature(plan_key: str, body: PlanFeatureMutation, ctx: 
 def update_platform_plan_status(plan_key: str, body: PlanStatusMutation, ctx: Ctx):
     """Change plan availability for new purchases; current paid assignments are not changed."""
     _custom_quote_operator(ctx)
-    conn = db.system_connection()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = billing_admin.set_plan_active(
-            conn, plan_key=plan_key, active=body.active, approved_by=ctx.user_id, reason=body.reason,
+        result = billing_admin.owner_catalog_command(
+            conn, plan_key=plan_key, active=body.active, reason=body.reason,
         )
         conn.commit()
         return result

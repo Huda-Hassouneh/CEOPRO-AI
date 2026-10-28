@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import useSWR from "../../../shared/lib/useSWRCompat.js";
 
-import Badge from "../../../shared/components/ui/Badge.jsx";
+import Badge from "./OriginalBillingBadge.jsx";
 import BillingOptionsEditor from "./BillingOptionsEditor.jsx";
 import Button from "../../../shared/components/ui/Button.jsx";
 import Card from "../../../shared/components/ui/Card.jsx";
@@ -31,7 +31,7 @@ const DEFAULT_FORM = {
   billingIntervalValue: 1,
   billingIntervalUnit: "month",
   trialPeriodValue: 0,
-  billingOptions: [{ period: "monthly", months: 1, discountPercent: 0 }],
+  billingOptions: [{ period: "monthly", months: 1, intervalUnit: "month", intervalCount: 1, discountPercent: 0 }],
   monthlyInfrastructureCost: 0,
   activePayingTenants: 1,
   estimatedOtherCost: 0,
@@ -76,6 +76,8 @@ const formFromQuote = (quote) => {
             ({ period, months, discountPercent = 0 }) => ({
               period,
               months,
+              intervalUnit: "month",
+              intervalCount: months,
               discountPercent,
             }),
           )
@@ -114,7 +116,7 @@ const statusVariant = (status) => {
 };
 
 function money(value, currency, locale) {
-  if (value == null) return "—";
+  if (value == null || value === "") return "—";
   try {
     return new Intl.NumberFormat(locale, {
       style: "currency",
@@ -138,6 +140,9 @@ function QuoteFormModal({
   tenants = [],
   monitoringCadences = [],
 }) {
+  const { data: effectivePolicy } = useSWR(open && platformMode ? 'custom-plan-pricing-policy' : null, api.getCustomPlanPricingPolicy, swrOptions);
+  const intent = useRef(null);
+  useEffect(()=>{ if(open) intent.current = globalThis.crypto.randomUUID(); },[open,quote]);
   const editing = Boolean(quote);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(() => formFromQuote(quote));
@@ -150,12 +155,24 @@ function QuoteFormModal({
     if (platformMode) {
       initial.currency = quote?.currency || "USD";
       initial.trialPeriodValue = 0;
-      initial.billingOptions = [{ period: "monthly", months: 1, discountPercent: 0 }];
+      initial.billingOptions = [{ period: "monthly", months: 1, intervalUnit: "month", intervalCount: 1, discountPercent: 0 }];
     }
     setForm(initial);
     setStep(1);
     setError("");
   }, [open, quote, platformMode]);
+
+  useEffect(() => {
+    if (!open || !platformMode) return;
+    const active = effectivePolicy?.data?.policies?.find(p=>p.status==='active');
+    setForm(previous=>({...previous,
+      monthlyInfrastructureCost:active?.monthly_shared_infrastructure_cost_usd ?? '',
+      activePayingTenants:active?.active_paying_tenant_count ?? '', estimatedOtherCost:'',
+      targetGrossMarginPercent:active?.target_gross_margin == null ? '' : Number(active.target_gross_margin)*100,
+      maxVendorCostRevenueRatioPercent:active?.max_vendor_cost_revenue_ratio == null ? '' : Number(active.max_vendor_cost_revenue_ratio)*100,
+      fxRate:'',fxSourceCurrency:'USD',fxTargetCurrency:'USD',fxSource:'',
+    }));
+  }, [open,platformMode,effectivePolicy]);
 
   const reset = () => {
     setStep(1);
@@ -355,6 +372,7 @@ function QuoteFormModal({
     setError("");
     try {
       const payload = {
+        idempotencyKey: intent.current,
         ...(platformMode && !editing ? { tenantId: form.tenantId } : {}),
         name: form.name.trim(),
         name_ar: form.name_ar.trim(),
@@ -411,10 +429,13 @@ function QuoteFormModal({
         ? await api.updateCustomPlanQuote(quote.id, payload)
         : await api.createCustomPlanQuote(payload);
       const savedQuote = response?.data;
+      let pricingError = '';
       if (savedQuote?.id) {
-        await api.calculateCustomPlanQuote(savedQuote.id);
+        try { await api.calculateCustomPlanQuote(savedQuote.id); }
+        catch (e) { pricingError = getApiError(e).message; }
       }
-      await onSaved();
+      // The request is durable even if calculation is unavailable. Do not invite duplicate creation.
+      await onSaved({savedQuote, pricingError});
       close();
     } catch (requestError) {
       setError(getApiError(requestError).message);
@@ -579,11 +600,10 @@ function QuoteFormModal({
               />
             </label>
           </div>
-          {platformMode ? <p className="billing-catalog-permission-note">{tr(t, "billing.catalog.customPlans.pythonMonthlyUsdTerms", "Custom quote pricing is calculated by Python in USD on a monthly basis. Trial and term changes are not part of this quote request.")}</p> : <BillingOptionsEditor
-            options={form.billingOptions}
-            onChange={(billingOptions) => setForm({ ...form, billingOptions })}
-            t={t}
-          />}
+          {platformMode && <p className="billing-catalog-permission-note">{tr(t, "billing.catalog.customPlans.pythonMonthlyUsdTerms", "Custom quotes use USD monthly terms; trial and term changes require an approved policy.")}</p>}
+          <fieldset disabled={platformMode} style={{border:0,padding:0,margin:0,minWidth:0}}>
+            <BillingOptionsEditor options={form.billingOptions} onChange={(billingOptions)=>setForm({...form,billingOptions})} t={t} />
+          </fieldset>
         </div>
       )}
 
@@ -632,8 +652,9 @@ function QuoteFormModal({
                     type="number"
                     min="0"
                     step="0.01"
-                    value={state.estimatedUsage ?? 0}
-                    disabled={!state.enabled}
+                    value={platformMode ? (feature.type === "boolean" ? 1 : state.limitValue || 0) : state.estimatedUsage ?? 0}
+                    disabled={platformMode || !state.enabled}
+                    hint={platformMode ? tr(t,"billing.catalog.legacyRestoration.usageDerived","Python derives pricing usage from the selected allowance and approved cost binding.") : undefined}
                     onChange={(event) =>
                       updateFeature(feature.id, {
                         estimatedUsage: event.target.value,
@@ -692,11 +713,10 @@ function QuoteFormModal({
         </div>
       )}
 
-      {step === 3 && (platformMode ? <div className="billing-catalog-form billing-custom-plan-step">
-        <p className="billing-catalog-permission-note">{tr(t, "billing.catalog.customPlans.pythonPricingAuthority", "Python uses the active approved pricing policy and verified cost schedules. Values entered in the historical client-side cost form cannot set price, margin, FX, or provider costs.")}</p>
-      </div> : (
+      {step === 3 && (
         <div className="billing-catalog-form billing-custom-plan-step">
-          <div className="billing-catalog-form-grid">
+          {platformMode && <p className="billing-catalog-permission-note">{tr(t,"billing.catalog.customPlans.pythonPricingAuthority","Values come from the effective versioned Python policy. Quote-local economic overrides are not authorized.")}</p>}
+          <fieldset disabled={platformMode} className="billing-catalog-form-grid">
             <Input
               label={tr(
                 t,
@@ -778,7 +798,7 @@ function QuoteFormModal({
                 })
               }
             />
-          </div>
+          </fieldset>
           <div className="billing-catalog-subsection">
             <div className="billing-catalog-subsection-header">
               <div>
@@ -798,7 +818,7 @@ function QuoteFormModal({
                 </p>
               </div>
             </div>
-            <div className="billing-catalog-form-grid">
+            <fieldset disabled={platformMode} className="billing-catalog-form-grid">
               <Input
                 label={tr(t, "billing.catalog.customPlans.fxRate", "FX rate")}
                 type="number"
@@ -846,10 +866,10 @@ function QuoteFormModal({
                   setForm({ ...form, fxSource: event.target.value })
                 }
               />
-            </div>
+            </fieldset>
           </div>
         </div>
-      ))}
+      )}
 
       {step === 4 && (
         <div className="billing-custom-plan-review">
@@ -864,7 +884,7 @@ function QuoteFormModal({
               )}
             </p>
           </Card>
-          {platformMode ? <p className="billing-catalog-permission-note">{tr(t, "billing.catalog.customPlans.pythonPricingAuthority", "Python uses the active approved pricing policy and verified cost schedules. Values entered in the historical client-side cost form cannot set price, margin, FX, or provider costs.")}</p> : <dl className="billing-custom-plan-review-grid">
+          <dl className="billing-custom-plan-review-grid">
             <div>
               <dt>
                 {tr(
@@ -905,9 +925,9 @@ function QuoteFormModal({
                   "Active paying tenants",
                 )}
               </dt>
-              <dd>{numeric(form.activePayingTenants, 1)}</dd>
+              <dd>{platformMode && form.activePayingTenants === "" ? "—" : numeric(form.activePayingTenants, 1)}</dd>
             </div>
-          </dl>}
+          </dl>
           <p className="billing-catalog-permission-note">
             {tr(
               t,
@@ -923,11 +943,29 @@ function QuoteFormModal({
   );
 }
 
-function ApproveQuoteModal({ quote, onClose, onApproved, t, locale, api = billingApi }) {
+export function QuoteReviewModal({quote, onClose, api, t, locale}) {
+  const {data,error,isLoading} = useSWR(quote ? ['owner-quote-review',quote.id] : null, ()=>api.getCustomPlanQuote(quote.id), swrOptions);
+  const detail = data?.data;
+  const sections = detail ? [
+    ['configuration',detail.configuration],['quantities',detail.quantities],
+    ['pricingEvidence',detail.pricingSnapshot],['revisions',detail.revisions],
+    ['auditHistory',detail.events],['checkoutAttempts',detail.checkout_attempts],
+  ] : [];
+  return <Modal isOpen={Boolean(quote)} onClose={onClose} maxWidth="960px" title={tr(t,'billing.catalog.legacyRestoration.reviewTitle','Quote review and evidence')} footer={<Button variant="outline" onClick={onClose}>{tr(t,'common.close','Close')}</Button>}>
+    {isLoading ? <Skeleton height="220px" variant="rectangular"/> : error ? <p role="alert" className="billing-inline-error">{getApiError(error).message}</p> : detail && <div className="billing-catalog-form">
+      <Card className="billing-custom-plan-price-summary"><strong>{detail.name}</strong><Badge variant={statusVariant(detail.status)}>{detail.status}</Badge><span>{tr(t,'billing.catalog.customPlans.finalPrice','Final customer price')}: {money(detail.finalPrice,detail.currency,locale)}</span></Card>
+      <p>{tr(t,'billing.catalog.legacyRestoration.activationBoundary','Approval and customer acceptance do not grant paid rights. Verified billing confirmation is required.')}</p>
+      {sections.map(([key,value])=><details key={key}><summary>{tr(t,'billing.catalog.legacyRestoration.'+key,key)}</summary><pre className="billing-custom-plan-configuration">{JSON.stringify(value ?? null,null,2)}</pre></details>)}
+    </div>}
+  </Modal>;
+}
+
+export function ApproveQuoteModal({ quote, onClose, onApproved, t, locale, api = billingApi, platformMode = false }) {
   const [price, setPrice] = useState(
     quote?.recommendedPrice ?? quote?.minimumSafePrice ?? "",
   );
   const [overrideReason, setOverrideReason] = useState("");
+  const [approvalReference, setApprovalReference] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const belowFloor = quote && numeric(price) < numeric(quote.minimumSafePrice);
@@ -935,6 +973,7 @@ function ApproveQuoteModal({ quote, onClose, onApproved, t, locale, api = billin
   useEffect(() => {
     setPrice(quote?.recommendedPrice ?? quote?.minimumSafePrice ?? "");
     setOverrideReason("");
+    setApprovalReference("");
     setError("");
   }, [quote]);
 
@@ -942,7 +981,9 @@ function ApproveQuoteModal({ quote, onClose, onApproved, t, locale, api = billin
     setSaving(true);
     setError("");
     try {
+      if (platformMode && !approvalReference.trim()) throw new Error(tr(t,"billing.catalog.legacyRestoration.evidenceRequired","Approval evidence is required."));
       await api.approveCustomPlanQuote(quote.id, {
+        ...(platformMode ? {approvalReference:approvalReference.trim()} : {}),
         finalPrice: numeric(price),
         ...(belowFloor && overrideReason.trim()
           ? { overrideReason: overrideReason.trim() }
@@ -1010,9 +1051,11 @@ function ApproveQuoteModal({ quote, onClose, onApproved, t, locale, api = billin
           min="0.01"
           step="0.01"
           value={price}
+          disabled={platformMode}
           onChange={(event) => setPrice(event.target.value)}
         />
-        {belowFloor && (
+        {platformMode && <Input label={tr(t,"billing.catalog.fields.approvalReference","Approval reference")} required value={approvalReference} onChange={e=>setApprovalReference(e.target.value)} />}
+        {belowFloor && !platformMode && (
           <label className="billing-catalog-textarea-field">
             <span className="ceopro-label">
               {tr(
@@ -1070,7 +1113,7 @@ const vendorRateForm = (rate = null) => ({
 function VendorRateModal({ open, onClose, rate, features, onSaved, t, api = billingApi }) {
   const [form, setForm] = useState(() => vendorRateForm(rate));
   const { data: policyResponse, error: policyError, isLoading: policiesLoading } = useSWR(
-    "platform-custom-plan-pricing-policies", api.getCustomPlanPricingPolicy, swrOptions,
+    "custom-plan-pricing-policy", api.getCustomPlanPricingPolicy, swrOptions,
   );
   const draftPolicies = policyResponse?.data?.policies?.filter((policy) => policy.status === "draft") ?? [];
   const editing = Boolean(rate?.id);
@@ -1323,7 +1366,7 @@ function VendorRateModal({ open, onClose, rate, features, onSaved, t, api = bill
             )}
             type="number"
             min="0.0001"
-            step="0.01"
+            step="0.0001"
             value={form.operationalMultiplier}
             onChange={(event) =>
               setForm({ ...form, operationalMultiplier: event.target.value })
@@ -1382,7 +1425,7 @@ function VendorRateModal({ open, onClose, rate, features, onSaved, t, api = bill
   );
 }
 
-function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canManagePricing = true }) {
+export function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canManagePricing = true }) {
   const {
     data: response,
     error,
@@ -1398,22 +1441,23 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
+  const [confirmation, setConfirmation] = useState(null);
   useEffect(() => {
     if (!policy) return;
+    const value = (v, fallback) => policy.versioned ? (v ?? '') : fallback;
     setForm({
-      currency: policy.currency ?? "JOD",
-      targetGrossMarginPercent: numeric(policy.targetGrossMargin, 0.35) * 100,
-      fixedPlatformFee: policy.fixedPlatformFee ?? 0,
-      monthlyInfrastructureCost: policy.monthlyInfrastructureCost ?? 0,
-      activePayingTenants: policy.activePayingTenants ?? 1,
-      estimatedOtherCost: policy.estimatedOtherCost ?? 0,
-      roundingIncrement: policy.roundingIncrement ?? 1,
-      maxAutomaticMonthlyPrice: policy.maxAutomaticMonthlyPrice ?? 2500,
-      maxAutomaticQuotaPerFeature: policy.maxAutomaticQuotaPerFeature ?? 500000,
+      currency: policy.currency ?? 'USD',
+      targetGrossMarginPercent: policy.targetGrossMargin == null ? '' : Number(policy.targetGrossMargin) * 100,
+      fixedPlatformFee: value(policy.fixedPlatformFee, policy.fixedPlatformFee ?? 0),
+      monthlyInfrastructureCost: value(policy.monthlyInfrastructureCost, policy.monthlyInfrastructureCost ?? 0),
+      activePayingTenants: value(policy.activePayingTenants, policy.activePayingTenants ?? 1),
+      estimatedOtherCost: value(undefined, policy.estimatedOtherCost ?? 0),
+      roundingIncrement: value(policy.roundingIncrement, policy.roundingIncrement ?? 1),
+      maxAutomaticMonthlyPrice: value(undefined, policy.maxAutomaticMonthlyPrice ?? 2500),
+      maxAutomaticQuotaPerFeature: value(undefined, policy.maxAutomaticQuotaPerFeature ?? 500000),
       enforceVendorCostRatioFloor: Boolean(policy.enforceVendorCostRatioFloor),
-      maxVendorCostRevenueRatioPercent:
-        numeric(policy.maxVendorCostRevenueRatio, 0.2) * 100,
-      featureLimits: policy.featureLimits ?? {},
+      maxVendorCostRevenueRatioPercent: policy.maxVendorCostRevenueRatio == null ? '' : Number(policy.maxVendorCostRevenueRatio) * 100,
+      featureLimits: policy.featureLimits ?? {}, approvalEvidence: '',
     });
   }, [policy]);
 
@@ -1438,6 +1482,7 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
     );
   }
 
+  if (error) return <section className="billing-catalog-section"><p role="alert" className="billing-inline-error">{getApiError(error).message}</p><Button onClick={() => mutate()}>{tr(t, 'common.retry', 'Retry')}</Button></section>;
   if (isLoading || !form)
     return (
       <section className="billing-catalog-section">
@@ -1449,6 +1494,16 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
     setSaving(true);
     setMessage(null);
     try {
+      if (policy.versioned) {
+        await api.updateCustomPlanPricingPolicy({
+          currency: form.currency,
+          targetGrossMargin: form.targetGrossMarginPercent === '' ? '' : Number(form.targetGrossMarginPercent) / 100,
+          maxVendorCostRevenueRatio: form.maxVendorCostRevenueRatioPercent === '' ? null : Number(form.maxVendorCostRevenueRatioPercent) / 100,
+          fixedPlatformFee: form.fixedPlatformFee, monthlyInfrastructureCost: form.monthlyInfrastructureCost,
+          activePayingTenants: form.activePayingTenants, roundingIncrement: form.roundingIncrement,
+          enforceVendorCostRatioFloor: form.enforceVendorCostRatioFloor, approvalEvidence: form.approvalEvidence,
+        });
+      } else {
       await api.updateCustomPlanPricingPolicy({
         currency: String(form.currency || "JOD").toUpperCase(),
         targetGrossMargin: numeric(form.targetGrossMarginPercent) / 100,
@@ -1485,14 +1540,11 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           ]),
         ),
       });
+      }
       await mutate();
       setMessage({
         variant: "success",
-        text: tr(
-          t,
-          "billing.catalog.customPlans.pricingPolicy.saved",
-          "Automated custom-plan pricing policy saved.",
-        ),
+        text: policy.versioned ? tr(t, "billing.catalog.legacyRestoration.draftSaved", "New draft saved. Existing approved quotes are unchanged.") : tr(t, "billing.catalog.customPlans.pricingPolicy.saved", "Automated custom-plan pricing policy saved."),
       });
     } catch (requestError) {
       setMessage({ variant: "error", text: getApiError(requestError).message });
@@ -1520,7 +1572,7 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
             )}
           </p>
         </div>
-        <Button size="sm" onClick={save} loading={saving} disabled={!canManagePricing}>
+        <Button size="sm" onClick={() => policy.versioned ? setConfirmation({kind:"save"}) : save()} loading={saving} disabled={!canManagePricing}>
           {tr(
             t,
             "billing.catalog.customPlans.pricingPolicy.save",
@@ -1528,11 +1580,33 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           )}
         </Button>
       </div>
+      {policy.versioned && <>
+        <p className="billing-catalog-permission-note">{tr(t, 'billing.catalog.legacyRestoration.versionedPolicy', 'Save creates a new draft revision. Activation requires explicit evidence. Instant-approval thresholds, per-feature bounds and other estimated costs remain policy-gated; no financial defaults are seeded.')}</p>
+        <Input label={tr(t, 'billing.catalog.legacyRestoration.approvalEvidence', 'Approval evidence / rationale')} value={form.approvalEvidence} onChange={e => setForm({...form, approvalEvidence:e.target.value})} required />
+        <Table data={policy.policies || []} columns={[
+          {header:tr(t,'billing.catalog.legacyRestoration.version','Version'),accessor:'version_number'},
+          {header:tr(t,'billing.catalog.fields.status','Status'),accessor:'status'},
+          {header:tr(t,'billing.catalog.legacyRestoration.effectiveFrom','Effective from'),render:p=>p.effective_from || '\u2014'},
+          {header:tr(t,'billing.catalog.actions','Actions'),render:p=>p.status==='draft' && <Button size="sm" disabled={!canManagePricing} onClick={()=>setConfirmation({kind:'activate',id:p.policy_version_id})}>{tr(t,'billing.catalog.legacyRestoration.activate','Activate')}</Button>},
+        ]} />
+        <Modal isOpen={Boolean(confirmation)} onClose={saving ? undefined : ()=>setConfirmation(null)} title={tr(t,'billing.catalog.legacyRestoration.confirmPolicy','Confirm pricing policy action')} footer={<><Button variant="outline" disabled={saving} onClick={()=>setConfirmation(null)}>{tr(t,'common.cancel','Cancel')}</Button><Button loading={saving} onClick={async()=>{
+          const selected=confirmation; setConfirmation(null);
+          if(selected.kind==='save') return save();
+          setSaving(true); setMessage(null);
+          try {
+            if(!form.approvalEvidence.trim()) throw new Error(tr(t,'billing.catalog.legacyRestoration.evidenceRequired','Approval evidence is required.'));
+            await api.activateCustomPlanPricingPolicy(selected.id,form.approvalEvidence.trim()); await mutate();
+            setMessage({variant:'success',text:tr(t,'billing.catalog.legacyRestoration.activated','Policy activated for future calculations. Approved quote snapshots remain frozen.')});
+          } catch(e) {setMessage({variant:'error',text:getApiError(e).message});} finally {setSaving(false);}
+        }}>{tr(t,'common.confirm','Confirm')}</Button></>}>
+          <p>{tr(t,'billing.catalog.legacyRestoration.policyConfirmation','A draft does not change customer rights. Activation affects future quote calculations; it does not alter approved quotes, subscriptions or credit budgets.')}</p>
+        </Modal>
+      </>}
       <div className="billing-catalog-form-grid">
         <Input
           label={tr(t, "billing.catalog.fields.currency", "Currency")}
           maxLength={3}
-          value={form.currency}
+          value={form.currency} disabled={policy.versioned}
           onChange={(event) =>
             setForm({ ...form, currency: event.target.value })
           }
@@ -1603,7 +1677,7 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           type="number"
           min="0"
           step="0.01"
-          value={form.estimatedOtherCost}
+          value={form.estimatedOtherCost} disabled={policy.versioned}
           onChange={(event) =>
             setForm({ ...form, estimatedOtherCost: event.target.value })
           }
@@ -1631,7 +1705,7 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           type="number"
           min="0.01"
           step="0.01"
-          value={form.maxAutomaticMonthlyPrice}
+          value={form.maxAutomaticMonthlyPrice} disabled={policy.versioned}
           onChange={(event) =>
             setForm({ ...form, maxAutomaticMonthlyPrice: event.target.value })
           }
@@ -1645,7 +1719,7 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
           type="number"
           min="1"
           step="1"
-          value={form.maxAutomaticQuotaPerFeature}
+          value={form.maxAutomaticQuotaPerFeature} disabled={policy.versioned}
           onChange={(event) =>
             setForm({
               ...form,
@@ -1702,7 +1776,7 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
               "Leave a value blank to use the global default. Requests above a configured maximum become manual-review quotes instead of failing.",
             )}
           </p>
-          <div className="billing-catalog-form-grid">
+          <fieldset disabled={policy.versioned} className="billing-catalog-form-grid">
             {features
               .filter((feature) => feature.type === "limit")
               .map((feature) => {
@@ -1769,7 +1843,7 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
                   </Card>
                 );
               })}
-          </div>
+          </fieldset>
         </div>
       )}
       {message && (
@@ -1788,6 +1862,7 @@ function CustomPlanPricingPolicyPanel({ t, features = [], api = billingApi, canM
 }
 
 export default function CustomPlanQuoteManager({ features, t, locale, api = billingApi, platformMode = false, canManage = true, canManagePricing = true }) {
+  const [reviewQuote, setReviewQuote] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editQuote, setEditQuote] = useState(null);
   const [approveQuote, setApproveQuote] = useState(null);
@@ -1916,8 +1991,8 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
         header: tr(t, "billing.catalog.actions", "Actions"),
         render: (quote) => (
           <div className="billing-catalog-row-actions billing-custom-plan-actions">
-            {platformMode && <Link className="billing-link-button" to={`/platform/billing?python=1&tab=quotes&quote=${encodeURIComponent(quote.id)}`}>{tr(t, "billing.catalog.customPlans.review", "Review")}</Link>}
-            {canManage && ["draft", "calculated"].includes(quote.status) && (
+            {platformMode && <Button variant="outline" size="sm" onClick={()=>setReviewQuote(quote)}>{tr(t,"billing.catalog.customPlans.review","Review")}</Button>}
+            {canManage && ["draft", "calculated", "submitted"].includes(quote.status) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1926,7 +2001,7 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
                 {tr(t, "common.edit", "Edit")}
               </Button>
             )}
-            {canManage && ["draft", "calculated"].includes(quote.status) && (
+            {canManage && ["draft", "calculated", "submitted"].includes(quote.status) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1947,7 +2022,7 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
                 {tr(t, "billing.catalog.customPlans.calculate", "Calculate")}
               </Button>
             )}
-            {canManage && quote.status === "calculated" && (
+            {canManage && (quote.status === "calculated" || (platformMode && quote.status === "submitted" && quote.pricingAvailable)) && (
               <Button size="sm" onClick={() => setApproveQuote(quote)}>
                 {tr(t, "billing.catalog.customPlans.approve", "Approve")}
               </Button>
@@ -1971,7 +2046,7 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
                   {tr(t, "billing.catalog.customPlans.inAppOfferAvailable", "Available in customer portal")}
               </Button>
             )}
-            {canManage && ["approved", "sent"].includes(quote.status) && (
+            {canManage && ["submitted", "approved", "sent"].includes(quote.status) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -2117,13 +2192,7 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
 
   return (
     <div className="billing-custom-plan-manager">
-      {platformMode ? (
-        <section className="billing-catalog-section original-python-admin-links">
-          <h2>{tr(t, "billing.catalog.customPlans.pricingPolicy.title", "Custom pricing administration")}</h2>
-          <p>{tr(t, "billing.catalog.customPlans.pricingPolicy.pythonAuthority", "Pricing policy revisions and cost evidence are managed by the versioned Python billing authority.")}</p>
-          <div><Link to="/platform/billing?python=1&tab=pricing">{tr(t, "billing.catalog.customPlans.pricingPolicy.openPolicies", "Open pricing policies")}</Link><Link to="/platform/billing?python=1&tab=costs">{tr(t, "billing.catalog.customPlans.pricingPolicy.openCosts", "Open provider costs")}</Link></div>
-        </section>
-      ) : <CustomPlanPricingPolicyPanel t={t} features={features} api={api} canManagePricing={canManagePricing} />}
+      <CustomPlanPricingPolicyPanel t={t} features={features} api={api} canManagePricing={canManagePricing} />
 
       <section className="billing-catalog-section">
         <div className="billing-catalog-section-heading">
@@ -2261,14 +2330,19 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
         platformMode={platformMode}
         tenants={tenants}
         monitoringCadences={monitoringCadences}
-        onSaved={mutateQuotes}
+        onSaved={async(result)=>{
+          await mutateQuotes();
+          if(result?.pricingError) setNotice({variant:'warning',message:`${tr(t,'billing.catalog.legacyRestoration.requestSaved','Request saved for review.')} ${result.pricingError}`});
+        }}
         t={t}
         locale={locale}
       />
+      <QuoteReviewModal quote={reviewQuote} onClose={()=>setReviewQuote(null)} api={api} t={t} locale={locale} />
       <ApproveQuoteModal
         quote={approveQuote}
         onClose={() => setApproveQuote(null)}
         onApproved={mutateQuotes}
+        platformMode={platformMode}
         t={t}
         locale={locale}
         api={api}

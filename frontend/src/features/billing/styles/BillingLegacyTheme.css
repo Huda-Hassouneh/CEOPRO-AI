@@ -1,0 +1,516 @@
+/* Original CEOPRO UI primitives, scoped to owner billing only.
+ * Source: frontend/src/styles/globals.css SHA256 3050d3f8d87038624cab48407a7853e8e8d6fd6af1448c40a1e94e393ca8a088
+ * No global/customer design tokens are changed. */
+body.keel-owner-billing-legacy.keel-owner-billing-legacy * {
+  box-sizing: border-box;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy {
+  --ceopro-font-family-en: "Inter", "Segoe UI", "Tajawal", Arial, sans-serif;
+  --ceopro-font-family-ar: "IBM Plex Sans Arabic", "Tajawal", Arial, sans-serif;
+  --ceopro-font-family: var(--ceopro-font-family-en);
+  --ceopro-font-family-heading: var(--ceopro-font-family);
+  --ceopro-font-family-body: var(--ceopro-font-family);
+  --ceopro-font-family-label: var(--ceopro-font-family);
+  --ceopro-font-family-button: var(--ceopro-font-family);
+  --ceopro-font-family-navigation: var(--ceopro-font-family);
+  --ceopro-font-family-table: var(--ceopro-font-family);
+  --ceopro-font-family-code: "Inter", "IBM Plex Sans Arabic", monospace;
+
+  --ceopro-font-size-display: 40px;
+  --ceopro-font-size-page-title: 24px;
+  --ceopro-font-size-h1: 22px;
+  --ceopro-font-size-h2: 18px;
+  --ceopro-font-size-h3: 16px;
+  --ceopro-font-size-body: 14px;
+  --ceopro-font-size-secondary-body: 13px;
+  --ceopro-font-size-label: 12px;
+  --ceopro-font-size-caption: 11px;
+  --ceopro-font-size-button: 14px;
+  --ceopro-font-size-navigation: 13px;
+  --ceopro-font-size-table: 13px;
+
+  --ceopro-font-weight-display: 700;
+  --ceopro-font-weight-page-title: 700;
+  --ceopro-font-weight-h1: 700;
+  --ceopro-font-weight-h2: 600;
+  --ceopro-font-weight-h3: 600;
+  --ceopro-font-weight-body: 400;
+  --ceopro-font-weight-secondary-body: 400;
+  --ceopro-font-weight-label: 600;
+  --ceopro-font-weight-caption: 500;
+  --ceopro-font-weight-button: 600;
+  --ceopro-font-weight-navigation: 600;
+  --ceopro-font-weight-table: 500;
+
+  --ceopro-line-height-display: 1.12;
+  --ceopro-line-height-body: 1.6;
+  --ceopro-line-height-heading: 1.3;
+
+  --ceopro-font-family-ar-text: var(--ceopro-font-family-ar);
+
+  --ceopro-font-display: var(--ceopro-font-family-heading);
+  --ceopro-font-page-title: var(--ceopro-font-family-heading);
+  --ceopro-font-h1: var(--ceopro-font-family-heading);
+  --ceopro-font-h2: var(--ceopro-font-family-heading);
+  --ceopro-font-h3: var(--ceopro-font-family-heading);
+  --ceopro-font-body: var(--ceopro-font-family-body);
+  --ceopro-font-secondary-body: var(--ceopro-font-family-body);
+  --ceopro-font-label: var(--ceopro-font-family-label);
+  --ceopro-font-caption: var(--ceopro-font-family-body);
+  --ceopro-font-button: var(--ceopro-font-family-button);
+  --ceopro-font-navigation: var(--ceopro-font-family-navigation);
+  --ceopro-font-table: var(--ceopro-font-family-table);
+
+  --ceopro-primary: #2f2bce;
+  --ceopro-primary-dark: #221d9d;
+  --ceopro-primary-light: #F5F2FF;
+  --ceopro-primary-soft: #F0EEFF;
+  --ceopro-surface: #FFFFFF;
+  --ceopro-surface-soft: #F6F3FF;
+  --ceopro-surface-subtle: #F3F1FB;
+  --ceopro-text-primary: #1d1d2a;
+  --ceopro-text-secondary: #4b4d5f;
+  --ceopro-text-muted: #7a7d8d;
+  --ceopro-border: #dfe3f1;
+  --ceopro-border-soft: #cfd5eb;
+  --ceopro-success: #10b981;
+  --ceopro-warning: #f59e0b;
+  --ceopro-error: #ef4444;
+  --ceopro-info: #3b82f6;
+  --ceopro-disabled: #c7c4d8;
+  --ceopro-shadow-sm: 0 1px 2px 0 rgba(29, 29, 42, 0.04);
+  --ceopro-shadow: 0 8px 22px -12px rgba(47, 43, 206, 0.2);
+  --ceopro-shadow-lg: 0 20px 48px -28px rgba(47, 43, 206, 0.26);
+  --ceopro-radius-sm: 10px;
+  --ceopro-radius-md: 14px;
+  --ceopro-radius-lg: 18px;
+  --ceopro-space-1: 4px;
+  --ceopro-space-2: 8px;
+  --ceopro-space-3: 12px;
+  --ceopro-space-4: 16px;
+  --ceopro-space-5: 20px;
+  --ceopro-space-6: 24px;
+  --ceopro-space-8: 32px;
+  --ceopro-auth-bg: #f3f0fe;
+  --ceopro-auth-shell-width: min(420px, calc(100vw - 28px));
+  --ceopro-auth-focus-ring: rgba(47, 43, 206, 0.14);
+}
+
+html[lang='en'] body.keel-owner-billing-legacy.keel-owner-billing-legacy {
+  --ceopro-font-family: var(--ceopro-font-family-en);
+}
+
+html[lang='ar'] body.keel-owner-billing-legacy.keel-owner-billing-legacy {
+  --ceopro-font-family: var(--ceopro-font-family-ar);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--ceopro-font-family);
+  color: var(--ceopro-text-primary);
+  background: var(--ceopro-surface-soft);
+}
+
+@media (max-width: 768px) {
+  body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button {
+    white-space: normal;
+    min-width: auto;
+  }
+
+  body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input,
+  body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-card {
+    max-width: 100%;
+  }
+
+  body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-table {
+    min-width: 640px;
+  }
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ceopro-space-2);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-family: var(--ceopro-font-family);
+  font-size: var(--ceopro-font-size-button);
+  font-weight: var(--ceopro-font-weight-button);
+  line-height: 1;
+  cursor: pointer;
+  transition: all 180ms ease;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button__content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ceopro-space-2);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--md {
+  min-height: 46px;
+  padding: 0 var(--ceopro-space-6);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--sm {
+  min-height: 38px;
+  padding: 0 var(--ceopro-space-4);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--lg {
+  min-height: 52px;
+  padding: 0 var(--ceopro-space-8);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--full-width {
+  width: 100%;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--primary {
+  background: linear-gradient(135deg, #2f2bce, #3d42d0);
+  color: var(--ceopro-surface);
+  box-shadow: 0 8px 18px rgba(47, 43, 206, 0.18);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #261ec0, #352fc5);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--secondary {
+  background: #f5f1ff;
+  color: var(--ceopro-primary);
+  border-color: #e4ddff;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--secondary:hover:not(:disabled) {
+  background: #efe9ff;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--outline {
+  background: transparent;
+  border-color: var(--ceopro-border);
+  color: var(--ceopro-primary);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--outline:hover:not(:disabled) {
+  background: var(--ceopro-primary-light);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button--ghost {
+  background: transparent;
+  color: var(--ceopro-primary);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button:focus-visible,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input:focus-visible,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-shell:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ceopro-auth-focus-ring);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button:disabled,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ceopro-space-2);
+  margin-bottom: var(--ceopro-space-4);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--ceopro-surface);
+  border: 1px solid #e3e5f2;
+  border-radius: 10px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-shell--with-icon .ceopro-input {
+  padding-inline: 42px;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-shell--error {
+  border-color: var(--ceopro-error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-icon {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ceopro-text-muted);
+  z-index: 1;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-icon--left {
+  inset-inline-start: 12px;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-icon--right {
+  inset-inline-end: 12px;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--ceopro-text-primary);
+  font-family: var(--ceopro-font-family);
+  font-size: 14px;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input::placeholder {
+  color: #9aa0b5;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input:focus {
+  border: none;
+  outline: none;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-shell:focus-within {
+  border-color: var(--ceopro-primary);
+  box-shadow: 0 0 0 3px var(--ceopro-auth-focus-ring);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ceopro-text-primary);
+  text-align: start;
+  margin-bottom: var(--ceopro-space-2);
+}
+
+html[lang='ar'] body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-auth-title {
+  letter-spacing: 0;
+}
+
+@media (max-width: 768px) {
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-card {
+  background: var(--ceopro-surface);
+  color: var(--ceopro-text-primary);
+  border: 1px solid var(--ceopro-border);
+  border-radius: var(--ceopro-radius-md);
+  box-shadow: var(--ceopro-shadow-sm);
+  padding: var(--ceopro-space-5);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-card h1,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-card h2,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-card h3 {
+  color: var(--ceopro-text-primary);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper {
+  display: flex;
+  width: min(460px, 100%);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__item {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  color: var(--ceopro-text-muted);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__item:not(:first-child)::before {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 50%;
+  width: 100%;
+  height: 2px;
+  background: #e7e4f7;
+  content: '';
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__item.is-completed::before,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__item.is-current::before {
+  background: var(--ceopro-primary);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 2px solid #e7e4f7;
+  border-radius: 50%;
+  background: #f0eefb;
+  color: #9795a9;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__item.is-completed .ceopro-stepper__marker,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__item.is-current .ceopro-stepper__marker {
+  border-color: var(--ceopro-primary);
+  background: var(--ceopro-primary);
+  color: #fff;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__label {
+  max-width: 100%;
+  margin-top: 8px;
+  overflow: hidden;
+  color: inherit;
+  font-size: 12px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-stepper__item.is-current .ceopro-stepper__label {
+  color: var(--ceopro-text-primary);
+  font-weight: 700;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field__icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #ebe9f4;
+  border-radius: var(--ceopro-radius-sm);
+  background: var(--ceopro-surface);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field__header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field__icon {
+  width: 36px;
+  height: 36px;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field__copy label {
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field__copy small,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field__bounds {
+  color: var(--ceopro-text-muted);
+  font-size: 10px;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field output {
+  max-width: 100%;
+  min-width: 58px;
+  margin-inline-start: auto;
+  padding: 6px 8px;
+  border: 1px solid #e3e1ed;
+  border-radius: 6px;
+  color: var(--ceopro-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field input[type='range'] {
+  width: 100%;
+  margin: 15px 0 5px;
+  accent-color: var(--ceopro-primary);
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field input[type='range']:focus-visible {
+  outline: 3px solid var(--ceopro-auth-focus-ring);
+  outline-offset: 3px;
+}
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-range-field__bounds {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+}
+
+
+body.keel-owner-billing-legacy.keel-owner-billing-legacy{--apex-glass-solid:var(--ceopro-surface);--gl-ink:var(--ceopro-text-primary);color-scheme:light;}
+body.keel-owner-billing-legacy.keel-owner-billing-legacy :is(.ceopro-button,.ceopro-card,.ceopro-input-shell,.ceopro-modal){backdrop-filter:none;-webkit-backdrop-filter:none;filter:none;isolation:auto;letter-spacing:normal;}
+body.keel-owner-billing-legacy.keel-owner-billing-legacy :is(.ceopro-card,.ceopro-button)::before,body.keel-owner-billing-legacy.keel-owner-billing-legacy :is(.ceopro-card,.ceopro-button)::after{content:none;}
+
+/* Match the original PlatformAdmin.css font inheritance above the base kit. */
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .pa-shell :is(button,input,select,textarea) { font: inherit; }
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-input-shell { box-shadow: none; }
+/* Original feature-specific rules must win over the scoped primitive defaults. */
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-card.billing-catalog-toolbar { padding: 14px; }
+body.keel-owner-billing-legacy.keel-owner-billing-legacy select,
+body.keel-owner-billing-legacy.keel-owner-billing-legacy textarea { box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .billing-catalog-inline-input {
+  width: 100px; min-height: 34px; box-sizing: border-box; padding: 6px 8px;
+  border: 1px solid var(--ceopro-border); border-radius: 6px;
+  background: var(--ceopro-surface); color: var(--ceopro-text-primary); box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+/* The legacy dialog scrim is translucent, without the application's glass blur. */
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .ceopro-modal-overlay {
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+/* Glass uses a chain of :not selectors with high specificity. Restrict this
+   override to original owner fields; retain their inline validation styling. */
+body.keel-owner-billing-legacy.keel-owner-billing-legacy select:not([aria-invalid='true']),
+body.keel-owner-billing-legacy.keel-owner-billing-legacy textarea:not([aria-invalid='true']) {
+  box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+body.keel-owner-billing-legacy.keel-owner-billing-legacy .billing-catalog-inline-input {
+  border: 1px solid var(--ceopro-border) !important; background: var(--ceopro-surface) !important;
+  box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}

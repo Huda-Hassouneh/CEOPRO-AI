@@ -354,3 +354,25 @@ def adjust_credits(conn, *, tenant_id: str, budget_kind: str, credits_delta: Dec
         )
         _audit(cursor, tenant_id, "adjust_credits", budget_kind, None, {"credits_delta": delta, "reference": reference},
                approved_by, reason)
+
+
+def owner_catalog_command(conn, *, plan_key, reason, active=None, feature_code=None, included=None, limit_value=None):
+    """HTTP persistence through the narrow owner function, without a schema-owner DSN."""
+    from psycopg2.extras import Json
+    payload={"plan_key":_require(plan_key,"plan_key"),"reason":_require(reason,"reason")}
+    if feature_code is None:
+        if not isinstance(active,bool):raise AdminError("active must be boolean")
+        payload.update(action="status",active=active)
+    else:
+        if feature_code not in set(_NUMERIC_CONTRACT_FEATURES)|set(_CUSTOM_CONTRACT_ENTITLEMENTS):raise AdminError("feature is not supported by the Python plan entitlement catalog")
+        if not isinstance(included,bool):raise AdminError("included must be boolean")
+        if limit_value is not None and (isinstance(limit_value,bool) or not isinstance(limit_value,int) or limit_value<0):raise AdminError("limit_value must be a nonnegative integer or null")
+        if feature_code in _CUSTOM_CONTRACT_ENTITLEMENTS and limit_value is not None:raise AdminError("module entitlements do not accept a numeric limit")
+        payload.update(action="feature",feature_code=feature_code,included=included,limit_value=limit_value)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT public.billing_owner_catalog_command(%s::jsonb)",(Json(payload),))
+            return cur.fetchone()[0]
+    except Exception as exc:
+        if getattr(exc,'pgcode',None) in {'22023','P0002','23514'}:raise AdminError("Invalid plan or feature mutation.") from None
+        raise

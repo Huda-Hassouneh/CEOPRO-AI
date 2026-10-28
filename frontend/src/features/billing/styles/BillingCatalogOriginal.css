@@ -1430,3 +1430,6 @@
   font-size: 10px !important;
   line-height: 1.5;
 }
+
+/* Semantic disabled fieldsets retain the original div grid geometry. */
+fieldset.billing-catalog-form-grid { border: 0; padding: 0; margin: 0; min-width: 0; }

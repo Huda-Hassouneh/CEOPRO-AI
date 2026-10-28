@@ -340,47 +340,8 @@ def activate(conn, *, actor_user_id: str, promotion_id: str, approval_reference:
         if not plan_keys:
             raise PromotionError(422, "promotion_plans_required", "Link this promotion to at least one active plan before activation.")
 
-    try:
-        discount = Decimal(normalized["discount_value"])
-        fingerprint = hashlib.sha256(json.dumps({"code": code, "terms": normalized, "plans": plan_keys}, sort_keys=True).encode()).hexdigest()[:32]
-        if coupon_id:
-            coupon = stripe_api.retrieve_coupon(coupon_id)
-        else:
-            coupon_params = {"duration": "once", "name": name}
-            if normalized["discount_type"] == "percent":
-                coupon_params["percent_off"] = float(discount)
-            else:
-                coupon_params["amount_off"] = catalog_sync.minor_units(float(discount), normalized["currency"])
-                coupon_params["currency"] = normalized["currency"].lower()
-            coupon = stripe_api.create_coupon(coupon_params, "keel-promo-coupon-" + fingerprint)
-            coupon_id = coupon.get("id")
-        if not coupon_id:
-            raise PromotionError(502, "promotion_provider_error", "Stripe did not return a coupon identity.")
-        if promotion_code_id:
-            stripe_promo = stripe_api.retrieve_promotion_code(promotion_code_id)
-            if status == "disabled" and not stripe_promo.get("active"):
-                stripe_promo = stripe_api.activate_promotion_code(promotion_code_id)
-        else:
-            # Stripe's current API version models coupon association through
-            # the nested promotion object. The legacy top-level `coupon`
-            # parameter is rejected by the approved TEST account's current
-            # API version (2026-08-26.dahlia).
-            promo_params = {"promotion": {"type": "coupon", "coupon": coupon_id}, "code": code}
-            if normalized.get("max_uses") is not None:
-                promo_params["max_redemptions"] = normalized["max_uses"]
-            if normalized.get("expires_at"):
-                promo_params["expires_at"] = int(datetime.fromisoformat(normalized["expires_at"]).timestamp())
-            stripe_promo = stripe_api.create_promotion_code(promo_params, "keel-promo-code-" + fingerprint)
-            promotion_code_id = stripe_promo.get("id")
-        normalized["stripe_coupon_id"] = coupon_id
-        normalized["stripe_promotion_code_id"] = promotion_code_id
-        _verify_provider_objects(normalized, coupon, stripe_promo, code)
-    except PromotionError:
-        raise
-    except stripe_api.PaymentsNotConfigured as exc:
-        raise PromotionError(503, "payments_not_configured", "Stripe is not configured for test-mode promotion activation.") from exc
-    except Exception as exc:
-        raise PromotionError(502, "promotion_provider_error", "Stripe could not create or verify the promotion. No local activation was saved.") from exc
+    coupon_id, promotion_code_id, normalized = verified_provider_mapping(
+        code, name, status, normalized, plan_keys, coupon_id, promotion_code_id)
 
     with conn.cursor() as cur:
         cur.execute(
@@ -823,3 +784,50 @@ def invoice_event(conn, *, tenant_id: str, invoice: dict, subscription_id: str |
             return
         _set_state(conn, rid, tenant_id, "settled", event_type="initial_invoice_settled",
                    stripe_event_id=stripe_event_id, subscription_id=subscription_id, invoice_id=invoice_id)
+
+
+def verified_provider_mapping(code, name, status, normalized, plan_keys, coupon_id, promotion_code_id):
+    """Shared provider verification; persistence grants cannot replace this check."""
+    try:
+        discount = Decimal(normalized["discount_value"])
+        fingerprint = hashlib.sha256(json.dumps({"code": code, "terms": normalized, "plans": plan_keys}, sort_keys=True).encode()).hexdigest()[:32]
+        if coupon_id:
+            coupon = stripe_api.retrieve_coupon(coupon_id)
+        else:
+            coupon_params = {"duration": "once", "name": name}
+            if normalized["discount_type"] == "percent":
+                coupon_params["percent_off"] = float(discount)
+            else:
+                coupon_params["amount_off"] = catalog_sync.minor_units(float(discount), normalized["currency"])
+                coupon_params["currency"] = normalized["currency"].lower()
+            coupon = stripe_api.create_coupon(coupon_params, "keel-promo-coupon-" + fingerprint)
+            coupon_id = coupon.get("id")
+        if not coupon_id:
+            raise PromotionError(502, "promotion_provider_error", "Stripe did not return a coupon identity.")
+        if promotion_code_id:
+            stripe_promo = stripe_api.retrieve_promotion_code(promotion_code_id)
+            if status == "disabled" and not stripe_promo.get("active"):
+                stripe_promo = stripe_api.activate_promotion_code(promotion_code_id)
+        else:
+            # Stripe's current API version models coupon association through
+            # the nested promotion object. The legacy top-level `coupon`
+            # parameter is rejected by the approved TEST account's current
+            # API version (2026-08-26.dahlia).
+            promo_params = {"promotion": {"type": "coupon", "coupon": coupon_id}, "code": code}
+            if normalized.get("max_uses") is not None:
+                promo_params["max_redemptions"] = normalized["max_uses"]
+            if normalized.get("expires_at"):
+                promo_params["expires_at"] = int(datetime.fromisoformat(normalized["expires_at"]).timestamp())
+            stripe_promo = stripe_api.create_promotion_code(promo_params, "keel-promo-code-" + fingerprint)
+            promotion_code_id = stripe_promo.get("id")
+        normalized["stripe_coupon_id"] = coupon_id
+        normalized["stripe_promotion_code_id"] = promotion_code_id
+        _verify_provider_objects(normalized, coupon, stripe_promo, code)
+    except PromotionError:
+        raise
+    except stripe_api.PaymentsNotConfigured as exc:
+        raise PromotionError(503, "payments_not_configured", "Stripe is not configured for test-mode promotion activation.") from exc
+    except Exception as exc:
+        raise PromotionError(502, "promotion_provider_error", "Stripe could not create or verify the promotion. No local activation was saved.") from exc
+
+    return coupon_id, promotion_code_id, normalized
