@@ -41,6 +41,47 @@ export default function LandingPage() {
     return () => observer.disconnect();
   }, []);
 
+  // The pointer brings the page to life: the hero dashboard tilts toward it in
+  // 3D, its floating cards drift with it, and glass cards light up where it
+  // points. Mouse and pen only (not touch), and never under reduced motion.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    let frame = 0, pending = null;
+    const apply = () => {
+      frame = 0;
+      const { target, x, y } = pending;
+      const art = target.closest?.('.lp-hero-art');
+      root.querySelectorAll('.lp-hero-art.is-tilting').forEach((el) => { if (el !== art) el.classList.remove('is-tilting'); });
+      if (art) {
+        const box = art.getBoundingClientRect();
+        const px = (x - box.left) / box.width - 0.5, py = (y - box.top) / box.height - 0.5;
+        art.style.setProperty('--tilt-x', `${(px * 14).toFixed(2)}deg`);
+        art.style.setProperty('--tilt-y', `${(-py * 12).toFixed(2)}deg`);
+        art.style.setProperty('--px', px.toFixed(3));
+        art.style.setProperty('--py', py.toFixed(3));
+        art.style.setProperty('--glare-x', `${((px + 0.5) * 100).toFixed(1)}%`);
+        art.style.setProperty('--glare-y', `${((py + 0.5) * 100).toFixed(1)}%`);
+        art.classList.add('is-tilting');
+      }
+      const card = target.closest?.('.lp-feature, .lp-visual, .lp-trust-grid > *');
+      if (card) {
+        const box = card.getBoundingClientRect();
+        card.style.setProperty('--spot-x', `${x - box.left}px`);
+        card.style.setProperty('--spot-y', `${y - box.top}px`);
+      }
+    };
+    const onMove = (event) => {
+      if (event.pointerType === 'touch') return;
+      pending = { target: event.target, x: event.clientX, y: event.clientY };
+      if (!frame) frame = requestAnimationFrame(apply);
+    };
+    const onLeave = () => root.querySelectorAll('.lp-hero-art.is-tilting').forEach((el) => el.classList.remove('is-tilting'));
+    root.addEventListener('pointermove', onMove);
+    root.addEventListener('pointerleave', onLeave);
+    return () => { cancelAnimationFrame(frame); root.removeEventListener('pointermove', onMove); root.removeEventListener('pointerleave', onLeave); };
+  }, []);
+
   const scrollToSection = (event) => {
     const anchor = event.target.closest('a[href^="#"]');
     if (!anchor || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
