@@ -40,7 +40,7 @@ from src.ai.rag import business_analysis, citations, evidence as ev, llm_client,
 from src.ai.rag.business_tools import build_financial_facts_block
 from src.ai.rag.orchestrator import build_tool_facts_blocks
 from src.ai.rag.pipeline import DEFAULT_RERANK_CANDIDATES, run_retrieval
-from src.ai.rag.structured_context import build_fact_sections, build_sales_lines
+from src.ai.rag.structured_context import build_fact_sections, build_sales_lines, build_historical_sales_lines
 from src.ai.research import research as public_research
 from src.ai.trade import landed_cost
 from src.ai.trade import messages as trade_messages
@@ -216,9 +216,11 @@ def _catalog(conn, tenant_id: str, access: acl.Access) -> List[dict]:
     return out
 
 
-def _top_product(conn, tenant_id: str, catalog: List[dict], access: acl.Access) -> Optional[dict]:
-    """The product with the most sales revenue in the last 90 days ("my top
-    product"), when the member may see sales; None when there are no sales."""
+def _top_product(conn, tenant_id: str, catalog: List[dict], access: acl.Access, all_history: bool = False) -> Optional[dict]:
+    """Most sales revenue in the requested all-history scope, otherwise 90 days.
+
+    Only when the member may see sales; None when there are no sales.
+    """
     if conn is None or not catalog or not access.allows(acl.SALES, acl.CATALOG):
         return None
     try:
@@ -228,10 +230,10 @@ def _top_product(conn, tenant_id: str, catalog: List[dict], access: acl.Access) 
                 SELECT ii.product_id FROM invoice_items ii
                 JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
                 WHERE ii.tenant_id = %s AND ii.product_id IS NOT NULL
-                  AND i.issue_date >= CURRENT_DATE - INTERVAL '90 days'
+                  AND (%s OR i.issue_date >= CURRENT_DATE - INTERVAL '90 days')
                 GROUP BY ii.product_id ORDER BY SUM(ii.total_price) DESC LIMIT 1;
                 """,
-                (tenant_id,),
+                (tenant_id, all_history),
             )
             row = cursor.fetchone()
     except Exception as exc:  # noqa: BLE001 - the question is still answered, just without the product named
@@ -314,7 +316,7 @@ def _user_inputs(registry: ev.EvidenceRegistry, question: str, previous: Optiona
 
 
 def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry: ev.EvidenceRegistry,
-               top_k: int, statuses: List[dict], language: str = "en") -> int:
+               top_k: int, statuses: List[dict], language: str = "en", all_history: bool = False) -> int:
     if conn is None:
         return 0
     try:
@@ -347,6 +349,8 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
         if row is None:
             continue
         _chunk_id, index, text, page, document_id, file_name, path, uploaded_at = row
+        if all_history and (path or '').startswith('_generated/') and acl.SALES in acl.document_capabilities(path):
+            continue  # These summaries have fixed recency windows, not the requested full history.
         needed = acl.document_capabilities(path)
         if not access.allows(*needed):
             withheld += 1
@@ -379,6 +383,11 @@ def _fact_sections(conn, tenant_id: str, u: understanding.Understanding, access:
     general = not u.intents
     if not wanted and not general:
         return 0
+    if u.slots.get("all_history"):
+        if access.allows(acl.SALES):
+            return len(registry.add_fact_lines(build_historical_sales_lines(conn, tenant_id), route="/reports",
+                       capabilities=frozenset({acl.SALES}), observed_at=datetime.now(timezone.utc)))
+        return 0
     sections = build_fact_sections(conn, tenant_id, allowed=access.allows)
     added = 0
     period = u.slots.get("period_days")
@@ -397,7 +406,7 @@ def _fact_sections(conn, tenant_id: str, u: understanding.Understanding, access:
 
 def _analysis(conn, tenant_id: str, u: understanding.Understanding, access: acl.Access,
               registry: ev.EvidenceRegistry) -> int:
-    if conn is None:
+    if conn is None or u.slots.get("all_history"):
         return 0
     question = u.effective_question
     blocks = list(business_analysis.build_analysis_blocks(conn, tenant_id, question, _language(u.question)))
@@ -724,6 +733,8 @@ def _history_messages(history: Optional[list]) -> list:
 def _prompt(question: str, u: understanding.Understanding, company: dict, access: acl.Access,
             registry: ev.EvidenceRegistry, statuses: List[dict], compact: bool = False) -> str:
     lines = []
+    if u.slots.get("all_history"):
+        lines.append("REQUESTED PERIOD: ALL stored history. Use the live all-history records. Never substitute a recent-window summary. If the supplied evidence cannot answer that scope, explicitly say so and do not present a recent period as the full-history answer.")
     if company:
         lines.append(f"Company: {company.get('business_name') or '-'} ({company.get('business_type') or 'business'}), "
                      f"country {company.get('country_code') or '-'}, currency {company.get('currency') or '-'}.")
@@ -984,14 +995,16 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     registry = ev.EvidenceRegistry()
     statuses: List[dict] = []
     if u.slots.get("top_product") and not u.slots.get("products"):
-        top = _top_product(conn, tenant_id, catalog, access)
+        top = (_top_product(conn, tenant_id, catalog, access, all_history=True) if u.slots.get("all_history")
+               else _top_product(conn, tenant_id, catalog, access))
         if top:
             # Only the product's name goes on to research queries - never its figures.
             u.slots["products"] = [{"product_id": top["product_id"], "name": top["name"]}]
         elif not access.allows(acl.SALES):
             _status(statuses, "top_product", "not_permitted", "your role can't see sales, which rank the products")
         else:
-            _status(statuses, "top_product", "none_found", "no sales recorded in the last 90 days to rank products by")
+            _status(statuses, "top_product", "none_found", "no recorded sales to rank products by" if u.slots.get('all_history')
+                    else "no sales recorded in the last 90 days to rank products by")
     answerable = understanding.is_answerable(question) or u.follow_up
 
     user_ids = _user_inputs(registry, question, state, u.follow_up, language)
@@ -1009,7 +1022,9 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
             missing = access.missing(*_CAPABILITY_FOR_INTENT.get(intent, ()))
             if missing:
                 _status(statuses, intent, "not_permitted", f"your role can't see {', '.join(sorted(missing))}")
-        company_found += _documents(conn, tenant_id, u.effective_question, access, registry, top_k, statuses, language)
+        document_options = {"all_history": True} if u.slots.get("all_history") else {}
+        company_found += _documents(conn, tenant_id, u.effective_question, access, registry, top_k, statuses, language,
+                                    **document_options)
         if not u.public_scope:  # "the average water price" needs no sales or price-gap records
             company_found += _fact_sections(conn, tenant_id, u, access, registry, statuses)
             company_found += _analysis(conn, tenant_id, u, access, registry)

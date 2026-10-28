@@ -634,6 +634,7 @@ def chat_completion(
     timeout: float = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     usage_out: dict = None,
+    json_mode: bool = False,
 ) -> str:
     """Thin wrapper over _chat_completion_with_usage() that keeps this
     function's long-standing "just the answer text" contract (and every
@@ -642,6 +643,7 @@ def chat_completion(
     since it also needs the token usage."""
     answer, call_usage = _chat_completion_with_usage(
         messages, api_key=api_key, model=model, temperature=temperature, timeout=timeout, max_tokens=max_tokens,
+        **({'json_mode': True} if json_mode else {}),
     )
     if usage_out is not None:  # callers that meter plan usage add up the real token count
         usage_out["total_tokens"] = usage_out.get("total_tokens", 0) + int((call_usage or {}).get("total_tokens") or 0)
