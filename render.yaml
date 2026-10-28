@@ -376,6 +376,13 @@ services:
       - path: /*
         name: X-Frame-Options
         value: "DENY"
+      # Vite names every built file after its content, so a file under /assets
+      # never changes: browsers keep it for a year and don't re-ask on each
+      # visit. index.html (not under /assets) keeps the default revalidation,
+      # so a new release is picked up at once.
+      - path: /assets/*
+        name: Cache-Control
+        value: "public, max-age=31536000, immutable"
     routes:
       # Client-side routed (react-router-dom) - every path must still
       # serve index.html so the router can take over, or a direct link/
