@@ -188,6 +188,9 @@ def main():
         competitors = add_competitors(client, company, product_ids, now)
         reviews = import_reviews(client, company_dir)
         documents = upload_documents(client, company)
+        # The demo company is fully set up above; without this the app sends
+        # every demo sign-in to the setup wizard instead of the product.
+        client.request("POST", "/settings/company/onboarding/complete")
         report[company.key] = {
             "email": email, "tenant_id": account["tenant_id"], "created": account["created"],
             "products": len(product_ids), "sales_files": sales, "competitor_prices_recorded": len(competitors),
