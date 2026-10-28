@@ -49,7 +49,8 @@ export function VerifyEmailPage() {
     }
     // A fresh token carries the confirmed state, so the app opens straight away.
     try {
-      useAuthStore.getState().setAccessToken(await authHttpAdapter.refresh());
+      const previous = useAuthStore.getState().accessToken;
+      useAuthStore.getState().setAccessToken(await authHttpAdapter.refresh(), previous);
     } catch {
       // The next renewal picks it up; nothing is blocked once confirmed.
     }

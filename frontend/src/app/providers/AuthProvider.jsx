@@ -20,7 +20,9 @@ export function AuthProvider({ children }) {
       onUnauthorized: (requestAuthorization) => {
         if (unauthorizedBelongsToCurrentSession(requestAuthorization, getAuthAccessToken())) expireSession();
       },
-      onEmailVerificationRequired: () => useAuthStore.getState().setEmailVerificationBlocked(true),
+      onEmailVerificationRequired: (requestAuthorization) => {
+        if (unauthorizedBelongsToCurrentSession(requestAuthorization, getAuthAccessToken())) useAuthStore.getState().setEmailVerificationBlocked(true);
+      },
     });
     initialize();
   }, [initialize, expireSession]);
@@ -28,7 +30,10 @@ export function AuthProvider({ children }) {
   // Renew the access token while the app is in use (features/auth/sessionKeeper.js).
   useEffect(() => startSessionKeeper({
     getToken: getAuthAccessToken,
-    renew: async () => useAuthStore.getState().setAccessToken(await authHttpAdapter.refresh()),
+    renew: async () => {
+      const previous = getAuthAccessToken();
+      useAuthStore.getState().setAccessToken(await authHttpAdapter.refresh(), previous);
+    },
     readStoredSession: authSessionStorage.read,
     adoptSession: (session) => useAuthStore.getState().adoptSession(session),
     storageKey: authSessionStorage.key,
