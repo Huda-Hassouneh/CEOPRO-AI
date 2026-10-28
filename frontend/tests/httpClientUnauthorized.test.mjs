@@ -50,3 +50,16 @@ test('a delayed 401 from a revoked workspace cannot expire the newly selected se
   assert.equal(unauthorizedBelongsToCurrentSession('Bearer new-workspace-token', 'new-workspace-token'), true);
   assert.equal(unauthorizedBelongsToCurrentSession(null, 'new-workspace-token'), false);
 });
+
+
+test('email verification refusals identify their initiating session for stale-response protection', async () => {
+  const previous=httpClient.defaults.adapter;
+  let reported;
+  configureHttpClientAuth({getAccessToken:()=> 'invalid-original-A',onEmailVerificationRequired:authorization=>{reported=authorization;}});
+  httpClient.defaults.adapter=async config=>{const error=new Error('Verification required');error.config=config;error.response={status:403,headers:{'x-auth-reason':'email-verification-required'}};throw error;};
+  try {
+    await assert.rejects(httpClient.get('/synthetic-verification-check'));
+    assert.equal(reported,'Bearer invalid-original-A');
+    assert.equal(unauthorizedBelongsToCurrentSession(reported,'invalid-current-B'),false);
+  }finally{httpClient.defaults.adapter=previous;configureHttpClientAuth({});}
+});

@@ -54,7 +54,7 @@ httpClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+}, undefined, { synchronous: true }); // Bind identity when requested, before an account switch can intervene.
 
 // Every protected endpoint's 401 means exactly one thing in this API (core/
 // security.py's get_tenant_context(): missing/malformed/expired/invalid-
@@ -81,7 +81,8 @@ httpClient.interceptors.response.use(
     // The API answers 403 with this reason until the email address is
     // confirmed (backend core/security.py); the app then shows the code screen.
     if (error.response?.status === 403 && error.response.headers?.['x-auth-reason'] === 'email-verification-required') {
-      handleEmailVerificationRequired();
+      const headers = error.config?.headers;
+      handleEmailVerificationRequired(headers?.Authorization || headers?.authorization || null);
     }
     return Promise.reject(error);
   },

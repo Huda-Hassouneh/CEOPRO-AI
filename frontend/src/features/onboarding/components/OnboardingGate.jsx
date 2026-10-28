@@ -10,8 +10,8 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import Button from '../../../shared/components/ui/Button.jsx';
 import '../styles/Onboarding.css';
 export function OnboardingGate({step,children}){
- const tenant=useAuthStore(s=>s.tenantId),hydrate=useOnboardingStore(s=>s.hydrate),location=useLocation(),{t}=useI18n();
- const query=useQuery({queryKey:['onboarding-state',tenant,location.pathname],queryFn:onboardingApi.getState,staleTime:0,refetchOnWindowFocus:false});
+ const user=useAuthStore(s=>s.user?.id),tenant=useAuthStore(s=>s.tenantId),hydrate=useOnboardingStore(s=>s.hydrate),location=useLocation(),{t}=useI18n();
+ const query=useQuery({queryKey:['onboarding-state',tenant,user,location.pathname],queryFn:onboardingApi.getState,staleTime:0,refetchOnWindowFocus:false});
  useEffect(()=>{if(query.data && !query.isFetching)hydrate(query.data);},[query.data,query.isFetching,hydrate]);
  if(query.isPending || query.isFetching)return <RoutePending/>;
  if(query.isError)return <div role="alert">{t('onboarding.persistence.error')}<Button onClick={()=>query.refetch()}>{t('billing.management.retry')}</Button></div>;
@@ -19,8 +19,8 @@ export function OnboardingGate({step,children}){
  return children;
 }
 export function OnboardingResume(){
- const tenant=useAuthStore(s=>s.tenantId);
- const query=useQuery({queryKey:['onboarding-state',tenant],queryFn:onboardingApi.getState,staleTime:0,refetchOnWindowFocus:false});
+ const user=useAuthStore(s=>s.user?.id),tenant=useAuthStore(s=>s.tenantId);
+ const query=useQuery({queryKey:['onboarding-state',tenant,user],queryFn:onboardingApi.getState,staleTime:0,refetchOnWindowFocus:false});
  if(query.isPending || query.isFetching)return <RoutePending/>;
  if(query.isError)return <OnboardingGate/>;
  return <Navigate to={query.data.isComplete?'/dashboard':getOnboardingPathForStep(query.data.currentStep)} replace/>;
