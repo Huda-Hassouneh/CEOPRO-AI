@@ -618,3 +618,33 @@ def test_an_evidence_summary_in_another_language_than_the_question_carries_a_not
                                          "evidence", "ar").get("note") is None
     assert advisor._flag_foreign_summary(summary, "ai", "ar") is summary  # the model answers in the question's language
     assert advisor._flag_foreign_summary(None, "evidence", "ar") is None
+
+
+def _evidence_mode_titles(registry, question):
+    draft = advisor._evidence_mode(registry, "en", question=question)
+    items = next(block["items"] for block in draft.blocks if block["type"] == "list")
+    return [registry.get(claims[0].evidence[0]).title for claims in items]
+
+
+def test_evidence_mode_keeps_the_named_products_own_record_among_many_other_records():
+    """Records used to be cut to five by kind before ranking by relevance, so the product's own price record
+    lost its place to "top products" lines that only came first."""
+    registry = ev.EvidenceRegistry()
+    for n in range(8):
+        registry.add(ev.COMPANY_RECORD, "Top products by revenue in the last 30 days",
+                     f"Product {n}: {100 - n} JOD from {n + 3} units.", ev.COMPANY, ev.OBSERVED)
+    registry.add(ev.COMPANY_RECORD, "Product: Early Harvest Olive Oil 750ml",
+                 "Early Harvest Olive Oil 750ml: selling price 12.5000 JOD", ev.COMPANY, ev.OBSERVED)
+    titles = _evidence_mode_titles(registry, "What is the price of Early Harvest Olive Oil 750ml?")
+    assert titles[0] == "Product: Early Harvest Olive Oil 750ml"
+
+
+def test_a_question_word_alone_does_not_make_unrelated_evidence_relevant():
+    """"Who won the 2022 World Cup?" matched an insight about customers "who aren't happy"."""
+    assert not advisor._stems("Who won the 2022 World Cup?") & advisor._stems("Customers who aren't happy pay less.")
+    assert not advisor._stems("متى كان آخر طلب؟") & advisor._stems("متى ما كان العميل راضياً")
+
+
+def test_an_arabic_question_mark_does_not_hide_the_last_word_of_the_question():
+    assert "طلب" in advisor._content_words("متى كان آخر طلب؟")
+    assert advisor._relevant("ما سياسة الإرجاع؟", "سياسة الإرجاع: يمكن إرجاع المنتجات خلال 14 يوماً")
