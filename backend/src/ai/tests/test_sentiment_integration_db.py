@@ -317,3 +317,46 @@ def test_unreachable_model_falls_back_to_the_customers_star_rating(conn, seeded_
 
     # Nothing rated left: the batch reports the model as unavailable, writes nothing.
     assert pipeline.classify_and_store_reviews(conn, tenant_id)["status"] == "MODEL_UNAVAILABLE"
+
+
+def test_star_rating_results_are_replaced_once_the_model_is_back(conn, seeded_tenant_and_product, monkeypatch):
+    """A label taken from the star rating while the model was down is a stand-in:
+    the next run with the model replaces it (without counting the review against
+    the plan again), and a real model result is never overwritten."""
+    from src.ai.sentiment import model as sentiment_model
+
+    tenant_id, product_id = seeded_tenant_and_product
+    review_id = _insert_review(conn, tenant_id, product_id, "Five stars but it arrived broken and late")
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE reviews SET review_rating = 5 WHERE review_id = %s;", (review_id,))
+    conn.commit()
+
+    def _no_model(*_args, **_kwargs):
+        raise OSError("We couldn't connect to 'https://huggingface.co'")
+
+    monkeypatch.setattr(sentiment_model, "classify", _no_model)
+    monkeypatch.setattr(sentiment_model, "_unavailable_until", 0.0)
+    assert pipeline.classify_and_store_reviews(conn, tenant_id)["method"] == "star_rating"
+
+    def _stored():
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT sentiment_label, model_version FROM sentiment_results WHERE review_id = %s;", (review_id,))
+            return cursor.fetchall()
+
+    assert _stored() == [("POSITIVE", sentiment_model.RATING_MODEL_VERSION)]
+
+    monkeypatch.setattr(sentiment_model, "_unavailable_until", 0.0)
+    monkeypatch.setattr("src.ai.core.ml_runtime.model_obtainable", lambda *_a, **_k: True)
+    with patch.object(pipeline.model, "classify", return_value=_fake_predictions(1, "negative")):
+        result = pipeline.classify_and_store_reviews(conn, tenant_id)
+    assert result == {"status": "OK", "analyzed_count": 0, "failed_count": 0, "method": "model", "upgraded_count": 1}
+    assert _stored() == [("NEGATIVE", "fake-model-v1")]
+
+    # A model result is final: nothing left to re-read, and a direct write is refused.
+    with patch.object(pipeline.model, "classify", return_value=_fake_predictions(1, "positive")) as classify:
+        assert pipeline.classify_and_store_reviews(conn, tenant_id) == {"status": "OK", "analyzed_count": 0}
+    classify.assert_not_called()
+    with pytest.raises(ValueError):
+        pipeline.evidence.insert_sentiment_result(conn, review_id, tenant_id, "positive", 0.8, 0.1, 0.1, 0.8, "other-model")
+    conn.rollback()
+    assert _stored() == [("NEGATIVE", "fake-model-v1")]
