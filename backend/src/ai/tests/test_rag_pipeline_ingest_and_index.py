@@ -163,3 +163,27 @@ def test_backfill_targets_vectors_from_other_models_and_labels_new_ones(monkeypa
     assert pipeline.backfill_missing_embeddings(MagicMock(), "t1") == 2
     assert seen == [pipeline.embeddings_module.MODEL_NAME] * 2
     assert stored == [(["c1", "c2"], pipeline.embeddings_module.MODEL_NAME)]
+
+
+def test_backfill_has_no_batch_cap_so_a_large_corpus_is_fully_embedded(monkeypatch):
+    # 50 batches = 12,800 chunks, past the old 40-batch (10,240-chunk) cap.
+    batches = [[(f"c{b}-{i}", "text") for i in range(256)] for b in range(50)] + [[]]
+    monkeypatch.setattr(pipeline.data_access, "load_chunks_missing_embeddings",
+                        lambda conn, t, limit=256, model_version=None: batches.pop(0))
+    monkeypatch.setattr(pipeline, "try_embed", lambda texts: np.ones((len(texts), 2), dtype=np.float32))
+    monkeypatch.setattr(pipeline.data_access, "set_chunk_embeddings", lambda *args: None)
+    assert pipeline.backfill_missing_embeddings(MagicMock(), "t1") == 50 * 256
+
+
+def test_backfill_stops_when_a_batch_makes_no_progress(monkeypatch):
+    calls = []
+
+    def missing(conn, t, limit=256, model_version=None):
+        calls.append(1)
+        return [("c1", "one")]  # the update never lands: same chunk every time
+
+    monkeypatch.setattr(pipeline.data_access, "load_chunks_missing_embeddings", missing)
+    monkeypatch.setattr(pipeline, "try_embed", lambda texts: np.ones((len(texts), 2), dtype=np.float32))
+    monkeypatch.setattr(pipeline.data_access, "set_chunk_embeddings", lambda *args: None)
+    assert pipeline.backfill_missing_embeddings(MagicMock(), "t1") == 1
+    assert len(calls) == 2
