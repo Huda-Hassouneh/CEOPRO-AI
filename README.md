@@ -1,105 +1,132 @@
-# KEEL
+# KEEL — AI-Powered Business Intelligence Platform
 
-KEEL helps businesses use their products, sales, inventory and market evidence to make operating decisions. It combines business data management with demand forecasts, pricing recommendations, competitor monitoring, perception analysis, document-grounded assistance and reporting.
+KEEL helps small and growing businesses understand sales, manage stock and
+compare market evidence before making operating decisions. Customers bring
+their products, invoices, inventory and business documents; KEEL turns that
+data into dashboards, forecasts, pricing guidance and cited answers.
 
-One Python/FastAPI backend owns authentication, subscriptions, entitlements, Credits and accounting. The React application serves customers and Platform Owners.
+The application supports English and Arabic, including right-to-left layouts.
+One Python backend owns authentication, tenant isolation, subscriptions and
+usage accounting. A React application serves customers and Platform Owners.
 
-## Stack and architecture
+## Features at a glance
 
-React 19 / Vite 8 → FastAPI → PostgreSQL with pgvector and tenant RLS. Redis supports queues, caching and rate limits. MinIO stores uploads/assets. Python workers handle forecasting, images, commerce and market jobs. Stripe, merchant stores and hosted AI/search providers are optional external dependencies.
+| Feature | What customers can do |
+|---|---|
+| Dashboard analytics | Explore sales, stock and performance over time. |
+| Product management | Maintain a bilingual catalog with prices and costs. |
+| Inventory management | Track balances, low stock and replenishment needs. |
+| Data connections and extraction | Upload business files, review extracted data and confirm imports. |
+| Demand prediction | Estimate future demand from actual sales history. |
+| Competitor management | Maintain competitors and dated price observations. |
+| Market intelligence and perception | Review market evidence and customer sentiment when sufficient data exists. |
+| Pricing recommendations | Compare products and inspect evidence behind proposed prices. |
+| Assistant and knowledge base | Ask questions grounded in business data and uploaded documents, with citations. |
+| Alerts and notifications | Surface stock risks and deliver configured notification digests. |
+| Marketing copy and images | Generate drafts and visual assets through configured AI providers. |
+| Billing and subscriptions | Manage plans, trial access, allowances and Data/AI Credits. |
+| Shopify and WooCommerce | Connect authorized stores and review synchronized provider data. |
+| Reports and exports | Inspect sales and financial summaries; export supported report formats. |
+| Platform administration | Let authorized platform staff administer the service separately from tenant owners. |
 
-```text
-frontend/       React application, API adapters, locales and tests
-backend/src/ai/  FastAPI routers, domain services and AI orchestration
-backend/src/market_scraper/  Collection, discovery and commerce workers
-backend/src/infrastructure/ Database, security and shared infrastructure
-backend/scripts/ Migration runner and operational/test utilities
-tools/dev/      Shared local developer commands
-docs/           Current guides and preserved integration/decision evidence
-```
-
-## Prerequisites
-
-- Git, **64-bit CPython 3.11 or 3.12**, **Node 24 LTS** (22.12+ also supported) and npm.
-- Docker Desktop/Engine running **Linux containers**, with Docker Compose 2.20+.
-- Several GB of disk for Python/Node dependencies and container images. Optional model libraries/weights need substantially more memory and disk.
-- Windows PowerShell 5.1+; Linux/macOS use Bash and Python 3.11/3.12.
+These workflows exist in source; they do not all have full production or live-provider
+acceptance. Hosted AI, scraping, merchant stores, payments and some local models
+need additional configuration. See [feature implementation and limitations](docs/FEATURES.md).
 
 ## Quick start
 
-From a fresh clone, select the team integration branch, then run from the repository root:
+Install Git, **64-bit CPython 3.11 or 3.12**, **Node 24 with npm**
+(the launcher accepts Node 22.12+) and **Docker Desktop with Linux containers
+and Compose 2.20+**. Windows PowerShell 5.1+ is the verified native workflow.
+
+After obtaining the team's repository and checking out the intended development
+branch, open a terminal at its root:
 
 ```powershell
-git switch integration/keel-full-migration
 .\dev.ps1 setup
-.\dev.ps1 up
+.\dev.ps1 up --mode full
+.\dev.ps1 status
 ```
 
-Linux/macOS equivalent: `bash dev.sh setup`, then `bash dev.sh up`.
+No environment-file copy or provider account is required for the core stack.
+Setup installs this checkout's dependencies and generates private local
+credentials. Startup creates isolated infrastructure, applies migrations and
+launches the API, frontend and eight workers. It does not seed business data.
 
-Setup creates a private, Git-ignored `.dev/` directory, a new venv, frontend dependencies and per-checkout credentials. It does **not** load or overwrite existing `.env` files. First startup creates isolated infrastructure and applies the repository migrations.
+**Open the frontend and Mailpit URLs printed by `up`.** Sign up, read the
+verification email in Mailpit, and complete onboarding. No shared password,
+demo account or Platform Owner is created automatically.
 
-**Open the URLs printed by `up`.** Preferred defaults are frontend http://127.0.0.1:5173 and API http://127.0.0.1:8000. Setup chooses free ports when defaults are occupied; inspect them with `doctor`. Signup verification emails appear in the printed local Mailpit inbox. No test account or Platform Owner is created automatically.
+[Detailed setup and first-login checklist](docs/LOCAL_DEVELOPMENT.md) explains
+requirements, expected results and safe stop/restart. The Bash entry point
+`bash dev.sh` uses the same orchestrator; Linux/macOS execution is not certified
+by the Windows onboarding verification.
 
-## Environment setup
+## What do you want to do?
 
-Required database, Redis, JWT, vault, storage, SMTP and URL configuration is generated once in `.dev/config.json`. Keep this directory private and out of Git. Never copy it between checkouts.
-
-Optional provider settings belong in `.dev/integrations.env`; start with [the safe example](tools/dev/integrations.env.example). Empty/missing provider credentials mean those capabilities are unavailable. Setup creates no promotions, quotes, subscriptions or Credits. Startup migrations install the [approved AI provider pricing catalog](docs/DATABASE.md#approved-ai-provider-pricing-catalog), preserving configured rates; other paid models still need approved costs.
-
-For model-dependent development, install the existing model libraries explicitly:
-
-```powershell
-.\dev.ps1 setup --models
-```
-
-Model weights may download on first use. This does not configure hosted AI providers or their verified cost schedules.
-
-## Daily development
-
-| Task | Command |
+| Task | Guide |
 |---|---|
-| Start all locally supported workers, API and UI | `.\dev.ps1 up` |
-| Smaller runtime: forecast, image and commerce workers | `.\dev.ps1 up --mode core` |
-| Stop owned processes and containers; retain data | `.\dev.ps1 down` |
-| Restart, preserving the last selected mode | `.\dev.ps1 restart` |
-| Check identity/readiness | `.\dev.ps1 status` |
-| Diagnose prerequisites/configuration | `.\dev.ps1 doctor` |
-| Tail application logs | `.\dev.ps1 logs --service api --follow` |
-| Initialize infrastructure / create the development DB on first use | `.\dev.ps1 infra` |
+| Run KEEL locally | [Setup and daily development](docs/LOCAL_DEVELOPMENT.md) |
+| Understand the system | [Architecture](docs/ARCHITECTURE.md) |
+| Find a feature's source and tests | [Feature guide](docs/FEATURES.md) |
+| Develop backend functionality | [Python backend](backend/README.md) |
+| Develop frontend functionality | [React frontend](frontend/README.md) |
+| Work with the database or approved catalogs | [Database and migrations](docs/DATABASE.md) |
+| Work on AI features | [AI workflows](docs/FEATURES.md#ai-workflows) and [provider setup](docs/INTEGRATIONS.md#ai-and-market-providers) |
+| Configure integrations or environment variables | [Integrations](docs/INTEGRATIONS.md) · [Configuration](docs/ENVIRONMENT_VARIABLES.md) |
+| Start or debug background work | [Workers](docs/WORKERS.md) |
+| Run tests | [Testing](docs/TESTING.md) |
+| Diagnose a failure | [Troubleshooting](docs/TROUBLESHOOTING.md) |
+
+## Technology and source layout
+
+React **19** / Vite **8**, React Router, TanStack Query and Zustand communicate
+with FastAPI. PostgreSQL **17** with pgvector stores tenant data; Redis **7**
+supports queues, caching and rate limits; MinIO stores files and assets.
+Python workers run forecasts, image jobs, market collection and commerce sync.
+Stripe and hosted AI/search/merchant providers are optional integrations.
+Dependencies are declared in the Python requirements files and the frontend
+package manifest/lockfile; setup derives its Python constraints from those files.
+
+```text
+frontend/src/                  React routes, feature pages, API adapters and locales
+backend/src/ai/                FastAPI routers and business/AI services
+backend/src/market_scraper/    Market collection, commerce adapters and workers
+backend/src/infrastructure/   Database schema, migrations, storage and messaging
+backend/scripts/              Migration runner and operator/test utilities
+tools/dev/                    Shared developer launcher and tests
+docs/                         Developer guides and retained technical evidence
+```
+
+## Local services and common commands
+
+Preferred frontend/API URLs are `http://127.0.0.1:5173` and
+`http://127.0.0.1:8000`; API docs are at the API's `/docs`. Mailpit prefers
+`http://127.0.0.1:58025`, and MinIO's console prefers port `59001`.
+Setup selects other free ports if needed and retains them per checkout.
+Use printed URLs or `doctor`, not a teammate's remembered ports.
+
+| Action | Command |
+|---|---|
+| Start all services | `.\dev.ps1 up --mode full` |
+| Stop owned services; retain data | `.\dev.ps1 down` |
+| Restart using the previous mode | `.\dev.ps1 restart` |
+| Check readiness / diagnose setup | `.\dev.ps1 status` / `.\dev.ps1 doctor` |
+| Follow API or worker logs | `.\dev.ps1 logs --service api --follow` |
+| Run offline tooling tests | `.\dev.ps1 test` |
+| Run frontend tests, lint and build | `.\dev.ps1 test --suite frontend` |
 | Apply pending migrations | `.\dev.ps1 migrate` |
-| Migration inventory / DB security health | `.\dev.ps1 db-status` / `.\dev.ps1 db-check` |
-| Generate optional synthetic import files | `.\dev.ps1 seed` |
-| Tooling tests (no services) | `.\dev.ps1 test` |
-| Frontend tests, lint and build | `.\dev.ps1 test --suite frontend` |
-| Fresh/repeat migrations and native RLS tests in a separate test DB | `.\dev.ps1 test --suite database` |
+| Inspect migration/security state | `.\dev.ps1 db-status` / `.\dev.ps1 db-check` |
 
-Use `down` before switching worker modes or changing ports. `up` is repeatable. It refuses unowned listeners instead of stopping them. There is no reset/delete-data command.
+Keep `.dev/` private. Optional credentials belong in `.dev/integrations.env`,
+using [the safe template](tools/dev/integrations.env.example). Never place
+secrets in frontend `VITE_*` settings. Approved AI provider rates initialize
+through migrations; provider costs, customer Credits and plan prices remain
+separate. Missing credentials or unapproved rates keep that capability unavailable.
 
-## Database and sample data
-
-[Database guide](docs/DATABASE.md) explains migration/admin versus restricted application credentials. Startup uses [scripts/apply_migrations.py](backend/scripts/apply_migrations.py); applied migration files remain immutable.
-
-`seed` generates labeled synthetic files in `.dev/fixtures/quickstart`. It **does not load database records**. Sign up, verify your email in Mailpit, then use the application's import/review workflow. This preserves onboarding, entitlement checks and canonical data ownership.
-
-## Workers and external integrations
-
-The default full mode starts eight existing worker entry points. API lifespan tasks handle discovery refresh, notification digests and billing upkeep; extraction uses the existing API background-task flow. Read [WORKERS](docs/WORKERS.md) for queues, readiness and retries.
-
-Without credentials, local navigation, authentication, data management and non-provider workflows remain usable. Hosted AI, paid search, merchant synchronization and Stripe payments need explicit test configuration; a running worker is not evidence that an external feature works. See [INTEGRATIONS](docs/INTEGRATIONS.md).
-
-## Tests and common tasks
-
-The command interface tests developer tooling by default. It does not run expensive billing or AI-provider acceptance suites implicitly. See [LOCAL_DEVELOPMENT](docs/LOCAL_DEVELOPMENT.md) for focused Python tests, debugging, individual processes and infrastructure logs.
-
-For reboot recovery and isolated backend/browser/audit suites, see [Test environment recovery](docs/TEST_ENVIRONMENT_RECOVERY.md).
-
-## Troubleshooting and contribution
-
-Start with `doctor`, `status` and the failed service log. [Troubleshooting](docs/TROUBLESHOOTING.md) covers Docker, ports, dependencies, migrations, email, CORS and missing providers. [Contributing](docs/CONTRIBUTING.md) explains scoped changes, tests, migrations and security boundaries.
-
-## Documentation
-
-[Documentation index](docs/README.md) distinguishes current contributor guidance, architecture references and historical acceptance evidence. [Architecture](docs/ARCHITECTURE.md), [backend](backend/README.md), [frontend](frontend/README.md) and [environment variables](docs/ENVIRONMENT_VARIABLES.md) are the main references.
-
-The existing `./keel` and `.devcontainer/` workflow is retained for Codespaces compatibility. Native local development uses the commands above; do not run both launchers against the same services.
+[Documentation index](docs/README.md) separates developer guides from historical
+decisions and evidence. [Contributing](docs/CONTRIBUTING.md) explains change and
+test expectations. [Repository verification](docs/REPOSITORY_READINESS.md) records
+the measured onboarding results and remaining PR limitations. Older Codespaces
+and deployment workflows remain available for their specific environments;
+do not combine them with the native launcher against the same services.

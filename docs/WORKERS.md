@@ -1,6 +1,6 @@
 # Workers and background tasks
 
-All worker processes use the same checkout-local venv, restricted ceopro_app credentials and isolated Redis/DB as the API. Do not launch a second consumer accidentally. The root command records each child directly for ownership/readiness; it does not start a second competing supervisor. The existing `src.market_scraper.supervisor` remains available for deployments.
+All worker processes use the same checkout-local venv and isolated Redis/DB as the API. Normal business access uses restricted `ceopro_app`; provider reservations/settlement use the separate restricted `ceopro_credit_accounting` credential. No worker receives migration-admin credentials. Do not launch a second consumer accidentally. The root command records each child directly for ownership/readiness; it does not start a second competing supervisor. The existing `src.market_scraper.supervisor` remains available for deployments.
 
 ## Process inventory
 

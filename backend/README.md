@@ -29,7 +29,7 @@ Expected domain errors use existing exception contracts and localized error hand
 
 ## Testing and workers
 
-Use root `test --suite database` for a new disposable migration/RLS database, and select affected pytest modules for feature changes. Do not direct mutation tests at developer/customer databases. [Worker entry points](../docs/WORKERS.md) document queues, retries and readiness.
+Use root `test --suite database` for a new disposable migration/RLS database, and `test --suite backend --pytest-args ...` for a focused isolated backend selection. [Testing](../docs/TESTING.md) explains dependencies, native fixtures and evidence. Do not direct mutation tests at developer/customer databases. [Worker entry points](../docs/WORKERS.md) document queues, retries and readiness.
 
 Model libraries/weights, hosted services and cost configuration are feature prerequisites; [integrations](../docs/INTEGRATIONS.md) distinguishes them. The existing `.env.example` remains a manual/deployment reference and is not rewritten by setup.
 

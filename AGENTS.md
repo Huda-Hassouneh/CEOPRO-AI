@@ -4,8 +4,8 @@
 
 KEEL is a multi-tenant, AI-powered SaaS for business intelligence and commerce operations. Its core capabilities include Dashboard Analytics, Product Management, Inventory Management, Data Connections and Document Extraction, Demand Prediction, Competitor Management, Market Intelligence and Customer Perception, Pricing Recommendations, RAG Assistant, Smart Alerts, Marketing Images, Billing and Subscriptions, Shopify and WooCommerce, Reports and Exports, and Platform Administration.
 
-- **Authoritative implementation:** `E:\KEEL START\CEOPRO-AI` (Python/FastAPI, React/Vite, PostgreSQL with FORCE RLS, Redis, workers). Confirm the actual current checkout before working.
-- **Legacy reference — strictly read-only:** `D:\freeup space\New folder\Keel\root`; Node backend at `...\backend`, React frontend at `...\frontend`. Inspect legacy code for approved behavior/UI parity, but never edit, install dependencies, build, write caches, run migrations, or change databases there. If execution is needed, use an isolated copy elsewhere.
+- **Authoritative implementation:** the current Git checkout (Python/FastAPI, React/Vite, PostgreSQL with FORCE RLS, Redis, workers). Confirm its root, branch and HEAD before working; historical machine paths are not runtime requirements or permission to redirect work into another checkout.
+- **Legacy reference — strictly read-only:** if an external Node/React reference checkout is supplied, inspect it only for approved behavior/UI parity. Never edit, install dependencies, build, write caches, run migrations, or change databases there. If execution is needed, use an isolated copy elsewhere. A legacy checkout is not required to develop or run KEEL.
 - Python is the sole runtime authority for authentication, Stripe billing, subscriptions, entitlements, pricing, and usage/credit accounting. Do not introduce a parallel Node.js service or a second billing authority.
 - Preserve existing Python-only functionality, AI models/workers, and all 15 features. Search for existing implementations before creating replacements.
 

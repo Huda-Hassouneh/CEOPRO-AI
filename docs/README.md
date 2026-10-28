@@ -1,36 +1,60 @@
-# KEEL documentation
+# Developer documentation
 
-## Current contributor guidance
+Start at the [root README](../README.md). These guides describe the current
+Python/React application; no knowledge of previous integration work is required.
 
-- [Local development and command reference](LOCAL_DEVELOPMENT.md)
-- [Architecture and request/data flows](ARCHITECTURE.md)
-- [Database, migrations, roles and fixtures](DATABASE.md)
-- [Environment variables](ENVIRONMENT_VARIABLES.md)
-- [Workers and background tasks](WORKERS.md)
-- [External integrations](INTEGRATIONS.md)
-- [Troubleshooting](TROUBLESHOOTING.md)
-- [Contributing](CONTRIBUTING.md)
-- [Developer tooling verification](DEVELOPER_EXPERIENCE_VERIFICATION.md)
-- [PR CI remediation and verification checkpoint](CI_REPAIR.md)
-- [Recover development and isolated test environments after reboot](TEST_ENVIRONMENT_RECOVERY.md)
-- Component guides: [backend](../backend/README.md), [frontend](../frontend/README.md)
+## Everyday development
 
-These are the root development-command instructions. Older Phase 7 and RUNNING_LOCALLY guides describe the earlier WSL/verification harness. The harness remains useful for specialist acceptance tests; it is not a fresh-clone requirement.
+| What you need | Authoritative guide |
+|---|---|
+| Install, start, sign up, stop and debug | [Running KEEL locally](LOCAL_DEVELOPMENT.md) |
+| Understand request/data flows and security boundaries | [Architecture](ARCHITECTURE.md) |
+| Find feature code, inputs, rules and limits | [Features](FEATURES.md) |
+| Configure generated settings and optional keys | [Environment configuration](ENVIRONMENT_VARIABLES.md) |
+| Change schema, inspect roles and initialize approved catalogs | [Database and migrations](DATABASE.md) |
+| Configure Stripe, AI, Shopify, WooCommerce or email | [Integrations](INTEGRATIONS.md) |
+| Find worker entrypoints, health evidence and retries | [Workers](WORKERS.md) |
+| Run offline, native database and browser checks | [Testing](TESTING.md) |
+| Diagnose local failures | [Troubleshooting](TROUBLESHOOTING.md) |
+| Contribute a scoped, verified change | [Contributing](CONTRIBUTING.md) |
 
-## Current architecture and domain references
+Component references: [Python backend](../backend/README.md),
+[React frontend](../frontend/README.md), [AI services](../backend/src/ai/README.md).
+The existing local-development guide is the getting-started authority; there
+is no competing setup guide to keep synchronized.
 
-- [Data ownership/contracts](../backend/src/infrastructure/DATA_OWNERSHIP_AND_CONTRACTS.md)
-- [Subscriptions and Credits](SUBSCRIPTIONS_AND_CREDITS.md)
-- [Provider keys/accounts](../backend/KEYS_AND_ACCOUNTS_NEEDED.md)
-- [Scraper/collection architecture](../backend/src/market_scraper/README.md)
-- [Integration feature inventory](keel-integration/FEATURE_INVENTORY.md)
-- [Final differential acceptance](keel-integration/PHASE6_INTEGRATED_ACCEPTANCE_REPORT.md)
-- [Remaining integration checkpoint](keel-integration/REMAINING_INTEGRATION_CHECKPOINT.md)
+## Maintainer and operator references
+
+- [Subscriptions, Credits and payment rules](SUBSCRIPTIONS_AND_CREDITS.md)
+- [Provider keys/accounts](../backend/KEYS_AND_ACCOUNTS_NEEDED.md) and
+  [source-linked environment inventory](reference/ENVIRONMENT_INVENTORY.md)
+- [Data ownership and contracts](../backend/src/infrastructure/DATA_OWNERSHIP_AND_CONTRACTS.md)
+- [Collection and commerce internals](../backend/src/market_scraper/README.md)
+- [Restricted billing database roles](CHECKOUT_DATABASE_PRIVILEGE_REVIEW.md)
+- [Local-only Stripe Test Clock](STRIPE_TEST_CLOCK_LOCAL_GUIDE.md)
+- [Interrupted test-environment recovery](TEST_ENVIRONMENT_RECOVERY.md)
+- [Measured onboarding, documentation inventory and PR limitations](REPOSITORY_READINESS.md)
 
 ## Historical decisions and evidence
 
-`keel-integration/`, `archive/`, `remediation/`, backend reports and the unified file-change ledger retain implementation decisions, owner approvals and acceptance evidence. They are not competing startup guides. Earlier test counts, branch revisions and migration totals describe their recorded runs.
+Historical reports preserve what was approved or measured at a particular
+revision/date. Their earlier test counts, ports, migration totals and readiness
+verdicts are not current setup instructions.
 
-`CODESPACES_DEVELOPMENT.md` remains the Codespaces-specific workflow. `STAGING_DEPLOYMENT.md` and billing runbooks describe deployment/operator activities, not authorization to deploy from a development setup.
+- [Architecture/business decision register](keel-integration/DECISION_REGISTER.md)
+  and its linked decision records preserve identity, payment, entitlement,
+  privacy and accounting invariants. Read the explanation, not only the identifier.
+- [Integration record index](keel-integration/README.md), `archive/`,
+  `remediation/` and dated backend reports retain traceability and audit evidence.
+- [Synthetic seed manifest](DEMO_SEED_PHASE1.md),
+  [customer acceptance findings](DEMO_PHASE2_ACCEPTANCE.md) and
+  [confirmed-defect remediation](DEMO_PHASE3_REMEDIATION.md) describe the existing
+  meeting fixture; they are not required for ordinary development.
+- [Codespaces](../CODESPACES_DEVELOPMENT.md),
+  [earlier local harness](../RUNNING_LOCALLY.md) and
+  [staging deployment](../STAGING_DEPLOYMENT.md) are environment-specific
+  references. The native setup commands above are the teammate onboarding path.
 
-No architecture decisions, migration records or acceptance reports were deleted for this documentation cleanup. Generated local logs and test XML stay in ignored `.dev/`.
+No historical security decision, migration or acceptance evidence was removed.
+Permanent coding-agent rules remain in [AGENTS.md](../AGENTS.md); human developers
+do not need that file to start the application.
