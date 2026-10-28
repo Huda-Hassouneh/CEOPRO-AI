@@ -130,15 +130,16 @@ def list_discovered(
     relationship: Optional[Literal["DIRECT", "INDIRECT", "RELATED", "UNVERIFIED", "with_prices"]] = None,
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict:
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    try:
+    def read(conn):
         result = discovered_competitors.list_competitors(conn, ctx.tenant_id, status, sort, q, origin, min_confidence, limit,
                                                          offset, relationship)
         feature = usage.get_plan(conn, ctx.tenant_id)["features"].get(usage.TRACKED_COMPETITORS)
         result["plan_limit"] = feature["limit"] if feature else None
         return result
-    finally:
-        conn.close()
+
+    # A read of the company's competitors only: shared until the company writes.
+    key = (status, sort, q, origin, min_confidence, limit, offset, relationship)
+    return tenant_cache.cached_read("discovered_competitors", ctx, key, read)
 
 
 @router.get("/competitors/{competitor_id}")
