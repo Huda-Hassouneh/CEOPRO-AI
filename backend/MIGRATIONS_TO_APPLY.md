@@ -32,9 +32,10 @@ Take a backup first. Run staging, check, then production.
 | 14 | `20261026010000_add_comments_refresh_function` | #112 | weekly comments refresh fails | |
 | 15 | `20261026020000_add_competitor_review_index` | #112 | slower review lookups | Build off-peak on a very large `reviews` table |
 | 16 | `20261027000000_add_price_premium_band_overrides` | #120 | saving an owner-set band errors | Rollback loses owner-set bands only |
+| 17 | `20261118000000_add_market_menus_facet` | - | "Read delivery apps & menu photos" errors; vision reads refused (no price row) | Widens the facet check; vision price rows stay NULL until an operator prices them |
 
 ## After applying
 
-1. `schema_migrations` lists all 16 (`SELECT version FROM schema_migrations ORDER BY 1 DESC LIMIT 20;`).
+1. `schema_migrations` lists all 17 (`SELECT version FROM schema_migrations ORDER BY 1 DESC LIMIT 20;`).
 2. Call `POST /pricing/comparisons/refresh` once per company (#106).
 3. Confirm the cost rows in #97 exist, then spot-check one competitor profile and the Pricing page.

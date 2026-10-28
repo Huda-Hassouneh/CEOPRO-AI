@@ -156,8 +156,12 @@ def competitor_items(conn, tenant_id: str, competitor_id: str) -> List[dict]:
         cursor.execute(
             "SELECT payload, source_url, confidence, retrieved_at FROM competitor_intel "
             "WHERE tenant_id = %s AND global_competitor_id = %s AND kind = 'product' "
-            # A social-post caption is weaker evidence than a price list: it never feeds price matching until the owner confirmed it.
-            "AND (COALESCE(payload->>'channel', 'website') = 'website' OR COALESCE((payload->>'verified')::boolean, FALSE));",
+            # A social-post caption or a photo is weaker evidence than a price list: it never feeds price matching until the
+            # owner confirmed it. The business's own listing on a delivery platform (its page names the business) is its
+            # price list there and counts like the website. Fees and add-on options are never a product's price.
+            "AND (COALESCE(payload->>'channel', 'website') = 'website' OR COALESCE((payload->>'verified')::boolean, FALSE) "
+            "     OR (payload->>'channel' = 'delivery' AND COALESCE((payload->>'listing_verified')::boolean, FALSE))) "
+            "AND COALESCE(payload->>'type', 'product') <> 'fee' AND NOT COALESCE((payload->>'option')::boolean, FALSE);",
             (tenant_id, competitor_id),
         )
         rows = cursor.fetchall()

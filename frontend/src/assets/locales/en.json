@@ -5702,7 +5702,10 @@
     },
     "channel": {
       "instagram": "Instagram",
-      "facebook": "Facebook"
+      "facebook": "Facebook",
+      "delivery": "Delivery app",
+      "maps_photos": "Google Maps photo",
+      "web_photos": "Menu photo on the web"
     },
     "alsoSeen": "Also seen in {{count}} other place(s)",
     "review": {
@@ -5971,7 +5974,9 @@
       "loadMore": "Load more",
       "loadMoreHint": "Reads more of the website and its menus (or more posts). It takes longer and runs in the background.",
       "readPosts": "Read posts",
-      "readPostsHint": "Reads their latest Instagram / Facebook posts for prices, offers and menu pictures. Uses paid data credits."
+      "readPostsHint": "Reads their latest Instagram / Facebook posts for prices, offers and menu pictures. Uses paid data credits.",
+      "readMenus": "Read delivery apps & menu photos",
+      "readMenusHint": "Finds their menu with every price on delivery apps (Talabat, Careem, HungerStation, Deliveroo, Zomato...) and reads menu photos from Google Maps and the web. Uses data credits."
     },
     "completeness": {
       "title": "Data completeness",
@@ -5987,6 +5992,7 @@
       "REVIEWS": "Google reviews",
       "PRICES": "Prices",
       "SOCIAL_CONTENT": "Social posts and comments",
+      "MARKET_MENUS": "Delivery apps and menu photos",
       "NEWS": "News about them",
       "COMMENTS": "Video comments"
     },

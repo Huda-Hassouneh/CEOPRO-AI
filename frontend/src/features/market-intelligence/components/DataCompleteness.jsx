@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronsDown, MessageSquareText, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ChevronsDown, MessageSquareText, RefreshCw, ShieldCheck, UtensilsCrossed } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { ApexButton, Meter, Panel, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
@@ -171,8 +171,9 @@ export function DataCompleteness({ completeness, competitorId, queued = false })
 }
 
 // PRICES re-reads the competitor's website and its menu files; "Load more" reads further (more pages, more menu
-// files). SOCIAL_CONTENT reads the competitor's own social posts through the paid provider. Both start a background
-// job (the result appears here shortly), so a click never holds the screen.
+// files). SOCIAL_CONTENT reads the competitor's own social posts through the paid provider. MARKET_MENUS reads its
+// delivery-app listings and menu photos (Google Maps, the web). All start a background job (the result appears here
+// shortly), so a click never holds the screen.
 export function FacetRequestButtons({ name, action, busy, onRun, t }) {
   if (!action) return null;
   if (name === 'PRICES') {
@@ -191,6 +192,16 @@ export function FacetRequestButtons({ name, action, busy, onRun, t }) {
         <ApexButton size="sm" variant="ghost" icon={MessageSquareText} loading={busy} title={t('competitorData.actions.readPostsHint')} onClick={() => onRun('SOCIAL_CONTENT')}>{t('competitorData.actions.readPosts')}</ApexButton>
         {action.canLoadMore && (
           <ApexButton size="sm" variant="ghost" icon={ChevronsDown} disabled={busy} title={t('competitorData.actions.loadMoreHint')} onClick={() => onRun('SOCIAL_CONTENT', 'deep')}>{t('competitorData.actions.loadMore')}</ApexButton>
+        )}
+      </>
+    );
+  }
+  if (name === 'MARKET_MENUS') {
+    return (
+      <>
+        <ApexButton size="sm" variant="ghost" icon={UtensilsCrossed} loading={busy} title={t('competitorData.actions.readMenusHint')} onClick={() => onRun('MARKET_MENUS')}>{t('competitorData.actions.readMenus')}</ApexButton>
+        {action.canLoadMore && (
+          <ApexButton size="sm" variant="ghost" icon={ChevronsDown} disabled={busy} title={t('competitorData.actions.loadMoreHint')} onClick={() => onRun('MARKET_MENUS', 'deep')}>{t('competitorData.actions.loadMore')}</ApexButton>
         )}
       </>
     );

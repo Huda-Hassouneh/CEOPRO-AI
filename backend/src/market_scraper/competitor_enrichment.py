@@ -66,17 +66,23 @@ FACET_REVIEWS = "REVIEWS"
 FACET_SOCIAL_CONTENT = "SOCIAL_CONTENT"
 FACET_NEWS = "NEWS"
 FACET_COMMENTS = "COMMENTS"
+# Menus and prices published outside the competitor's own site: delivery / menu platforms, Google Maps photos and
+# menu pictures anywhere on the web (market_menus.py).
+FACET_MARKET_MENUS = "MARKET_MENUS"
 # Google reviews (Places API / Apify) are stored under this platform; every other competitor review row is a comment.
 GOOGLE_REVIEW_PLATFORM = "Google Places"
-ALL_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT)
+ALL_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT,
+              FACET_MARKET_MENUS)
 # The facets this module can actually (re)collect today.
-ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT)
+ENRICHABLE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS, FACET_COMMENTS, FACET_PRICES, FACET_SOCIAL_CONTENT,
+                     FACET_MARKET_MENUS)
 # What the routine runs (after discovery, the sweep, "retry all failed") collect. COMMENTS searches YouTube
 # (100 quota units a search), so it only runs when asked for: the per-competitor Retry, or an explicit facet.
 # SOCIAL_CONTENT is a paid provider call per profile, so it too only runs when asked for.
 # PRICES re-reads the whole website (and its menu files), which discovery already does on its own schedule.
 # Never part of a plain "retry everything": a paid provider call per profile, so only an explicit request runs it.
-PAID_ON_REQUEST_FACETS = (FACET_SOCIAL_CONTENT,)
+# MARKET_MENUS spends web searches, Places photo calls and OCR time per competitor: also on request only.
+PAID_ON_REQUEST_FACETS = (FACET_SOCIAL_CONTENT, FACET_MARKET_MENUS)
 ROUTINE_FACETS = (FACET_PROFILE, FACET_SOCIAL_LINKS, FACET_REVIEWS, FACET_NEWS)
 
 STATUS_SUCCEEDED = "SUCCEEDED"
@@ -210,7 +216,7 @@ def _load_competitor(conn, tenant_id: str, competitor_id: str) -> Optional[dict]
             """
             SELECT gc.competitor_name, gc.website_url, gc.website_identity_key, gc.address, gc.city, gc.phone,
                    gc.rating, gc.rating_count, gc.place_types, gc.google_place_id, gc.latitude, gc.longitude,
-                   gc.social_profiles, gc.visibility, gc.added_by_tenant_id, gc.country_code
+                   gc.social_profiles, gc.visibility, gc.added_by_tenant_id, gc.country_code, gc.name_ar
             FROM tenant_competitors tc
             JOIN global_competitors gc ON gc.global_competitor_id = tc.global_competitor_id
             WHERE tc.tenant_id = %s AND tc.global_competitor_id = %s;
@@ -223,6 +229,7 @@ def _load_competitor(conn, tenant_id: str, competitor_id: str) -> Optional[dict]
     keys = (
         "name", "website_url", "identity_key", "address", "city", "phone", "rating", "rating_count",
         "place_types", "place_id", "latitude", "longitude", "social_profiles", "visibility", "owner_tenant_id", "country",
+        "name_ar",
     )
     competitor = dict(zip(keys, row))
     competitor["owner_tenant_id"] = str(competitor["owner_tenant_id"]) if competitor["owner_tenant_id"] else None
@@ -955,6 +962,72 @@ def _social_content_outcome(conn, tenant_id, competitor_id, competitor, deep):
             f"{total_posts} post(s) were read; none shows a price, an offer or a readable menu. " + " ".join(notes), 0, None)
 
 
+def enrich_market_menus(conn, tenant_id: str, competitor_id: str, competitor: dict, deep: bool = False) -> dict:
+    """The competitor's menus and prices outside its own website: delivery / menu platform listings, menu photos on
+    its Google Maps listing and menu pictures anywhere on the web (market_menus.py). Additive: a channel that found
+    nothing keeps what an earlier read stored; every empty source says why."""
+    status, reason_code, detail, items, confidence = _market_menus_outcome(conn, tenant_id, competitor_id, competitor, deep)
+    _write_ledger(conn, tenant_id, competitor_id, FACET_MARKET_MENUS, status, reason_code, detail, "market_menus", items, confidence)
+    return {"status": status, "reason_code": reason_code, "reason_detail": detail, "items_found": items}
+
+
+_MENU_SOURCE_TEXT = {
+    "delivery": "delivery and menu apps",
+    "maps_photos": "Google Maps photos",
+    "web_photos": "menu pictures on the web",
+}
+_MENU_SOURCE_REASON = {
+    "not_configured": "is not set up on the server",
+    "approval_missing": "needs the operator's Places terms approval (PLACES_TERMS_APPROVAL_REFERENCE)",
+    "no_place_id": "needs the competitor's Google Maps listing (retry its profile first)",
+    "failed": "could not be reached",
+    "nothing_found": "found nothing for this competitor",
+}
+
+
+def _market_menus_outcome(conn, tenant_id, competitor_id, competitor, deep):
+    from src.ai.market_inputs import competitor_intel
+    from src.market_scraper import market_menus
+
+    if not competitor.get("name"):
+        return STATUS_NOT_APPLICABLE, NO_MATCH, "The competitor has no name to look up.", 0, None
+    with _billing_scope(tenant_id, "competitor_market_menus"):
+        try:
+            result = market_menus.collect(competitor, deep=deep)
+        except Exception as exc:  # noqa: BLE001 - e.g. a Data Credits refusal: surface its message, never crash the retry
+            return STATUS_FAILED, getattr(exc, "reason", None) or PROVIDER_ERROR, _refusal_text(exc), 0, None
+    stored = 0
+    for channel, facts in result["by_channel"].items():
+        stored += competitor_intel.save_channel_facts(conn, tenant_id, competitor_id, channel, facts) if facts else 0
+    priced = sum(1 for facts in result["by_channel"].values() for f in facts if f["kind"] == "product" and f.get("price") is not None)
+    found = [_MENU_SOURCE_TEXT[c] for c, s in result["sources"].items() if s == market_menus.STATUS_OK]
+    missing = [f"{_MENU_SOURCE_TEXT[c]} {_MENU_SOURCE_REASON.get(s, s)}" for c, s in result["sources"].items()
+               if s != market_menus.STATUS_OK]
+    listings = [f"{entry['platform']} ({entry['items']} items)" for entry in result["listings"] if entry.get("status") == "read"]
+    notes = []
+    if found:
+        notes.append(f"{priced} price(s) read from " + ", ".join(found) + ".")
+    if listings:
+        notes.append("Listings read: " + ", ".join(listings) + ".")
+    if result.get("images_skipped_no_ocr"):
+        notes.append(f"{result['images_skipped_no_ocr']} menu picture(s) were not read because no OCR engine is available.")
+    if missing:
+        notes.append("Not used: " + "; ".join(missing) + ".")
+    detail = " ".join(notes)[:1000] or None
+    if priced:
+        partial = any(s in ("not_configured", "approval_missing", "failed") for s in result["sources"].values())
+        return (STATUS_PARTIAL if partial else STATUS_SUCCEEDED), None, detail, stored, 0.6
+    statuses = set(result["sources"].values())
+    if statuses <= {"not_configured", "approval_missing", "no_place_id"}:
+        code = PLATFORM_APPROVAL_MISSING if "approval_missing" in statuses else NO_CREDENTIALS
+        return STATUS_BLOCKED, code, detail, 0, None
+    if result.get("images_skipped_no_ocr"):
+        return STATUS_FAILED, OCR_NOT_AVAILABLE, detail, 0, None
+    if statuses == {"failed"}:
+        return STATUS_FAILED, PROVIDER_ERROR, detail, 0, None
+    return STATUS_FAILED, NO_PRICES_PUBLISHED, detail, 0, None
+
+
 def _recent_attempt_wait(conn, tenant_id: str, competitor_id: str, facet: str) -> int:
     with conn.cursor() as cursor:
         cursor.execute(
@@ -983,7 +1056,8 @@ def enrich_competitor(
 
     throttle=True (manual retries) refuses to re-run a facet attempted within
     MIN_SECONDS_BETWEEN_ATTEMPTS and reports THROTTLED for it instead.
-    deep=True ("load more") makes PRICES read more pages, items and menu files, and SOCIAL_CONTENT read more posts."""
+    deep=True ("load more") makes PRICES read more pages, items and menu files, SOCIAL_CONTENT read more posts and
+    MARKET_MENUS read more listings and pictures."""
     requested = tuple(facets) if facets else tuple(f for f in ENRICHABLE_FACETS if f not in PAID_ON_REQUEST_FACETS)
     unsupported = [facet for facet in requested if facet not in ENRICHABLE_FACETS]
     if unsupported:
@@ -1018,6 +1092,8 @@ def enrich_competitor(
                 results[facet] = enrich_prices(conn, tenant_id, competitor_id, competitor, deep)
             elif facet == FACET_SOCIAL_CONTENT:
                 results[facet] = enrich_social_content(conn, tenant_id, competitor_id, competitor, deep)
+            elif facet == FACET_MARKET_MENUS:
+                results[facet] = enrich_market_menus(conn, tenant_id, competitor_id, competitor, deep)
             else:
                 results[facet] = enrich_social_links(conn, tenant_id, competitor_id, competitor)
         except Exception as exc:  # noqa: BLE001 - one facet failing must not stop the rest
@@ -1232,9 +1308,17 @@ def _facet(status, reason_code=None, reason_detail=None, items=0, confidence=Non
     }
 
 
+# MARKET_MENUS is another way to get prices, not one more thing a competitor must have: the score stays over these
+# facets, and prices from delivery apps / menu photos fill the PRICES slot when the website gave fewer.
+SCORED_FACETS = tuple(f for f in ALL_FACETS if f != FACET_MARKET_MENUS)
+
+
 def _completeness_score(facets: dict) -> int:
-    points = sum(1.0 if f["status"] == STATUS_SUCCEEDED else 0.5 if f["status"] == STATUS_PARTIAL else 0.0 for f in facets.values())
-    return round(points / len(ALL_FACETS) * 100)
+    def points(facet):
+        status = (facets.get(facet) or {}).get("status")
+        return 1.0 if status == STATUS_SUCCEEDED else 0.5 if status == STATUS_PARTIAL else 0.0
+    total = sum(max(points(f), points(FACET_MARKET_MENUS)) if f == FACET_PRICES else points(f) for f in SCORED_FACETS)
+    return round(total / len(SCORED_FACETS) * 100)
 
 
 def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = None) -> dict:
@@ -1305,7 +1389,7 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
         facets = {}
         for facet in ENRICHABLE_FACETS:
             row = ledger.get((cid, facet))
-            if facet in (FACET_PRICES, FACET_SOCIAL_CONTENT):
+            if facet in (FACET_PRICES, FACET_SOCIAL_CONTENT, FACET_MARKET_MENUS):
                 continue  # derived below, from matched prices, the source policy and (when present) this ledger row
             if facet == FACET_REVIEWS and review_counts.get(cid, 0):
                 # Reviews exist (from Places or any other collector): the data wins over a stale ledger status.
@@ -1361,6 +1445,13 @@ def load_data_completeness(conn, tenant_id: str, competitor_id: Optional[str] = 
             facets[FACET_SOCIAL_CONTENT] = _facet(STATUS_PENDING, NOT_ATTEMPTED, "Posts, offers and menu pictures have not been read yet.", can_retry=True)
         else:
             facets[FACET_SOCIAL_CONTENT] = _facet(STATUS_BLOCKED, NO_SOCIAL_LINKS, "No social profile is known for this competitor.")
+        row = ledger.get((cid, FACET_MARKET_MENUS))
+        if row:
+            status, code, detail, items, confidence, last_attempt = row
+            facets[FACET_MARKET_MENUS] = _facet(status, code, detail, items, confidence, last_attempt, can_retry=status != STATUS_NOT_APPLICABLE)
+        else:
+            facets[FACET_MARKET_MENUS] = _facet(STATUS_PENDING, NOT_ATTEMPTED,
+                                                "Delivery app menus and menu photos have not been read yet.", can_retry=True)
         # Facets that cannot fill until the service itself is set up: the score is not the owner's to raise there.
         needs_setup = [name for name in ALL_FACETS if name in facets and facets[name]["next_step"] == NEXT_ADMIN]
         result[cid] = {"score": _completeness_score(facets), "needs_setup": needs_setup, "facets": facets}
