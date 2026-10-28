@@ -5,6 +5,8 @@ import {
   DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
   getLocaleDirection,
+  isLocaleLoaded,
+  loadLocale,
   translate,
 } from '../../shared/lib/i18n.js';
 
@@ -23,6 +25,13 @@ const readInitialLocale = () => {
 
 export function I18nProvider({ children }) {
   const [locale, setLocaleState] = useState(readInitialLocale);
+  // A language other than English is fetched before it is shown, so nobody
+  // sees English text flash in a right-to-left page; English if it can't load.
+  const [ready, setReady] = useState(() => isLocaleLoaded(locale));
+  useEffect(() => {
+    if (ready) return;
+    loadLocale(locale).catch(() => setLocaleState(DEFAULT_LOCALE)).finally(() => setReady(true));
+  }, [locale, ready]);
   const dir = getLocaleDirection(locale);
   const queryClient = useQueryClient();
   const previousLocale = useRef(locale);
@@ -52,12 +61,14 @@ export function I18nProvider({ children }) {
     locale,
     dir,
     setLocale: (nextLocale) => {
-      if (SUPPORTED_LOCALES.includes(nextLocale)) setLocaleState(nextLocale);
+      // The current language stays on screen until the new one has loaded.
+      if (SUPPORTED_LOCALES.includes(nextLocale)) loadLocale(nextLocale).then(() => setLocaleState(nextLocale), () => {});
     },
     t: (key, values) => translate(locale, key, values),
     supportedLocales: SUPPORTED_LOCALES,
   }), [dir, locale]);
 
+  if (!ready) return null;
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
