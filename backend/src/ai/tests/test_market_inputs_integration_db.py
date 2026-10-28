@@ -69,6 +69,9 @@ def test_recorded_prices_drive_a_real_recommendation_using_each_competitors_late
 
     prices = pricing_data.load_competitor_prices(conn, tenant_id, product["product_id"], "JOD")
     assert sorted(p["price_found"] for p in prices) == [8.0, 8.5]
+    from src.ai.market_inputs.market_structure import build
+    observed = build(conn, tenant_id)['product_prices'][0]['prices']
+    assert all(p['provenance']=='manual' and p['provider_verified'] is False for p in observed)
 
     result = run_price_recommendation(conn, tenant_id, product["product_id"])
     assert result["matched_competitor_count"] == 2

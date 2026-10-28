@@ -48,6 +48,9 @@ def setup(monkeypatch):
     def model(messages, **kwargs):
         calls["llm"] += 1
         import json
+        from src.ai.marketing import content_generator
+        if messages[0]['content'] == content_generator._GROUNDING_PROMPT:
+            return json.dumps({'supported':True,'unsupported_claims':[],'claims':[]}), {'total_tokens':100}
         payload = json.loads(_valid_response_json())
         payload["image_prompt"] = "A tray of golden kunafa on a marble counter, warm morning light"
         return json.dumps(payload), {"total_tokens": 900}
@@ -100,7 +103,7 @@ def test_a_campaign_is_created_with_its_image_edited_reloaded_paged_and_deleted(
     # The same press again: same campaign, nothing written or charged twice.
     again = client.post("/marketing/campaigns", json=body, headers=headers).json()
     assert again["campaign_id"] == cid and again["duplicate_request"] is True
-    assert (calls["llm"], calls["image"]) == (1, 1)
+    assert (calls["llm"], calls["image"]) == (2, 1)  # Draft plus factual review, one image.
 
     # Edit the title, audience and one caption; a reload shows the edits.
     edit = {"title": "Kunafa weekend offer", "audience_summary": "Families in Amman",

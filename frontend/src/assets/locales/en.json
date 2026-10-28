@@ -5848,9 +5848,9 @@
   "structure": {
     "eyebrow": "Market structure",
     "title": "Your market at a glance",
-    "subtitle": "{{count}} businesses found by your scans, from public listings and their own websites.",
-    "empty": "No scan results yet",
-    "emptyHint": "Run a market scan on the Overview tab to see the shape of your market.",
+    "subtitle": "{{count}} businesses in your stored competitor records, including manual entries and discovery results.",
+    "empty": "No competitor records yet",
+    "emptyHint": "Add a competitor or run a market scan to see the shape of your market.",
     "howClose": "How closely they compete",
     "chains": "{{count}} of them have more than one branch.",
     "kinds": "Most common kinds",
@@ -5864,20 +5864,25 @@
     },
     "websites": "Websites",
     "websitesValue": "{{known}} have a website · {{read}} read · {{priced}} publish prices KEEL could read",
-    "prices": "Your products against published competitor prices",
-    "noPrices": "No competitor price matching your products has been found on their websites yet. KEEL only compares prices it found published for the same product.",
+    "prices": "Your products against recorded competitor prices",
+    "noPrices": "No matching competitor price observations are stored yet. Add a manual observation or collect permitted website prices.",
     "product": "Product",
     "yours": "Your price",
     "range": "Competitor range",
     "median": "Median",
-    "seenAt": "Where it was published",
+    "seenAt": "Observation source",
     "competitors": "{{count}} competitors",
     "position": {
       "above": "above all",
       "below": "below all",
       "within": "within range"
     },
-    "provenance": "Counts and prices come only from stored scan results; each price links to the page it was published on."
+    "sources": {
+      "manual": "Manual observation",
+      "scraped": "Website collection · not independently verified",
+      "manual_or_unrecorded": "Manual or unrecorded source · not verified"
+    },
+    "provenance": "Stored observations can be manually entered or collected from websites. Each price shows its recorded source; a link alone is not proof of collection or independent verification. Older records may not have source metadata."
   },
   "competitorData": {
     "title": "Data we have",

@@ -13,6 +13,15 @@ import pytest
 from src.ai.marketing import content_generator as cg
 
 
+@pytest.fixture(autouse=True)
+def _isolated_factual_review(monkeypatch):
+    """These parser/provider-contract tests isolate the separate factual auditor.
+
+    Its fail-closed behavior is exercised in test_phase3_ai_correctness.py.
+    """
+    monkeypatch.setattr(cg, '_check_grounding', lambda *a: None)
+
+
 def _valid_response_json(**overrides):
     base = {
         "audience_summary": "Likely audience (AI-suggested, not measured): busy professionals.",
