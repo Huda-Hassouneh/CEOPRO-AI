@@ -2457,6 +2457,31 @@
       "inactiveBody": "Choose a plan in Billing to keep using this part of KEEL."
     },
     "catalog": {
+      "legacyRestoration": {
+        "requestSaved": "Request saved for review.",
+        "draftSaved": "New draft saved. Existing approved quotes are unchanged.",
+        "versionedPolicy": "Save creates a new draft revision. Activation requires explicit evidence. Instant-approval thresholds, per-feature bounds and other estimated costs remain policy-gated; no financial defaults are seeded.",
+        "approvalEvidence": "Approval evidence / rationale",
+        "version": "Version",
+        "effectiveFrom": "Effective from",
+        "activate": "Activate",
+        "confirmPolicy": "Confirm pricing policy action",
+        "evidenceRequired": "Approval evidence is required.",
+        "activated": "Policy activated for future calculations. Approved quote snapshots remain frozen.",
+        "policyConfirmation": "A draft does not change customer rights. Activation affects future quote calculations; it does not alter approved quotes, subscriptions or credit budgets.",
+        "reviewTitle": "Quote review and evidence",
+        "activationBoundary": "Approval and customer acceptance do not grant paid rights. Verified billing confirmation is required.",
+        "configuration": "Requested configuration",
+        "quantities": "Allowances",
+        "pricingEvidence": "Frozen pricing evidence",
+        "revisions": "Revision history",
+        "auditHistory": "Audit history",
+        "checkoutAttempts": "Checkout and payment status",
+        "planTermsGuard": "CATALOG-001: price, trial and billing-term changes require an approved catalog version, exact values, effective date and customer cohort/transition decision. Plan availability and supported allowances remain editable in their original controls.",
+        "featureGuard": "ENT-001: localized labels and descriptions can be saved. Creating/removing executable features or changing units, aggregation and reset semantics requires an approved enforcement contract.",
+        "contractGuard": "CUSTOM-001: direct contract enable/disable requires approved replacement and overlapping-grant precedence. Acceptance alone does not activate paid rights.",
+        "usageDerived": "Python derives pricing usage from the selected allowance and approved cost binding."
+      },
       "title": "Subscription Catalog",
       "subtitle": "Manage the plans, promo codes, features, and plan limits supported by the subscription API.",
       "back": "Back to Plans & Subscription",
@@ -2549,6 +2574,7 @@
         "unlinked": "Feature unlinked from plan successfully."
       },
       "customPlans": {
+        "review": "Review",
         "validation": {
           "monitoringCadence": "Select a monitoring cadence for competitor management.",
           "trackedCompetitors": "Select tracked competitors with a positive limit when competitor management is enabled.",

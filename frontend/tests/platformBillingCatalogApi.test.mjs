@@ -49,7 +49,7 @@ test('original plan availability toggle maps to Python status; price and commerc
 
 test('original quote list reflects Python tenant/revision data and never fabricates a quote price', async () => {
   const api = createPlatformBillingCatalogApi({
-    billing: { quotes: async () => ({ quotes: [{ quoteId: 'q-1', tenantId: 't-1', businessName: 'Synthetic Co', state: 'submitted', updatedAt: '2026-10-25T00:00:00Z', currentRevision: { revisionNumber: 2, configuration: { enabledFeatures: ['market_intelligence'] }, featureQuantities: { team_seats: 4 }, commercialTerms: {} } }] }) },
+    billing: { quote: async () => ({}), quotes: async () => ({ quotes: [{ quoteId: 'q-1', tenantId: 't-1', businessName: 'Synthetic Co', state: 'submitted', updatedAt: '2026-10-25T00:00:00Z', currentRevision: { revisionNumber: 2, configuration: { enabledFeatures: ['market_intelligence'] }, featureQuantities: { team_seats: 4 }, commercialTerms: {} } }] }) },
   });
   const [quote] = (await api.getCustomPlanQuotes()).data;
   assert.equal(quote.id, 'q-1');
@@ -64,7 +64,7 @@ test('unsupported Node-only catalog mutations fail explicitly instead of hitting
   const api = createPlatformBillingCatalogApi({ billing: {} });
   await assert.rejects(api.getPromoCodes(), { code: 'BACKEND_CAPABILITY_UNAVAILABLE' });
   await assert.rejects(api.updatePlan('growth', {}), { code: 'BACKEND_CAPABILITY_UNAVAILABLE' });
-  await assert.rejects(api.updateCustomPlanPricingPolicy({}), { code: 'BACKEND_CAPABILITY_UNAVAILABLE' });
+  await assert.rejects(api.updateCustomPlanPricingPolicy({}), /requires USD/);
 });
 
 

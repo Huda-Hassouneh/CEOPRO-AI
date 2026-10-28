@@ -134,8 +134,10 @@ def test_plan_feature_mutation_requires_platform_owner_before_admin_database(mon
 def test_plan_feature_mutation_uses_audited_catalog_service_and_commits(monkeypatch):
     connection = _Connection(None)
     calls = {}
-    monkeypatch.setattr(platform.db, "system_connection", lambda: connection)
-    monkeypatch.setattr(platform.billing_admin, "set_plan_feature", lambda _conn, **kwargs: calls.update(kwargs) or {
+    monkeypatch.setattr(platform.db, "system_connection", lambda: pytest.fail("Administrative runtime access forbidden"))
+    scopes = []
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda tid, uid: scopes.append((tid, uid)) or connection)
+    monkeypatch.setattr(platform.billing_admin, "owner_catalog_command", lambda _conn, **kwargs: calls.update(kwargs) or {
         "plan_key": kwargs["plan_key"], "feature_code": kwargs["feature_code"], "included": kwargs["included"],
         "limit_value": kwargs["limit_value"], "catalog_versioned": True, "existing_assignments_preserved": True,
     })
@@ -148,7 +150,8 @@ def test_plan_feature_mutation_uses_audited_catalog_service_and_commits(monkeypa
     assert response.status_code == 200
     assert response.json()["existing_assignments_preserved"] is True
     assert calls == {"plan_key": "standard", "feature_code": "team_seats", "included": True,
-                     "limit_value": 12, "approved_by": "owner-user", "reason": "synthetic owner catalog test"}
+                     "limit_value": 12, "reason": "synthetic owner catalog test"}
+    assert scopes == [("platform-tenant", "owner-user")]
     assert connection.committed and connection.closed
 
 
@@ -163,8 +166,10 @@ def test_plan_feature_mutation_rejects_boolean_as_numeric_limit(monkeypatch):
 def test_plan_status_mutation_requires_platform_owner_and_calls_audited_service(monkeypatch):
     connection = _Connection(None)
     calls = {}
-    monkeypatch.setattr(platform.db, "system_connection", lambda: connection)
-    monkeypatch.setattr(platform.billing_admin, "set_plan_active", lambda _conn, **kwargs: calls.update(kwargs) or {
+    monkeypatch.setattr(platform.db, "system_connection", lambda: pytest.fail("Administrative runtime access forbidden"))
+    scopes = []
+    monkeypatch.setattr(platform.db, "app_role_connection", lambda tid, uid: scopes.append((tid, uid)) or connection)
+    monkeypatch.setattr(platform.billing_admin, "owner_catalog_command", lambda _conn, **kwargs: calls.update(kwargs) or {
         "plan_key": kwargs["plan_key"], "is_active": kwargs["active"], "existing_assignments_preserved": True,
     })
     monkeypatch.setattr(platform.service, "command", lambda *_args, **_kwargs: {"role": "owner"})
@@ -174,8 +179,9 @@ def test_plan_status_mutation_requires_platform_owner_and_calls_audited_service(
         })
     assert response.status_code == 200
     assert response.json()["existing_assignments_preserved"] is True
-    assert calls == {"plan_key": "growth", "active": False, "approved_by": "owner-user",
+    assert calls == {"plan_key": "growth", "active": False,
                      "reason": "synthetic availability regression"}
+    assert scopes == [("platform-tenant", "owner-user")]
     assert connection.committed and connection.closed
 
 
@@ -464,12 +470,12 @@ def test_feature_catalog_is_platform_owner_only_and_metadata_update_is_audited(m
             self.query, self.params = query, params
             calls.append((query, params))
         def fetchone(self):
-            return ({"feature_code": "team_seats", "display_name": "Seats", "display_name_ar": "المقاعد"},)
+            return ({"feature_code": "team_seats", "display_name": "Seats", "display_name_ar": "Ø§Ù„Ù…Ù‚Ø§Ø¹Ø¯"},)
     connection.cursor_instance = Cursor(None)
     with _client(monkeypatch, "owner") as client:
         response = client.patch("/platform/billing/feature-catalog/team_seats", json={
-            "name": "Seats", "name_ar": "المقاعد", "description": "Available seats",
-            "description_ar": "المقاعد المتاحة", "reason": "Synthetic metadata test",
+            "name": "Seats", "name_ar": "Ø§Ù„Ù…Ù‚Ø§Ø¹Ø¯", "description": "Available seats",
+            "description_ar": "Ø§Ù„Ù…Ù‚Ø§Ø¹Ø¯ Ø§Ù„Ù…ØªØ§Ø­Ø©", "reason": "Synthetic metadata test",
         })
     assert response.status_code == 200
     assert calls[0][1][0] == "update_metadata"
