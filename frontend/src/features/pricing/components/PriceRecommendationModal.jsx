@@ -26,6 +26,7 @@ export function PriceRecommendationModal({ open, product, onClose, currencyForma
 
   if (!product) return null;
   const result = mutation.data;
+  const estimated = Boolean(result?.data_basis && result.data_basis !== 'LOCAL_MARKET');
   const number = (value) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(Number(value ?? 0));
   // The freshness window is years long now (3 years): say "3 years", not "1095 days".
   const windowDays = Number(result?.max_price_age_days ?? 30);
@@ -57,8 +58,9 @@ export function PriceRecommendationModal({ open, product, onClose, currencyForma
       {result.data_basis && result.data_basis !== 'LOCAL_MARKET'
         ? <p className="pricing-recommendation-explanation pricing-recommendation-explanation--strong">{t(`pricing.modal.estimate.${result.data_basis}`)}</p>
         : <p className="pricing-recommendation-explanation">{t('pricing.modal.basis', { count: result.matched_competitor_count, period })}</p>}
-      {/* The reasoning, built from the numbers so it reads in the interface language. */}
-      {result.market && <p className="pricing-recommendation-explanation">{t(`pricing.reason.market.${result.market_action || result.action}`, {
+      {/* The reasoning, built from the numbers so it reads in the interface language. An estimated
+          market price is one figure, not an average of competitor prices ("the average of 0 prices"). */}
+      {result.market && <p className="pricing-recommendation-explanation">{t(`pricing.reason.${estimated ? 'estimate' : 'market'}.${result.market_action || result.action}`, {
         price: currencyFormatter(result.current_price, product.currency),
         average: currencyFormatter(result.market.average, product.currency),
         min: currencyFormatter(result.market.min, product.currency),
