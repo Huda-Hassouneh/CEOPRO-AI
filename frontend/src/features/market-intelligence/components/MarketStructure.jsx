@@ -79,6 +79,7 @@ export function MarketStructure() {
                       {p.prices.slice(0, 3).map((x) => (
                         <a key={`${x.competitor}-${x.price}`} className="apex-pill apex-pill--neutral" href={safeHref(x.source_url)} target="_blank" rel="noreferrer noopener" dir="auto">
                           {x.competitor} · {number.format(x.price)}<ExternalLink size={10} aria-hidden="true" />
+                          <span>{t(`structure.sources.${x.provenance || 'manual_or_unrecorded'}`)}</span>
                         </a>
                       ))}
                     </td>
