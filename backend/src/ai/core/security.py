@@ -138,9 +138,9 @@ _security_logger = logging.getLogger("CEOPRO_AI_SECURITY")
 
 
 def _revocation_store():
-    from src.ai.core.redis_client import get_redis_client
+    from src.ai.core.redis_client import get_shared_redis_client
 
-    return get_redis_client(socket_connect_timeout=0.5, socket_timeout=0.5)
+    return get_shared_redis_client(socket_connect_timeout=0.5, socket_timeout=0.5)
 
 
 def revoke_token(token_id: str, expires_at_epoch) -> bool:
