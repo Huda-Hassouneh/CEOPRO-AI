@@ -121,7 +121,7 @@ def test_the_provider_failing_shows_the_evidence_itself(model, monkeypatch):
     assert result["references"] and result["token_usage"]["total_tokens"] == 0
 
 
-@pytest.mark.parametrize("reason, status", [("COST_NOT_CONFIGURED", "not_configured"),
+@pytest.mark.parametrize("reason, status", [("COST_NOT_CONFIGURED", "cost_not_configured"),
                                             ("PROVIDER_DISABLED", "provider_unavailable"),
                                             ("PROVIDER_CAP_REACHED", "provider_unavailable")])
 def test_a_server_side_credits_refusal_shows_the_evidence_not_an_error(model, monkeypatch, reason, status):
@@ -139,7 +139,7 @@ def test_the_companys_own_credit_or_plan_limit_still_stops_the_question(model, m
 
 def test_a_refusal_inside_the_research_helper_call_is_translated_too():
     guarded = advisor._guarded(lambda *a, **k: (_ for _ in ()).throw(credits.BudgetError("COST_NOT_CONFIGURED", credits.AI)))
-    with pytest.raises(llm_client.LLMNotConfiguredError):
+    with pytest.raises(llm_client.LLMPricingNotConfiguredError):
         guarded([])
 
 

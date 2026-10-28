@@ -162,7 +162,7 @@ test('knowledge base api tells AI Credit refusals apart from a busy provider', a
   t.after(() => { httpClient.defaults.baseURL = originalBaseURL; server.close(); });
 
   assert.deepEqual(await knowledgeBaseApi.chat({ question: 'no price' }),
-    { available: false, reason: 'notConfigured', renewsOn: null, message: null });
+    { available: false, reason: 'pricingNotConfigured', renewsOn: null, message: null });
   assert.deepEqual(await knowledgeBaseApi.chat({ question: 'credits used' }),
     { available: false, reason: 'creditsExhausted', renewsOn: '2026-10-31', message: null });
   assert.equal((await knowledgeBaseApi.chat({ question: 'switched off' })).reason, 'serviceSuspended');

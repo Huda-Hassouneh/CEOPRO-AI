@@ -25,7 +25,7 @@ const capabilities = Object.freeze({
 const BILLING_REASONS = Object.freeze({
   BUDGET_EXHAUSTED: 'creditsExhausted',
   SUBSCRIPTION_INACTIVE: 'subscriptionInactive',
-  COST_NOT_CONFIGURED: 'notConfigured',
+  COST_NOT_CONFIGURED: 'pricingNotConfigured',
   NO_BILLING_CONTEXT: 'notConfigured',
   PROVIDER_DISABLED: 'serviceSuspended',
   PROVIDER_CAP_REACHED: 'serviceSuspended',
@@ -150,6 +150,9 @@ export const knowledgeBaseApi = {
       // X-Assistant-Reason (routers/rag.py) says why no answer was produced,
       // so the chat can tell the user the real cause.
       const reason = error?.response?.headers?.['x-assistant-reason'] || null;
+      if (reason === 'cost_not_configured') {
+        return { available: false, reason: 'pricingNotConfigured', ...persistedSession, message: null };
+      }
       if (reason === 'not_configured') {
         return { available: false, reason: 'notConfigured', ...persistedSession, message: null };
       }

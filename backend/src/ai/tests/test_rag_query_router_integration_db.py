@@ -127,7 +127,7 @@ def test_an_unpriced_model_gives_200_evidence_not_a_503(client, model, monkeypat
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["answer_mode"] == "evidence" and body["references"] and calls == []
-    assert {"need": "answer_writing", "status": "not_configured"} in body["evidence_status"]
+    assert {"need": "answer_writing", "status": "cost_not_configured"} in body["evidence_status"]
 
 
 def test_a_rejected_key_gives_200_evidence_provider_unavailable(client, model, monkeypatch):
@@ -178,3 +178,28 @@ def test_a_company_with_no_ai_credits_left_is_refused_with_402(client, model):
     response = _ask(client, headers)
     assert response.status_code == 402, response.text
     assert "BUDGET_EXHAUSTED" in response.text
+
+
+def test_unpriced_greeting_reports_pricing_keeps_history_and_refunds_allowance(client, model, monkeypatch):
+    from src.ai.rag import llm_client
+    from src.ai.core import usage
+
+    _, calls = model
+    monkeypatch.setattr(llm_client, "active_provider", lambda: "unpriced_" + uuid.uuid4().hex[:8])
+    tenant, headers = _company_with_one_product(client)
+    response = client.post("/rag/query", params={"query_text": "hello"}, headers=headers)
+    assert response.status_code == 503, response.text
+    assert response.json()["detail"]["reason"] == "COST_NOT_CONFIGURED"
+    assert response.json()["detail"]["budget"] == "ai"
+    assert response.headers["x-assistant-reason"] == "cost_not_configured"
+    assert calls == [], "An unpriced provider must never be contacted"
+    assert "unpriced_" not in response.text and "input_token" not in response.text
+    identity = response.headers["x-assistant-session-id"]
+    history = client.get(f"/rag/sessions/{identity}/messages", headers=headers)
+    assert history.status_code == 200
+    assert [m["content"] for m in history.json()["messages"]] == ["hello"]
+    used = _admin("SELECT used FROM tenant_usage_counters WHERE tenant_id=%s AND feature_code=%s", (tenant, usage.RAG_ASSISTANT))
+    assert all(row[0] == 0 for row in used)
+    assert _admin("SELECT count(*) FROM usage_ledger WHERE tenant_id=%s", (tenant,))[0][0] == 0
+    _, other = _company_with_one_product(client)
+    assert client.get(f"/rag/sessions/{identity}/messages", headers=other).status_code == 404

@@ -45,3 +45,19 @@ def test_fused_score_is_sum_of_reciprocal_ranks():
     expected_score_a = 1 / (60 + 1) + 1 / (60 + 2)
     a_result = next(r for r in fused if r.chunk_id == "a")
     assert abs(a_result.score - expected_score_a) < 1e-9
+
+
+def test_empty_semantic_index_does_not_import_optional_faiss(monkeypatch):
+    import builtins
+    import numpy as np
+    from src.ai.rag.faiss_index import FAISSIndex
+
+    original_import = builtins.__import__
+    def without_faiss(name, *args, **kwargs):
+        if name == "faiss":
+            raise ModuleNotFoundError("optional faiss unavailable")
+        return original_import(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, "__import__", without_faiss)
+    index = FAISSIndex([], np.empty((0, 0), dtype=np.float32))
+    assert len(index) == 0
+    assert index.query(np.zeros(1, dtype=np.float32)) == []

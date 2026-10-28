@@ -785,7 +785,7 @@ def _messages(question: str, u: understanding.Understanding, company: dict, acce
 # still gets its evidence (the same fallback as a provider outage) instead of a
 # bare error. A company's own plan or credit limit (SUBSCRIPTION_INACTIVE,
 # BUDGET_EXHAUSTED, ...) is deliberately not here: that refusal is the answer.
-_SERVER_SIDE_REFUSALS = {"COST_NOT_CONFIGURED": llm_client.LLMNotConfiguredError,
+_SERVER_SIDE_REFUSALS = {"COST_NOT_CONFIGURED": llm_client.LLMPricingNotConfiguredError,
                          "PROVIDER_DISABLED": llm_client.LLMError, "PROVIDER_CAP_REACHED": llm_client.LLMError}
 
 
@@ -1054,7 +1054,8 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
             raise
         logger.warning("Assistant answered in evidence mode (tenant=%s): %s", tenant_id, err)
         draft, mode = _evidence_mode(registry, language, question=question), "evidence"
-        reason = ("not_configured" if isinstance(err, llm_client.LLMNotConfiguredError)
+        reason = ("cost_not_configured" if isinstance(err, llm_client.LLMPricingNotConfiguredError)
+                  else "not_configured" if isinstance(err, llm_client.LLMNotConfiguredError)
                   else "provider_busy" if isinstance(err, (llm_client.LLMRateLimitError,
                                                            llm_client.LLMRequestTooLargeError))
                   else "provider_unavailable")
