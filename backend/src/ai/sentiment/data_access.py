@@ -10,29 +10,47 @@ from typing import Optional
 
 import psycopg2
 
+from src.ai.sentiment.model import RATING_MODEL_VERSION
 
-def load_unanalyzed_reviews(conn: "psycopg2.extensions.connection", tenant_id: str, limit: int = 100, rated_only: bool = False) -> list:
+
+def load_unanalyzed_reviews(
+    conn: "psycopg2.extensions.connection", tenant_id: str, limit: int = 100, rated_only: bool = False,
+    include_rating_fallbacks: bool = False,
+) -> list:
     """
     Reviews with no matching sentiment_results row yet, restricted to
     ALLOWED-source reviews with non-empty text - a RESTRICTED/BLOCKED review
     (spec S13's Collection Policy Engine) shouldn't silently feed a model.
+
+    include_rating_fallbacks also returns reviews whose only result so far
+    came from the star rating (the model was unavailable then), after the
+    never-analyzed ones, so the text model replaces those labels once it is
+    back. Each row's "upgrade" says which kind it is.
     """
     query = """
-        SELECT r.review_id, r.review_text, r.subject_type, r.product_id, r.competitor_id, r.review_language, r.review_rating
+        SELECT r.review_id, r.review_text, r.subject_type, r.product_id, r.competitor_id, r.review_language, r.review_rating,
+               sr.sentiment_id IS NOT NULL
         FROM reviews r
         LEFT JOIN sentiment_results sr ON sr.review_id = r.review_id
         WHERE r.tenant_id = %s
-          AND sr.sentiment_id IS NULL
+          AND {analyzed_filter}
           AND r.source_status = 'ALLOWED'
           AND COALESCE(r.safety_status, 'SAFE') = 'SAFE'
           AND r.review_text IS NOT NULL
           AND length(trim(r.review_text)) > 0
           {rated_filter}
-        ORDER BY r.review_date
+        ORDER BY sr.sentiment_id IS NOT NULL, r.review_date
         LIMIT %s;
     """
     with conn.cursor() as cursor:
-        cursor.execute(query.format(rated_filter="AND r.review_rating IS NOT NULL" if rated_only else ""), (tenant_id, limit))
+        analyzed_filter = (
+            "(sr.sentiment_id IS NULL OR sr.model_version = %s)" if include_rating_fallbacks else "sr.sentiment_id IS NULL"
+        )
+        params = (tenant_id, RATING_MODEL_VERSION, limit) if include_rating_fallbacks else (tenant_id, limit)
+        cursor.execute(
+            query.format(analyzed_filter=analyzed_filter, rated_filter="AND r.review_rating IS NOT NULL" if rated_only else ""),
+            params,
+        )
         rows = cursor.fetchall()
 
     return [
@@ -44,6 +62,7 @@ def load_unanalyzed_reviews(conn: "psycopg2.extensions.connection", tenant_id: s
             "competitor_id": str(row[4]) if row[4] else None,
             "review_language": row[5],
             "review_rating": float(row[6]) if len(row) > 6 and row[6] is not None else None,
+            "upgrade": bool(row[7]) if len(row) > 7 else False,
         }
         for row in rows
     ]

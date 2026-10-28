@@ -667,7 +667,7 @@ def test_dashboard_metrics_returns_the_pipeline_result():
 
     assert response.status_code == 200
     assert response.json() == fake_result
-    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()  # a read: the connection goes back, nothing to commit
     mock_metrics.assert_called_once_with(fake_conn, "t1", window_days=30)
 
 
@@ -1124,7 +1124,7 @@ def test_list_competitors_flattens_and_sorts_both_tiers_by_name():
 
     assert response.status_code == 200
     assert response.json() == {"competitors": [fake_directory["relevant"][0], fake_directory["strategic"][0]]}
-    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()  # a read: the connection goes back, nothing to commit
     mock_directory.assert_called_once_with(fake_conn, "t1")
 
 
@@ -1409,3 +1409,15 @@ def test_rag_query_still_refuses_a_company_without_an_active_subscription():
 
     assert response.status_code == 402
     mock_answer.assert_not_called()
+
+
+def test_large_responses_are_gzipped_for_clients_that_accept_it():
+    big = {"rows": [{"product_name": f"Product {i}", "quantity": i} for i in range(500)], "total_row_count": 500}
+    with patch("src.ai.routers.reports.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.reports.dashboard_reports.get_sales_report", return_value=big):
+        zipped = client.get("/reports/sales", headers={**_auth(), "Accept-Encoding": "gzip"})
+        plain = client.get("/reports/sales", params={"offset": 0, "limit": 999}, headers={**_auth(), "Accept-Encoding": "identity"})
+    assert zipped.headers.get("content-encoding") == "gzip" and zipped.json() == big  # the client decodes it
+    assert plain.headers.get("content-encoding") is None and plain.json() == big
+    small = client.get("/health", headers={"Accept-Encoding": "gzip"})
+    assert small.headers.get("content-encoding") is None  # under 1 kB: not worth it
