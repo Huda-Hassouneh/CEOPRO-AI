@@ -1307,6 +1307,7 @@
       "newPassword": "كلمة المرور الجديدة",
       "confirmPassword": "تأكيد كلمة المرور الجديدة",
       "currentRequired": "كلمة المرور الحالية مطلوبة.",
+      "currentIncorrect": "كلمة المرور الحالية غير صحيحة.",
       "changePassword": "تغيير كلمة المرور",
       "changing": "جارٍ تغيير كلمة المرور...",
       "passwordUnavailable": "تغيير كلمة المرور غير متصل. لم تتغير كلمة مرورك.",
