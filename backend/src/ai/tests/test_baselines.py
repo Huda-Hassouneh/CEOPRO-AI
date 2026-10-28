@@ -41,3 +41,12 @@ def test_previous_period_forecast_reuses_prior_window(history):
 def test_baseline_in_sample_predictions_length(history):
     preds = baselines.baseline_in_sample_predictions(history, "naive")
     assert len(preds) == len(history) - 1
+
+
+def test_a_single_prediction_matches_the_full_in_sample_list(history):
+    """Validation asks for one prediction per fold instead of the whole list;
+    each must be exactly the list's element for that day."""
+    for name in baselines.BASELINE_FUNCTIONS:
+        full = baselines.baseline_in_sample_predictions(history, name)
+        for position in (1, 5, len(history) - 1):
+            assert baselines.baseline_prediction_at(history, name, position) == full[position - 1]

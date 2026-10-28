@@ -10,7 +10,10 @@ name 'is_torch_npu_available' from 'transformers'" and that document never
 reached the assistant. Serialising first-time imports/loads also stops two
 requests from loading the same ~1 GB model twice.
 """
+import logging
 import threading
+
+logger = logging.getLogger("KEEL_ML_RUNTIME")
 
 ML_LOAD_LOCK = threading.RLock()
 
@@ -74,6 +77,11 @@ def _model_obtainable(model_name: str, probe_timeout: float = 3.0, weights=WEIGH
         except urllib.error.HTTPError as err:
             if err.code == 404:
                 continue  # this repo ships the other weights format
+            if err.code in (401, 403):
+                # Public models need no token, but a token that is sent and has
+                # expired or been revoked is refused - the host is reachable.
+                logger.error("Hugging Face refused to download %s (HTTP %s): the access token sent with the "
+                             "request (HF_TOKEN / HUGGINGFACE_HUB_TOKEN) is invalid or expired", model_name, err.code)
             return False
         except Exception:  # noqa: BLE001 - unreachable, refused, blocked
             return False

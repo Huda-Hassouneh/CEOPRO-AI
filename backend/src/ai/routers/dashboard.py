@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.ai import db
-from src.ai.core import permissions
+from src.ai.core import permissions, tenant_cache
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.rag import access
 from src.ai.dashboard import activity as dashboard_activity
@@ -67,16 +67,8 @@ def dashboard_metrics_endpoint(
     populated by any real ingestion/sales path yet, so returning a number
     for it here would be fabricating data, not aggregating it.
     """
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    try:
-        result = dashboard_metrics.get_dashboard_metrics(conn, ctx.tenant_id, window_days=window_days)
-        conn.commit()
-        return result
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    return tenant_cache.cached_read("dashboard_metrics", ctx, window_days, lambda conn: (
+        dashboard_metrics.get_dashboard_metrics(conn, ctx.tenant_id, window_days=window_days)))
 
 
 @router.get("/recommendations")

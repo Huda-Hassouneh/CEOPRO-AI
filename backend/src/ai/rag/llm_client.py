@@ -581,7 +581,12 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             response = httpx.post(url, headers=headers, json=payload, timeout=timeout)
         except httpx.HTTPError as err:
             last_exception = err
-            if attempt < MAX_RETRIES:
+            # A read timeout means the provider took the request and is still
+            # generating: sending it again repeats that work (and its cost), and
+            # a single-slot local llama-server queues the copy behind the
+            # abandoned one - every retry then times out too. Only failures to
+            # reach the provider are retried.
+            if attempt < MAX_RETRIES and not isinstance(err, httpx.ReadTimeout):
                 logger.warning(f"LLM request to {url} failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
                 time.sleep(_backoff_seconds(attempt))
                 attempt += 1

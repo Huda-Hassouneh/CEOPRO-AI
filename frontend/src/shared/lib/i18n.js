@@ -1,11 +1,26 @@
 import en from '../../assets/locales/en.json';
-import ar from '../../assets/locales/ar.json';
 import landingEn from '../../features/landing/locales/en.json';
-import landingAr from '../../features/landing/locales/ar.json';
 
 export const DEFAULT_LOCALE = 'en';
 export const SUPPORTED_LOCALES = Object.freeze(['en', 'ar']);
-export const translations = Object.freeze({ en: { ...en, landing: landingEn }, ar: { ...ar, landing: landingAr } });
+// English is bundled: it is the default and the fallback for any missing key.
+// Arabic (58 kB compressed) is its own chunk, loaded only for people who use it.
+const translations = { en: { ...en, landing: landingEn } };
+const loaders = {
+  ar: () => Promise.all([import('../../assets/locales/ar.json'), import('../../features/landing/locales/ar.json')])
+    .then(([ar, landingAr]) => ({ ...ar.default, landing: landingAr.default })),
+};
+const pending = {};
+
+export const isLocaleLoaded = (locale) => Boolean(translations[locale]);
+
+// Resolves once `locale`'s messages are available (at once for English).
+export function loadLocale(locale) {
+  if (isLocaleLoaded(locale) || !loaders[locale]) return Promise.resolve();
+  pending[locale] ??= loaders[locale]().then((messages) => { translations[locale] = messages; })
+    .finally(() => { delete pending[locale]; });
+  return pending[locale];
+}
 
 export const getLocaleDirection = (locale) => locale === 'ar' ? 'rtl' : 'ltr';
 
