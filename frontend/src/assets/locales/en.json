@@ -4273,6 +4273,7 @@
     "feedback": {
       "reasons": {
         "notConfigured": "The assistant's AI service isn't set up on this server yet, so no answer could be generated. Your administrator needs to configure it. Your question was kept in this conversation.",
+        "pricingNotConfigured": "AI answers are blocked because verified provider pricing has not been configured. Your administrator needs to configure it. Your question was kept in this conversation.",
         "providerUnavailable": "The AI service the assistant relies on isn't responding right now, so no answer was generated. Your question was kept — please try again in a few minutes.",
         "internalError": "Something went wrong while preparing the answer, so none was generated. Your question was kept — please try again.",
         "offline": "Couldn't reach KEEL. Check your internet connection and try again. Your question was kept.",
@@ -4398,6 +4399,7 @@
     },
     "status": {
       "answerNotConfigured": "The AI writing service isn't set up on this server. Please ask your administrator to enable it.",
+      "answerPricingNotConfigured": "AI writing is blocked because verified provider pricing has not been configured. This answer uses available evidence only.",
       "researchNotConfigured": "Public research isn't set up on this server, so this answer uses only your own data and documents.",
       "researchBudget": "Today's public research allowance is used up, so this answer could not check public sources.",
       "researchFailed": "Public research couldn't be completed right now, so public sources weren't checked.",

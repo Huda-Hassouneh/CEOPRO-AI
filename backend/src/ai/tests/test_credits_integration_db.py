@@ -711,7 +711,7 @@ def test_an_unpriced_model_still_gives_the_assistant_s_evidence(sys_conn, monkey
     result, http_calls = _ask_the_assistant(tenant, monkeypatch)
     assert http_calls == []
     assert result["answer_mode"] == "evidence" and result["references"]
-    assert {"need": "answer_writing", "status": "not_configured"} in result["evidence_status"]
+    assert {"need": "answer_writing", "status": "cost_not_configured"} in result["evidence_status"]
     assert _ledger(sys_conn, tenant) == [] and _balance(sys_conn, tenant, "ai") in ((Decimal("0"), Decimal("0")), None)
 
 
