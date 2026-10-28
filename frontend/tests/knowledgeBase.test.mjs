@@ -13,15 +13,24 @@ import httpClient from '../src/shared/lib/httpClient.js';
 // (including the session_id param, once known) and maps the real response
 // shape into what the UI consumes - same http.createServer technique as
 // tests/marketing.test.mjs.
+// The chat sends its message as a JSON body (any length), not in the URL.
+const readJson = async (req) => {
+  let raw = '';
+  for await (const chunk of req) raw += chunk;
+  return raw ? JSON.parse(raw) : {};
+};
+
 test('knowledge base api creates a session on the first turn and reuses it on follow-ups', async (t) => {
   const SESSION_ID = 'session-abc-123';
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     const url = new URL(req.url, 'http://localhost');
 
     if (url.pathname === '/rag/query' && req.method === 'POST') {
-      const queryText = url.searchParams.get('query_text');
-      const sessionId = url.searchParams.get('session_id');
+      const body = await readJson(req);
+      assert.equal(url.searchParams.get('query_text'), null);
+      const queryText = body.query_text;
+      const sessionId = body.session_id ?? null;
 
       if (queryText === 'first question') {
         // The very first turn has no known session yet - session_id must
@@ -144,8 +153,8 @@ test('knowledge base api tells AI Credit refusals apart from a busy provider', a
     'switched off': [503, { reason: 'PROVIDER_DISABLED', budget: 'ai', message: 'x', limit: null, used: null, remaining: null, period_end: null }],
     busy: [503, 'The assistant is handling too many questions right now.'],
   };
-  const server = http.createServer((req, res) => {
-    const [status, detail] = refusals[new URL(req.url, 'http://localhost').searchParams.get('query_text')];
+  const server = http.createServer(async (req, res) => {
+    const [status, detail] = refusals[(await readJson(req)).query_text];
     res.statusCode = status;
     res.setHeader('Content-Type', 'application/json');
     if (typeof detail === 'string') res.setHeader('Retry-After', '12');

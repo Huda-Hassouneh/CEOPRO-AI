@@ -9,7 +9,8 @@ import os
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from src.ai import db
 from src.ai.billing import credits
@@ -34,6 +35,11 @@ logger = logging.getLogger("CEOPRO_AI_MAIN")
 # re-ranker's own candidate pool size can never return more results
 # anyway, so capping it here is just an honest error instead of a
 # silently-smaller-than-requested response.
+# That bound is for the URL (query-parameter) form only. A message sent in
+# the JSON body (RagQueryBody) can be any length the server accepts for a
+# request (core/body_limit.py, MAX_REQUEST_BODY_BYTES): the model only ever
+# reads the parts that fit its prompt, chosen by relevance
+# (rag/conversation_memory.py), so length no longer means unbounded cost.
 _MAX_QUERY_TEXT_LENGTH = int(os.getenv("RAG_MAX_QUERY_TEXT_LENGTH", "2000"))
 
 # Same reasoning as _MAX_QUERY_TEXT_LENGTH above, applied to the optional
@@ -56,9 +62,22 @@ _STORED_ANSWER_FIELDS = ("answer_summary", "answer_blocks", "references", "calcu
 ASSISTANT_REASON_HEADER = "X-Assistant-Reason"
 
 
+class RagQueryBody(BaseModel):
+    query_text: str = Field(..., min_length=1)
+    session_id: Optional[str] = None
+
+
+# The plan allowance running out doesn't end the chat: the question is still
+# answered from the company's own evidence, with no paid AI call
+# (advisor.answer(use_ai=False)). A subscription that isn't active, or a
+# plan without the assistant, is still refused.
+_ALLOWANCE_USED = ("QUOTA_EXHAUSTED",)
+_AI_CREDITS_USED = ("BUDGET_EXHAUSTED",)
+
+
 @router.post("/query")
 def rag_query(
-    query_text: str = Query(..., min_length=1, max_length=_MAX_QUERY_TEXT_LENGTH),
+    query_text: Optional[str] = Query(default=None, min_length=1, max_length=_MAX_QUERY_TEXT_LENGTH),
     top_k: int = Query(default=5, ge=1, le=rag_pipeline.DEFAULT_RERANK_CANDIDATES),
     history_json: Optional[str] = Query(
         default=None, max_length=_MAX_HISTORY_JSON_LENGTH,
@@ -80,6 +99,7 @@ def rag_query(
             "or a new device, not just this one browser tab's local state."
         ),
     ),
+    body: Optional[RagQueryBody] = Body(default=None),
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict:
     """
@@ -110,6 +130,10 @@ def rag_query(
     treated as "start a new session" (that would let a typo/stale id
     quietly lose a user's own history rather than surfacing the error).
     """
+    if body is not None:
+        query_text, session_id = body.query_text, body.session_id or session_id
+    if not query_text or not query_text.strip():
+        raise HTTPException(status_code=422, detail="query_text is required.")
     history = None
     if history_json and not session_id:
         try:
@@ -127,25 +151,40 @@ def rag_query(
         # front and committed, so concurrent questions can't overshoot it;
         # settled to the real token count after the answer, or given back
         # below if no answer is produced, so failures never use it up.
-        left = usage.remaining(conn, ctx.tenant_id, usage.RAG_ASSISTANT)
-        estimate = usage.RAG_TOKEN_RESERVATION if left is None else max(1, min(usage.RAG_TOKEN_RESERVATION, left))
-        reservation = usage.reserve(conn, ctx.tenant_id, usage.RAG_ASSISTANT, estimate)
+        use_ai = True
+        try:
+            left = usage.remaining(conn, ctx.tenant_id, usage.RAG_ASSISTANT)
+            estimate = usage.RAG_TOKEN_RESERVATION if left is None else max(1, min(usage.RAG_TOKEN_RESERVATION, left))
+            reservation = usage.reserve(conn, ctx.tenant_id, usage.RAG_ASSISTANT, estimate)
+        except usage.PlanLimitReached as err:
+            if err.reason not in _ALLOWANCE_USED:
+                raise
+            conn.rollback()
+            use_ai = False
         conn.commit()
         state = None
         if session_id:
             if not conversation_store.session_exists(conn, ctx.tenant_id, session_id):
                 raise HTTPException(status_code=404, detail="Conversation session not found.")
-            history = conversation_store.load_session_history(conn, ctx.tenant_id, session_id)
+            # Every earlier message: the advisor sends the newest as turns and
+            # recalls the rest by relevance, so nothing said is forgotten.
+            history = conversation_store.load_session_history(conn, ctx.tenant_id, session_id, limit=None)
             state = conversation_store.load_session_state(conn, ctx.tenant_id, session_id)
         else:
             session_id = conversation_store.create_session(conn, ctx.tenant_id, ctx.user_id, query_text)
 
         conversation_store.append_message(conn, ctx.tenant_id, session_id, ctx.user_id, "user", query_text)
         # Every AI call this answer makes is paid from the company's AI Credits.
-        with credits.metering(ctx.tenant_id, "assistant_question", usage_class="simple_question",
-                              actor_user_id=ctx.user_id):
-            result = rag_advisor.answer(conn, ctx.tenant_id, query_text, top_k=top_k, history=history,
-                                        user_id=ctx.user_id, state=state)
+        ask = lambda use_ai: rag_advisor.answer(conn, ctx.tenant_id, query_text, top_k=top_k,  # noqa: E731
+                                                history=history, user_id=ctx.user_id, state=state, use_ai=use_ai)
+        try:
+            with credits.metering(ctx.tenant_id, "assistant_question", usage_class="simple_question",
+                                  actor_user_id=ctx.user_id):
+                result = ask(use_ai)
+        except credits.BudgetError as err:
+            if err.reason not in _AI_CREDITS_USED:
+                raise
+            result = ask(False)
         conversation_store.append_message(
             conn, ctx.tenant_id, session_id, ctx.user_id, "assistant", result["answer"], sources=result.get("sources"),
             answer_payload={key: result.get(key) for key in _STORED_ANSWER_FIELDS},

@@ -702,3 +702,29 @@ def test_paid_provider_still_takes_priority_over_hugging_face(monkeypatch):
     monkeypatch.setattr(llm_client, "HUGGINGFACE_LLM_MODEL", "openai/gpt-oss-20b")
     monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
     assert llm_client.active_provider() == "paid"
+
+
+def test_an_answer_cut_off_mid_way_is_asked_again_until_it_is_finished(monkeypatch):
+    calls = []
+
+    def fake_post(url, headers, json, timeout):
+        calls.append(json["max_tokens"])
+        if len(calls) < 3:
+            return _FakeResponse(200, {"choices": [{"message": {"content": "Half an ans"}, "finish_reason": "length"}]})
+        return _FakeResponse(200, {"choices": [{"message": {"content": "The whole answer."}, "finish_reason": "stop"}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    assert _ask(api_key="k", max_tokens=1500) == "The whole answer."
+    assert calls == [1500, 3000, 6000]
+
+
+def test_retries_for_a_cut_off_answer_stop_at_the_ceiling(monkeypatch):
+    calls = []
+
+    def fake_post(url, headers, json, timeout):
+        calls.append(json["max_tokens"])
+        return _FakeResponse(200, {"choices": [{"message": {"content": "cut"}, "finish_reason": "length"}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    _ask(api_key="k", max_tokens=1500)
+    assert calls == [1500, 3000, 6000, llm_client.MAX_TOKENS_ON_RETRY]

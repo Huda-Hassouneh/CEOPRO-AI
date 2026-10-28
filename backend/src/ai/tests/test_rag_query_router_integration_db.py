@@ -155,7 +155,7 @@ def test_a_company_without_a_plan_is_refused_with_402(client, model):
     assert "SUBSCRIPTION_INACTIVE" in response.text
 
 
-def test_a_company_with_no_ai_credits_left_is_refused_with_402(client, model):
+def test_a_company_with_no_ai_credits_left_still_gets_an_evidence_answer(client, model):
     from src.ai.billing import admin
     from src.ai.core import usage
 
@@ -166,6 +166,9 @@ def test_a_company_with_no_ai_credits_left_is_refused_with_402(client, model):
                          reference=f"t-{uuid.uuid4().hex[:6]}", approved_by="test", reason="test")
     conn.commit()
     conn.close()
+    _, calls = model
     response = _ask(client, headers)
-    assert response.status_code == 402, response.text
-    assert "BUDGET_EXHAUSTED" in response.text
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["answer_mode"] == "evidence" and calls == []
+    assert {"need": "answer_writing", "status": "allowance_used"} in body["evidence_status"]
