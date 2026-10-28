@@ -512,9 +512,40 @@
 .ceopro-landing .lp-capability-strip a { transition: color 240ms ease, transform 300ms var(--apex-ease); }
 .ceopro-landing .lp-capability-strip a:hover { color: var(--apex-accent); transform: translateY(-2px); }
 
-/* Scroll reveal (only when JS opted in via .lp-motion) */
-.ceopro-landing.lp-motion main > section:not(#hero), .ceopro-landing.lp-motion main > div:not(.lp-capability-strip) { opacity: 0; transform: translateY(28px); transition: opacity 900ms var(--apex-ease), transform 900ms var(--apex-ease); }
+/* Scroll reveal (only when JS opted in via .lp-motion, which LandingPage
+   skips under prefers-reduced-motion). The hidden state is wrapped in
+   :where() so it adds no specificity: with `:not(#hero)` counted, it used to
+   outrank `.is-visible`, and every section below the hero stayed invisible. */
+.ceopro-landing.lp-motion main > :where(section:not(#hero), div:not(.lp-capability-strip)) { opacity: 0; transform: translateY(28px); transition: opacity 900ms var(--apex-ease), transform 900ms var(--apex-ease); }
 .ceopro-landing.lp-motion main > .is-visible { opacity: 1; transform: none; }
+
+/* Cards, steps and stats arrive one after another once their section is in view. */
+.ceopro-landing.lp-motion main > :where(:not(.is-visible, #hero, .lp-capability-strip)) :where(.lp-bento > *, .lp-model-list > *, .lp-workflow > *, .lp-outcomes-list > *, .lp-trust-grid > *, .lp-three-stats > *, .lp-scores > *, .lp-connection-node, .lp-about-inputs > *, .lp-about-points > *, .lp-points > li, .lp-sources > *) { opacity: 0; }
+.ceopro-landing.lp-motion main > .is-visible :where(.lp-bento > *, .lp-model-list > *, .lp-workflow > *, .lp-outcomes-list > *, .lp-trust-grid > *, .lp-three-stats > *, .lp-scores > *, .lp-connection-node, .lp-about-inputs > *, .lp-about-points > *, .lp-points > li, .lp-sources > *) { animation: apex-rise 700ms var(--apex-ease) backwards; animation-delay: calc(var(--lp-step, 0) * 90ms + 150ms); }
+.ceopro-landing :where(.lp-bento, .lp-model-list, .lp-workflow, .lp-outcomes-list, .lp-trust-grid, .lp-three-stats, .lp-scores, .lp-connection-nodes, .lp-about-inputs, .lp-about-points, .lp-points, .lp-sources) > :nth-child(2) { --lp-step: 1; }
+.ceopro-landing :where(.lp-bento, .lp-model-list, .lp-workflow, .lp-outcomes-list, .lp-trust-grid, .lp-three-stats, .lp-scores, .lp-connection-nodes, .lp-about-inputs, .lp-about-points, .lp-points, .lp-sources) > :nth-child(3) { --lp-step: 2; }
+.ceopro-landing :where(.lp-bento, .lp-model-list, .lp-workflow, .lp-outcomes-list, .lp-trust-grid, .lp-three-stats, .lp-scores, .lp-connection-nodes, .lp-about-inputs, .lp-about-points, .lp-points, .lp-sources) > :nth-child(4) { --lp-step: 3; }
+.ceopro-landing :where(.lp-bento, .lp-model-list, .lp-workflow, .lp-outcomes-list, .lp-trust-grid, .lp-three-stats, .lp-scores, .lp-connection-nodes, .lp-about-inputs, .lp-about-points, .lp-points, .lp-sources) > :nth-child(5) { --lp-step: 4; }
+.ceopro-landing :where(.lp-bento, .lp-model-list, .lp-workflow, .lp-outcomes-list, .lp-trust-grid, .lp-three-stats, .lp-scores, .lp-connection-nodes, .lp-about-inputs, .lp-about-points, .lp-points, .lp-sources) > :nth-child(6) { --lp-step: 5; }
+.ceopro-landing :where(.lp-bento, .lp-model-list, .lp-workflow, .lp-outcomes-list, .lp-trust-grid, .lp-three-stats, .lp-scores, .lp-connection-nodes, .lp-about-inputs, .lp-about-points, .lp-points, .lp-sources) > :nth-child(n+7) { --lp-step: 6; }
+
+/* Charts draw themselves, bars fill and the perception ring sweeps round as they come into view. */
+.ceopro-landing.lp-motion main > :where(:not(.is-visible, #hero, .lp-capability-strip)) .lp-trend-chart path[fill="none"] { stroke-dasharray: 1400; stroke-dashoffset: 1400; }
+.ceopro-landing.lp-motion main > .is-visible .lp-trend-chart path[fill="none"] { stroke-dasharray: 1400; animation: lp-draw 2s var(--apex-ease) 300ms backwards; }
+.ceopro-landing.lp-motion main > .is-visible .lp-trend-chart path:not([fill="none"]), .ceopro-landing.lp-motion main > .is-visible .lp-trend-chart circle { animation: apex-rise 900ms var(--apex-ease) 1400ms backwards; }
+.ceopro-landing.lp-motion main > :where(:not(.is-visible, #hero, .lp-capability-strip)) :where(.lp-score-track i, .lp-mini-market b, .lp-sentiment-bar > span) { transform: scaleX(0); }
+.ceopro-landing.lp-motion main :where(.lp-score-track i, .lp-mini-market b, .lp-sentiment-bar > span) { transform-origin: left center; transition: transform 1200ms var(--apex-ease) 350ms; }
+:root[dir="rtl"] .ceopro-landing.lp-motion main :where(.lp-score-track i, .lp-mini-market b, .lp-sentiment-bar > span) { transform-origin: right center; }
+@property --lp-ring { syntax: "<percentage>"; inherits: false; initial-value: 78%; }
+/* The ring is a masked band, so the glass (translucent) centre no longer shows the gradient through it. */
+.ceopro-landing .lp-perception-ring { position: relative; background: none; }
+.ceopro-landing .lp-perception-ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(var(--ceopro-primary) var(--lp-ring), var(--ceopro-border) 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px)); mask: radial-gradient(farthest-side, transparent calc(100% - 13px), #000 calc(100% - 12px)); transition: --lp-ring 1600ms var(--apex-ease) 300ms; }
+.ceopro-landing .lp-perception-ring strong { position: relative; background: transparent; }
+.ceopro-landing.lp-motion main > :where(:not(.is-visible, #hero, .lp-capability-strip)) .lp-perception-ring::before { --lp-ring: 0%; }
+
+/* A number that counts up (CountUp): its final value is read out, the moving one is not. */
+.ceopro-landing span.lp-count, .ceopro-landing span.lp-count > span { display: inline; margin: 0; font: inherit; color: inherit; font-variant-numeric: tabular-nums; }
+.ceopro-landing .lp-sr-only, .ceopro-landing span.lp-count > .lp-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @keyframes lp-drop { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: none; } }
 @keyframes lp-aurora { to { transform: rotate(360deg); } }
