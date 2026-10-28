@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import useSWR from "../../../shared/lib/useSWRCompat.js";
 import { Plus } from "lucide-react";
 
-import Badge from "../../../shared/components/ui/Badge.jsx";
+import Badge from "./OriginalBillingBadge.jsx";
 import Button from "../../../shared/components/ui/Button.jsx";
 import Input from "../../../shared/components/ui/Input.jsx";
 import Modal from "../../../shared/components/ui/Modal.jsx";
@@ -30,7 +30,7 @@ function RateModal({ rate, open, onClose, features, api, onSaved, t }) {
   const [form, setForm] = useState(blank(rate));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const { data: policyResponse } = useSWR(open ? "platform-infrastructure-rate-draft-policies" : null, api.getCustomPlanPricingPolicy, swrOptions);
+  const { data: policyResponse } = useSWR(open ? "custom-plan-pricing-policy" : null, api.getCustomPlanPricingPolicy, swrOptions);
   const policies = policyResponse?.data?.policies ?? policyResponse?.policies ?? [];
   const draftPolicies = policies.filter((policy) => policy.status === "draft" && policy.policy_version_id !== rate?.policyVersionId);
   useEffect(() => { if (open) setForm(blank(rate)); }, [open, rate]);
@@ -68,7 +68,7 @@ function RateModal({ rate, open, onClose, features, api, onSaved, t }) {
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.conversion", "Billing units per feature unit")} hint={tr(t, "billing.catalog.customPlans.infrastructureRates.conversionHint", "For MB to GB-month, configure 0.0009765625.")} type="number" min="0.0000000001" step="0.0000000001" value={form.billingUnitsPerFeatureUnit} onChange={set("billingUnitsPerFeatureUnit")} required />
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.unitCost", "Unit cost")} type="number" min="0" step="0.000001" value={form.unitCost} onChange={set("unitCost")} required />
       <Input label={tr(t, "billing.catalog.fields.currency", "Currency")} maxLength={3} value={form.currency} onChange={set("currency")} required />
-      <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.multiplier", "Operational multiplier")} type="number" min="0.0001" step="0.01" value={form.operationalMultiplier} onChange={set("operationalMultiplier")} required />
+      <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.multiplier", "Operational multiplier")} type="number" min="0.0001" step="0.0001" value={form.operationalMultiplier} onChange={set("operationalMultiplier")} required />
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.reserve", "Variability reserve")} type="number" min="1" step="0.01" value={form.variabilityReserve} onChange={set("variabilityReserve")} required />
       <Select label={tr(t, "billing.catalog.fields.status", "Status")} value={form.verificationStatus} onChange={set("verificationStatus")} options={["confirmed", "estimated", "unconfirmed", "deprecated"].map((value) => ({ value, label: tr(t, `billing.catalog.customPlans.infrastructureRates.status.${value}`, value) }))} />
       <Input label={tr(t, "billing.catalog.customPlans.infrastructureRates.verifiedAt", "Verified on")} type="date" value={form.verifiedAt || ""} onChange={set("verifiedAt")} required />
