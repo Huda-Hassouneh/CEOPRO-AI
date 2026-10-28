@@ -32,7 +32,11 @@ export function SecuritySettings({ t, onNotice }) {
       if (!result.changed) return onNotice('info', t('settings.security.passwordUnavailable'));
       setValues({ currentPassword: '', newPassword: '', confirmPassword: '' });
       onNotice('success', t('settings.security.passwordChanged'));
-    } catch { onNotice('error', t('settings.security.passwordFailed')); }
+    } catch (error) {
+      // The API's only 400 here is a wrong current password: say so on that field.
+      if (error?.response?.status === 400) return setErrors({ currentPassword: t('settings.security.currentIncorrect') });
+      onNotice('error', t('settings.security.passwordFailed'));
+    }
   };
   const update = (key) => (event) => { setValues({ ...values, [key]: event.target.value }); setErrors({ ...errors, [key]: '' }); };
   const passwordLabels = { showPasswordLabel: t('auth.common.showPassword'), hidePasswordLabel: t('auth.common.hidePassword') };
