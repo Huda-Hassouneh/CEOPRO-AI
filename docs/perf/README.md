@@ -72,3 +72,37 @@ Same code, cache off (`TENANT_CACHE_TTL_SECONDS=0`) vs on (30):
 | 35 users, peak memory | 281 MB | 279 MB |
 
 Files: `cache-ttl0.json`, `cache-ttl30.json`, `load35-ttl0.json`, `load35-ttl30.json`.
+
+## Change 2 (2026-10-28): indexes, statistics, one-sort export, shared read models, forecast validation, translations
+
+Same script and phases, 4 CPU cores, 5 demo companies (117,000 sales lines in total), before and after on the
+same machine and data: `2026-10-28-before.json`, `2026-10-28-after.json`.
+
+| What | Why it was slow | Change |
+|---|---|---|
+| Index `invoices (tenant_id, issue_date)` | Every date-windowed sales query read all of the company's invoices | Migration `20261031000000`; first-sale date 23 ms -> 0.1 ms |
+| Statistics after a large import | Planner statistics still described a new company as empty: the forecast staleness check took 12-33 s (nested loop over 72 M row pairs), and the import starts it | `refresh_sales_statistics()` (owner-only ANALYZE, SECURITY DEFINER) called after imports of 1,000+ rows (`STATISTICS_REFRESH_MIN_ROWS`); ~0.6 s |
+| Sales CSV/JSON export | Keyset batches re-sorted the whole history once per 2,000 rows (27 sorts for 53,000 lines) | One server-side cursor: one query, one sort, streamed |
+| Demand overview, dashboard metrics, financial summary, sales report page | Whole-history aggregates recomputed on every visit | Shared per company through `core/tenant_cache.py` (`cached_read`), dropped on any write by the company |
+| Forecast model selection | ~560 one-step baseline predictions per baseline to use one per validation fold | Only the needed predictions (`baselines.baseline_prediction_at`); forecasts and scores byte-identical on 12 demo products |
+| First load of the web app | English and Arabic translations (390 kB) in the startup bundle | Arabic loaded on demand (its own chunk); idle prefetch of all screens skipped on Save-Data / 2G |
+
+| | Before | After |
+|---|---:|---:|
+| /forecasting/overview, P50 / P95 | 185 / 263 ms | 11 / 15 ms |
+| /reports/sales | 225 / 380 ms | 13 / 19 ms |
+| /dashboard/metrics | 87 / 118 ms | 11 / 16 ms |
+| /reports/financial-summary | 52 / 79 ms | 12 / 25 ms |
+| Sales report export, CSV | 5.4 s | 1.7 s |
+| Sales report export, PDF | 0.82 s | 0.62 s |
+| Forecast refresh, 32 products | 34.6 s | 16.8 s |
+| 35 users: throughput, all requests P50 / P95 | 29.4 req/s, 628 / 1,303 ms | 48.6 req/s, 160 / 587 ms |
+| 70 users: throughput, P50 / P95 | 37.1 req/s, 1,280 / 2,376 ms | 45.3 req/s, 964 / 1,947 ms |
+| Peak API memory | 371 MB | 370 MB |
+| JavaScript before the sign-in page renders (transferred) | 256 kB | 201 kB |
+
+Not changed: the dashboard right after a data change (the Command Center rebuilt once, ~360 ms), and the 70-user
+level, where one API process on 4 cores is CPU-bound (1 client-side connection drop in 2,788 requests; every
+request the server logged returned 200). Beyond that, more API worker processes are the lever. The row-level
+security function was tested as an InitPlan (`(SELECT get_current_tenant())`) and saved only ~5%, so the
+policies were left as they are.
