@@ -28,7 +28,7 @@ def _fake_conn():
 
 
 def _auth_header(tenant_id="t1", user_id="u1"):
-    token, _ = create_access_token(tenant_id=tenant_id, user_id=user_id)
+    token, _ = create_access_token(tenant_id=tenant_id, user_id=user_id, email_verified=True)
     return {"Authorization": f"Bearer {token}"}
 
 

@@ -740,11 +740,39 @@ def extraction_upload(file: UploadFile = File(...), ctx: TenantContext = Depends
     # took to respond (or time out).
     if promotion_summary.products_created > 0:
         _publish_discovery_request(ctx.tenant_id)
-    if getattr(promotion_summary, "rows_promoted", 0):
+    rows_promoted = getattr(promotion_summary, "rows_promoted", 0)
+    if rows_promoted >= STATISTICS_REFRESH_MIN_ROWS:
+        _refresh_sales_statistics(ctx)
+    if rows_promoted:
         _refresh_forecasts(ctx)
 
     return _summary_response(job_id, summary, promotion_summary, currency_resolution, rag_document_status,
                              import_draft=import_draft)
+
+
+# An import this large changes the company's share of the sales tables enough
+# that queries planned on the old statistics can take seconds instead of ms.
+STATISTICS_REFRESH_MIN_ROWS = int(os.getenv("STATISTICS_REFRESH_MIN_ROWS", "1000"))
+
+
+def _refresh_sales_statistics(ctx: TenantContext) -> None:
+    """Refresh the planner's statistics for the sales tables before the
+    forecast refresh (and the next screen) reads the new rows - see
+    migration 20261031010000_add_refresh_sales_statistics.sql."""
+    try:
+        conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    except Exception:
+        logger.exception("Could not refresh sales statistics after an import (tenant=%s)", ctx.tenant_id)
+        return
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT refresh_sales_statistics();")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("Could not refresh sales statistics after an import (tenant=%s)", ctx.tenant_id)
+    finally:
+        conn.close()
 
 
 def _refresh_forecasts(ctx: TenantContext) -> None:

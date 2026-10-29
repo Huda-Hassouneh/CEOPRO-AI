@@ -702,3 +702,60 @@ def test_paid_provider_still_takes_priority_over_hugging_face(monkeypatch):
     monkeypatch.setattr(llm_client, "HUGGINGFACE_LLM_MODEL", "openai/gpt-oss-20b")
     monkeypatch.setattr(llm_client, "PAID_LLM_BASE_URL", "https://paid-vendor.example/v1/chat/completions")
     assert llm_client.active_provider() == "paid"
+
+
+def test_an_answer_cut_off_mid_way_is_asked_again_until_it_is_finished(monkeypatch):
+    calls = []
+
+    def fake_post(url, headers, json, timeout):
+        calls.append(json["max_tokens"])
+        if len(calls) < 3:
+            return _FakeResponse(200, {"choices": [{"message": {"content": "Half an ans"}, "finish_reason": "length"}]})
+        return _FakeResponse(200, {"choices": [{"message": {"content": "The whole answer."}, "finish_reason": "stop"}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    assert _ask(api_key="k", max_tokens=1500) == "The whole answer."
+    assert calls == [1500, 3000, 6000]
+
+
+def test_retries_for_a_cut_off_answer_stop_at_the_ceiling(monkeypatch):
+    calls = []
+
+    def fake_post(url, headers, json, timeout):
+        calls.append(json["max_tokens"])
+        return _FakeResponse(200, {"choices": [{"message": {"content": "cut"}, "finish_reason": "length"}]})
+
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    with pytest.raises(llm_client.LLMError, match="permitted output budget"):
+        _ask(api_key="k", max_tokens=1500)
+    assert calls == [1500, 3000, 6000, llm_client.MAX_TOKENS_ON_RETRY]
+
+
+def test_retries_respect_approved_output_ceiling_and_keep_complete_answer(monkeypatch):
+    from src.ai.billing import credits
+
+    calls = []
+    monkeypatch.setattr(credits, "ai_output_token_limit", lambda: 4000)
+    def post(url, headers, json, timeout):
+        calls.append(json["max_tokens"])
+        return _FakeResponse(200, {"choices": [{"message": {"content": "Complete."},
+            "finish_reason": "stop" if len(calls) == 3 else "length"}]})
+    monkeypatch.setattr(llm_client.httpx, "post", post)
+    assert _ask(api_key="k", max_tokens=1500) == "Complete."
+    assert calls == [1500, 3000, 4000]
+
+
+def test_a_read_timeout_is_not_sent_again(monkeypatch):
+    """The provider was still generating: a second copy repeats the work, and on a
+    single-slot local server queues behind the first, so it times out as well."""
+    monkeypatch.setattr(llm_client.time, "sleep", lambda *a: None)
+    calls = []
+
+    def time_out(*a, **k):
+        calls.append(1)
+        raise httpx.ReadTimeout("timed out")
+
+    monkeypatch.setattr(llm_client.httpx, "post", time_out)
+    with pytest.raises(llm_client.LLMError, match="LLM provider request failed"):
+        _ask(api_key="test-key")
+    assert len(calls) == 1

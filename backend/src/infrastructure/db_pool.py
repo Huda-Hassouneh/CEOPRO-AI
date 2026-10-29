@@ -86,11 +86,22 @@ def forget_tenant_timezone(tenant_id) -> None:
     _tenant_timezones.pop(str(tenant_id), None)
 
 
-def _resolve_tenant_timezone(cursor, tenant_id: str) -> str:
+_SET_CONTEXT = ("SELECT set_config('app.current_tenant_id', %s, true), set_config('app.current_user_id', %s, true), "
+                "set_config('app.lang', %s, true);")
+_SET_CONTEXT_AND_ZONE = ("SELECT set_config('app.current_tenant_id', %s, true), set_config('app.current_user_id', %s, true), "
+                         "set_config('app.lang', %s, true), set_config('TimeZone', %s, true);")
+
+
+def _cached_tenant_timezone(tenant_id: str) -> Optional[str]:
     cached = _tenant_timezones.get(tenant_id)
+    return cached[0] if cached and cached[1] > time.monotonic() else None
+
+
+def _resolve_tenant_timezone(cursor, tenant_id: str) -> str:
+    cached = _cached_tenant_timezone(tenant_id)
+    if cached is not None:
+        return cached
     now = time.monotonic()
-    if cached and cached[1] > now:
-        return cached[0]
     zone = "UTC"
     try:
         if not _known_timezones:
@@ -136,16 +147,24 @@ class PooledTenantConnection:
         own docstring for why LOCAL (transaction-scoped, not session-
         scoped) is the actual safety mechanism pooling depends on here.
         Issued as the first statements of a fresh transaction (right
-        after connect, and again immediately after every commit/
-        rollback below) so it's always in effect for whatever the
-        caller does next on this connection.
+        after checkout, and again immediately after every
+        commit/rollback) so it's always in effect for
+        whatever the caller does next on this connection.
         """
+        # One round trip in the usual case (this runs at every checkout and
+        # after every commit/rollback): all four settings in one statement.
+        # Only a company whose time zone isn't cached yet needs the lookup,
+        # which must run after the tenant/user are set (RLS on companies).
+        context = (self._tenant_id, self._user_id, self._language)
         with self._raw.cursor() as cursor:
-            cursor.execute("SELECT set_config('app.current_tenant_id', %s, true);", (self._tenant_id,))
-            cursor.execute("SELECT set_config('app.current_user_id', %s, true);", (self._user_id,))
-            # Interface language for localized_text() - captured when the
-            # connection was checked out, i.e. in the request's own context.
-            cursor.execute("SELECT set_config('app.lang', %s, true);", (self._language,))
+            zone = _cached_tenant_timezone(self._tenant_id)
+            if zone is not None:
+                cursor.execute(_SET_CONTEXT_AND_ZONE, (*context, zone))
+                return
+            # Interface language (app.lang) is for localized_text(); it was
+            # captured when the connection was checked out, i.e. in the
+            # request's own context.
+            cursor.execute(_SET_CONTEXT, context)
             # The company's business calendar (see _resolve_tenant_timezone).
             zone = _resolve_tenant_timezone(cursor, self._tenant_id)
             cursor.execute("SELECT set_config('TimeZone', %s, true);", (zone,))
@@ -155,6 +174,10 @@ class PooledTenantConnection:
             raise psycopg2.InterfaceError("PooledTenantConnection already closed/returned to the pool")
         return self._raw.cursor(*args, **kwargs)
 
+    # A commit/rollback ends the transaction and with it the SET LOCAL context.
+    # Existing cursors can be reused after that boundary, so waiting until
+    # cursor creation is unsafe. Retain batched settings and socket reuse,
+    # but restore the context eagerly (including subclass billing context).
     def commit(self) -> None:
         self._raw.commit()
         self._apply_tenant_context()
@@ -237,6 +260,14 @@ class TenantConnectionPool:
     def __init__(self, dsn: str, minconn: int = 1, maxconn: int = 10, checkout_wait_seconds: Optional[float] = None):
         self._dsn = dsn
         self._pool = psycopg2.pool.ThreadedConnectionPool(minconn, maxconn, dsn)
+        # psycopg2 keeps only `minconn` idle connections and CLOSES any other
+        # one when it is returned, so with minconn=1 nearly every concurrent
+        # request opened a new connection (password authentication included):
+        # 21% of the API's CPU under a 35-user load. `minconn` is read only for
+        # the initial connections (already opened above) and for that keep
+        # limit, so raising it now keeps up to maxconn connections once they
+        # exist without opening any more up front.
+        self._pool.minconn = maxconn
         self._slots = threading.BoundedSemaphore(maxconn)
         self._checkout_wait_seconds = (float(os.getenv("APP_DB_POOL_WAIT_SECONDS", "10"))
                                        if checkout_wait_seconds is None else checkout_wait_seconds)

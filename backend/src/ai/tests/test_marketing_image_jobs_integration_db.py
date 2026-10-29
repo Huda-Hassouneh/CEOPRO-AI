@@ -71,10 +71,11 @@ def queue(monkeypatch):
     from src.ai.main import app
     from src.ai.marketing import image_generation
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import _valid_response_json, scripted_campaign_completion
 
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage",
-                        lambda messages, **kw: (_valid_response_json(image_prompt="A jar of zaatar on a stone counter"), {"total_tokens": 500}))
+                        lambda messages, **kw: scripted_campaign_completion(messages,
+                            campaign_json=_valid_response_json(image_prompt="A jar of zaatar on a stone counter"), total_tokens=500))
     server = _Server()
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "local")
     monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", server.url)

@@ -37,6 +37,19 @@ def _valid_response_json(**overrides):
     return json.dumps(base)
 
 
+def scripted_campaign_completion(messages, *, campaign_json=None, total_tokens=100, **kwargs):
+    """Explicit offline provider fixture for both generation and factual review.
+
+    The synthetic H1/B1 copy contains no product facts. Return the review
+    contract for that separate call; keep the real parser/grounding checks.
+    """
+    if messages[0]["content"] == cg._GROUNDING_PROMPT:
+        text = json.dumps({"supported": True, "unsupported_claims": [], "claims": []})
+    else:
+        text = campaign_json or _valid_response_json()
+    return text, {"total_tokens": total_tokens}
+
+
 def test_generate_campaign_content_parses_valid_response_and_enforces_google_ads_limits():
     with patch("src.ai.marketing.content_generator.llm_client.chat_completion", return_value=_valid_response_json()) as mock_call:
         result = cg.generate_campaign_content("A tidy desk widget.", strategy_type="SALES_DRIVEN")

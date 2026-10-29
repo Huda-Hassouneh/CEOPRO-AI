@@ -80,7 +80,10 @@ for (const route of routes) {
     }
     return { raw: [...new Set(raw)], overflow: document.documentElement.scrollWidth - innerWidth };
   }, KEY);
-  const issues = [...problems, ...found.raw.map((r) => `untranslated: ${r}`), ...(found.overflow > 1 ? [`scrolls sideways by ${found.overflow}px`] : [])];
+  // A screen that sends us elsewhere (e.g. to the setup wizard) was not checked at all.
+  const landed = new URL(page.url()).pathname;
+  const redirected = landed !== new URL(BASE + route).pathname ? [`redirected to ${landed}`] : [];
+  const issues = [...problems, ...redirected, ...found.raw.map((r) => `untranslated: ${r}`), ...(found.overflow > 1 ? [`scrolls sideways by ${found.overflow}px`] : [])];
   failures += issues.length ? 1 : 0;
   console.log(`${issues.length ? '✗' : '✓'} ${route}${issues.map((i) => `\n    ${i}`).join('')}`);
 }

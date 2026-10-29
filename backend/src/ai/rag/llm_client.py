@@ -207,10 +207,11 @@ DEFAULT_MAX_TOKENS = int(os.getenv("GROQ_MAX_TOKENS", "1500"))
 # Still seen in a live run (2026-10-09): one market question spent all 1500
 # tokens reasoning and came back empty. Reasoning models (gpt-oss) are asked
 # for low reasoning effort - plenty for grounded business answers - and an
-# answer that is empty because the budget ran out is retried once with
-# twice the budget (up to MAX_TOKENS_ON_RETRY).
+# answer the budget ran out on, empty or cut off mid-way, is asked again with
+# twice the budget, as often as it takes, up to MAX_TOKENS_ON_RETRY: a long
+# answer is finished, never returned half-written.
 REASONING_EFFORT = os.getenv("GROQ_REASONING_EFFORT", "low").strip().lower()
-MAX_TOKENS_ON_RETRY = int(os.getenv("GROQ_MAX_TOKENS_ON_RETRY", "4000"))
+MAX_TOKENS_ON_RETRY = int(os.getenv("GROQ_MAX_TOKENS_ON_RETRY", "8000"))
 
 
 def _reasoning_model(model: str) -> bool:
@@ -588,7 +589,12 @@ def _post_with_retry(url: str, payload: dict, headers: dict, timeout: float) -> 
             response = httpx.post(url, headers=headers, json=payload, timeout=timeout)
         except httpx.HTTPError as err:
             last_exception = err
-            if attempt < MAX_RETRIES:
+            # A read timeout means the provider took the request and is still
+            # generating: sending it again repeats that work (and its cost), and
+            # a single-slot local llama-server queues the copy behind the
+            # abandoned one - every retry then times out too. Only failures to
+            # reach the provider are retried.
+            if attempt < MAX_RETRIES and not isinstance(err, httpx.ReadTimeout):
                 logger.warning(f"LLM request to {url} failed ({err}), retrying (attempt {attempt + 1}/{MAX_RETRIES})")
                 time.sleep(_backoff_seconds(attempt))
                 attempt += 1
@@ -788,6 +794,12 @@ def _call_provider(
             api_key = "local"  # llama-server ignores this; only Groq actually validates it.
 
     model = model or (PAID_LLM_MODEL if using_paid else HUGGINGFACE_LLM_MODEL if using_hf else None) or MODEL_NAME
+    from src.ai.billing import credits
+
+    approved_limit = credits.ai_output_token_limit()
+    retry_limit = min(MAX_TOKENS_ON_RETRY, approved_limit) if approved_limit is not None else MAX_TOKENS_ON_RETRY
+    if approved_limit is not None:
+        max_tokens = min(max_tokens, approved_limit)
     payload = {
         "model": model,
         "messages": messages,
@@ -808,16 +820,15 @@ def _call_provider(
         # the provider's own JSON check): ask once more without it.
         payload.pop("response_format", None)
         response = _metered_post(provider, model, url, payload, headers, timeout, billed)
-    try:
-        choice = response.json()["choices"][0] if response.status_code == 200 else {}
-    except (KeyError, IndexError, ValueError):
-        choice = {}
-    if (not (choice.get("message") or {}).get("content") and choice.get("finish_reason") == "length"
-            and max_tokens < MAX_TOKENS_ON_RETRY):
-        logger.warning("LLM answer was empty after %s tokens (budget spent reasoning); retrying with %s",
-                       max_tokens, min(max_tokens * 2, MAX_TOKENS_ON_RETRY))
-        payload["max_tokens"] = min(max_tokens * 2, MAX_TOKENS_ON_RETRY)
+    while _ran_out_of_tokens(response) and payload["max_tokens"] < retry_limit:
+        budget = min(payload["max_tokens"] * 2, retry_limit)
+        logger.warning("LLM answer ran out of its %s-token budget (empty or cut off); retrying with %s",
+                       payload["max_tokens"], budget)
+        payload["max_tokens"] = budget
         response = _metered_post(provider, model, url, payload, headers, timeout, billed)
+
+    if _ran_out_of_tokens(response):
+        raise LLMError("The answer exceeded the permitted output budget; no complete answer was produced.")
 
     if response.status_code == 429:
         raise LLMRateLimitError(
@@ -843,6 +854,16 @@ def _call_provider(
         "total_tokens": billed.get("total_tokens", 0),
     }
     return answer, usage
+
+
+def _ran_out_of_tokens(response) -> bool:
+    """The provider stopped because max_tokens ran out, not because the answer was done."""
+    if response.status_code != 200:
+        return False
+    try:
+        return response.json()["choices"][0].get("finish_reason") == "length"
+    except (KeyError, IndexError, ValueError, AttributeError):
+        return False
 
 
 def estimate_input_tokens(messages: list) -> int:
