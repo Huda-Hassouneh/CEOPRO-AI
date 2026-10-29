@@ -7,6 +7,7 @@ import { IntelligenceSections } from '../sections/IntelligenceSections.jsx';
 import { KnowledgeSections } from '../sections/KnowledgeSections.jsx';
 import { AboutSection, FinalCtaSection, ModelsSection, OutcomesSection, TrustSection, WorkflowSection } from '../sections/ValueSections.jsx';
 import { PricingSection } from '../sections/PricingSection.jsx';
+import { TryItSection } from '../sections/TryItSection.jsx';
 import '../styles/Landing.css';
 
 export default function LandingPage() {
@@ -99,7 +100,7 @@ export default function LandingPage() {
   return <div className="ceopro-landing" ref={rootRef} onClick={scrollToSection}>
     <a className="lp-skip-link" href="#landing-main">{t('nav.skip')}</a>
     <LandingNavbar />
-    <main id="landing-main"><HeroSection /><FeaturesSection /><IntelligenceSections /><KnowledgeSections /><ModelsSection /><WorkflowSection /><OutcomesSection /><AboutSection /><PricingSection /><TrustSection /><FinalCtaSection /></main>
+    <main id="landing-main"><HeroSection /><TryItSection /><FeaturesSection /><IntelligenceSections /><KnowledgeSections /><ModelsSection /><WorkflowSection /><OutcomesSection /><AboutSection /><PricingSection /><TrustSection /><FinalCtaSection /></main>
     <LandingFooter />
   </div>;
 }
