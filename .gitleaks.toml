@@ -69,3 +69,14 @@ paths = [
 ]
 regexTarget = "line"
 regexes = ['''^\s*(?:RECEIPT_STREAM|STREAM)\s*=\s*os\.getenv\("SCRAPER_RECEIPT_STREAM_KEY",\s*"market\.scrape\.receipt\.v1"\)\s*$''']
+
+# This fixed replay identifier deduplicates the Phase 2 pricing request; it
+# grants no access. Limit the exception to the exact reviewed request lines,
+# not other keys or credentials in this acceptance script or its history.
+[[allowlists]]
+description = "Exact non-secret Phase 2 pricing idempotency request identifier"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^tools/dev/accept_meeting_phase2\.py$''']
+regexTarget = "line"
+regexes = ['''^\s*(?:r|retry) = request\('POST','/pricing/recommend',params=\{'product_id':pid\},headers=\{'Idempotency-Key':'meeting-phase2-pricing-v1'\}\)\s*$''']
