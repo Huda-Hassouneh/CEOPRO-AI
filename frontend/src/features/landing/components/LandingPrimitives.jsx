@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -51,4 +52,37 @@ export function PointList({ section, count = 3 }) {
 export function FeatureLink({ to, label }) {
   const { t } = useLanding();
   return <a className="lp-text-link" href={`#${to}`}>{label || t('common.learn')}<ArrowRight size={16} className="lp-arrow" aria-hidden="true" /></a>;
+}
+
+const reducedMotion = () => typeof window === 'undefined' || !window.matchMedia
+  || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// A figure that counts up from zero the first time it scrolls into view,
+// shown through `format` (the page's own number/currency/percent formatter).
+// Screen readers and reduced-motion visitors get the final value only.
+export function CountUp({ value, format = String, duration = 1400 }) {
+  const ref = useRef(null);
+  const [shown, setShown] = useState(() => (reducedMotion() || typeof IntersectionObserver === 'undefined' ? value : 0));
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || reducedMotion() || typeof IntersectionObserver === 'undefined') { setShown(value); return undefined; }
+    let frame = 0;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      observer.disconnect();
+      const start = performance.now();
+      const step = (now) => {
+        const progress = Math.min(1, (now - start) / duration);
+        const eased = 1 - (1 - progress) ** 3;
+        setShown(progress === 1 ? value : value * eased);
+        if (progress < 1) frame = requestAnimationFrame(step);
+      };
+      frame = requestAnimationFrame(step);
+    }, { threshold: 0.4 });
+    observer.observe(el);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [value, duration]);
+  const decimals = Number.isInteger(value) ? 0 : 2;
+  const current = shown === value ? value : Number(shown.toFixed(decimals));
+  return <span ref={ref} className="lp-count"><span aria-hidden="true">{format(current)}</span><span className="lp-sr-only">{format(value)}</span></span>;
 }
