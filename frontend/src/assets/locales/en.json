@@ -1340,6 +1340,16 @@
   },
   "billing": {
     "management": {
+      "plansTitle": "Choose your plan",
+      "plansSubtitle": "Compare capacity side by side: products, team seats and monthly Data and AI Credits.",
+      "yourCurrentPlan": "Your current plan",
+      "upgradeTo": "Upgrade to {{plan}}",
+      "downgradeTo": "Downgrade to {{plan}}",
+      "switchPeriod": "Switch to this billing period",
+      "upgradeNote": "Starts immediately",
+      "downgradeNote": "Starts when your paid period ends",
+      "assurance": {"stripe": "Secure payment on Stripe", "cancel": "Cancel anytime; access continues until the period ends", "noCardTrial": "Free trial needs no payment details"},
+      "creditsHelp": "Data Credits power competitor discovery, monitoring and web research. AI Credits power the assistant, AI analysis and marketing content.",
       "title": "Plans & Subscription",
       "subtitle": "Manage your plan, usage, and subscription.",
       "currentPlanTitle": "Your Current Plan",
@@ -1486,11 +1496,14 @@
       "confirmSwitch": "Confirm change"
     },
     "trial": {
-      "title": "Start with a {{days}}-day Pro trial",
-      "description": "Get full access to Pro features and limits.",
+      "title": "Start with a {{days}}-day free trial",
+      "description": "Try KEEL with your own data, then choose the plan that fits.",
       "badge": "{{days}} days free"
     },
     "periods": {
+      "billedMonthly": "Billed monthly",
+      "billedEvery": "{{price}} billed every {{months}} months",
+      "perMonth": "/ month",
       "label": "Billing period",
       "monthly": "Monthly",
       "monthCountLabel": "{{months}} Months",
@@ -1500,6 +1513,14 @@
       "monthlyEquivalent": "{{price}} equivalent per month"
     },
     "plans": {
+      "taglines": {"starter": "For small businesses getting started with market and demand insights.", "growth": "For growing teams that need more products, seats and AI capacity.", "enterprise": "For data-heavy businesses running large AI and document workloads.", "custom": "Contracted limits and dedicated support for larger organisations."},
+      "creditsTitle": "Monthly credits",
+      "unlimited": "Unlimited",
+      "notIncluded": "Not included",
+      "allModules": "All modules: {{modules}}",
+      "trialLine": "{{days}}-day free trial with {{data}} Data and {{ai}} AI Credits",
+      "seeAllLimits": "See every limit",
+      "limits": {"products": "Products", "teamSeats": "Team seats", "reports": "Reports / month", "storageGb": "Storage", "dataSources": "Data sources"},
       "mostPopular": "Most Popular",
       "customPricing": "Custom pricing",
       "custom": {
