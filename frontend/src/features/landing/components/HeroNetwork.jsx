@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 // toward it and link to it. Drawn in the theme's accent colour (re-read when
 // the theme changes). It pauses while the hero is off screen or the tab is
 // hidden, and is a single still frame under prefers-reduced-motion.
+// tone="light" draws it in white, for a coloured band (the final call to action).
 const LINK_DISTANCE = 150;
 const CURSOR_DISTANCE = 210;
 
@@ -18,7 +19,7 @@ function accentRgb() {
   return match.slice(0, 3).join(', ');
 }
 
-export function HeroNetwork() {
+export function HeroNetwork({ tone = 'accent', className = 'lp-hero-network' }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -29,7 +30,8 @@ export function HeroNetwork() {
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     let width = 0, height = 0, nodes = [], pulses = [], frame = 0, visible = true, last = 0;
-    let rgb = accentRgb();
+    const colour = () => (tone === 'light' ? '255, 255, 255' : accentRgb());
+    let rgb = colour();
     const cursor = { x: 0, y: 0, active: false };
 
     const seed = () => {
@@ -132,7 +134,7 @@ export function HeroNetwork() {
     const onVisibility = () => (document.hidden ? stop() : start());
     const resize = new ResizeObserver(() => { seed(); if (!frame) draw(0); });
     const seen = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; if (visible) start(); else stop(); });
-    const theme = new MutationObserver(() => { rgb = accentRgb(); });
+    const theme = new MutationObserver(() => { rgb = colour(); });
 
     host.addEventListener('pointermove', onMove);
     host.addEventListener('pointerleave', onLeave);
@@ -148,9 +150,9 @@ export function HeroNetwork() {
       document.removeEventListener('visibilitychange', onVisibility);
       resize.disconnect(); seen.disconnect(); theme.disconnect();
     };
-  }, []);
+  }, [tone]);
 
-  return <canvas ref={canvasRef} className="lp-hero-network" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
 }
 
 export default HeroNetwork;

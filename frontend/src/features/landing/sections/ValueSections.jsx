@@ -2,6 +2,7 @@ import { BarChart3, Boxes, BrainCircuit, Check, CircleHelp, Compass, Database, F
 import { Link } from 'react-router-dom';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { useTrialDays } from '../../billing/hooks/useTrialDays.js';
+import { HeroNetwork } from '../components/HeroNetwork.jsx';
 import { SectionHeading, TrialButton, useLanding } from '../components/LandingPrimitives.jsx';
 
 const models = [['pricing', Tags, 'pricing-intelligence'], ['sentiment', MessageCircle, 'sentiment'], ['perception', Fingerprint, 'sentiment'], ['demand', TrendingUp, 'demand'], ['market', BarChart3, 'market'], ['rag', BrainCircuit, 'rag'], ['extraction', ScanLine, 'file-intelligence']];
@@ -33,5 +34,8 @@ export function TrustSection() {
 export function FinalCtaSection() {
   const trialDays = useTrialDays();
   const { t } = useLanding();
-  return <section className="lp-final-cta"><div className="lp-container"><div className="lp-cta-orbit" aria-hidden="true" /><p className="lp-eyebrow">{t('cta.eyebrow')}</p><h2>{t('cta.title')}</h2><p>{t('cta.description', { days: trialDays })}</p><div className="lp-actions"><TrialButton /><Link to={routePaths.login}>{t('nav.login')}</Link></div></div></section>;
+  const [firstLine, ...rest] = t('cta.title').split('\n');
+  // A live band: drifting aurora light, a white data network that follows
+  // the pointer, orbiting rings, a shimmering last line and a shining button.
+  return <section className="lp-final-cta"><HeroNetwork tone="light" className="lp-cta-network" /><div className="lp-cta-aurora" aria-hidden="true"><i /><i /><i /></div><div className="lp-container"><div className="lp-cta-orbit" aria-hidden="true"><span /><span /></div><div className="lp-cta-orbit lp-cta-orbit--end" aria-hidden="true"><span /></div><p className="lp-eyebrow"><span className="lp-cta-live" aria-hidden="true" />{t('cta.eyebrow')}</p><h2>{firstLine}{rest.length > 0 && <><br /><span className="lp-cta-shimmer">{rest.join(' ')}</span></>}</h2><p>{t('cta.description', { days: trialDays })}</p><div className="lp-actions"><TrialButton /><Link to={routePaths.login}>{t('nav.login')}</Link></div></div></section>;
 }
