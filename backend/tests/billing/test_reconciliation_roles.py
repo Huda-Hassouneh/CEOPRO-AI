@@ -79,6 +79,11 @@ def test_password_authenticated_capabilities_do_not_overlap(owner_db,tenant,rest
             deny(conn,"SET ROLE ceopro_app")
             deny(conn,"CREATE TABLE public.forbidden_billing_table(id int)")
         for conn in (setup,accounting):
+            with conn.cursor() as cur:
+                for boundary in (conn.commit, conn.rollback):
+                    boundary()
+                    cur.execute("SELECT current_setting('app.current_tenant_id'), current_setting('app.current_user_id')")
+                    assert cur.fetchone() == (tid, uid)
             deny(conn,"INSERT INTO billing_webhook_events(stripe_event_id,event_type,event_created,payload) VALUES('evt_forged','invoice.paid',now(),'{}')")
             deny(conn,"INSERT INTO billing_payments(tenant_id,stripe_invoice_id,amount,currency,status) VALUES(%s,'in_forged',1,'USD','succeeded')",(tid,))
             deny(conn,"UPDATE billing_subscriptions SET status='active' WHERE tenant_id=%s",(tid,))
@@ -102,6 +107,13 @@ def test_event_receipt_scope_rebind_and_replay(owner_db,tenant,restricted_runtim
     with closing(db.billing_webhook_connection(eid)) as conn:
         assert store.claim_event(conn,eid,"invoice.paid",datetime.now(timezone.utc),{"data":{"object":{"id":"in_allowed"}}})
         conn.commit();conn.bind_tenant(tid)
+        # Reuse this same cursor across transaction boundaries, including
+        # the webhook's extra receipt context (not just tenant context).
+        with conn.cursor() as cur:
+            for boundary in (conn.commit, conn.rollback):
+                boundary()
+                cur.execute("SELECT current_setting('app.billing_event_id'), current_setting('app.current_tenant_id')")
+                assert cur.fetchone() == (eid, tid)
         with pytest.raises(ValueError):conn.bind_tenant(str(uuid.uuid4()))
         deny(conn,"INSERT INTO billing_payments(tenant_id,stripe_invoice_id,amount,currency,status) VALUES(%s,'in_other',1,'USD','succeeded')",(tid,))
         conn.bind_tenant(tid)

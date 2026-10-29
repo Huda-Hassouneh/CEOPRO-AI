@@ -12,7 +12,7 @@ from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.dashboard import competitors as dashboard_competitors
 from src.ai.market_inputs import competitor_landscape
 from src.ai.market_inputs import competitor_prices as manual_prices
-from src.ai.core import usage
+from src.ai.core import tenant_cache, usage
 from src.market_scraper import data_access, enqueue, source_review
 from src.market_scraper import discovery as market_scraper_discovery
 
@@ -58,21 +58,16 @@ def list_competitors_endpoint(
     best first (unscored rows last, then by name) - the same order as the
     tier-grouped directory.
     """
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    try:
-        directory = dashboard_competitors.get_competitor_directory(conn, ctx.tenant_id)
-        conn.commit()
-        rows = directory["strategic"] + directory["relevant"]
-        if sort == "confidence":
-            competitors = sorted(rows, key=lambda row: (row.get("confidence_score") is None, -(row.get("confidence_score") or 0), row["name"]))
-        else:
-            competitors = sorted(rows, key=lambda row: row["name"])
-        return {"competitors": competitors}
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    # The whole directory (prices, sentiment, completeness per competitor) is
+    # the same for everyone in the company: shared until it writes.
+    directory = tenant_cache.cached_read("competitor_directory", ctx, None, lambda conn: (
+        dashboard_competitors.get_competitor_directory(conn, ctx.tenant_id)))
+    rows = directory["strategic"] + directory["relevant"]
+    if sort == "confidence":
+        competitors = sorted(rows, key=lambda row: (row.get("confidence_score") is None, -(row.get("confidence_score") or 0), row["name"]))
+    else:
+        competitors = sorted(rows, key=lambda row: row["name"])
+    return {"competitors": competitors}
 
 
 @router.post("/competitors/reclassify")

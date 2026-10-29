@@ -84,7 +84,7 @@ def seeded_tenant(admin_conn):
             (tenant_id,),
         )
         cursor.execute(
-            "INSERT INTO users (user_id, email, password_hash, full_name) VALUES (%s, %s, 'x', 'Test User');",
+            "INSERT INTO users (user_id, email, password_hash, full_name,email_verified_at) VALUES (%s, %s, 'x', 'Test User',NOW());",
             (user_id, f"{user_id}@example.com"),
         )
         cursor.execute("SELECT role_key FROM system_roles WHERE lower(role_key)='owner' LIMIT 1;")
@@ -96,7 +96,7 @@ def seeded_tenant(admin_conn):
             "INSERT INTO tenant_users (tenant_id, user_id, role_key) VALUES (%s, %s, %s);",
             (tenant_id, user_id, role_key),
         )
-    token = jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
+    token = jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "ev": True, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
     return tenant_id, {"Authorization": f"Bearer {token}"}
 
 
@@ -188,11 +188,11 @@ def test_import_preview_is_tenant_isolated_and_requires_auth(client, admin_conn,
     other_tenant, other_user = str(uuid.uuid4()), str(uuid.uuid4())
     with admin_conn.cursor() as cursor:
         cursor.execute("INSERT INTO companies (tenant_id,business_name,country_code,primary_currency) VALUES (%s,'Other tenant','JO','JOD')", (other_tenant,))
-        cursor.execute("INSERT INTO users (user_id,email,password_hash,full_name) VALUES (%s,%s,'x','Other user')", (other_user, f"{other_user}@example.com"))
+        cursor.execute("INSERT INTO users (user_id,email,password_hash,full_name,email_verified_at) VALUES (%s,%s,'x','Other user',NOW())", (other_user, f"{other_user}@example.com"))
         cursor.execute("SELECT role_key FROM system_roles WHERE lower(role_key)='owner' LIMIT 1")
         role = cursor.fetchone()[0]
         cursor.execute("INSERT INTO tenant_users (tenant_id,user_id,role_key) VALUES (%s,%s,%s)", (other_tenant, other_user, role))
-    other_token = jwt.encode({"tenant_id": other_tenant, "user_id": other_user, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
+    other_token = jwt.encode({"tenant_id": other_tenant, "user_id": other_user, "ev": True, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
     assert client.get(f"/extraction/import-drafts/{batch_id}", headers={"Authorization": f"Bearer {other_token}"}).status_code == 404
 
 

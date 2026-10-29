@@ -36,7 +36,8 @@ from typing import Callable, Dict, List, Optional
 
 from src.ai.billing import credits
 from src.ai.rag import access as acl
-from src.ai.rag import business_analysis, citations, evidence as ev, llm_client, product_guide, understanding, untrusted
+from src.ai.rag import business_analysis, citations, conversation_memory, evidence as ev, llm_client, product_guide
+from src.ai.rag import understanding, untrusted
 from src.ai.rag.business_tools import build_financial_facts_block
 from src.ai.rag.orchestrator import build_tool_facts_blocks
 from src.ai.rag.pipeline import DEFAULT_RERANK_CANDIDATES, run_retrieval
@@ -103,6 +104,12 @@ _LEADS = {
               "your question, unsummarised:",
         "ar": "خدمة كتابة الإجابات غير متاحة الآن، لذلك هذه الأدلة التي وجدها KEEL لسؤالك كما هي دون تلخيص:",
     },
+    "allowance_used": {
+        "en": "Your plan's AI allowance for this period is used up, so here is the evidence KEEL found for your "
+              "question, unsummarised:",
+        "ar": "تم استهلاك رصيد الذكاء الاصطناعي في باقتك لهذه الفترة، لذلك هذه الأدلة التي وجدها KEEL لسؤالك كما هي "
+              "دون تلخيص:",
+    },
     "unverifiable": {
         "en": "I couldn't put together an answer that the evidence fully supports, so here is what KEEL found for "
               "your question instead:",
@@ -117,6 +124,7 @@ _LEADS = {
 _WORDS = {
     "your_message": ("Your message", "رسالتك"),
     "earlier_message": ("Your earlier message", "رسالتك السابقة"),
+    "message_part": ("Your message (relevant part)", "رسالتك (الجزء المتعلق بالسؤال)"),
     "summary_title": ("KEEL summary: {name}", "ملخص KEEL: {name}"),
     "summary_limit": ("a generated summary; the live records are the exact figures",
                       "ملخص مُولّد؛ الأرقام الدقيقة في السجلات الحية"),
@@ -166,9 +174,17 @@ def _w(key: str, language: str, **values) -> str:
     return (arabic if language == "ar" else english).format(**values)
 
 
-_STOP = {"the", "and", "for", "with", "what", "how", "why", "are", "is", "my", "our", "your", "this", "that", "of",
-         "to", "in", "on", "a", "an", "do", "does", "can", "should", "about", "me", "we", "i",
-         "ما", "ماذا", "كيف", "لماذا", "هل", "في", "من", "على", "عن", "الى", "إلى", "شو", "ليش", "قديش", "انا", "أنا"}
+_STOP_WORDS = {"the", "and", "for", "with", "what", "how", "why", "are", "is", "my", "our", "your", "this", "that",
+               "of", "to", "in", "on", "a", "an", "do", "does", "can", "should", "about", "me", "we", "i",
+               # Question and helper words match any sentence that happens to use them ("Who won ..." matched
+               # "customers who aren't happy"), so they never count as a shared topic.
+               "who", "whom", "whose", "which", "when", "where", "was", "were", "did", "has", "have", "had",
+               "been", "will", "would", "could", "you", "they", "their", "them", "its", "from", "there", "than",
+               "then", "متى", "أين", "وين", "مين", "ايش", "هذا", "هذه", "كان", "كانت",
+               "ما", "ماذا", "كيف", "لماذا", "هل", "في", "من", "على", "عن", "الى", "إلى", "شو", "ليش", "قديش",
+               "انا", "أنا"}
+# Compared after the same normalisation as the text (أ -> ا, ى -> ي), or the Arabic ones never match.
+_STOP = {understanding._norm(w) for w in _STOP_WORDS}
 
 
 def _language(question: str) -> str:
@@ -244,8 +260,12 @@ def _top_product(conn, tenant_id: str, catalog: List[dict], access: acl.Access, 
     return by_id.get(str(row[0])) if row else None
 
 
+_ARABIC_PUNCTUATION = re.compile("[\u060c\u061b\u061f\u066a-\u066d\u06d4]")
+
+
 def _content_words(text: str) -> set:
-    words = re.findall(r"[\w؀-ۿ]{3,}", understanding._norm(text))
+    # Arabic punctuation sits inside the Arabic letter range: "طلب؟" must still be the word "طلب".
+    words = re.findall(r"[\w؀-ۿ]{3,}", _ARABIC_PUNCTUATION.sub(" ", understanding._norm(text)))
     return {w[2:] if w.startswith("ال") and len(w) > 4 else w for w in words if w not in _STOP}
 
 
@@ -313,6 +333,33 @@ def _user_inputs(registry: ev.EvidenceRegistry, question: str, previous: Optiona
         ids["current"] = registry.add(ev.USER_INPUT, _w("your_message", language), question, ev.USER,
                                       ev.USER_PROVIDED).id
     return ids
+
+
+def _split_history(history: Optional[list]) -> tuple:
+    """(recent, older, recent_full): the newest HISTORY_MESSAGES turns, sent
+    to the model as turns (a long one reduced to its start and end);
+    everything before them, recalled by _recall() instead; and the newest
+    turns in full, so _recall() can find the middle of a long one."""
+    history = [m for m in (history or []) if isinstance(m, dict) and isinstance(m.get("content"), str)]
+    cut = max(0, len(history) - HISTORY_MESSAGES)
+    recent = [{**m, "content": conversation_memory.focus(m["content"])} for m in history[cut:]]
+    return recent, history[:cut], history[cut:]
+
+
+def _recall(registry: ev.EvidenceRegistry, question: str, full_question: str, older: list, recent_full: list,
+            language: str) -> int:
+    """The parts of what the user wrote that the model would not otherwise
+    see - older messages, and the middle of long ones - that bear on
+    `question`, added as their own evidence (conversation_memory.py)."""
+    sources = [(_w("earlier_message", language), m["content"]) for m in older if m.get("role") == "user"]
+    sources += [(_w("earlier_message", language), m["content"]) for m in recent_full
+                if m.get("role") == "user" and conversation_memory.is_long(m["content"])]
+    if conversation_memory.is_long(full_question):
+        sources.append((_w("message_part", language), full_question))
+    passages = conversation_memory.relevant_passages(sources, question)
+    for label, text in passages:
+        registry.add(ev.USER_INPUT, label, text, ev.USER, ev.USER_PROVIDED)
+    return len(passages)
 
 
 def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry: ev.EvidenceRegistry,
@@ -891,7 +938,11 @@ def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "ev
     # question matching no topic brings every record section, which would
     # otherwise crowd out the one document that answers it.
     documents = [i for i in ranked if i.kind == ev.COMPANY_DOCUMENT][:3]
-    others = [i for i in ranked if i.kind != ev.COMPANY_DOCUMENT][:8 - len(documents)]
+    # Records are cut to size by how well they match, not by kind alone: the
+    # named product's own price record must not lose its place to five
+    # "top products" lines that merely come first.
+    others = sorted((i for i in ranked if i.kind != ev.COMPANY_DOCUMENT), key=lambda i: (-overlap(i), rank(i)))
+    others = others[:8 - len(documents)]
     items = sorted(documents + others, key=lambda i: (-overlap(i), rank(i)))
     shares = any(overlap(i) for i in items)
     if shares:
@@ -982,12 +1033,19 @@ def _draft(question: str, u: understanding.Understanding, company: dict, access:
 def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optional[list] = None,
            user_id: Optional[str] = None, access: Optional[acl.Access] = None, state: Optional[dict] = None,
            enable_research: bool = True, include_structured_facts: bool = True,
-           research_kwargs: Optional[dict] = None, **_ignored) -> dict:
+           research_kwargs: Optional[dict] = None, use_ai: bool = True, **_ignored) -> dict:
     """The cited answer to `question` for this company and member.
+
+    `question` and `history` may be any length: what doesn't fit the prompt
+    is recalled by relevance (_recall()). use_ai=False (the company's AI
+    allowance is used up) answers from the evidence alone, with no paid call.
 
     Returns {"answer", "answer_blocks", "references", "sources", "follow_up_questions", "calculations",
     "evidence_status", "research", "state", "answer_mode", "token_usage", "citation_check"}."""
     access = access or (acl.load_access(conn, tenant_id, user_id) if user_id else acl.FULL_ACCESS)
+    full_question = question
+    question = conversation_memory.focus(full_question)
+    history, older, recent_full = _split_history(history)
     language = _language(question)
     company = _company(conn, tenant_id)
     catalog = _catalog(conn, tenant_id, access) if include_structured_facts else []
@@ -1008,6 +1066,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     answerable = understanding.is_answerable(question) or u.follow_up
 
     user_ids = _user_inputs(registry, question, state, u.follow_up, language)
+    _recall(registry, question, full_question, older, recent_full, language)
     guide = product_guide.build_guide_block(question)
     if guide:
         items = registry.add_fact_lines(guide.splitlines(), route=None, capabilities=frozenset(),
@@ -1034,8 +1093,10 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         company_found += _reviews(conn, tenant_id, u, access, registry, statuses, language)
 
     ask = None
-    if llm_client.provider_configured():
+    if use_ai and llm_client.provider_configured():
         ask = _guarded(llm_client.chat_completion)
+    if not use_ai:
+        enable_research = False  # research is paid for too
     research_result = None
     # "Price" or "cost" alone is not a private question: "the average water price" is about the world.
     private_only = bool(u.intents) and set(u.intents) <= _PRIVATE_ONLY and not u.public_scope
@@ -1060,21 +1121,25 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     usage: Dict[str, int] = {}
     regulatory = bool({U.REGULATION, U.TRADE, U.LANDED_COST} & set(u.intents))
     mode, repaired, issue_count = "ai", False, 0
-    try:
-        with _server_refusals_as_llm_errors():
-            draft, mode, issue_count, repaired = _draft(question, u, company, access, registry, statuses, history,
-                                                        usage, regulatory, language)
-    except llm_client.LLMError as err:
-        if not len(registry):
-            raise
-        logger.warning("Assistant answered in evidence mode (tenant=%s): %s", tenant_id, err)
-        draft, mode = _evidence_mode(registry, language, question=question), "evidence"
-        reason = ("cost_not_configured" if isinstance(err, llm_client.LLMPricingNotConfiguredError)
-                  else "not_configured" if isinstance(err, llm_client.LLMNotConfiguredError)
-                  else "provider_busy" if isinstance(err, (llm_client.LLMRateLimitError,
-                                                           llm_client.LLMRequestTooLargeError))
-                  else "provider_unavailable")
-        _status(statuses, "answer_writing", reason)
+    if not use_ai:
+        draft, mode = _evidence_mode(registry, language, lead="allowance_used", question=question), "evidence"
+        _status(statuses, "answer_writing", "allowance_used")
+    else:
+        try:
+            with _server_refusals_as_llm_errors():
+                draft, mode, issue_count, repaired = _draft(question, u, company, access, registry, statuses,
+                                                            history, usage, regulatory, language)
+        except llm_client.LLMError as err:
+            if not len(registry):
+                raise
+            logger.warning("Assistant answered in evidence mode (tenant=%s): %s", tenant_id, err)
+            draft, mode = _evidence_mode(registry, language, question=question), "evidence"
+            reason = ("cost_not_configured" if isinstance(err, llm_client.LLMPricingNotConfiguredError)
+                      else "not_configured" if isinstance(err, llm_client.LLMNotConfiguredError)
+                      else "provider_busy" if isinstance(err, (llm_client.LLMRateLimitError,
+                                                               llm_client.LLMRequestTooLargeError))
+                      else "provider_unavailable")
+            _status(statuses, "answer_writing", reason)
 
     registry.localize_titles(language)
     if not any(block["type"] != "heading" for block in draft.blocks):

@@ -26,7 +26,7 @@ def get_command_center(conn, tenant_id: str, window_days: int = 30) -> dict:
     """build_command_center(), shared for a few seconds between the screens
     that need it at the same time (the dashboard and the alerts bell) - see
     core/tenant_cache.py for when it is recomputed."""
-    return tenant_cache.get_or_compute("command_center", tenant_id, window_days,
+    return tenant_cache.get_or_compute("command_center", tenant_id, (getattr(conn, "_user_id", None), window_days),
                                        lambda: build_command_center(conn, tenant_id, window_days))
 
 

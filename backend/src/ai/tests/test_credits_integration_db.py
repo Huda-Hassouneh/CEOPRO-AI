@@ -547,6 +547,30 @@ def test_an_empty_answer_retry_is_billed_too(sys_conn, ai, monkeypatch):
     assert [row[0] for row in _ledger(sys_conn, tenant)] == ["consumed", "consumed"]
 
 
+def test_rag_retries_obey_approved_limit_and_settle_every_attempt(sys_conn, ai, monkeypatch):
+    llm_client, _ = ai
+    tenant = _company(sys_conn, "starter")
+    ceiling = credits.policy(sys_conn)["max_ai_output_tokens"]
+    sys_conn.rollback()
+    assert ceiling == 4000  # approved installation policy, not the 8000 retry preference
+    calls = []
+    def post(url, payload, headers, timeout):
+        calls.append(payload["max_tokens"])
+        response = _answer(prompt=100, completion=50)
+        response._body["choices"][0]["finish_reason"] = "stop" if len(calls) == 3 else "length"
+        return response
+    monkeypatch.setattr(llm_client, "_post_with_retry", post)
+    with credits.metering(tenant, "assistant_question", usage_class="simple_question"):
+        answer, used = llm_client._chat_completion_with_usage([{"role": "user", "content": "q"}], max_tokens=1500)
+    assert answer == "ok" and used["total_tokens"] == 450
+    assert calls == [1500, 3000, ceiling]
+    rows = _ledger(sys_conn, tenant)
+    assert [row[0] for row in rows] == ["consumed"] * 3
+    assert sum(row[2] for row in rows) == Decimal("0.0018")
+    reserved, consumed = _balance(sys_conn, tenant, "ai")
+    assert reserved == 0 and consumed > 0
+
+
 def test_ai_error_responses_are_not_charged(sys_conn, ai, monkeypatch):
     llm_client, _ = ai
     tenant = _company(sys_conn, "starter")

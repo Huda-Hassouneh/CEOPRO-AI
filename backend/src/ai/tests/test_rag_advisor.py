@@ -618,3 +618,63 @@ def test_an_evidence_summary_in_another_language_than_the_question_carries_a_not
                                          "evidence", "ar").get("note") is None
     assert advisor._flag_foreign_summary(summary, "ai", "ar") is summary  # the model answers in the question's language
     assert advisor._flag_foreign_summary(None, "evidence", "ar") is None
+
+
+def test_the_middle_of_a_very_long_message_reaches_the_model_and_the_prompt_stays_bounded(model, monkeypatch):
+    filler = " ".join(f"row{i} value{i}" for i in range(30000))
+    question = f"Here is our supplier export: {filler} Nablus Olive Co charged 3.75 JOD per litre. {filler} " \
+               "What did Nablus Olive Co charge per litre?"
+    reply = _reply(("Nablus Olive Co charged 3.75 JOD per litre.", "fact", ["E1"]))
+    _, fake = _answer_with_sales(model, monkeypatch, reply, reply, question=question)
+    prompt = fake.prompts[0][-1]["content"]
+    assert "Nablus Olive Co charged 3.75 JOD per litre" in prompt  # recalled as the user's own input
+    assert len(prompt) < 40000 < len(question)
+
+
+def test_a_message_from_far_back_in_the_conversation_is_still_remembered(model, monkeypatch):
+    history = [{"role": "user", "content": "Our warehouse rent is 1450 JOD a month."},
+               {"role": "assistant", "content": "Noted."}]
+    history += [{"role": "user" if i % 2 == 0 else "assistant", "content": f"small talk {i}"} for i in range(200)]
+    _, fake = _answer_with_sales(model, monkeypatch, _reply(("Rent is 1450 JOD.", "fact", ["E1"])),
+                                 question="How much is our warehouse rent?", history=history)
+    messages = fake.prompts[0]
+    assert "1450 JOD" in messages[-1]["content"]  # recalled as evidence
+    assert len(messages) == 2 + advisor.HISTORY_MESSAGES  # system, newest turns, question
+
+
+def test_with_the_ai_allowance_used_up_the_chat_still_answers_from_the_evidence(model, monkeypatch):
+    result, fake = _answer_with_sales(model, monkeypatch, use_ai=False)
+    assert fake.prompts == []  # no paid call
+    assert result["answer_mode"] == "evidence" and result["references"]
+    assert {"need": "answer_writing", "status": "allowance_used"} in result["evidence_status"]
+    assert "allowance" in result["answer"]
+
+
+def _evidence_mode_titles(registry, question):
+    draft = advisor._evidence_mode(registry, "en", question=question)
+    items = next(block["items"] for block in draft.blocks if block["type"] == "list")
+    return [registry.get(claims[0].evidence[0]).title for claims in items]
+
+
+def test_evidence_mode_keeps_the_named_products_own_record_among_many_other_records():
+    """Records used to be cut to five by kind before ranking by relevance, so the product's own price record
+    lost its place to "top products" lines that only came first."""
+    registry = ev.EvidenceRegistry()
+    for n in range(8):
+        registry.add(ev.COMPANY_RECORD, "Top products by revenue in the last 30 days",
+                     f"Product {n}: {100 - n} JOD from {n + 3} units.", ev.COMPANY, ev.OBSERVED)
+    registry.add(ev.COMPANY_RECORD, "Product: Early Harvest Olive Oil 750ml",
+                 "Early Harvest Olive Oil 750ml: selling price 12.5000 JOD", ev.COMPANY, ev.OBSERVED)
+    titles = _evidence_mode_titles(registry, "What is the price of Early Harvest Olive Oil 750ml?")
+    assert titles[0] == "Product: Early Harvest Olive Oil 750ml"
+
+
+def test_a_question_word_alone_does_not_make_unrelated_evidence_relevant():
+    """"Who won the 2022 World Cup?" matched an insight about customers "who aren't happy"."""
+    assert not advisor._stems("Who won the 2022 World Cup?") & advisor._stems("Customers who aren't happy pay less.")
+    assert not advisor._stems("متى كان آخر طلب؟") & advisor._stems("متى ما كان العميل راضياً")
+
+
+def test_an_arabic_question_mark_does_not_hide_the_last_word_of_the_question():
+    assert "طلب" in advisor._content_words("متى كان آخر طلب؟")
+    assert advisor._relevant("ما سياسة الإرجاع؟", "سياسة الإرجاع: يمكن إرجاع المنتجات خلال 14 يوماً")

@@ -10,6 +10,8 @@ let vite;
 test.before(async()=>{vite=await createServer({server:{middlewareMode:true},appType:'custom',logLevel:'silent'});});
 test.after(async()=>{await vite.close();});
 async function render(locale, file, name, props) {
+  const {loadLocale}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
+  await loadLocale(locale);
   const {I18nProvider}=await vite.ssrLoadModule('/src/app/providers/I18nProvider.jsx');
   const component=(await vite.ssrLoadModule('/src/features/billing/components/'+file))[name];
   const original=globalThis.window;
@@ -29,14 +31,15 @@ for(const locale of ['en','ar']) {
     assert.ok(!html.includes('$0'));
   });
   test(`original invoice table renders historical amounts and safe documents in ${locale}`,async()=>{
-    const {translations,translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
+    const {loadLocale,translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
+    await loadLocale(locale);
     const t=(key)=>translate(locale,key);
     const html=await render(locale,'InvoiceHistoryTable.jsx','InvoiceHistoryTable',{locale,t,invoices:[
       {id:'in_synthetic',amount:52.75,currency:'USD',date:'2026-10-25',type:'subscription',paymentStatus:'failed',pdfUrl:'https://pay.stripe.com/synthetic.pdf'},
       {id:'in_unsafe',amount:10,currency:'USD',date:'2026-10-24',type:'subscription',paymentStatus:'paid',pdfUrl:'javascript:alert(1)'},
     ]});
     assert.match(html,/billing-invoice-table/);
-    assert.ok(html.includes(translations[locale].billing.invoiceStates.failed));
+    assert.ok(html.includes(t('billing.invoiceStates.failed')));
     assert.match(html,/https:\/\/pay\.stripe\.com\/synthetic.pdf/);
     assert.ok(!html.includes('javascript:'));
   });

@@ -67,7 +67,7 @@ def test_sales_report_returns_the_real_result():
 
     assert response.status_code == 200
     assert response.json() == fake_result
-    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()  # a read: the connection goes back, nothing to commit
     mock_get.assert_called_once_with(fake_conn, "t1", start_date=None, end_date=None, limit=1000, offset=0)
 
 
@@ -116,7 +116,7 @@ def test_financial_summary_report_returns_the_real_result():
 
     assert response.status_code == 200
     assert response.json() == fake_result
-    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()  # a read: the connection goes back, nothing to commit
     mock_get.assert_called_once_with(fake_conn, "t1", window_days=30)
 
 
@@ -211,3 +211,21 @@ def test_a_retry_with_the_same_idempotency_key_is_the_same_report():
     assert reports.report_key(ctx, None, "csv", "en") != reports.report_key(ctx, None, "pdf", "en")
     bad = client.get("/reports/sales/export", params={"format": "csv"}, headers={**_auth(), "Idempotency-Key": "bad key!"})
     assert bad.status_code == 422
+
+
+def test_a_repeated_report_is_read_once_until_the_company_writes():
+    """The sales report and financial summary are shared between visits
+    (core/tenant_cache.py); a write by the company makes the next one fresh."""
+    from src.ai.core import tenant_cache
+
+    with patch("src.ai.routers.reports.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.reports.dashboard_reports.get_sales_report", return_value={"rows": []}) as mock_get:
+        for _ in range(3):
+            assert client.get("/reports/sales", headers=_auth()).status_code == 200
+        assert mock_get.call_count == 1
+        tenant_cache.bump("t1")
+        assert client.get("/reports/sales", headers=_auth()).status_code == 200
+        assert mock_get.call_count == 2
+        # Another page is another report.
+        assert client.get("/reports/sales", params={"offset": 1000}, headers=_auth()).status_code == 200
+        assert mock_get.call_count == 3

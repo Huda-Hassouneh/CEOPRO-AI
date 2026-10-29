@@ -14,10 +14,10 @@ belonging to a different tenant or a different user within the same
 tenant simply will not be visible to a SELECT/UPDATE/DELETE on this
 connection, regardless of what caller passes in.
 
-Bounded, not unbounded: load_session_history() caps how many prior
-messages are returned, same MAX_HISTORY_MESSAGES bound llm_client.py's
-own _sanitize_history() already enforces server-side - this module
-enforces it at the query level too (LIMIT), not just after the fact.
+load_session_history() returns the newest MAX_HISTORY_MESSAGES by default;
+the assistant itself asks for every message (limit=None) and decides what
+reaches the model (rag/conversation_memory.py), so nothing said in a
+conversation is forgotten however long it runs.
 """
 import json
 from typing import List, Optional
@@ -28,8 +28,10 @@ from typing import List, Optional
 # see its own lazy orchestrator import).
 MAX_HISTORY_MESSAGES = 12
 
-# A session list is a small sidebar/dropdown, not a paginated archive.
-DEFAULT_SESSION_LIST_LIMIT = 20
+# No cap by default: every conversation the user has had stays listed and
+# reopenable. A cap of 20 made older conversations vanish from the history
+# even though their messages were still stored. Pass a limit to page.
+DEFAULT_SESSION_LIST_LIMIT: Optional[int] = None
 
 _TITLE_MAX_LENGTH = 80
 
@@ -86,10 +88,12 @@ def session_exists(conn, tenant_id: str, session_id: str) -> bool:
         return cursor.fetchone() is not None
 
 
-def load_session_history(conn, tenant_id: str, session_id: str, limit: int = MAX_HISTORY_MESSAGES) -> List[dict]:
+def load_session_history(conn, tenant_id: str, session_id: str,
+                         limit: Optional[int] = MAX_HISTORY_MESSAGES) -> List[dict]:
     """Returns [{"role": ..., "content": ...}, ...] oldest-first - the
     exact shape rag/llm_client.py::answer_query()'s own `history` param
-    already expects, so this can be passed straight through unchanged."""
+    already expects, so this can be passed straight through unchanged.
+    limit=None: every message (LIMIT NULL is LIMIT ALL in Postgres)."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -144,8 +148,9 @@ def save_session_state(conn, tenant_id: str, session_id: str, state: dict) -> No
                        (json.dumps(state, ensure_ascii=False, default=str), tenant_id, session_id))
 
 
-def list_sessions(conn, tenant_id: str, user_id: str, limit: int = DEFAULT_SESSION_LIST_LIMIT) -> List[dict]:
+def list_sessions(conn, tenant_id: str, user_id: str, limit: Optional[int] = DEFAULT_SESSION_LIST_LIMIT) -> List[dict]:
     with conn.cursor() as cursor:
+        # LIMIT NULL is LIMIT ALL in Postgres.
         cursor.execute(
             "SELECT session_id, title, created_at, updated_at FROM conversation_sessions "
             "WHERE tenant_id = %s AND user_id = %s ORDER BY updated_at DESC LIMIT %s;",

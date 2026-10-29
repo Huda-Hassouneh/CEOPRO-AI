@@ -56,7 +56,9 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
         return {"status": "PLAN_LIMIT", "analyzed_count": 0}
     if left is not None:
         batch_size = min(batch_size, left)
-    reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=batch_size)
+    # Star-rating stand-ins (written while the model was unavailable) come
+    # after never-analyzed reviews and are replaced once the model answers.
+    reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=batch_size, include_rating_fallbacks=True)
     if not reviews:
         return {"status": "OK", "analyzed_count": 0}
 
@@ -66,10 +68,11 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
     # same transaction as their sentiment rows, then settle to the number that
     # was actually persisted. This keeps the existing per-record unit and
     # releases failed/duplicate writes without charging twice.
+    new_count = sum(not r.get("upgrade") for r in reviews)
+    reservation = None
     try:
-        reservation = usage.reserve(
-            conn, tenant_id, usage.SENTIMENT_ANALYSIS, len(reviews)
-        )
+        if new_count:
+            reservation = usage.reserve(conn, tenant_id, usage.SENTIMENT_ANALYSIS, new_count)
     except usage.PlanLimitReached as exc:
         if exc.reason == "QUOTA_EXHAUSTED":
             return {"status": "PLAN_LIMIT", "analyzed_count": 0}
@@ -82,17 +85,21 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
         # The text model is unreachable: use the customer's own star rating
         # where there is one; reviews without a rating stay unanalyzed.
         logger.warning("sentiment model unavailable (%s); using star ratings where present", exc)
-        reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=batch_size, rated_only=True)
+        if not new_count:
+            return {"status": "MODEL_UNAVAILABLE", "analyzed_count": 0, "method": "star_rating"}
+        reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=new_count, rated_only=True)
         predictions = [model.predict_from_rating(r.get("review_rating")) for r in reviews]
         method = "star_rating"
         pairs = [(r, p) for r, p in zip(reviews, predictions) if p is not None]
         if not pairs:
-            usage.settle(conn, reservation, 0)
+            if reservation is not None:
+                usage.settle(conn, reservation, 0)
             conn.commit()
             return {"status": "MODEL_UNAVAILABLE", "analyzed_count": 0, "method": method}
         reviews, predictions = [r for r, _ in pairs], [p for _, p in pairs]
 
     analyzed_count = 0
+    upgraded_count = 0
     failed_count = 0
     for review, prediction in zip(reviews, predictions):
         with conn.cursor() as cursor:
@@ -117,12 +124,20 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
         else:
             with conn.cursor() as cursor:
                 cursor.execute(f"RELEASE SAVEPOINT {_SAVEPOINT_NAME};")
-            analyzed_count += 1
-    usage.settle(conn, reservation, analyzed_count)
+            if review.get("upgrade"):
+                upgraded_count += 1
+            else:
+                analyzed_count += 1
+    # Re-reading a review the plan already paid for is not counted again.
+    if reservation is not None:
+        usage.settle(conn, reservation, analyzed_count)
     conn.commit()
 
-    logger.info(f"Classified {analyzed_count} reviews for tenant={tenant_id} ({failed_count} failed)")
-    return {"status": "OK", "analyzed_count": analyzed_count, "failed_count": failed_count, "method": method}
+    logger.info(f"Classified {analyzed_count} reviews for tenant={tenant_id} ({upgraded_count} upgraded from star ratings, {failed_count} failed)")
+    result = {"status": "OK", "analyzed_count": analyzed_count, "failed_count": failed_count, "method": method}
+    if upgraded_count:
+        result["upgraded_count"] = upgraded_count
+    return result
 
 
 def get_subject_sentiment_summary(

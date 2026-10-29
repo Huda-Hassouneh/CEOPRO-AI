@@ -93,9 +93,10 @@ def studio(monkeypatch):
     from src.ai.tests.test_marketing_content_generator import _valid_response_json
 
     def model(messages, **kwargs):
+        from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
         payload = json.loads(_valid_response_json())
         payload["image_prompt"] = "Golden kunafa on a marble counter, warm morning light"
-        return json.dumps(payload), {"total_tokens": 900}
+        return scripted_campaign_completion(messages, campaign_json=json.dumps(payload), total_tokens=900)
 
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage", model)
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "local")

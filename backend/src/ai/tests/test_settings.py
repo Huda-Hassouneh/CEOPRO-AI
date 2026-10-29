@@ -32,7 +32,7 @@ def _cursor(conn):
 
 
 def _auth_header(tenant_id="t1", user_id="u1"):
-    token, _ = create_access_token(tenant_id=tenant_id, user_id=user_id)
+    token, _ = create_access_token(tenant_id=tenant_id, user_id=user_id, email_verified=True)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -377,14 +377,14 @@ def test_invite_team_member_creates_a_token_and_sends_the_real_email():
     with patch("src.ai.routers.settings.db.app_role_connection", return_value=conn), \
          patch("src.ai.routers.settings._require_role", return_value="owner"), \
          patch("src.ai.routers.settings._ensure_seat_for_invitation"), \
-         patch("src.ai.routers.settings.notifications.send_team_invitation_email") as mock_send:
+         patch("src.ai.routers.settings.notifications.send_team_invitation_email", return_value=True) as mock_send:
         response = client.post(
             "/settings/team/invitations", headers=_auth_header(),
             json={"email": "new@example.com", "role_key": "staff"},
         )
 
     assert response.status_code == 200
-    assert response.json() == {"ok": True}
+    assert response.json() == {"ok": True, "email_sent": True}
     # the raw token is never present in the response
     assert "token" not in response.text
     mock_send.assert_called_once()
@@ -542,3 +542,21 @@ def test_patch_notification_preferences_refuses_unknown_settings():
         for bad in ({"email_frequency": "hourly"}, {"in_app": {"weather": True}}, {"in_app": {"stock": "yes"}}, {"sms": True}):
             assert client.patch("/settings/notifications", headers=_auth_header(), json=bad).status_code == 422
     conn.commit.assert_not_called()
+
+
+def test_an_invitation_saved_without_an_email_says_so():
+    """No email service (or a failed send): the invitation is kept, but the
+    screen must not report it as sent."""
+    conn = _fake_conn()
+    _cursor(conn).fetchone.return_value = ("Jane's Shop",)
+    with patch("src.ai.routers.settings.db.app_role_connection", return_value=conn), \
+         patch("src.ai.routers.settings._require_role", return_value="owner"), \
+         patch("src.ai.routers.settings._ensure_seat_for_invitation"), \
+         patch("src.ai.routers.settings.notifications.send_team_invitation_email", return_value=False):
+        response = client.post(
+            "/settings/team/invitations", headers=_auth_header(),
+            json={"email": "new@example.com", "role_key": "staff"},
+        )
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "email_sent": False}
+    conn.commit.assert_called_once()
