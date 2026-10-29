@@ -179,23 +179,36 @@ def _ingest_pending_documents_locked(conn, minio_client, tenant_id: str, bucket:
     return processed_count
 
 
-def backfill_missing_embeddings(conn, tenant_id: str, batch_size: int = 256, max_batches: int = 40) -> int:
+def backfill_missing_embeddings(conn, tenant_id: str, batch_size: int = 256, max_batches: Optional[int] = None) -> int:
     """Embeds chunks stored while the semantic model was unavailable, and
     re-embeds chunks whose vector came from another model (after a model
     change). Returns how many were filled in (0 when none are missing or the
-    model is still unavailable)."""
+    model is still unavailable).
+
+    No batch cap by default: it runs until every chunk has a vector from the
+    current model, however large the corpus. A fixed cap (it was 40 x 256 =
+    10,240 chunks) left the rest of a large knowledge base out of semantic
+    search, and build_hybrid_index() then cached that partial index. It
+    stops early only when the model is unavailable or a batch makes no
+    progress (the same chunks come back), so it can't spin forever."""
     filled = 0
-    for _ in range(max_batches):
+    previous_ids = None
+    batches = 0
+    while max_batches is None or batches < max_batches:
         missing = data_access.load_chunks_missing_embeddings(conn, tenant_id, limit=batch_size,
                                                              model_version=embeddings_module.MODEL_NAME)
         if not missing:
             break
+        ids = [chunk_id for chunk_id, _ in missing]
+        if ids == previous_ids:
+            logger.warning(f"tenant={tenant_id}: embedding backfill made no progress; stopping")
+            break
+        previous_ids = ids
+        batches += 1
         vectors = try_embed([text for _, text in missing])
         if vectors is None:
             break
-        data_access.set_chunk_embeddings(
-            conn, tenant_id, [chunk_id for chunk_id, _ in missing], vectors, embeddings_module.MODEL_NAME
-        )
+        data_access.set_chunk_embeddings(conn, tenant_id, ids, vectors, embeddings_module.MODEL_NAME)
         conn.commit()
         filled += len(missing)
     return filled

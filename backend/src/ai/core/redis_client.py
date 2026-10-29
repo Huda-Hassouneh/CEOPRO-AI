@@ -21,12 +21,42 @@ would fail to authenticate against any real managed Redis the moment
 this service left docker-compose.
 """
 import os
+import threading
 from urllib.parse import urlparse
 
 import redis
 
 
+# One client (and so one connection pool) per configuration, for the checks
+# made on every API request (signed-out tokens and sessions, the read-model
+# cache's shared generation): a new client per call opened a new TCP
+# connection per call - ~15% of the API's CPU under load. redis.Redis() is
+# thread-safe. Only for callers that just issue commands: a component that
+# holds its client and changes it (the stream consumers) uses
+# get_redis_client(). The Redis class is part of the key, so a test that
+# swaps in a fake class still gets its fake.
+_shared_clients: dict = {}
+_shared_lock = threading.Lock()
+
+
+def get_shared_redis_client(**overrides) -> redis.Redis:
+    key = (redis.Redis, os.getenv("REDIS_URL"), os.getenv("REDIS_HOST"), os.getenv("REDIS_PORT"),
+           os.getenv("REDIS_PASSWORD"), os.getenv("REDIS_TLS"), tuple(sorted(overrides.items())))
+    client = _shared_clients.get(key)
+    if client is None:
+        with _shared_lock:
+            client = _shared_clients.get(key)
+            if client is None:
+                client = _shared_clients[key] = get_redis_client(**overrides)
+    return client
+
+
 def get_redis_client(**overrides) -> redis.Redis:
+    """A new client (with its own connection pool) - see get_shared_redis_client()."""
+    return _new_client(**overrides)
+
+
+def _new_client(**overrides) -> redis.Redis:
     redis_url = os.getenv("REDIS_URL")
     if redis_url and "host" not in overrides and "port" not in overrides:
         parsed = urlparse(redis_url)

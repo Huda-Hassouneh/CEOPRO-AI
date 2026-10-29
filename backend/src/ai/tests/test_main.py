@@ -36,7 +36,7 @@ _SECRET = os.environ["JWT_SECRET"]
 
 
 def _token(tenant_id="t1", user_id="u1"):
-    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, _SECRET, algorithm="HS256")
+    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "ev": True, "exp": int(time.time()) + 3600}, _SECRET, algorithm="HS256")
 
 
 def _auth():
@@ -61,6 +61,17 @@ def test_upload_rejects_invalid_token():
         headers={"Authorization": "Bearer not-a-real-token"},
     )
     assert response.status_code == 401
+
+
+def test_upload_still_refuses_an_unverified_token(monkeypatch):
+    monkeypatch.setenv("REQUIRE_EMAIL_VERIFICATION", "true")
+    claims = jwt.decode(_token(), _SECRET, algorithms=["HS256"])
+    claims["ev"] = False
+    token = jwt.encode(claims, _SECRET, algorithm="HS256")
+    response = client.post("/extraction/upload", files={"file": ("t.csv", b"a,b\n1,2\n", "text/csv")},
+                           headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+    assert response.headers["X-Auth-Reason"] == "email-verification-required"
 
 
 def test_upload_rejects_unsupported_extension():
@@ -671,7 +682,7 @@ def test_dashboard_metrics_returns_the_pipeline_result():
 
     assert response.status_code == 200
     assert response.json() == fake_result
-    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()  # a read: the connection goes back, nothing to commit
     mock_metrics.assert_called_once_with(fake_conn, "t1", window_days=30)
 
 
@@ -1130,7 +1141,7 @@ def test_list_competitors_flattens_and_sorts_both_tiers_by_name():
 
     assert response.status_code == 200
     assert response.json() == {"competitors": [fake_directory["relevant"][0], fake_directory["strategic"][0]]}
-    fake_conn.commit.assert_called_once()
+    fake_conn.close.assert_called_once()  # a read: the connection goes back, nothing to commit
     mock_directory.assert_called_once_with(fake_conn, "t1")
 
 
@@ -1322,3 +1333,108 @@ def test_readiness_reports_each_dependency_and_503_when_one_is_down(monkeypatch)
     assert failing.status_code == 503
     assert failing.json()["checks"]["redis"] == {"ok": False, "ms": failing.json()["checks"]["redis"]["ms"], "error": "ConnectionError"}
     assert "refused" not in failing.text, "error details stay in the server log"
+
+
+def test_rag_query_takes_a_message_of_any_length_in_the_body():
+    """The URL form keeps its length cap; a JSON body has none of its own -
+    the assistant recalls whatever part of the text the answer needs."""
+    from src.ai.routers.rag import _MAX_QUERY_TEXT_LENGTH
+
+    message = "Our full price list: " + "x" * (_MAX_QUERY_TEXT_LENGTH * 50)
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.rag.rag_advisor.answer", return_value={"answer": "Done."}) as mock_answer, \
+         patch("src.ai.routers.rag.conversation_store.create_session", return_value="sess-1"), \
+         patch("src.ai.routers.rag.conversation_store.append_message") as mock_append_message:
+        response = client.post("/rag/query", json={"query_text": message}, headers=_auth())
+
+    assert response.status_code == 200, response.text
+    assert mock_answer.call_args.args[2] == message
+    assert mock_append_message.call_args_list[0].args[5] == message  # stored in full
+
+
+def test_rag_query_loads_the_whole_conversation_for_a_session():
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.rag.rag_advisor.answer", return_value={"answer": "Done."}), \
+         patch("src.ai.routers.rag.conversation_store.session_exists", return_value=True), \
+         patch("src.ai.routers.rag.conversation_store.load_session_state", return_value=None), \
+         patch("src.ai.routers.rag.conversation_store.load_session_history", return_value=[]) as mock_history, \
+         patch("src.ai.routers.rag.conversation_store.append_message"):
+        response = client.post("/rag/query", json={"query_text": "q", "session_id": "sess-1"}, headers=_auth())
+
+    assert response.status_code == 200, response.text
+    assert mock_history.call_args.kwargs["limit"] is None
+
+
+def test_rag_query_rejects_an_empty_body_message():
+    response = client.post("/rag/query", json={"query_text": ""}, headers=_auth())
+    assert response.status_code == 422
+
+
+def test_rag_query_keeps_answering_when_the_plan_allowance_is_used_up():
+    from src.ai.core import usage as usage_module
+
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.rag.usage.reserve",
+               side_effect=usage_module.PlanLimitReached("QUOTA_EXHAUSTED", usage_module.RAG_ASSISTANT, 100, 100)), \
+         patch("src.ai.routers.rag.usage.release") as mock_release, \
+         patch("src.ai.routers.rag.rag_advisor.answer",
+               return_value={"answer": "Evidence.", "answer_mode": "evidence"}) as mock_answer, \
+         patch("src.ai.routers.rag.conversation_store.create_session", return_value="sess-1"), \
+         patch("src.ai.routers.rag.conversation_store.append_message"):
+        response = client.post("/rag/query", json={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 200, response.text
+    assert mock_answer.call_args.kwargs["use_ai"] is False
+    mock_release.assert_not_called()  # nothing was reserved
+
+
+def test_rag_query_keeps_answering_when_the_ai_credits_run_out_mid_question():
+    from src.ai.billing import credits as credits_module
+
+    fake_conn = MagicMock()
+    calls = []
+
+    def answer(*args, **kwargs):
+        calls.append(kwargs["use_ai"])
+        if kwargs["use_ai"]:
+            raise credits_module.BudgetError("BUDGET_EXHAUSTED", "ai")
+        return {"answer": "Evidence.", "answer_mode": "evidence"}
+
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.rag.usage.release") as mock_release, \
+         patch("src.ai.routers.rag.rag_advisor.answer", side_effect=answer), \
+         patch("src.ai.routers.rag.conversation_store.create_session", return_value="sess-1"), \
+         patch("src.ai.routers.rag.conversation_store.append_message"):
+        response = client.post("/rag/query", json={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 200, response.text
+    assert calls == [True, False]
+    mock_release.assert_called_once()  # the evidence answer used no allowance
+
+
+def test_rag_query_still_refuses_a_company_without_an_active_subscription():
+    from src.ai.core import usage as usage_module
+
+    with patch("src.ai.routers.rag.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.rag.usage.reserve",
+               side_effect=usage_module.PlanLimitReached("SUBSCRIPTION_INACTIVE", usage_module.RAG_ASSISTANT)), \
+         patch("src.ai.routers.rag.rag_advisor.answer") as mock_answer:
+        response = client.post("/rag/query", json={"query_text": "q"}, headers=_auth())
+
+    assert response.status_code == 402
+    mock_answer.assert_not_called()
+
+
+def test_large_responses_are_gzipped_for_clients_that_accept_it():
+    big = {"rows": [{"product_name": f"Product {i}", "quantity": i} for i in range(500)], "total_row_count": 500}
+    with patch("src.ai.routers.reports.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.reports.dashboard_reports.get_sales_report", return_value=big):
+        zipped = client.get("/reports/sales", headers={**_auth(), "Accept-Encoding": "gzip"})
+        plain = client.get("/reports/sales", params={"offset": 0, "limit": 999}, headers={**_auth(), "Accept-Encoding": "identity"})
+    assert zipped.headers.get("content-encoding") == "gzip" and zipped.json() == big  # the client decodes it
+    assert plain.headers.get("content-encoding") is None and plain.json() == big
+    small = client.get("/health", headers={"Accept-Encoding": "gzip"})
+    assert small.headers.get("content-encoding") is None  # under 1 kB: not worth it

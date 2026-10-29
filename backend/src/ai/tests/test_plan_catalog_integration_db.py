@@ -238,17 +238,17 @@ def test_imports_create_products_only_up_to_the_plan_limit(client):
 
 def test_campaign_writing_uses_the_ai_token_allowance(client, monkeypatch):
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
 
     session, headers = _company(client, "starter")  # 100,000 tokens
     tenant = session["tenant_id"]
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage",
-                        lambda messages, **kw: (_valid_response_json(), {"total_tokens": 3210}))
+                        lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=3210))
     body = {"text": "Cold-pressed olive oil, 1 litre", "strategy_type": "SALES_DRIVEN"}
     assert client.post("/marketing/campaigns", json=body, headers=headers).status_code in (200, 201)
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     try:
-        assert usage.remaining(conn, tenant, usage.RAG_ASSISTANT) == 100_000 - 3210  # the real count
+        assert usage.remaining(conn, tenant, usage.RAG_ASSISTANT) == 100_000 - 2 * 3210  # generation and independent factual review
     finally:
         conn.close()
 
@@ -307,11 +307,11 @@ def test_stored_upload_results_count_toward_storage(client):
 @requires_minio
 def test_a_marketing_image_is_refused_when_storage_is_full(client, monkeypatch):
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
 
     session, headers = _company(client, "starter")  # 1 GB
     tenant = session["tenant_id"]
-    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=100))
     campaign = client.post("/marketing/campaigns", json={"text": "Olive oil", "strategy_type": "SALES_DRIVEN"}, headers=headers).json()
     png = b"\x89PNG\r\n\x1a\n" + b"0" * 2048
     ok = client.post(f"/marketing/campaigns/{campaign['campaign_id']}/image", files={"file": ("p.png", png, "image/png")}, headers=headers)
@@ -328,11 +328,11 @@ def test_a_marketing_image_is_refused_when_storage_is_full(client, monkeypatch):
 def test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_counted(client, monkeypatch):
     from src.ai.marketing import designed_poster, image_generation
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
 
     session, headers = _company(client, "starter")  # 20 images a month
     tenant = session["tenant_id"]
-    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=100))
     campaign = client.post("/marketing/campaigns", json={"text": "Olive oil", "strategy_type": "SALES_DRIVEN"}, headers=headers).json()
     url = f"/marketing/campaigns/{campaign['campaign_id']}/generate-image"
 
@@ -351,7 +351,7 @@ def test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_cou
     monkeypatch.setattr(image_generation, "generate_campaign_image", fail)
     assert client.post(url, headers=headers).json()["image_generation_status"] == "PROVIDER_ERROR"
     monkeypatch.undo()
-    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=100))
     monkeypatch.setattr(designed_poster, "render_designed_poster", poster_fails)
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "none")
     assert client.post(url, headers=headers).json()["image_generation_status"] == "NOT_CONFIGURED"
@@ -376,11 +376,11 @@ def test_a_designed_poster_counts_as_one_image_of_the_monthly_allowance(client, 
     # drawn poster is still a delivered image and uses one allowance.
     from src.ai.marketing import image_generation
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
 
     session, headers = _company(client, "starter")
     tenant = session["tenant_id"]
-    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=100))
     campaign = client.post("/marketing/campaigns", json={"text": "Olive oil", "strategy_type": "SALES_DRIVEN"}, headers=headers).json()
     url = f"/marketing/campaigns/{campaign['campaign_id']}/generate-image"
 

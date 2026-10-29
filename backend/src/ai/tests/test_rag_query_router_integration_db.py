@@ -107,6 +107,69 @@ def _ask(client, headers):
     return client.post("/rag/query", params={"query_text": QUESTION}, headers=headers)
 
 
+@pytest.mark.parametrize("question", [QUESTION, "كم عدد المنتجات لدي؟"])
+def test_json_question_and_legacy_followup_keep_same_history(client, model, question):
+    _, headers = _company_with_one_product(client)
+    response = client.post("/rag/query", json={"query_text": question + " " * 2100}, headers=headers)
+    assert response.status_code == 200, response.text
+    identity = response.json()["session_id"]
+    followup = client.post("/rag/query", params={"query_text": QUESTION, "session_id": identity}, headers=headers)
+    assert followup.status_code == 200 and followup.json()["session_id"] == identity
+    history = client.get(f"/rag/sessions/{identity}/messages", headers=headers)
+    assert history.status_code == 200 and len(history.json()["messages"]) == 4
+    assert history.json()["messages"][0]["content"].strip() == question
+
+
+def test_consumed_positive_quota_gets_only_evidence_and_no_paid_calls(client, model):
+    from src.ai.core import usage
+
+    tenant, headers = _company_with_one_product(client)
+    with psycopg2.connect(ADMIN_DATABASE_URL) as conn:
+        plan = usage.get_plan(conn, tenant)
+    limit = plan["features"][usage.RAG_ASSISTANT]["limit"]
+    assert limit > 0
+    _admin("INSERT INTO tenant_usage_counters(tenant_id,feature_code,period_start,used) VALUES(%s,%s,%s,%s) "
+           "ON CONFLICT(tenant_id,feature_code,period_start) DO UPDATE SET used=EXCLUDED.used",
+           (tenant, usage.RAG_ASSISTANT, plan["period_start"], limit))
+    response = _ask(client, headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["answer_mode"] == "evidence"
+    assert model[1] == []
+    assert _admin("SELECT count(*) FROM usage_ledger WHERE tenant_id=%s", (tenant,))[0][0] == 0
+    assert _admin("SELECT used FROM tenant_usage_counters WHERE tenant_id=%s AND feature_code=%s",
+                  (tenant, usage.RAG_ASSISTANT)) == [(limit,)]
+
+
+def test_zero_allowance_is_not_treated_as_consumed_positive_quota(client, model):
+    tenant, headers = _company_with_one_product(client)
+    _admin("INSERT INTO tenant_entitlement_overrides(tenant_id,feature_code,limit_value,contract_ref,approved_by,reason) "
+           "VALUES(%s,'rag_assistant',0,'synthetic-test','synthetic-test','test disabled allowance')", (tenant,))
+    response = _ask(client, headers)
+    assert response.status_code == 402, response.text
+    assert model[1] == []
+
+
+@pytest.mark.parametrize("reason", ["PROVIDER_DISABLED", "PROVIDER_CAP_REACHED", "CONCURRENCY_LIMIT",
+                                    "ACCOUNTING_UNAVAILABLE", "REQUEST_TOO_LARGE", "SUBSCRIPTION_INACTIVE"])
+def test_paid_controls_never_allow_a_provider_call(client, model, monkeypatch, reason):
+    from src.ai.billing import credits
+
+    _, headers = _company_with_one_product(client)
+    def refuse(*args, **kwargs):
+        raise credits.BudgetError(reason, credits.AI)
+    monkeypatch.setattr(credits, "reserve", refuse)
+    response = _ask(client, headers)
+    if reason in ("PROVIDER_DISABLED", "PROVIDER_CAP_REACHED"):
+        # Existing advisor behavior may show already-authorized tenant facts
+        # without AI writing. It must never contact the disabled provider.
+        assert response.status_code == 200, response.text
+        assert response.json()["answer_mode"] == "evidence"
+    else:
+        assert response.status_code == credits.BudgetError(reason, credits.AI).as_http().status_code, response.text
+        assert reason in response.text
+    assert model[1] == []
+
+
 def test_a_priced_model_answers_with_references(client, model):
     _, calls = model
     _tenant, headers = _company_with_one_product(client)
@@ -164,7 +227,7 @@ def test_a_company_without_a_plan_is_refused_with_402(client, model):
     assert "SUBSCRIPTION_INACTIVE" in response.text
 
 
-def test_a_company_with_no_ai_credits_left_is_refused_with_402(client, model):
+def test_a_company_with_no_ai_credits_left_still_gets_an_evidence_answer(client, model):
     from src.ai.billing import admin
     from src.ai.core import usage
 
@@ -175,9 +238,12 @@ def test_a_company_with_no_ai_credits_left_is_refused_with_402(client, model):
                          reference=f"t-{uuid.uuid4().hex[:6]}", approved_by="test", reason="test")
     conn.commit()
     conn.close()
+    _, calls = model
     response = _ask(client, headers)
-    assert response.status_code == 402, response.text
-    assert "BUDGET_EXHAUSTED" in response.text
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["answer_mode"] == "evidence" and calls == []
+    assert {"need": "answer_writing", "status": "allowance_used"} in body["evidence_status"]
 
 
 def test_unpriced_greeting_reports_pricing_keeps_history_and_refunds_allowance(client, model, monkeypatch):

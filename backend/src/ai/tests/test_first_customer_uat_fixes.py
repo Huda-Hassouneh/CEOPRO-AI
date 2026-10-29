@@ -97,7 +97,7 @@ def test_reset_password_enforces_the_policy_before_consuming_a_code():
 # --- malformed ids / unknown products ---------------------------------------
 
 def _auth_headers():
-    token, _ = create_access_token(tenant_id="11111111-1111-1111-1111-111111111111", user_id="22222222-2222-2222-2222-222222222222")
+    token, _ = create_access_token(tenant_id="11111111-1111-1111-1111-111111111111", user_id="22222222-2222-2222-2222-222222222222", email_verified=True)
     return {"Authorization": f"Bearer {token}"}
 
 

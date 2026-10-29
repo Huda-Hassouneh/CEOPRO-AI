@@ -62,6 +62,15 @@ All require process restart unless the source reference states otherwise. Missin
 | SENTRY_DSN | Optional error monitoring | Private project DSN; unset | Monitoring disabled |
 | VITE_SPLINE_HERO_SCENE / VITE_SENTRY_DSN / VITE_SUPPORT_EMAIL | Public frontend presentation/monitoring | Empty by default | Static hero/no browser reporting/no optional contact override |
 
+RAG's `GROQ_MAX_TOKENS_ON_RETRY` is a retry preference, not authorization to
+increase spending. Each metered completion is capped by the current
+`billing_cost_policy.max_ai_output_tokens`; every attempt still reserves and
+settles through Credits. A reply cut off at that ceiling is not returned as a
+complete answer. JSON questions retain the normal HTTP body-size limit and
+paid requests retain the approved input-token ceiling. Stored conversation
+history is retained in full; the model receives recent turns and selected
+relevant passages, within the configured context budgets.
+
 WooCommerce store credentials are per-source vaulted business configuration, not global example rates or shared environment secrets.
 
 ## Full source inventory

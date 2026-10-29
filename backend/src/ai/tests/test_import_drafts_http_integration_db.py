@@ -40,7 +40,7 @@ def owner(admin_conn):
     tenant_id, user_id, staff_id = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
     with admin_conn.cursor() as cur:
         cur.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,'M97 API tenant','JO','JOD')", (tenant_id,))
-        cur.execute("INSERT INTO users(user_id,email,password_hash,full_name) VALUES(%s,%s,'x','M97 owner')", (user_id, f"m97-api-{user_id}@example.test"))
+        cur.execute("INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at) VALUES(%s,%s,'x','M97 owner',NOW())", (user_id, f"m97-api-{user_id}@example.test"))
         cur.execute("SELECT role_key FROM system_roles WHERE lower(role_key)='owner' LIMIT 1")
         role = cur.fetchone()
         if role is None:
@@ -49,7 +49,7 @@ def owner(admin_conn):
         else:
             role_key = role[0]
         cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,%s)", (tenant_id,user_id,role_key))
-        cur.execute("INSERT INTO users(user_id,email,password_hash,full_name) VALUES(%s,%s,'x','M97 staff')", (staff_id, f"m97-api-{staff_id}@example.test"))
+        cur.execute("INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at) VALUES(%s,%s,'x','M97 staff',NOW())", (staff_id, f"m97-api-{staff_id}@example.test"))
         cur.execute("SELECT role_key FROM system_roles WHERE lower(role_key)='staff' LIMIT 1")
         staff_role = cur.fetchone()
         if staff_role is None:
@@ -58,8 +58,8 @@ def owner(admin_conn):
         else:
             staff_role_key = staff_role[0]
         cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,%s)", (tenant_id,staff_id,staff_role_key))
-    token = jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
-    staff_token = jwt.encode({"tenant_id": tenant_id, "user_id": staff_id, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
+    token = jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "ev": True, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
+    staff_token = jwt.encode({"tenant_id": tenant_id, "user_id": staff_id, "ev": True, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
     return {"tenant": tenant_id, "user": user_id, "headers": {"Authorization": f"Bearer {token}"},
             "staff_headers": {"Authorization": f"Bearer {staff_token}"}}
 
@@ -122,11 +122,11 @@ def test_import_preview_auth_and_tenant_isolation(api, admin_conn, owner):
     tenant_id, user_id = str(uuid.uuid4()), str(uuid.uuid4())
     with admin_conn.cursor() as cur:
         cur.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,'Other M97 tenant','JO','JOD')", (tenant_id,))
-        cur.execute("INSERT INTO users(user_id,email,password_hash,full_name) VALUES(%s,%s,'x','Other owner')", (user_id, f"m97-api-{user_id}@example.test"))
+        cur.execute("INSERT INTO users(user_id,email,password_hash,full_name,email_verified_at) VALUES(%s,%s,'x','Other owner',NOW())", (user_id, f"m97-api-{user_id}@example.test"))
         cur.execute("SELECT role_key FROM system_roles WHERE lower(role_key)='owner' LIMIT 1")
         role_key = cur.fetchone()[0]
         cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,%s)", (tenant_id,user_id,role_key))
-    token = jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
+    token = jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "ev": True, "exp": int(time.time()) + 3600}, JWT_SECRET, algorithm="HS256")
     response = api.get(f"/extraction/import-drafts/{batch_id}", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
 

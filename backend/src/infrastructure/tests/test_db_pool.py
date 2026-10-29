@@ -11,6 +11,7 @@ APP_DB_PASSWORD are set - RLS provides no protection when verified only
 against a superuser connection, see test_rls_integration_db.py's own
 docstring for why).
 """
+import re
 import threading
 
 import psycopg2
@@ -67,6 +68,26 @@ def _set_config_calls(raw_conn):
     return [c for c in raw_conn.calls if c[0].startswith("SELECT set_config")]
 
 
+def _settings(calls):
+    """Each set_config in the given statements as {name: value}, in order (one
+    statement may set several)."""
+    settings = []
+    for query, params in calls:
+        if query.startswith("SELECT set_config"):
+            names = re.findall(r"set_config\('([^']+)', %s, true\)", query)
+            settings.extend(zip(names, params))
+    return settings
+
+
+@pytest.fixture(autouse=True)
+def _no_cached_time_zones():
+    from src.infrastructure import db_pool
+
+    db_pool._tenant_timezones.clear()
+    yield
+    db_pool._tenant_timezones.clear()
+
+
 def test_init_applies_tenant_and_user_context_via_set_local(monkeypatch):
     raw = FakeRawConnection()
     pool = FakePool()
@@ -74,13 +95,13 @@ def test_init_applies_tenant_and_user_context_via_set_local(monkeypatch):
     conn = PooledTenantConnection(pool, raw, tenant_id="tenant-1", user_id="user-1")
 
     assert raw.autocommit is False
-    assert _set_config_calls(raw) == [
-        ("SELECT set_config('app.current_tenant_id', %s, true);", ("tenant-1",)),
-        ("SELECT set_config('app.current_user_id', %s, true);", ("user-1",)),
-        ("SELECT set_config('app.lang', %s, true);", ("en",)),
+    assert _settings(raw.calls) == [
+        ("app.current_tenant_id", "tenant-1"),
+        ("app.current_user_id", "user-1"),
+        ("app.lang", "en"),
         # No companies row behind this fake connection: the business
         # calendar falls back to UTC.
-        ("SELECT set_config('TimeZone', %s, true);", ("UTC",)),
+        ("TimeZone", "UTC"),
     ]
     assert conn is not None  # constructed without error
 
@@ -98,10 +119,15 @@ def test_commit_reapplies_context_for_the_next_transaction():
     initial_call_count = len(raw.calls)
 
     conn.commit()
+    with conn.cursor() as cursor:  # the next statement of the next transaction
+        cursor.execute("SELECT 1;")
 
     assert raw.commit_count == 1
-    assert len(_set_config_calls(raw)) == 8  # 4 from init + 4 re-applied after commit
-    assert len(raw.calls) == initial_call_count + 4  # the time zone is cached per tenant
+    after_commit = raw.calls[initial_call_count:-1]
+    assert dict(_settings(after_commit)) == {"app.current_tenant_id": "tenant-1", "app.current_user_id": "user-1",
+                                             "app.lang": "en", "TimeZone": "UTC"}
+    # The time zone is cached per tenant, so re-applying is one round trip.
+    assert len(after_commit) == 1
 
 
 def test_rollback_reapplies_context_for_the_next_transaction():
@@ -110,9 +136,26 @@ def test_rollback_reapplies_context_for_the_next_transaction():
     conn = PooledTenantConnection(pool, raw, "tenant-1", "user-1")
 
     conn.rollback()
+    conn.cursor()
 
     assert raw.rollback_count == 1
-    assert len(_set_config_calls(raw)) == 8
+    assert [name for name, _ in _settings(raw.calls)].count("app.current_tenant_id") == 2
+
+
+def test_context_is_restored_even_without_opening_another_cursor():
+    """An existing cursor may be reused, so commit must restore context."""
+    raw = FakeRawConnection()
+    pool = FakePool()
+    conn = PooledTenantConnection(pool, raw, "tenant-1", "user-1")
+    applied_at_checkout = len(raw.calls)
+
+    conn.commit()
+    conn.close()
+
+    assert dict(_settings(raw.calls[applied_at_checkout:])) == {
+        "app.current_tenant_id": "tenant-1", "app.current_user_id": "user-1",
+        "app.lang": "en", "TimeZone": "UTC"}
+    assert raw.rollback_count == 0 and pool.putconn_calls == [(raw, False)]
 
 
 def test_close_returns_idle_connection_to_pool_without_rollback():
@@ -375,4 +418,34 @@ def test_context_carries_the_request_language():
         PooledTenantConnection(FakePool(), raw, "tenant-1", "user-1")
     finally:
         reset_request_language(token)
-    assert ("SELECT set_config('app.lang', %s, true);", ("ar",)) in _set_config_calls(raw)
+    assert ("app.lang", "ar") in _settings(raw.calls)
+
+
+def test_a_returned_connection_is_kept_for_reuse_up_to_maxconn(monkeypatch):
+    """psycopg2 closes every returned connection beyond minconn; with
+    minconn=1 that meant a new connection (and password authentication) for
+    nearly every concurrent request. Up to maxconn are now kept."""
+    opened = []
+
+    class Conn:
+        closed = False
+        info = type("Info", (), {"transaction_status": psycopg2.extensions.TRANSACTION_STATUS_IDLE})()
+
+        def close(self):
+            self.closed = True
+
+    def connect(*_a, **_k):
+        opened.append(Conn())
+        return opened[-1]
+
+    monkeypatch.setattr(psycopg2.pool.psycopg2, "connect", connect)
+    pool = TenantConnectionPool("dsn", minconn=1, maxconn=3)
+    assert len(opened) == 1  # still only minconn opened up front
+    held = [pool._checkout() for _ in range(3)]
+    for conn in held:
+        pool.putconn(conn)
+    assert len(opened) == 3 and not any(c.closed for c in opened)
+    again = [pool._checkout() for _ in range(3)]
+    assert len(opened) == 3  # all three reused, none opened
+    for conn in again:
+        pool.putconn(conn)

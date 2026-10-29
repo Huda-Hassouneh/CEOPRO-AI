@@ -8,6 +8,8 @@ review-collection service).
 import json
 from typing import Optional
 
+from src.ai.sentiment.model import RATING_MODEL_VERSION
+
 
 def insert_sentiment_result(
     conn,
@@ -30,6 +32,10 @@ def insert_sentiment_result(
     same thing. The individual probabilities/confidence are also written
     (this track's own migration added them back) - spec S16's full detail,
     not just the schema's minimum.
+
+    A review that already has a result is only overwritten when that result
+    came from the star rating (RATING_MODEL_VERSION): the text model then
+    replaces the stand-in label, but never another model's result.
     """
     sentiment_label = label.upper()
     sentiment_score = round(positive_probability - negative_probability, 4)
@@ -38,6 +44,12 @@ def insert_sentiment_result(
             (review_id, tenant_id, sentiment_label, sentiment_score, positive_probability,
              neutral_probability, negative_probability, confidence, model_version)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (review_id) DO UPDATE SET
+            sentiment_label = EXCLUDED.sentiment_label, sentiment_score = EXCLUDED.sentiment_score,
+            positive_probability = EXCLUDED.positive_probability, neutral_probability = EXCLUDED.neutral_probability,
+            negative_probability = EXCLUDED.negative_probability, confidence = EXCLUDED.confidence,
+            model_version = EXCLUDED.model_version, processed_at = CURRENT_TIMESTAMP
+        WHERE sentiment_results.model_version = %s
         RETURNING sentiment_id;
     """
     with conn.cursor() as cursor:
@@ -53,10 +65,13 @@ def insert_sentiment_result(
                 negative_probability,
                 confidence,
                 model_version,
+                RATING_MODEL_VERSION,
             ),
         )
-        sentiment_id = cursor.fetchone()[0]
-    return str(sentiment_id)
+        row = cursor.fetchone()
+    if row is None:
+        raise ValueError(f"review {review_id} already has a model result; not overwritten")
+    return str(row[0])
 
 
 def insert_evidence_record(

@@ -36,6 +36,34 @@ def _prediction(label: str = "positive") -> SentimentPrediction:
     )
 
 
+def test_rating_upgrade_is_not_reserved_or_charged_again(fake_conn):
+    review = {**_review("rated"), "upgrade": True}
+    with patch.object(usage, "remaining", return_value=10), \
+         patch.object(usage, "reserve") as reserve, patch.object(usage, "settle") as settle, \
+         patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=[review]), \
+         patch.object(pipeline.model, "classify_or_unavailable", return_value=[_prediction()]), \
+         patch.object(pipeline.evidence, "insert_sentiment_result"):
+        result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
+    assert result["upgraded_count"] == 1 and result["analyzed_count"] == 0
+    reserve.assert_not_called()
+    settle.assert_not_called()
+
+
+def test_mixed_batch_reserves_only_new_reviews_and_settles_successes(fake_conn):
+    reviews = [_review("new"), {**_review("rated"), "upgrade": True}]
+    reservation = {"amount": 1}
+    with patch.object(usage, "remaining", return_value=10), \
+         patch.object(usage, "reserve", return_value=reservation) as reserve, \
+         patch.object(usage, "settle") as settle, \
+         patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=reviews), \
+         patch.object(pipeline.model, "classify_or_unavailable", return_value=[_prediction(), _prediction()]), \
+         patch.object(pipeline.evidence, "insert_sentiment_result"):
+        result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
+    assert result["analyzed_count"] == 1 and result["upgraded_count"] == 1
+    reserve.assert_called_once_with(fake_conn, "tenant-1", usage.SENTIMENT_ANALYSIS, 1)
+    settle.assert_called_once_with(fake_conn, reservation, 1)
+
+
 def test_classify_and_store_reviews_no_unanalyzed_reviews(fake_conn):
     with patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=[]):
         result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")

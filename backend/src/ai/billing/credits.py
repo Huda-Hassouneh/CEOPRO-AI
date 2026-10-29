@@ -226,6 +226,25 @@ def policy(conn) -> dict:
     return dict(zip(keys, row))
 
 
+def ai_output_token_limit() -> Optional[int]:
+    """Current approved ceiling for a metered AI call, never a new allowance.
+
+    Reservations still independently enforce this policy on every attempt.
+    An unattributed call remains subject to reserve()'s fail-closed checks.
+    """
+    ctx = current()
+    if ctx is None or _bypassed_for_tests():
+        return None
+    try:
+        conn = _scoped_connection(ctx.tenant_id, ctx.actor_user_id)
+    except Exception as exc:
+        raise BudgetError("ACCOUNTING_UNAVAILABLE", AI) from exc
+    try:
+        return int(policy(conn)["max_ai_output_tokens"])
+    finally:
+        conn.close()
+
+
 def schedule(conn, budget_kind: str, provider: str, operation: str) -> Dict[str, dict]:
     """unit -> {cost, margin, charged_on_failure, final} for this provider
     operation; an operation-specific price wins over the provider's '*' row."""

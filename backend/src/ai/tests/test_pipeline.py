@@ -135,3 +135,21 @@ def test_invalid_horizon_is_rejected_before_database_or_model_work(fake_conn):
         with pytest.raises(ValueError, match="horizon"):
             pipeline.run_forecast(fake_conn, "tenant-1", "product-1", horizon_days=0)
     load.assert_not_called()
+
+
+def test_quiet_last_fortnight_does_not_collapse_the_range_of_an_irregular_seller(fake_conn):
+    """Sold 1-20 units on scattered days, nothing in the last 14: the range was
+    lower == upper (the 14-day std is 0), which reads as a certain forecast."""
+    quantity = [0.0] * 120
+    for day, units in [(5, 1.0), (19, 20.0), (33, 1.0), (47, 5.0), (61, 1.0), (75, 20.0), (89, 1.0), (103, 5.0)]:
+        quantity[day] = units
+    sparse = pd.DataFrame({"date": pd.date_range("2026-01-01", periods=120), "quantity": quantity, "avg_unit_price": 3.0})
+    with patch.object(pipeline.data_access, "load_daily_demand", return_value=sparse), \
+         patch.object(pipeline.data_access, "load_product_context", return_value=PRODUCT_CONTEXT), \
+         patch.object(pipeline.evidence, "insert_demand_forecast", return_value="forecast-1") as mock_forecast, \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1"):
+        pipeline.run_forecast(fake_conn, "tenant-1", "product-1")
+
+    expected, lower, upper = mock_forecast.call_args.args[3:6]
+    assert lower <= expected <= upper
+    assert upper - lower > 0

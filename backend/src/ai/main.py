@@ -31,6 +31,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from src.ai import db
 from src.ai.core import permissions, tenant_cache, usage
@@ -120,6 +121,17 @@ _cors_origins = [
     if origin.strip()
 ]
 
+# Responses of 1 kB or more are gzipped for clients that accept it (every
+# browser). JSON shrinks 5-10x - the ten main screens' data went from 495 kB
+# to 72 kB, the sales report page alone from 393 kB to 56 kB - which is most of
+# the wait on a mobile connection. Added first, so it is the innermost layer
+# and sees each endpoint's complete response: behind the @app.middleware
+# layers below every body arrives in chunks, which it would compress whatever
+# the size. No BREACH-style exposure: the API authenticates with an
+# Authorization header the app sets, not with cookies a browser attaches on
+# its own, and the sign-in responses carrying tokens are under 1 kB.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
 # Requests per minute per company / per address (core/rate_limit.py). Added
 # before CORS so CORS wraps it: a 429 still carries the CORS headers the
 # browser needs to read it.
@@ -176,6 +188,7 @@ async def _forget_cached_views_after_writes(request, call_next):
     if request.method not in _READ_METHODS:
         tenant_cache.bump(getattr(request.state, "tenant_id", None))
     return response
+
 
 
 # Plan modules (core/entitlements.py): a plan without the module gets 402
