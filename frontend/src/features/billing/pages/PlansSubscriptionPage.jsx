@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { CalendarCheck, ShieldCheck } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useAuthStore } from '../../auth/store/authStore.js';
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
@@ -11,7 +12,7 @@ import Toast from '../../../shared/components/ui/Toast.jsx';
 import { CurrentPlanCard } from '../components/CurrentPlanCard.jsx';
 import { UsageLimitGrid } from '../components/UsageLimitGrid.jsx';
 import { UpgradeRecommendation } from '../components/UpgradeRecommendation.jsx';
-import { PlanCard } from '../components/PlanCard.jsx';
+import { PlanCard, PlanSharedFeatures } from '../components/PlanCard.jsx';
 import { PlanComparisonTable } from '../components/PlanComparisonTable.jsx';
 import { PeriodSelector } from '../components/PeriodSelector.jsx';
 import { InvoiceList } from '../components/InvoiceList.jsx';
@@ -56,6 +57,7 @@ export function PlansSubscriptionPage() {
   const [confirm, setConfirm] = useState(null);
   const [notice, setNotice] = useState(null);
   const compareRef = useRef(null);
+  const comparisonRef = useRef(null);
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
   const formatDate = (value) => dateFormatter.format(new Date(value));
@@ -73,7 +75,7 @@ export function PlansSubscriptionPage() {
     return undefined;
   }, [checkoutResult, setSearchParams, t]);
 
-  if (plansQuery.isPending || subscriptionQuery.isPending) return <div className="billing-management-loading" aria-busy="true"><Skeleton height="78px" variant="rectangular" /><Skeleton height="190px" variant="rectangular" /><div>{[0, 1, 2].map((item) => <Skeleton key={item} height="150px" variant="rectangular" />)}</div></div>;
+  if (plansQuery.isPending || subscriptionQuery.isPending) return <div className="billing-management-loading" aria-busy="true"><Skeleton height="78px" variant="rectangular" /><div>{[0, 1, 2, 3].map((item) => <Skeleton key={item} height="460px" variant="rectangular" />)}</div></div>;
   if (plansQuery.isError || subscriptionQuery.isError) return <EmptyState title={t('billing.management.errorTitle')} description={t('billing.management.errorDescription')} action={<Button size="sm" onClick={() => { plansQuery.refetch(); subscriptionQuery.refetch(); }}>{t('billing.management.retry')}</Button>} />;
 
   const plans = plansQuery.data.plans;
@@ -105,17 +107,23 @@ export function PlansSubscriptionPage() {
   const planAction = (plan) => {
     const isCurrent = plan.id === currentPlan.id && (!subscription.hasSubscription || billingPeriod === subscription.billingPeriod);
     if (!plan.selfServe) return { label: t('billing.management.contactSales'), disabled: !SUPPORT_EMAIL, hint: SUPPORT_EMAIL ? null : t('billing.management.contactTeam'), onAction: () => { window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('KEEL Custom plan')}`; } };
-    if (!canManage) return { label: isCurrent && subscription.hasSubscription ? t('billing.management.currentPlan') : t('billing.management.askOwner'), disabled: true };
+    if (!canManage) return { label: isCurrent && subscription.hasSubscription ? t('billing.management.yourCurrentPlan') : t('billing.management.askOwner'), disabled: true };
     // A company that never had a trial can start one (no payment; checked again on the server).
-    if (subscription.trialAvailable && plan.trialDays > 0) return { label: t('billing.management.startTrial', { days: plan.trialDays }), onAction: () => run(startTrial, { planId: plan.id }, 'billing.management.trialStarted') };
+    if (subscription.trialAvailable && plan.trialDays > 0) return { label: t('billing.management.startTrial', { days: plan.trialDays }), note: t('billing.management.assurance.noCardTrial'), mutation: startTrial, onAction: () => run(startTrial, { planId: plan.id }, 'billing.management.trialStarted') };
     if (!paymentsEnabled) return { label: t('billing.management.paymentsUnavailable'), disabled: true };
     if (!plan.prices?.[billingPeriod]?.purchasable) return { label: t('billing.management.notAvailable'), disabled: true };
     if (subscription.hasSubscription) {
-      if (isCurrent) return { label: t('billing.management.currentPlan'), disabled: true };
-      return { label: t('billing.management.switchPlan'), onAction: () => setConfirm({ plan, period: billingPeriod }) };
+      if (isCurrent) return { label: t('billing.management.yourCurrentPlan'), disabled: true };
+      // Same rule as the server (billing/service.py change_plan): a higher tier, or the same
+      // tier at an equal or higher price, applies now; anything else at the end of the paid period.
+      const currentAmount = currentPlan.prices?.[subscription.billingPeriod]?.amount ?? 0;
+      const upgrade = plan.tier > (currentPlan.tier ?? 0) || (plan.tier === currentPlan.tier && plan.prices[billingPeriod].amount >= currentAmount);
+      const name = plan.name?.[locale] || plan.name?.en;
+      const label = plan.id === currentPlan.id ? t('billing.management.switchPeriod') : t(upgrade ? 'billing.management.upgradeTo' : 'billing.management.downgradeTo', { plan: name });
+      return { label, note: t(upgrade ? 'billing.management.upgradeNote' : 'billing.management.downgradeNote'), onAction: () => setConfirm({ plan, period: billingPeriod }) };
     }
     return { label: subscription.status === 'trial' ? t('billing.management.subscribeKeepTrial') : t('billing.management.subscribe'),
-      onAction: () => run(checkout, { planId: plan.id, billingPeriod }) };
+      mutation: checkout, onAction: () => run(checkout, { planId: plan.id, billingPeriod }) };
   };
 
   const currentActions = canManage && subscription.hasBillingAccount && paymentsEnabled ? <>
@@ -126,6 +134,27 @@ export function PlansSubscriptionPage() {
   </> : null;
 
   const confirmPrice = confirm?.plan?.prices?.[confirm.period];
+  const pendingFor = (plan, mutation) => [mutation, changePlan].some((m) => m?.isPending && m.variables?.planId === plan.id);
+  const assurances = [
+    paymentsEnabled && canManage && ['stripe', ShieldCheck],
+    paymentsEnabled && canManage && ['cancel', CalendarCheck],
+  ].filter(Boolean);
+  const plansSection = <section ref={compareRef} className="billing-management-section billing-plans-section" aria-labelledby="compare-title">
+    <header className="billing-plans-header">
+      <div><h2 id="compare-title">{t('billing.management.plansTitle')}</h2><p>{t('billing.management.plansSubtitle')}</p></div>
+      <PeriodSelector plans={plans} value={billingPeriod} onChange={setBillingPeriod} name="in-app-billing-period" />
+    </header>
+    <div className="ceopro-plan-grid billing-management-plans" style={{ '--plan-count': plans.length }}>{plans.map((plan) => {
+      const action = planAction(plan);
+      return <PlanCard key={plan.id} plan={plan} billingPeriod={billingPeriod} currentPlan={plan.id === currentPlan.id} showTrial={Boolean(subscription.trialAvailable)}
+        onAction={action.onAction || (() => {})} actionLabel={action.label} actionDisabled={action.disabled || busy} actionHint={action.hint} actionNote={action.note} actionLoading={pendingFor(plan, action.mutation)} />;
+    })}</div>
+    <footer className="billing-plans-footer">
+      <PlanSharedFeatures plans={plans} />
+      {assurances.length > 0 && <ul className="billing-plans-assurance">{assurances.map(([key, Icon]) => <li key={key}><Icon size={15} aria-hidden="true" />{t(`billing.management.assurance.${key}`)}</li>)}</ul>}
+      <p>{t('billing.management.creditsHelp')} <button type="button" className="billing-text-link" onClick={() => comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{t('billing.plans.seeAllLimits')}</button></p>
+    </footer>
+  </section>;
   return <div className="billing-management-page" dir={dir}>
     <PageHeader title={t('billing.management.title')} subtitle={t('billing.management.subtitle')} />
     {!paymentsEnabled && <div className="billing-provider-note" role="note">{t('billing.management.paymentsUnavailableHint')}</div>}
@@ -136,23 +165,16 @@ export function PlansSubscriptionPage() {
     </div>}
     {['failed', 'expired'].includes(subscription.status) && <div className="billing-provider-note is-warning" role="alert">{t(`billing.management.statusHelp.${subscription.status}`)}</div>}
 
+    <UpgradeRecommendation recommendation={recommendation} onCompare={() => compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} t={t} />
+    {plansSection}
+
     <section className="billing-management-section" aria-labelledby="credits-title"><header><h2 id="credits-title">{t('billing.management.credits.title')}</h2><p>{t('billing.management.credits.subtitle')}</p></header>
       <CreditBudgets credits={subscription.credits} locale={locale} t={t} formatDate={formatDate} />
       <p className="billing-credit-note">{t('billing.management.credits.competitorNote')}{subscription.credits?.top_ups_enabled ? '' : ` ${t('billing.management.credits.topUpsUnavailable')}`}</p>
     </section>
     <section className="billing-management-section" aria-labelledby="usage-title"><header><h2 id="usage-title">{t('billing.management.usageTitle')}</h2><p>{t('billing.management.usageSubtitle')}</p></header><UsageLimitGrid usage={subscription.usage} limits={subscription.limits} locale={locale} t={t} /></section>
+    <section ref={comparisonRef} className="billing-management-section" aria-labelledby="comparison-title"><header><h2 id="comparison-title">{t('billing.management.comparison.title')}</h2><p>{t('billing.management.comparison.subtitle')}</p></header><PlanComparisonTable plans={plans} currentPlanId={currentPlan.id} /></section>
     <section className="billing-management-section" aria-labelledby="history-title"><header><h2 id="history-title">{t('billing.management.credits.historyTitle')}</h2></header>{historyQuery.isPending ? <Skeleton height="80px" /> : <UsageHistory items={historyQuery.data} locale={locale} t={t} />}</section>
-    <UpgradeRecommendation recommendation={recommendation} onCompare={() => compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} t={t} />
-
-    <section ref={compareRef} className="billing-management-section billing-compare-section" aria-labelledby="compare-title">
-      <header className="billing-compare-header"><div><h2 id="compare-title">{t('billing.management.compareTitle')}</h2><p>{t('billing.management.compareSubtitle')}</p></div><PeriodSelector plans={plans} value={billingPeriod} onChange={setBillingPeriod} name="in-app-billing-period" /></header>
-      <div className="ceopro-plan-grid billing-management-plans">{plans.map((plan) => {
-        const action = planAction(plan);
-        return <PlanCard key={plan.id} plan={plan} billingPeriod={billingPeriod} currentPlan={plan.id === currentPlan.id} onAction={action.onAction} actionLabel={action.label} actionDisabled={action.disabled || busy} actionHint={action.hint} />;
-      })}</div>
-    </section>
-
-    <section className="billing-management-section" aria-labelledby="comparison-title"><header><h2 id="comparison-title">{t('billing.management.comparison.title')}</h2><p>{t('billing.management.comparison.subtitle')}</p></header><PlanComparisonTable plans={plans} currentPlanId={currentPlan.id} /></section>
     {canManage && subscription.hasBillingAccount && <section className="billing-management-section" aria-labelledby="invoices-title"><header><h2 id="invoices-title">{t('billing.invoices.title')}</h2></header>{invoicesQuery.isPending ? <Skeleton height="80px" /> : <InvoiceList invoices={invoicesQuery.data} locale={locale} t={t} formatDate={formatDate} />}</section>}
 
     <Modal isOpen={Boolean(confirm)} onClose={() => setConfirm(null)} title={confirm?.cancel ? t('billing.management.cancelTitle') : t('billing.management.switchTitle')}>
