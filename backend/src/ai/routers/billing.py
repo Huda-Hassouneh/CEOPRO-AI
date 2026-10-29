@@ -106,13 +106,17 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         subscription = store.current_subscription(conn, ctx.tenant_id)
         trial = store.trial(conn, ctx.tenant_id)
         has_customer = store.customer_id(conn, ctx.tenant_id) is not None
-        can_manage = _role(conn, ctx.tenant_id, ctx.user_id) in _BILLING_ROLES
+        role = _role(conn, ctx.tenant_id, ctx.user_id)
+        can_manage = role in _BILLING_ROLES
         budgets = credits.summary(conn, ctx.tenant_id)
         conn.commit()
     finally:
         conn.close()
     trial_available = False
-    if not trial and not subscription:
+    # Only for an active member: the check below runs on the billing
+    # service's connection, which would answer for any company named in a
+    # token (e.g. a removed member's, until it expires).
+    if role and not trial and not subscription:
         # The per-person check needs this person's other companies, which
         # this company's own connection can't see.
         sys_conn = db.system_connection()
