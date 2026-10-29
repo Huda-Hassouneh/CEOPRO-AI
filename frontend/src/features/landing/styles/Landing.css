@@ -668,3 +668,64 @@
 .ceopro-landing .lp-final-cta p:not(.lp-eyebrow) { color: rgba(255, 255, 255, 0.86); }
 .ceopro-landing .lp-final-cta .ceopro-button { color: #4338ca; background: #fff; border-color: #fff; box-shadow: 0 18px 40px -16px rgba(15, 12, 60, 0.55); }
 .ceopro-landing .lp-final-cta .ceopro-button:hover { background: #eef0ff; }
+
+/* --- The final call to action, alive (FinalCtaSection) --- */
+.ceopro-landing .lp-final-cta { isolation: isolate; padding-block: 104px; background: linear-gradient(120deg, #3730a3, #4f46e5 35%, #6366f1 60%, #7c3aed 85%, #4338ca); background-size: 260% 260%; animation: lp-cta-flow 16s ease-in-out infinite alternate; }
+.ceopro-landing .lp-final-cta .lp-container { z-index: 2; }
+.ceopro-landing .lp-cta-network { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; opacity: .75; }
+.ceopro-landing .lp-cta-aurora { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.ceopro-landing .lp-cta-aurora i { position: absolute; border-radius: 50%; filter: blur(60px); mix-blend-mode: screen; }
+.ceopro-landing .lp-cta-aurora i:nth-child(1) { width: 520px; height: 520px; top: -240px; inset-inline-end: 6%; background: radial-gradient(circle, rgba(103, 232, 249, .55), transparent 65%); animation: lp-cta-drift 14s ease-in-out infinite alternate; }
+.ceopro-landing .lp-cta-aurora i:nth-child(2) { width: 460px; height: 460px; bottom: -260px; inset-inline-start: 18%; background: radial-gradient(circle, rgba(216, 180, 254, .6), transparent 65%); animation: lp-cta-drift 18s ease-in-out -6s infinite alternate-reverse; }
+.ceopro-landing .lp-cta-aurora i:nth-child(3) { width: 340px; height: 340px; top: 30%; inset-inline-start: 55%; background: radial-gradient(circle, rgba(165, 180, 252, .5), transparent 65%); animation: lp-cta-drift 11s ease-in-out -3s infinite alternate; }
+.ceopro-landing .lp-final-cta .lp-cta-orbit { animation: lp-spin 50s linear infinite; }
+.ceopro-landing .lp-final-cta .lp-cta-orbit span { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 18px 4px rgba(255, 255, 255, .7); }
+.ceopro-landing .lp-final-cta .lp-cta-orbit span:nth-child(1) { top: 14%; right: 15%; }
+.ceopro-landing .lp-final-cta .lp-cta-orbit span:nth-child(2) { bottom: 6%; left: 40%; width: 6px; height: 6px; }
+.ceopro-landing .lp-final-cta .lp-cta-orbit--end { inset-inline-start: auto; inset-inline-end: -300px; top: auto; bottom: -330px; width: 480px; height: 480px; animation-duration: 70s; animation-direction: reverse; }
+.ceopro-landing .lp-final-cta .lp-eyebrow { display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px; border: 1px solid rgba(255, 255, 255, .28); border-radius: 999px; background: rgba(255, 255, 255, .1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); opacity: 1; }
+.ceopro-landing .lp-cta-live { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 0 rgba(52, 211, 153, .7); animation: lp-cta-ping 1.8s ease-out infinite; }
+.ceopro-landing .lp-final-cta h2 { margin-top: 22px; text-shadow: 0 10px 40px rgba(20, 16, 80, .35); }
+.ceopro-landing .lp-cta-shimmer { background: linear-gradient(100deg, #fff 20%, #c7d2fe 38%, #a5f3fc 50%, #e9d5ff 62%, #fff 80%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: lp-cta-text 5s ease-in-out infinite; }
+.ceopro-landing .lp-final-cta .ceopro-button { position: relative; overflow: hidden; animation: lp-cta-glow 2.8s ease-in-out infinite; transition: transform 300ms var(--apex-ease), background 200ms ease; }
+.ceopro-landing .lp-final-cta .ceopro-button:hover { transform: translateY(-3px) scale(1.03); }
+.ceopro-landing .lp-final-cta .ceopro-button::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 45%; background: linear-gradient(100deg, transparent, rgba(99, 102, 241, .28), transparent); transform: skewX(-20deg); animation: lp-cta-sweep 3.4s ease-in-out infinite; pointer-events: none; }
+/* Footer: a thin line of light runs along its top edge. */
+.ceopro-landing .lp-footer { position: relative; }
+.ceopro-landing .lp-footer::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--apex-accent), #a5f3fc, var(--apex-accent), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: lp-footer-run 6s linear infinite; opacity: .8; }
+.ceopro-landing .lp-footer .lp-brand-mark { animation: lp-bob 6s ease-in-out infinite; }
+@keyframes lp-cta-flow { from { background-position: 0% 40%; } to { background-position: 100% 60%; } }
+@keyframes lp-cta-drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(-90px, 50px, 0) scale(1.2); } }
+@keyframes lp-cta-ping { 0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, .7); } 80%, 100% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); } }
+@keyframes lp-cta-text { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0% 0; } }
+@keyframes lp-cta-glow { 0%, 100% { box-shadow: 0 18px 40px -16px rgba(15, 12, 60, .55), 0 0 0 0 rgba(255, 255, 255, .45); } 50% { box-shadow: 0 18px 40px -16px rgba(15, 12, 60, .55), 0 0 0 10px rgba(255, 255, 255, 0); } }
+@keyframes lp-cta-sweep { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+@keyframes lp-footer-run { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+@media (max-width: 760px) { .ceopro-landing .lp-final-cta { padding-block: 72px; } .ceopro-landing .lp-cta-aurora i { filter: blur(45px); } }
+@media (prefers-reduced-motion: reduce) {
+  .ceopro-landing :is(.lp-final-cta, .lp-cta-aurora i, .lp-final-cta .lp-cta-orbit, .lp-cta-live, .lp-cta-shimmer, .lp-final-cta .ceopro-button, .lp-final-cta .ceopro-button::after, .lp-footer::before, .lp-footer .lp-brand-mark) { animation: none; }
+}
+
+/* --- Trust cards: real cards, with a floating icon badge --- */
+.ceopro-landing .lp-trust-section { position: relative; overflow: hidden; }
+.ceopro-landing .lp-trust-section::before { content: ""; position: absolute; width: 700px; height: 700px; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--apex-accent) 14%, transparent), transparent 65%); pointer-events: none; animation: apex-breathe 9s ease-in-out infinite; }
+.ceopro-landing .lp-trust-grid { position: relative; gap: 26px; }
+.ceopro-landing .lp-trust-grid > * { padding: 38px 28px 34px; border: 1px solid var(--apex-glass-border, var(--ceopro-border)); border-radius: 24px; }
+.ceopro-landing .lp-trust-grid svg { width: 64px; height: 64px; padding: 17px; margin-bottom: 22px; border-radius: 20px; color: #fff; background: var(--apex-gradient); box-shadow: 0 16px 32px -14px rgba(91, 99, 236, .8); animation: lp-bob 5s ease-in-out infinite; }
+.ceopro-landing .lp-trust-grid > :nth-child(2) svg { animation-delay: -1.6s; }
+.ceopro-landing .lp-trust-grid > :nth-child(3) svg { animation-delay: -3.2s; }
+.ceopro-landing .lp-trust-grid > *:hover svg { animation-play-state: paused; transform: scale(1.08) rotate(-6deg); transition: transform 300ms var(--apex-ease); }
+.ceopro-landing .lp-trust-grid p { line-height: 1.7; }
+
+/* --- Footer: soft light, lively links and a giant shimmering wordmark --- */
+.ceopro-landing .lp-footer { overflow: hidden; background: radial-gradient(ellipse 60% 80% at 10% 0%, color-mix(in srgb, var(--apex-accent) 10%, transparent), transparent 70%), radial-gradient(ellipse 50% 70% at 95% 100%, rgba(165, 243, 252, .18), transparent 70%), var(--ceopro-surface); }
+.ceopro-landing .lp-footer h2 { position: relative; padding-bottom: 10px; }
+.ceopro-landing .lp-footer h2::after { content: ""; position: absolute; bottom: 0; inset-inline-start: 0; width: 22px; height: 2px; border-radius: 2px; background: var(--apex-gradient); }
+.ceopro-landing .lp-footer-grid > div:not(:first-child) > a { width: fit-content; transition: color 200ms ease, transform 300ms var(--apex-ease); }
+.ceopro-landing .lp-footer-grid > div:not(:first-child) > a:hover { transform: translateX(5px); }
+:root[dir="rtl"] .ceopro-landing .lp-footer-grid > div:not(:first-child) > a:hover { transform: translateX(-5px); }
+.ceopro-landing .lp-footer .lp-brand-mark { box-shadow: 0 0 0 0 color-mix(in srgb, var(--apex-accent) 40%, transparent); }
+.ceopro-landing .lp-footer-wordmark { margin: 16px 0 6px; font-size: clamp(90px, 19vw, 280px); font-weight: 800; line-height: .9; letter-spacing: -.06em; text-align: center; user-select: none; background: linear-gradient(100deg, color-mix(in srgb, var(--apex-accent) 18%, transparent) 20%, color-mix(in srgb, var(--apex-accent) 55%, transparent) 40%, rgba(165, 243, 252, .7) 50%, color-mix(in srgb, var(--apex-accent) 55%, transparent) 60%, color-mix(in srgb, var(--apex-accent) 18%, transparent) 80%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: lp-cta-text 9s ease-in-out infinite; -webkit-mask-image: linear-gradient(to bottom, #000 50%, transparent 100%); mask-image: linear-gradient(to bottom, #000 50%, transparent 100%); }
+@media (prefers-reduced-motion: reduce) {
+  .ceopro-landing :is(.lp-trust-section::before, .lp-trust-grid svg, .lp-footer-wordmark) { animation: none; }
+}
