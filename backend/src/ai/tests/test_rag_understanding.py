@@ -1,5 +1,7 @@
 """What a question asks for and what it is about (rag/understanding.py), in
 English and Arabic, and how a follow-up keeps the conversation's context."""
+from datetime import date
+
 import pytest
 
 from src.ai.rag import understanding as u
@@ -66,7 +68,9 @@ def test_a_generic_dinar_or_riyal_follows_the_company_currency():
 def test_periods_products_and_links():
     assert u.extract_slots("sales in the last 90 days")["period_days"] == 90
     assert u.extract_slots("آخر 2 أسابيع")["period_days"] == 14
-    assert u.extract_slots("last quarter")["period_days"] == 90
+    # "Last quarter" is the previous calendar quarter, not the trailing 90 days.
+    assert u.extract_slots("last quarter", today=date(2026, 10, 29))["periods"] == [
+        {"start": "2026-07-01", "end": "2026-10-01", "label": "Q3 2026", "kind": "quarter"}]
     slots = u.extract_slots("why is extra virgin olive oil 1l selling less? see https://example.com/page.", catalog=CATALOG)
     assert slots["products"] == [{"product_id": "p1", "name": "Extra Virgin Olive Oil 1L"}]
     assert slots["urls"] == ["https://example.com/page"]
@@ -97,8 +101,10 @@ def test_a_new_question_does_not_inherit_the_previous_context():
 
 def test_a_period_follow_up_carries_the_sales_intent():
     first = u.understand("How were my sales in the last 30 days?")
-    follow = u.understand("and what about the last quarter?", previous=first.state())
-    assert follow.follow_up and u.SALES in follow.intents and follow.slots["period_days"] == 90
+    follow = u.understand("and what about the last quarter?", previous=first.state(), today=date(2026, 10, 29))
+    assert follow.follow_up and u.SALES in follow.intents
+    # The new period replaces the earlier rolling window rather than standing next to it.
+    assert [p["label"] for p in follow.slots["periods"]] == ["Q3 2026"] and "period_days" not in follow.slots
 
 
 # --- routing: public research versus the company's own records -------------------

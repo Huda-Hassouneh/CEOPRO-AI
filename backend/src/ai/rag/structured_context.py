@@ -98,6 +98,7 @@ def _build_competitor_activity_block(conn, tenant_id: str) -> list:
 
 
 SALES_WINDOW_DAYS = 30
+FORECAST_LINES = 30
 
 
 def build_sales_lines(conn, tenant_id: str, days: int = None) -> list:
@@ -374,25 +375,37 @@ def _build_price_ladder_lines(conn, tenant_id: str) -> list:
 
 
 def _build_forecast_lines(conn, tenant_id: str) -> list:
+    # Every product's latest forecast, the largest expected demand first. A LIMIT on the DISTINCT ON query
+    # itself kept five products in id order - effectively random - so "the forecast for olive oil" often had
+    # no olive oil in its evidence.
     lines = []
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT DISTINCT ON (df.product_id)
-                localized_text(p.product_name) AS name,
-                df.expected_demand, df.forecast_target_date
-            FROM demand_forecasts df
-            JOIN products p ON p.tenant_id = df.tenant_id AND p.product_id = df.product_id
-            WHERE df.tenant_id = %s AND p.deleted_at IS NULL
-            ORDER BY df.product_id, df.created_at DESC
-            LIMIT 5;
+            SELECT name, expected_demand, forecast_target_date, confidence_range_lower, confidence_range_upper
+            FROM (
+                SELECT DISTINCT ON (df.product_id)
+                    localized_text(p.product_name) AS name, df.expected_demand, df.forecast_target_date,
+                    df.confidence_range_lower, df.confidence_range_upper
+                FROM demand_forecasts df
+                JOIN products p ON p.tenant_id = df.tenant_id AND p.product_id = df.product_id
+                WHERE df.tenant_id = %s AND p.deleted_at IS NULL
+                ORDER BY df.product_id, df.created_at DESC
+            ) latest
+            ORDER BY expected_demand DESC NULLS LAST, name
+            LIMIT %s;
             """,
-            (tenant_id,),
+            (tenant_id, FORECAST_LINES),
         )
         forecast_rows = cursor.fetchall()
     if forecast_rows:
-        lines.append("Current demand forecasts, most recent per product (source: demand_forecasts):")
-        for name, expected_demand, target_date in forecast_rows:
-            lines.append(f"- {name}: about {format_quantity(expected_demand)} units expected in total between now and {target_date.isoformat()}.")
+        total = sum(int(row[1] or 0) for row in forecast_rows)
+        lines.append(f"Current demand forecasts, most recent per product, largest first (source: demand_forecasts); "
+                     f"{total} units expected in all across these {len(forecast_rows)} products:")
+        for name, expected_demand, target_date, low, high in forecast_rows:
+            spread = (f" (likely between {format_quantity(low)} and {format_quantity(high)})"
+                      if low is not None and high is not None else "")
+            lines.append(f"- {name}: about {format_quantity(expected_demand)} units expected in total between now and "
+                         f"{target_date.isoformat()}{spread}.")
 
     return lines
