@@ -76,8 +76,12 @@ class MPIResult:
 
 
 def recency_weight(review_date: date, as_of: date) -> float:
+    return _recency_weight(review_date, as_of, RECENCY_HALF_LIFE_DAYS)
+
+
+def _recency_weight(review_date: date, as_of: date, half_life_days: int) -> float:
     age_days = max(0, (as_of - review_date).days)
-    return 0.5 ** (age_days / RECENCY_HALF_LIFE_DAYS)
+    return 0.5 ** (age_days / half_life_days)
 
 
 def reliability_weight(collection_method: str) -> float:
@@ -85,7 +89,11 @@ def reliability_weight(collection_method: str) -> float:
 
 
 def volume_confidence(review_count: int) -> float:
-    return min(1.0, review_count / MIN_VOLUME_FOR_FULL_CONFIDENCE)
+    return _volume_confidence(review_count, MIN_VOLUME_FOR_FULL_CONFIDENCE)
+
+
+def _volume_confidence(review_count: int, full_confidence_count: int) -> float:
+    return min(1.0, review_count / full_confidence_count)
 
 
 @dataclass
@@ -147,6 +155,14 @@ def compare_mpi_results(result_a: MPIResult, result_b: MPIResult, min_volume_for
 
 
 def compute_mpi(contributions: List[ReviewContribution], label_counts: dict) -> Optional[MPIResult]:
+    # Resolve the import-time setting at the existing runtime boundary rather
+    # than capturing it again in a default argument.
+    return _compute_mpi(contributions, label_counts, MIN_VOLUME_FOR_FULL_CONFIDENCE)
+
+
+def _compute_mpi(
+    contributions: List[ReviewContribution], label_counts: dict, full_confidence_count: int,
+) -> Optional[MPIResult]:
     """
     Returns None for zero contributions - an MPI computed from no data isn't
     a low-confidence result, it's not a result at all (mirrors sentiment's
@@ -162,7 +178,7 @@ def compute_mpi(contributions: List[ReviewContribution], label_counts: dict) -> 
         weighted_sentiment_score = sum(c.sentiment_score * c.combined_weight for c in contributions) / total_weight
 
     count = len(contributions)
-    conf = volume_confidence(count)
+    conf = _volume_confidence(count, full_confidence_count)
 
     # Neutral midpoint (50) when confidence is zero, full swing toward 0/100
     # as confidence approaches 1 - sparse data pulls toward "uninformative"
