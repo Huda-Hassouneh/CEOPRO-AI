@@ -15,7 +15,7 @@ SECRET = "sk-super-secret-value"
 
 
 def _auth():
-    token, _ = create_access_token(tenant_id="t1", user_id="u1")
+    token, _ = create_access_token(tenant_id="t1", user_id="u1", email_verified=True)
     return {"Authorization": f"Bearer {token}"}
 
 

@@ -10,6 +10,7 @@ import Avatar from '../ui/Avatar.jsx';
 import KeelMark from '../brand/KeelMark.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 import { signOut } from './signOut.js';
+import { PlatformAccessLink } from '../../../features/platform/PlatformAccessLink.jsx';
 import { AlertsBell } from '../../../features/alerts/AlertsBell.jsx';
 import { WorkspaceSwitcher } from '../../../features/workspaces/components/WorkspaceSwitcher.jsx';
 
@@ -219,13 +220,14 @@ export default function TopNav() {
                     const Icon = item.icon;
                     return <button key={item.key} type="button" role="menuitem" onClick={() => { setProfileOpen(false); navigate(item.path); }}><Icon size={15} aria-hidden="true" />{t(item.labelKey)}</button>;
                   })}
+                  <PlatformAccessLink onNavigate={() => setProfileOpen(false)} />
                   <button type="button" role="menuitem" className="is-danger" onClick={logout}><LogOut size={15} aria-hidden="true" />{t('businessShell.navigation.logout')}</button>
                 </div>
               )}
             </div>
           </div>
         </div>
-      </header>
+</header>
 
       {menuOpen && (
         <div className="apex-sheet" role="dialog" aria-modal="true" aria-label={t('businessShell.navigation.label')} dir={dir}>

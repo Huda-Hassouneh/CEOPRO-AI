@@ -1,0 +1,6 @@
+.provider-accounting .ceopro-card { min-width: 0; }
+.provider-accounting .ceopro-card > .ceopro-button { margin-block: var(--ceopro-space-3); }
+.provider-accounting-value { display: inline-block; white-space: nowrap; }
+.provider-accounting-provenance { display: inline-block; min-width: 180px; max-width: 260px; overflow-wrap: anywhere; }
+.provider-accounting-form { display: grid; gap: var(--ceopro-space-4); }
+.provider-accounting-form .billing-form-actions { display: flex; gap: var(--ceopro-space-3); justify-content: flex-end; }

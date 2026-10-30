@@ -20,7 +20,8 @@ def payments_enabled() -> bool:
 
 
 def app_base_url() -> str:
-    return (os.getenv("APP_BASE_URL") or "http://localhost:5173").rstrip("/")
+    from src.infrastructure.public_urls import frontend_origin
+    return frontend_origin()
 
 
 def trial_plan_key() -> str:

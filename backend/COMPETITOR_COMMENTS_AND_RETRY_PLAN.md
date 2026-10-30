@@ -164,4 +164,3 @@ another company gets 404) - `test_competitor_comments_api_integration_db.py`; th
 key or exhausted quota. Added to `.env.example`, `docker-compose.yml` (worker and API), `CURRENT_STATUS.md`.
 Deliberately not done: the two earlier migrations (`...source_url`, `...action_status`) were not rewritten to use
 `NOT VALID` / `VALIDATE`, because they were already pushed; on a very large `reviews` table apply them off-peak.
-

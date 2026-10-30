@@ -35,7 +35,7 @@ from typing import Optional
 
 from src.ai import db
 from src.ai.billing import credits
-from src.ai.core import usage
+from src.ai.core import storage_ledger, usage
 from src.ai.marketing import data_access, image_generation, image_jobs, image_service
 
 logger = logging.getLogger("CEOPRO_AI_IMAGE_WORKER")
@@ -98,11 +98,16 @@ def run_one(worker_id: str, system_connection=None, tenant_connection=None) -> O
         if campaign["status"] != "COMPLETED":
             return finish_failed("The campaign's copy isn't ready, so no image prompt exists.", retryable=False)
         keeper.start()
+        def record_before_upload(bucket: str, object_key: str, size_bytes: int) -> None:
+            storage_ledger.record(conn, tenant_id, bucket, object_key, size_bytes, "marketing_generated_image")
+            conn.commit()
+
         try:
             result = image_service.generate_and_store(
                 conn, tenant_id, created_by, job["campaign_id"], campaign,
                 image_format=job["image_format"], prompt=job["prompt"], channel=job["channel"],
                 attach=job["attach"], seed=job["seed"], fallback_to_designed=DESIGNED_FALLBACK,
+                on_pre_upload=record_before_upload,
             )
         except image_generation.ImageGenerationError as err:
             attempts = getattr(err, "attempts", None) or []

@@ -1,85 +1,42 @@
-﻿# KEEL - Phase 1 Complete Infrastructure Blueprint
+# KEEL Python backend
 
-This directory contains the production-grade foundation architecture for **KEEL Phase 1**.
+FastAPI is the unified application's business/API authority. Start the supported local stack from the repository root with `dev.ps1 setup`, then `dev.ps1 up`; Unix uses `bash dev.sh`. See [local development](../docs/LOCAL_DEVELOPMENT.md).
 
-## 1. Managed Technical Services (Item 1.1)
-- **PostgreSQL**: Relational storage engine with multi-tenancy logical partitioning (Port `5432`).
-- **Redis**: Low-latency cache memory, rate-limiter, and async transaction status coordinator (Port `6379`).
-- **MinIO**: S3-compatible cloud-ready storage for raw file ingestions and model weights (Ports `9000/9001`).
+## Layout
 
-## 2. Infrastructure Operations Command Checklist
-Use these native Docker Compose commands to manage the infrastructure locally:
-- **Launch Services Asynchronously**: `docker compose up -d`
-- **Verify Operational Container States**: `docker compose ps`
-- **Inspect Infrastructure Logs**: `docker compose logs -f`
-- **Strict Data Reset (Wipe Volumes)**: `docker compose down -v`
+- `src/ai/main.py`: app bootstrap, CORS, middleware, router registration and lifespan.
+- `src/ai/routers/`: public HTTP contracts by domain.
+- `src/ai/core/`: authentication/permissions, entitlements, usage, receipts and shared validation.
+- Domain packages: services, orchestration, data access and existing model pipelines.
+- `src/infrastructure/`: PostgreSQL schema/migrations, tenant connection pool, security, messaging and monitoring.
+- `src/market_scraper/`: market/commerce adapters and workers.
+- `scripts/apply_migrations.py`: authoritative forward migration runner.
+- `tests/` and package-local `tests/`: contract, native database and unit regressions.
 
-## 3. Deployment Schemas & Specifications Attached
-- `init_schema.sql`: Production-ready PostgreSQL tables establishing multi-tenancy isolation via the explicit `tenant_id` foreign keys (Item 1.2).
-- `REDIS_ARCHITECTURE.md`: Technical documentation defining memory expiration keys and tracking patterns (Item 1.3).
-- `MINIO_STORAGE_ARCHITECTURE.md`: Target bucket isolation rules and file storage paths (Item 1.4).
-- `DATA_OWNERSHIP_AND_CONTRACTS.md`: Explicit microservice permissions matrix and data-transfer payloads (Items 1.5 & 1.6).
-- `.env.example`: Secure production-safe template configuration file (Item 1.7).
-- `check_connectivity.py`: Python automation health check confirming real-time connections pass successfully (Item 1.8).
+## API and database
 
-## 4. Web Crawling / Market Data Collection
-The standalone scraper service lives in [`src/market_scraper/`](src/market_scraper/README.md).
-It implements deny-by-default collection policy decisions, Redis worker allocation, tenant-scoped
-product mappings, respectful Scrapy collection, ingestion-job tracking, canonical PostgreSQL
-`competitor_prices` persistence, JSONL demo output, and offline tests. The repository's approved
-`toscrape.com` target remains the source-specific development fixture.
+The API entry point is `python -m uvicorn src.ai.main:app` from this directory, using a correctly configured environment. The root launcher supplies it and checks `/health/ready`; `/health` alone proves liveness.
 
-```bash
-python -m pip install -r src/market_scraper/requirements.txt
-python -m scrapy crawl books_to_scrape -a max_pages=1 -O data/market/books-smoke.jsonl:jsonlines
-```
+Requests resolve JWT identity, active tenant membership and permissions, then use restricted ceopro_app connections. Transaction-local tenant/user context is reapplied across commits/rollbacks. Tenant isolation and Platform Owner authorization are separate safeguards. Never connect runtime services as migration administrator.
 
-## 5. Run Connectivity Health Check
-To prove real-time access before handing over to Web App and AI teams, run:
-```bash
-pip install psycopg2-binary redis
-python check_connectivity.py
-```
+[Database guide](../docs/DATABASE.md) covers initialization, migration status, restricted credentials, FORCE RLS and isolated tests. Applied migrations are immutable.
 
-## 6. Mock Infrastructure Spin-Up (One-Command Quickstart)
-To spin up the entire isolated technical mock environment and seed the data broker streams in one continuous workflow execution, run the following unified command:
-```powershell
-docker compose up -d; python src/infrastructure/init_broker.py; python src/infrastructure/check_connectivity.py
-```
+## Domain invariants
 
-## 7. Scraping Cost Ledger & Dynamic Cost-to-Margin Gate
-Every real scrape attempt is money spent, and low-value products can't absorb that cost forever.
-`src/market_scraper/cost_ledger.py` protects margins with two checks run before a scrape is
-enqueued (`enqueue.py`), both against a real `scraping_cost_ledger` table that
-`persistence.py`'s `PostgresPricePipeline` writes to automatically for every attempt, promoted or
-quarantined:
+Canonical products, inventory and invoices are updated through established services and receipts. Imports/sync stage records before approved promotion. Billing, subscriptions, entitlements, AI/Data Credits and accounting retain one Python authority. Quote approval does not activate paid rights. Provider failures must not masquerade as successful model results.
 
-- **Dynamic cost-to-margin ratio** (`COST_GATE_MAX_RATIO`, default `0.20` / 20%, looked back over
-  `COST_GATE_WINDOW_DAYS`, default 30) - blocks a product once its trailing known scraping cost
-  reaches that percentage of its real margin (`current_price - cost_price`, or `current_price`
-  alone when no cost price is on file). This scales automatically with each product's own value
-  instead of a flat dollar rule, and always **allows** when there isn't yet enough real data to
-  judge (no product record, no cost data, no positive price/margin) - insufficient data is never
-  treated as over budget.
-- **Minimum product price floor** (`COST_GATE_MIN_PRODUCT_PRICE`, default `1.00`) - a hard baseline
-  checked *before* the ratio or the ledger are even queried. Heavy operational, distribution, and
-  team overhead means tracking a product priced (or margined) below this floor can never yield real
-  profit, no matter how cheap the scraping cost is - so the gate blocks it immediately, from day
-  one, with zero ledger rows needed. A product must clear the floor before the ratio is even
-  evaluated. **A sub-floor product is never simply dropped when it belongs to a real product
-  family** (`src/market_scraper/product_families.py`): instead of a blind block, it's routed
-  through family-keyed group cost-sharing - the real scraping cost is amortized across every other
-  active, price-collapse-eligible product in the tenant's catalog sharing its family (the same
-  grouping `select_family_representatives()` already applies at discovery time), lowering the
-  effective per-item cost and keeping the family trackable and profitable instead of losing the
-  data outright. A genuinely solo low-value product with no real family still falls back to the
-  hard floor block.
+Expected domain errors use existing exception contracts and localized error handling; inspect service logs and durable job state for asynchronous failures. Do not expose DSNs, tokens or private financial configuration in error responses.
 
-Per-collector costs are configured per paid vendor via `SCRAPE_COST_PER_REQUEST_<COLLECTOR>` env
-vars with no baked-in defaults (an unconfigured collector's ledger rows record `cost_amount = NULL`
-- honestly unknown, never a fabricated `$0.00`). Server/hardware depreciation, electricity, and
-marketing spend are deliberately excluded from this formula - they're real costs, but period costs
-and (for marketing) customer-acquisition cost, not per-request cost-of-service, so they belong in a
-separate periodic margin report rather than a live per-scrape gate. Full details, the env var list,
-and the underlying reasoning live in
-[`src/market_scraper/README.md`](src/market_scraper/README.md#scraping-cost-ledger-and-the-dynamic-cost-to-margin-gate-cost_ledgerpy).
+## Testing and workers
+
+Use root `test --suite database` for a new disposable migration/RLS database, and `test --suite backend --pytest-args ...` for a focused isolated backend selection. [Testing](../docs/TESTING.md) explains dependencies, native fixtures and evidence. Do not direct mutation tests at developer/customer databases. [Worker entry points](../docs/WORKERS.md) document queues, retries and readiness.
+
+Model libraries/weights, hosted services and cost configuration are feature prerequisites; [integrations](../docs/INTEGRATIONS.md) distinguishes them. The existing `.env.example` remains a manual/deployment reference and is not rewritten by setup.
+
+## Historical infrastructure evidence
+
+The previous Phase 1 infrastructure blueprint is preserved in [docs/archive/BACKEND_PHASE1_README.md](../docs/archive/BACKEND_PHASE1_README.md). It is not current startup/reset guidance.
+
+## First identity and Platform Owner access
+
+Use the frontend signup and verify the actual OTP in the printed Mailpit inbox. A workspace owner is a Tenant Owner, not a Platform Owner. Startup intentionally creates neither an account nor privileged membership. Platform access requires the existing authorized team/invitation or one-time operator bootstrap workflow; see scripts/bootstrap_platform_owner.py and the guarded keel_bootstrap_platform_owner SQL function. Never promote users by editing membership rows or weakening route/RLS checks. Bootstrap is an explicit operator action, not part of setup/seed, and was not exercised by this startup smoke.

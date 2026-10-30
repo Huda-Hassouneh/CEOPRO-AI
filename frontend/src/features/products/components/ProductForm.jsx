@@ -8,7 +8,9 @@ import { useCompany } from '../../settings/hooks/useCompany.js';
 // ProductUpdateRequest exactly: product_name must carry a non-empty "en"
 // key, current_price >= 0 required, currency is a 3-letter uppercase
 // code, cost_price/brand/category/initial_stock_quantity are all
-// optional. Single-locale (English only) for now - product_name/brand/
+// optional. Canonical quantities support the established NUMERIC(14,4)
+// contract. Single-locale
+// (English only) for now - product_name/brand/
 // category are real JSONB {locale: text} dicts server-side, but a full
 // per-locale editor is separate, larger scope (MultilingualFieldEditor.jsx).
 export function ProductForm({ mode = 'create', initialValues, onSubmit, submitting, error, t }) {
@@ -49,6 +51,10 @@ export function ProductForm({ mode = 'create', initialValues, onSubmit, submitti
     if (values.currentPrice === '' || Number(values.currentPrice) < 0) errors.currentPrice = t('products.form.errors.priceInvalid');
     if (!/^[A-Z]{3}$/.test(values.currency.trim().toUpperCase())) errors.currency = t('products.form.errors.currencyInvalid');
     if (values.costPrice !== '' && Number(values.costPrice) < 0) errors.costPrice = t('products.form.errors.priceInvalid');
+    if (mode === 'create' && values.initialStock !== '' && (
+      !Number.isFinite(Number(values.initialStock)) || Number(values.initialStock) < 0 ||
+      !/^\d{1,10}(?:\.\d{1,4})?$/.test(values.initialStock)
+    )) errors.initialStock = t('products.form.errors.stockInvalid');
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -76,7 +82,7 @@ export function ProductForm({ mode = 'create', initialValues, onSubmit, submitti
       <Input label={t('products.form.currency')} value={values.currency} onChange={update('currency')} error={fieldErrors.currency} hint={t('products.form.currencyHint')} disabled={submitting} />
       <Input type="number" min="0" step="any" label={t('products.form.currentPrice')} value={values.currentPrice} onChange={update('currentPrice')} error={fieldErrors.currentPrice} disabled={submitting} />
       <Input type="number" min="0" step="any" label={t('products.form.costPrice')} value={values.costPrice} onChange={update('costPrice')} error={fieldErrors.costPrice} hint={t('products.form.costPriceHint')} disabled={submitting} />
-      {mode === 'create' && <Input type="number" min="0" step="any" label={t('products.form.initialStock')} value={values.initialStock} onChange={update('initialStock')} hint={t('products.form.initialStockHint')} disabled={submitting} />}
+      {mode === 'create' && <Input type="number" min="0" step="0.0001" label={t('products.form.initialStock')} value={values.initialStock} onChange={update('initialStock')} error={fieldErrors.initialStock} hint={t('products.form.initialStockHint')} disabled={submitting} />}
     </div>
     <div className="products-form-actions">
       <Button type="submit" disabled={submitting} loading={submitting} loadingLabel={t('products.common.saving')}>

@@ -675,7 +675,6 @@ def test_set_price_if_missing_records_a_missing_price_and_keeps_an_existing_one(
     assert credits.schedule(sys_conn, "ai", name, "model-x")["input_token"]["cost"] == Decimal("0.000002")
 
 
-<<<<<<< HEAD
 # --- the assistant through the real credits gate ---------------------------------------
 
 def _ask_the_assistant(tenant, monkeypatch, reply=None):
@@ -736,7 +735,6 @@ def test_a_companys_exhausted_credits_still_stop_the_assistant(sys_conn, ai, mon
     with pytest.raises(credits.BudgetError) as refused:
         _ask_the_assistant(tenant, monkeypatch)
     assert refused.value.reason == "BUDGET_EXHAUSTED"
-=======
 def test_groq_has_visible_price_rows(sys_conn):
     """Migration 20261028000000: operators see the Groq model needs a price
     (a row exists, priced or still NULL), so a missing row is never the cause."""
@@ -744,4 +742,3 @@ def test_groq_has_visible_price_rows(sys_conn):
         cursor.execute("SELECT unit FROM provider_cost_schedules WHERE budget_kind = 'ai' AND provider = 'groq';")
         units = {row[0] for row in cursor.fetchall()}
     assert {"input_token", "output_token"} <= units
->>>>>>> 9063464 (Seed unpriced groq rows; tell users to ask an admin when answer writing is not configured)

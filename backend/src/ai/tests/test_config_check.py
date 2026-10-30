@@ -7,7 +7,7 @@ from src.ai.core import config_check
 
 SETTINGS = ("JWT_SECRET", "DATABASE_URL", "APP_DB_PASSWORD", "REDIS_URL", "REDIS_HOST", "UNASSIGNED_PLAN_ACCESS",
             "CREDENTIAL_VAULT_KMS_BACKEND", "CREDENTIAL_VAULT_MASTER_KEY", "CREDENTIAL_VAULT_PREVIOUS_KEYS", "AWS_KMS_KEY_ID",
-            "FRONTEND_BASE_URL", "APP_BASE_URL", "CORS_ALLOWED_ORIGINS", "SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD",
+            "PUBLIC_FRONTEND_ORIGIN", "FRONTEND_URL", "FRONTEND_BASE_URL", "APP_BASE_URL", "CORS_ALLOWED_ORIGINS", "SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD",
             "EMAIL_FROM_ADDRESS", "EMAIL_LOG_UNSENT_BODIES", "MINIO_ENDPOINT", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD",
             "SENTRY_ENVIRONMENT", "GROQ_API_KEY", "PAID_LLM_BASE_URL", "PAID_LLM_API_KEY", "HUGGINGFACE_LLM_MODEL",
             "LOCAL_LLM_BASE_URL", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "CLOUDFLARE_ACCOUNT_ID",
@@ -36,6 +36,28 @@ def _by_setting(findings):
 
 def test_a_complete_local_setup_has_no_errors(env):
     assert not [f for f in config_check.check_environment() if f.level == config_check.ERROR]
+
+
+def test_public_origin_is_the_single_link_and_payment_setting(env):
+    env.setenv('SENTRY_ENVIRONMENT','production')
+    env.setenv('PUBLIC_FRONTEND_ORIGIN','https://app.example.test')
+    env.setenv('CORS_ALLOWED_ORIGINS','https://app.example.test')
+    findings=_by_setting(config_check.check_environment())
+    assert not {('error','FRONTEND_BASE_URL'),('error','APP_BASE_URL'),('error','PUBLIC_FRONTEND_ORIGIN')} & findings
+
+
+@pytest.mark.parametrize('value',['https://app.example.test/path','https://user:private@example.test','http://public.example.test'])
+def test_unsafe_public_origin_is_a_configuration_error_without_echoing_its_value(env,value):
+    env.setenv('PUBLIC_FRONTEND_ORIGIN',value)
+    findings=config_check.check_environment()
+    assert ('error','PUBLIC_FRONTEND_ORIGIN') in _by_setting(findings)
+    assert all('user:private' not in item.line() for item in findings)
+
+
+def test_disagreeing_legacy_origins_require_an_explicit_authority(env):
+    env.setenv('FRONTEND_BASE_URL','http://localhost:5173')
+    env.setenv('APP_BASE_URL','http://127.0.0.1:5204')
+    assert ('error','PUBLIC_FRONTEND_ORIGIN') in _by_setting(config_check.check_environment())
 
 
 def test_required_settings_are_errors(env):

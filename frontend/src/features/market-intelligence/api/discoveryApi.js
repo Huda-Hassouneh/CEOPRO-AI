@@ -4,7 +4,9 @@ import httpClient from '../../../shared/lib/httpClient.js';
 // looks for, running it, and the competitors it found with their sources.
 export const discoveryApi = {
   status: async () => (await httpClient.get('/discovery/status')).data,
-  industries: async () => (await httpClient.get('/discovery/industries')).data.industries,
+  // Static choices are needed for first-workspace onboarding on every plan;
+  // discovery itself remains behind its existing entitlement gate.
+  industries: async () => (await httpClient.get('/onboarding/industries')).data.industries,
   start: async ({ radiusKm } = {}) => (await httpClient.post('/discovery/runs', radiusKm ? { radius_km: radiusKm } : {})).data,
   run: async (runId) => (await httpClient.get(`/discovery/runs/${encodeURIComponent(runId)}`)).data,
   competitors: async ({ status = 'all', sort = 'relevance', q, origin, relationship, limit = 100, offset = 0 } = {}) => (await httpClient.get('/discovery/competitors', {

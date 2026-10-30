@@ -1,0 +1,16 @@
+{
+  "target": "backend",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "scripts.integration_review",
+    "--junitxml",
+    "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/docs/keel-integration/evidence/phase0v/backend-offline.xml"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/backend",
+  "exit_code": 0,
+  "seconds": 2.607,
+  "environment": "allowlist PATH/LANG/LC_ALL/TMPDIR; no DB/Stripe/provider settings inherited; Python socket TCP fence; production metering defaults; offline background/model flags",
+  "network": "No live providers or databases authorized; no Docker/server available",
+  "log": "backend.log"
+}

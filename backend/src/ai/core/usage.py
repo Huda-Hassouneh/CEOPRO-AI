@@ -141,13 +141,16 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
     Limits are the plan's, replaced by an approved contract override
     (tenant_entitlement_overrides), or the plan's trial allowance while the
     company is on a free trial. A free trial ends at its exact UTC time."""
+    if now is None and today is None:
+        from src.ai.billing import test_clock
+        now = test_clock.tenant_now(conn, tenant_id)
     now = now or datetime.now(timezone.utc)
     today = today or now.date()
     with conn.cursor() as cursor:
         cursor.execute(
             """
             SELECT a.plan_key, a.status, a.current_period_start, a.current_period_end, a.source, a.period_code,
-                   t.ends_at
+                   t.ends_at, a.catalog_snapshot
             FROM tenant_plan_assignments a LEFT JOIN billing_trials t ON t.tenant_id = a.tenant_id
             WHERE a.tenant_id = %s;
             """,
@@ -155,33 +158,64 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
         )
         row = cursor.fetchone()
         if row:
-            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = row
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = row
         elif _unassigned_access() == "default":
-            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = (
-                DEFAULT_PLAN_KEY, "active", None, None, None, "monthly", None)
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = (
+                DEFAULT_PLAN_KEY, "active", None, None, None, "monthly", None, None)
         else:
-            plan_key, status, period_start, period_end, source, period_code, trial_ends_at = (
-                DEFAULT_PLAN_KEY, "none", None, None, None, "monthly", None)
+            plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = (
+                DEFAULT_PLAN_KEY, "none", None, None, None, "monthly", None, None)
+        # Stripe trial access also expires without a timely webhook. A date-only
+        # assignment cannot silently keep a trial alive after its provider cutoff.
+        if status == "trialing" and source == "stripe":
+            cursor.execute("SELECT trial_end FROM billing_subscriptions WHERE tenant_id=%s AND status='trialing' "
+                           "ORDER BY created_at DESC LIMIT 1", (tenant_id,))
+            provider_trial = cursor.fetchone()
+            trial_ends_at = provider_trial[0] if provider_trial else trial_ends_at
+            if trial_ends_at is None or trial_ends_at <= now:
+                status = "expired"
         # A free trial ends at its exact end time unless a paid subscription took over.
         trial_over = (trial_ends_at <= now) if trial_ends_at is not None else bool(period_end and period_end < today)
         if status == "trialing" and ((source == "trial" and trial_over)
                                      or (source == "contract" and period_end and period_end < today)):
             status = "expired"
-        cursor.execute(
-            """
-            SELECT p.display_name, f.feature_code, f.unit, f.aggregation_type, f.reset_cycle, l.limit_value,
-                   l.trial_limit_value, o.limit_value
-            FROM usage_plans p
-            JOIN usage_plan_limits l ON l.plan_key = p.plan_key
-            JOIN usage_features f ON f.feature_code = l.feature_code
-            LEFT JOIN tenant_entitlement_overrides o ON o.tenant_id = %s AND o.feature_code = l.feature_code
-            WHERE p.plan_key = %s;
-            """,
-            (tenant_id, plan_key),
-        )
-        rows = cursor.fetchall()
-        cursor.execute("SELECT feature_code FROM usage_plan_entitlements WHERE plan_key = %s;", (plan_key,))
-        entitlements = sorted(r[0] for r in cursor.fetchall())
+        if isinstance(catalog_snapshot, str):
+            import json
+            catalog_snapshot = json.loads(catalog_snapshot)
+        if isinstance(catalog_snapshot, dict):
+            snapshot_features = catalog_snapshot.get("features") or []
+            cursor.execute("SELECT feature_code, limit_value FROM tenant_entitlement_overrides WHERE tenant_id=%s;", (tenant_id,))
+            overrides = {code: value for code, value in cursor.fetchall()}
+            display_name = catalog_snapshot.get("display_name") or plan_key
+            rows = [
+                (display_name, feature["feature_code"], feature["unit"], feature["aggregation_type"],
+                 feature["reset_cycle"], feature.get("limit_value"), feature.get("trial_limit_value"),
+                 overrides.get(feature["feature_code"]))
+                for feature in snapshot_features
+            ]
+            entitlements = sorted(catalog_snapshot.get("entitlements") or [])
+        else:
+            cursor.execute(
+                """
+                SELECT p.display_name, f.feature_code, f.unit, f.aggregation_type, f.reset_cycle, l.limit_value,
+                       l.trial_limit_value, o.limit_value
+                FROM usage_plans p
+                JOIN usage_plan_limits l ON l.plan_key = p.plan_key
+                JOIN usage_features f ON f.feature_code = l.feature_code
+                LEFT JOIN tenant_entitlement_overrides o ON o.tenant_id = %s AND o.feature_code = l.feature_code
+                WHERE p.plan_key = %s;
+                """,
+                (tenant_id, plan_key),
+            )
+            rows = cursor.fetchall()
+            cursor.execute("SELECT feature_code FROM usage_plan_entitlements WHERE plan_key = %s;", (plan_key,))
+            entitlements = sorted(r[0] for r in cursor.fetchall())
+        if plan_key == "custom" and source == "contract":
+            cursor.execute("SELECT included_features FROM tenant_custom_contracts WHERE tenant_id = %s;", (tenant_id,))
+            custom_entitlements = cursor.fetchone()
+            # NULL preserves legacy catalog behavior; [] is an explicit no-modules contract.
+            if custom_entitlements and custom_entitlements[0] is not None:
+                entitlements = sorted(set(custom_entitlements[0]))
     if not (period_start and period_end and period_start <= today <= period_end):
         period_start, period_end = _month_bounds(today)
     trialing = status == "trialing"
@@ -276,7 +310,9 @@ def remaining(conn, tenant_id: str, feature_code: str) -> Optional[int]:
     if plan["status"] not in ACCESS_GRANTING_STATUSES:
         return 0
     feature = plan["features"].get(feature_code)
-    if not feature or feature["limit"] is None:
+    if not feature:
+        return 0
+    if feature["limit"] is None:
         return None
     return max(0, feature["limit"] - _metered_used(conn, tenant_id, feature_code, plan["period_start"]))
 
@@ -316,13 +352,14 @@ def settle(conn, reservation: dict, actual: int) -> None:
     reservation["amount"] = int(actual)
 
 
-# Features introduced with KEEL's credit plans are never unlimited by
-# omission: a plan without a row for them doesn't include them.
-_FAIL_CLOSED_FEATURES = (MONTHLY_REPORTS, TEAM_SEATS, DATA_CREDITS, AI_CREDITS)
-
-
 def _missing_limit(feature_code: str) -> Optional[int]:
-    return 0 if feature_code in _FAIL_CLOSED_FEATURES else None
+    """A missing plan-limit row is not an unlimited grant.
+
+    Unlimited is represented by an existing row with ``limit_value IS NULL``.
+    An omitted row is incomplete/unconfigured catalog state and must fail
+    closed for every metered or capacity feature.
+    """
+    return 0
 
 
 def _require_active(plan: dict, feature_code: str) -> None:
@@ -335,6 +372,8 @@ def reserve(conn, tenant_id: str, feature_code: str, amount: int = 1) -> dict:
     current period, or raises PlanLimitReached (QUOTA_EXHAUSTED). The caller
     commits the reservation before doing the work, and calls release() if
     the work then fails. Returns the reservation for release()."""
+    if isinstance(amount, bool) or not isinstance(amount, int) or amount <= 0:
+        raise ValueError("Usage amount must be a positive integer.")
     plan = get_plan(conn, tenant_id)
     _require_active(plan, feature_code)
     feature = plan["features"].get(feature_code)
@@ -361,7 +400,8 @@ def reserve(conn, tenant_id: str, feature_code: str, amount: int = 1) -> dict:
 
 
 def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
-                    actor_user_id: Optional[str] = None, conn_factory=None) -> Optional[dict]:
+                    actor_user_id: Optional[str] = None, conn_factory=None, *,
+                    request_fingerprint: Optional[str] = None) -> Optional[dict]:
     """Counts one request (e.g. a report export) against a metered allowance,
     once per idempotency key per period: a retried or replayed request with
     the same key is not counted again (returns None). Raises PlanLimitReached
@@ -370,32 +410,69 @@ def reserve_request(tenant_id: str, feature_code: str, idempotency_key: str,
     Fails closed: no accounting connection, no request."""
     from src.ai import db
 
-    conn = (conn_factory or db.system_connection)()
+    conn = (conn_factory or (lambda: db.credit_accounting_connection(tenant_id, actor_user_id)))()
     try:
-        plan = get_plan(conn, tenant_id)
         with conn.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                           ("keel_billing_tenant:" + str(tenant_id),))
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
                            (f"keel_metered:{tenant_id}:{feature_code}",))
+            if actor_user_id is not None:
+                if getattr(conn, "credit_accounting_only", False):
+                    cursor.execute("SELECT public.billing_accounting_principal(%s,%s)", (tenant_id, actor_user_id))
+                    active = cursor.fetchone()[0] is True
+                else:
+                    cursor.execute("SELECT 1 FROM tenant_users WHERE tenant_id=%s AND user_id=%s "
+                                   "AND removed_at IS NULL AND keel_active_principal(%s,%s) FOR SHARE;",
+                                   (tenant_id, actor_user_id, actor_user_id, tenant_id))
+                    active = cursor.fetchone() is not None
+                if not active:
+                    raise HTTPException(status_code=403, detail="An active company membership is required.")
+        plan = get_plan(conn, tenant_id)
+        _require_active(plan, feature_code)
+        feature = plan["features"].get(feature_code)
+        limit = feature["limit"] if feature else _missing_limit(feature_code)
+        if limit == 0:
+            raise PlanLimitReached("QUOTA_EXHAUSTED", feature_code, 0, 0,
+                                   "billing_period", plan["period_end"])
+        with conn.cursor() as cursor:
             cursor.execute(
-                "SELECT 1 FROM metered_request_keys WHERE tenant_id = %s AND feature_code = %s AND idempotency_key = %s;",
-                (tenant_id, feature_code, idempotency_key),
+                "SELECT actor_user_id,request_fingerprint FROM metered_request_keys "
+                "WHERE tenant_id=%s AND feature_code=%s AND period_start=%s AND idempotency_key=%s;",
+                (tenant_id, feature_code, plan["period_start"], idempotency_key),
             )
-            if cursor.fetchone():
-                conn.rollback()
+            previous = cursor.fetchone()
+            if previous:
+                if ((str(previous[0]) if previous[0] is not None else None) !=
+                        (str(actor_user_id) if actor_user_id is not None else None)):
+                    raise HTTPException(status_code=409, detail="This request key belongs to another user.")
+                if previous[1] != request_fingerprint:
+                    raise HTTPException(status_code=409, detail="Use a new request key for a different report.")
+                # A parallel replay may succeed when the original fails; its
+                # original receipt is no longer sufficient evidence to refund.
+                cursor.execute(
+                    "UPDATE metered_request_keys SET replayed=TRUE WHERE tenant_id=%s "
+                    "AND feature_code=%s AND period_start=%s AND idempotency_key=%s;",
+                    (tenant_id, feature_code, plan["period_start"], idempotency_key),
+                )
+                conn.commit()
                 return None
         reservation = reserve(conn, tenant_id, feature_code, 1)
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO metered_request_keys (tenant_id, feature_code, idempotency_key, period_start, actor_user_id)
-                VALUES (%s, %s, %s, %s, %s);
+                INSERT INTO metered_request_keys
+                    (tenant_id,feature_code,idempotency_key,period_start,actor_user_id,request_fingerprint)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING request_id;
                 """,
-                (tenant_id, feature_code, idempotency_key, plan["period_start"], actor_user_id),
+                (tenant_id, feature_code, idempotency_key, reservation["period_start"], actor_user_id, request_fingerprint),
             )
+            request_id = str(cursor.fetchone()[0])
         conn.commit()
         reservation["idempotency_key"] = idempotency_key
+        reservation["request_id"] = request_id
         return reservation
-    except PlanLimitReached:
+    except Exception:  # noqa: BLE001 -- rollback and propagate every accounting failure
         conn.rollback()
         raise
     finally:
@@ -409,14 +486,25 @@ def release_request(reservation: Optional[dict], conn_factory=None) -> None:
         return
     from src.ai import db
 
-    conn = (conn_factory or db.system_connection)()
+    conn = (conn_factory or (lambda: db.credit_accounting_connection(reservation["tenant_id"])))()
     try:
-        release(conn, reservation)
+        # Old in-flight receipts fail closed rather than refund a new attempt.
+        if not reservation.get("request_id"):
+            conn.rollback()
+            return
         with conn.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                           (f"keel_metered:{reservation['tenant_id']}:{reservation['feature_code']}",))
             cursor.execute(
-                "DELETE FROM metered_request_keys WHERE tenant_id = %s AND feature_code = %s AND idempotency_key = %s;",
-                (reservation["tenant_id"], reservation["feature_code"], reservation["idempotency_key"]),
+                "DELETE FROM metered_request_keys WHERE tenant_id=%s AND feature_code=%s "
+                "AND period_start=%s AND idempotency_key=%s AND request_id=%s "
+                "AND replayed=FALSE RETURNING request_id;",
+                (reservation["tenant_id"], reservation["feature_code"], reservation["period_start"],
+                 reservation["idempotency_key"], reservation["request_id"]),
             )
+            deleted = cursor.fetchone() is not None
+        if deleted:
+            release(conn, reservation)
         conn.commit()
     except Exception:  # noqa: BLE001 - the unit stays counted; never fail the response over it
         conn.rollback()
@@ -444,7 +532,9 @@ def capacity_left(conn, tenant_id: str, feature_code: str) -> Optional[float]:
     if plan["status"] not in ACCESS_GRANTING_STATUSES:
         return 0
     feature = plan["features"].get(feature_code)
-    if not feature or feature["limit"] is None:
+    if not feature:
+        return 0
+    if feature["limit"] is None:
         return None
     lock_feature(conn, tenant_id, feature_code)
     return max(0, feature["limit"] - _live_used(conn, tenant_id, feature_code))

@@ -20,7 +20,9 @@ import redis
 
 from src.ai.core.redis_client import get_redis_client
 from src.ai.db import app_role_connection, minio_client
-from src.ai.forecasting.pipeline import DEFAULT_HORIZON_DAYS, run_forecast
+from src.ai.forecasting.authorization import require_forecast_authorization
+from src.ai.forecasting.pipeline import DEFAULT_HORIZON_DAYS
+from src.ai.forecasting.generation import generate_or_reuse_forecast
 from src.ai.rag.structured_summaries import regenerate_all_structured_summaries
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -99,7 +101,9 @@ class ForecastRequestConsumer:
 
         conn = app_role_connection(tenant_id, self.actor_user_id)
         try:
-            run_forecast(conn, tenant_id, product_id, horizon_days)
+            check = lambda: require_forecast_authorization(conn, tenant_id, self.actor_user_id)
+            check()
+            generate_or_reuse_forecast(conn, tenant_id, product_id, horizon_days, authorization_check=check)
 
             # The real fix for "forecasts never reach the chatbot": nothing
             # else in the platform ever refreshed the demand_forecast/

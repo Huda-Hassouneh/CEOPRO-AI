@@ -9,14 +9,17 @@ model's own correctness is covered separately in test_sentiment_model_real.py.
 
 import json
 import os
+import threading
 import uuid
 from unittest.mock import patch
 
 import psycopg2
 import pytest
 
+from src.ai import db
 from src.ai.sentiment import data_access, pipeline
 from src.ai.sentiment.model import SentimentPrediction
+from src.ai.tests.test_rls_integration_db import _ensure_role_key, _insert_user
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -86,6 +89,80 @@ def _fake_predictions(count: int, label: str = "positive") -> list:
         )
         for _ in range(count)
     ]
+
+
+def test_concurrent_classification_cannot_consume_the_last_allowance_twice(
+    conn, seeded_tenant_and_product, monkeypatch
+):
+    """Both workers see the final unit before either reserves it.
+
+    The atomic usage reservation must allow one persisted sentiment result,
+    return a truthful plan-limit result for the other worker, and retain a
+    counter of exactly one.
+    """
+    tenant_id, product_id = seeded_tenant_and_product
+    _insert_review(conn, tenant_id, product_id, "One available review")
+    with conn.cursor() as cursor:
+        role_key = _ensure_role_key(cursor)
+        user_id = _insert_user(cursor, "sentiment-race")
+        cursor.execute(
+            "INSERT INTO tenant_users (tenant_id,user_id,role_key) VALUES (%s,%s,%s)",
+            (tenant_id, user_id, role_key),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_entitlement_overrides "
+            "(tenant_id,feature_code,limit_value,contract_ref,approved_by,reason) "
+            "VALUES (%s,'sentiment_analysis',1,'test-fixture','test-runner','atomic quota regression')",
+            (tenant_id,),
+        )
+    conn.commit()
+
+    loaded = threading.Barrier(2)
+    actual_loader = pipeline.data_access.load_unanalyzed_reviews
+
+    def load_before_both_reserve(*args, **kwargs):
+        result = actual_loader(*args, **kwargs)
+        loaded.wait(timeout=10)
+        return result
+
+    monkeypatch.setattr(pipeline.data_access, "load_unanalyzed_reviews", load_before_both_reserve)
+    monkeypatch.setattr(
+        pipeline.model,
+        "classify_or_unavailable",
+        lambda texts, *args, **kwargs: _fake_predictions(len(texts)),
+    )
+    results, errors = [], []
+
+    def run_worker():
+        worker_conn = db.app_role_connection(tenant_id, user_id)
+        try:
+            results.append(pipeline.classify_and_store_reviews(worker_conn, tenant_id, batch_size=1))
+        except Exception as exc:  # captured so pytest reports assertion context below
+            worker_conn.rollback()
+            errors.append(exc)
+        finally:
+            worker_conn.close()
+
+    workers = [threading.Thread(target=run_worker) for _ in range(2)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=15)
+
+    assert not any(worker.is_alive() for worker in workers), "classification workers did not finish"
+    assert errors == []
+    assert sorted(result["status"] for result in results) == ["OK", "PLAN_LIMIT"]
+    assert sum(result["analyzed_count"] for result in results) == 1
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM sentiment_results WHERE tenant_id=%s", (tenant_id,))
+        assert cursor.fetchone()[0] == 1
+        cursor.execute(
+            "SELECT used FROM tenant_usage_counters "
+            "WHERE tenant_id=%s AND feature_code='sentiment_analysis' "
+            "AND period_start=date_trunc('month', CURRENT_DATE)::date",
+            (tenant_id,),
+        )
+        assert cursor.fetchone()[0] == 1
 
 
 def test_load_unanalyzed_reviews_reads_seeded_rows(conn, seeded_tenant_and_product):

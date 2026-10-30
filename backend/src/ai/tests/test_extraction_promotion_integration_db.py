@@ -131,6 +131,14 @@ def _run(conn, tenant_id, job_id, user_id, rows):
     return summary, promotion.promote_ingested_rows(conn, tenant_id, job_id, summary, user_id=user_id)
 
 
+def _run_with_barcodes(conn, tenant_id, job_id, user_id, rows):
+    summary = ingestion_pipeline.process_records(
+        tenant_id=tenant_id, job_id=job_id, source_name="f.csv",
+        headers=_TEMPLATE_HEADERS + ["barcode"], rows=rows, conn=conn,
+    )
+    return summary, promotion.promote_ingested_rows(conn, tenant_id, job_id, summary, user_id=user_id)
+
+
 def test_complete_row_promotes_to_a_new_product_and_transaction(conn, seeded_tenant):
     tenant_id, user_id, job_id = seeded_tenant
     summary, promo = _run(conn, tenant_id, job_id, user_id, [_template_row()])
@@ -200,6 +208,110 @@ def test_existing_product_price_is_never_overwritten_by_a_later_import(conn, see
 
     _, price, _, _, _ = _product(conn, existing_product_id)
     assert price == Decimal("999.00")  # untouched, even though the import's unit_price was 19.99
+
+
+def test_product_identity_never_resolves_to_another_tenants_catalog(conn, seeded_tenant):
+    tenant_id, user_id, job_id = seeded_tenant
+    other_tenant_id = str(uuid.uuid4())
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO companies (tenant_id, business_name, country_code, primary_currency) "
+            "VALUES (%s, 'Other Product Owner', 'JO', 'JOD');", (other_tenant_id,),
+        )
+        cursor.execute(
+            "INSERT INTO products (tenant_id, product_name, current_price, currency) "
+            "VALUES (%s, '{\"en\": \"Shared Name\"}'::jsonb, 99, 'JOD');", (other_tenant_id,),
+        )
+    conn.commit()
+
+    summary, result = _run(conn, tenant_id, job_id, user_id, [_template_row(product_name="Shared Name")])
+    conn.commit()
+
+    assert result.rows_promoted == 1 and result.products_created == 1
+    _, _, transaction_id = _staging_row(conn, summary.row_outcomes[0].staging_row_id)
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT p.tenant_id FROM transactions t JOIN products p "
+            "ON p.tenant_id=t.tenant_id AND p.product_id=t.product_id WHERE t.transaction_id=%s;",
+            (transaction_id,),
+        )
+        assert str(cursor.fetchone()[0]) == tenant_id
+
+
+def test_ambiguous_existing_name_is_held_while_independent_rows_promote(conn, seeded_tenant):
+    tenant_id, user_id, job_id = seeded_tenant
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO products (tenant_id, product_name, current_price, currency, metadata) "
+            "VALUES (%s, '{\"en\": \"Twin Product\"}'::jsonb, 10, 'JOD', '{\"sku\":\"A\"}'::jsonb), "
+            "       (%s, '{\"en\": \"Twin Product\"}'::jsonb, 11, 'JOD', '{\"sku\":\"B\"}'::jsonb);",
+            (tenant_id, tenant_id),
+        )
+    conn.commit()
+
+    summary, result = _run(conn, tenant_id, job_id, user_id, [
+        _template_row(product_name="Twin Product"),
+        _template_row(product_name="Independent Product"),
+    ])
+    conn.commit()
+
+    assert result.rows_promoted == 1
+    assert result.rows_failed == 1
+    assert result.products_created == 1
+    assert result.errors[0]["status"] == "review_required"
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT validation_status, validation_errors, committed_record_id "
+            "FROM import_staging_rows WHERE tenant_id=%s AND job_id=%s ORDER BY staging_row_id;",
+            (tenant_id, job_id),
+        )
+        statuses = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) FROM products WHERE tenant_id=%s AND product_name->>'en'='Twin Product';", (tenant_id,))
+        twins = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM transactions WHERE tenant_id=%s;", (tenant_id,))
+        transactions = cursor.fetchone()[0]
+    assert statuses[0][0] == "PARTIAL"
+    assert "multiple tenant products" in statuses[0][1]
+    assert statuses[0][2] is None
+    assert statuses[1][0] == "COMMITTED"
+    assert twins == 2  # no third product was created for the ambiguous row
+    assert transactions == 1
+
+
+def test_name_and_barcode_that_point_to_different_products_are_held(conn, seeded_tenant):
+    tenant_id, user_id, job_id = seeded_tenant
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO products (tenant_id, product_name, current_price, currency, metadata) "
+            "VALUES (%s, '{\"en\": \"Name Match\"}'::jsonb, 10, 'JOD', '{\"barcode\":\"3017620422003\"}'::jsonb), "
+            "       (%s, '{\"en\": \"Barcode Match\"}'::jsonb, 11, 'JOD', '{\"barcode\":\"96385074\"}'::jsonb);",
+            (tenant_id, tenant_id),
+        )
+    conn.commit()
+
+    summary, result = _run_with_barcodes(conn, tenant_id, job_id, user_id, [
+        _template_row(product_name="Name Match", barcode="96385074"),
+        _template_row(product_name="Independent Product", barcode=""),
+    ])
+    conn.commit()
+
+    assert result.rows_promoted == 1
+    assert result.rows_failed == 1
+    assert result.errors[0]["status"] == "review_required"
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT validation_status, validation_errors, committed_record_id "
+            "FROM import_staging_rows WHERE tenant_id=%s AND job_id=%s ORDER BY staging_row_id;",
+            (tenant_id, job_id),
+        )
+        statuses = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) FROM transactions WHERE tenant_id=%s;", (tenant_id,))
+        transactions = cursor.fetchone()[0]
+    assert statuses[0][0] == "PARTIAL"
+    assert "identify different" in statuses[0][1]
+    assert statuses[0][2] is None
+    assert statuses[1][0] == "COMMITTED"
+    assert transactions == 1
 
 
 def test_row_missing_a_required_field_is_not_promoted_and_stays_unflagged(conn, seeded_tenant):
@@ -431,8 +543,9 @@ def test_fractional_quantities_are_imported_exactly(conn, seeded_tenant):
         (Decimal("2.5000"), Decimal("1.2000"), Decimal("3.0000")),
         (Decimal("1.5000"), Decimal("40.0000"), Decimal("60.0000")),
         (Decimal("12.7500"), Decimal("3.1000"), Decimal("39.5250")),
-        # 0.4 x 12.3456 = 4.93824 -> rounded half-up to 4 dp, as the CHECK does
-        (Decimal("0.4000"), Decimal("12.3456"), Decimal("4.9382")),
+        # Owner-approved effective paid price: 4.9382 / 0.4 = 12.3455.
+        # The source 12.3456 remains in staging/product evidence; paid total is unchanged.
+        (Decimal("0.4000"), Decimal("12.3455"), Decimal("4.9382")),
     }
 
 

@@ -1,5 +1,7 @@
 import { settingsCapabilities } from '../api/settingsCapabilities.js';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../auth/store/authStore.js';
 import { KeyRound } from 'lucide-react';
 import Button from '../../../shared/components/ui/Button.jsx';
 import PasswordInput from '../../../shared/components/ui/PasswordInput.jsx';
@@ -11,6 +13,7 @@ import ActiveSessionsList from './ActiveSessionsList.jsx';
 import { SettingsSection } from './SettingsSection.jsx';
 
 export function SecuritySettings({ t, onNotice }) {
+  const navigate = useNavigate();
   const [values, setValues] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
   const [newFocused, setNewFocused] = useState(false);
@@ -32,6 +35,8 @@ export function SecuritySettings({ t, onNotice }) {
       if (!result.changed) return onNotice('info', t('settings.security.passwordUnavailable'));
       setValues({ currentPassword: '', newPassword: '', confirmPassword: '' });
       onNotice('success', t('settings.security.passwordChanged'));
+      useAuthStore.getState().clearSession();
+      navigate('/login', { replace: true, state: { authNotice: 'password-reset' } });
     } catch (error) {
       // The API's only 400 here is a wrong current password: say so on that field.
       if (error?.response?.status === 400) return setErrors({ currentPassword: t('settings.security.currentIncorrect') });

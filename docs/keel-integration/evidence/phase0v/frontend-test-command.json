@@ -1,0 +1,13 @@
+{
+  "target": "frontend-test",
+  "command": [
+    "npm",
+    "test"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/frontend",
+  "exit_code": 0,
+  "seconds": 3.231,
+  "environment": "allowlist PATH/LANG/LC_ALL/TMPDIR; no DB/Stripe/provider settings inherited; Python socket TCP fence; production metering defaults; offline background/model flags",
+  "network": "No live providers or databases authorized; no Docker/server available",
+  "log": "frontend-test.log"
+}

@@ -1,0 +1,17 @@
+.keel-platform{max-width:1200px;margin:auto;padding:clamp(1rem,4vw,3rem);color:var(--text-primary,inherit)}
+.keel-platform header,.keel-platform nav,.platform-actions{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.keel-platform nav{justify-content:flex-start;margin-block:1rem}.keel-platform table{width:100%;border-collapse:collapse;margin-block:1rem}.keel-platform th,.keel-platform td{padding:.8rem;text-align:start;border-bottom:1px solid var(--border-color,#8884)}
+.keel-platform td button{margin:.25rem}.platform-editor{padding:1.5rem;border:1px solid var(--border-color,#8884);border-radius:1rem;display:grid;gap:1rem;margin-block:1.5rem}.keel-platform dl{display:grid;grid-template-columns:1fr auto;gap:1rem}.keel-platform dt,.keel-platform dd{margin:0}.keel-platform select{display:block;padding:.6rem;width:100%;color:inherit;background:var(--surface-color,transparent)}
+@media(max-width:650px){.keel-platform table{display:block;overflow:auto}.keel-platform td{min-width:9rem}}
+.keel-platform-billing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-block:1.5rem}
+.keel-platform-billing-card{display:grid;gap:.6rem;text-align:start;padding:1.25rem;border:1px solid var(--border-color,#8884);border-radius:1rem;background:var(--surface-color,transparent);color:inherit;cursor:pointer}
+.keel-platform-billing-card:hover,.keel-platform-billing-card:focus-visible{border-color:var(--accent-color,#6875ff);outline-color:var(--accent-color,#6875ff)}
+.keel-platform-billing-card span{opacity:.75;line-height:1.5}
+.keel-platform-billing header{justify-content:space-between}
+.keel-platform-billing select,.keel-platform-billing textarea{padding:.7rem;border:1px solid var(--border-color,#8884);border-radius:.5rem;background:var(--surface-color,transparent);color:inherit}
+.keel-platform-billing textarea{width:100%;font:inherit;direction:ltr;text-align:left}
+.keel-platform-billing .keel-platform-table-wrap{overflow:auto}
+.keel-platform-billing details{margin:.4rem 0}
+.keel-platform-json{max-width:min(80vw,900px);max-height:28rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;padding:.75rem;border-radius:.5rem;background:var(--surface-color,rgba(0,0,0,.04));direction:ltr;text-align:left;font-size:.85rem}
+.keel-platform-billing form label{display:grid;gap:.4rem}
+.platform-billing-authority-link{max-width:1200px;margin:0 auto;padding:1rem 1rem 0;text-align:end}.platform-billing-authority-link a,.original-python-admin-links a{color:var(--accent-color,#5b63ff);font-weight:600;text-decoration:underline}.original-python-admin-links>div{display:flex;gap:1rem;flex-wrap:wrap}

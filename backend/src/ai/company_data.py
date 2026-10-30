@@ -129,6 +129,15 @@ def delete_company(sys_conn, tenant_id: str) -> dict:
             raise DeletionBlocked("not_found")
         if _paid_subscription_running(cursor, tenant_id):
             raise DeletionBlocked("subscription_active")
+        # Existing immutable import/provider evidence uses intentional RESTRICT
+        # constraints. Surface the pending retention review, never bypass it or
+        # let a customer-facing deletion fail halfway through with an SQL error.
+        for table in ('keel_import_batches','keel_provider_sources'):
+            cursor.execute("SELECT to_regclass(%s)",('public.'+table,))
+            if cursor.fetchone()[0] is not None:
+                cursor.execute(f'SELECT 1 FROM "{table}" WHERE tenant_id=%s LIMIT 1',(tenant_id,))
+                if cursor.fetchone() is not None:
+                    raise DeletionBlocked('integration_evidence_review')
         cursor.execute("SELECT storage_bucket_path FROM rag_documents_metadata WHERE tenant_id = %s AND storage_bucket_path IS NOT NULL;", (tenant_id,))
         rag_objects = [row[0] for row in cursor.fetchall()]
         counts = {}

@@ -14,9 +14,20 @@ pytestmark = pytest.mark.skipif(not ADMIN_DATABASE_URL or not os.getenv("APP_DB_
 
 def _signup(client, label):
     email = f"comments+{label}{uuid.uuid4().hex[:8]}@example.com"
-    body = client.post("/auth/signup", json={"full_name": "Owner", "business_name": f"{label} Co", "email": email,
-                                              "country_code": "JO", "primary_currency": "JOD", "password": "Comments!Test2026"}).json()
-    return body, email
+    from unittest.mock import patch
+
+    codes = []
+    with patch("src.ai.core.notifications.send_email_verification_email",
+               side_effect=lambda address, code: codes.append(code) or True):
+        response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": f"{label} Co", "email": email,
+                                                      "country_code": "JO", "primary_currency": "JOD", "password": "Comments!Test2026"})
+        body = response.json()
+        assert response.status_code == 202 and body["delivery"] == "sent"
+        verified = client.post("/auth/email/verify", json={
+            "email": email, "registration_token": body["registration_token"], "code": codes[0],
+        })
+    assert verified.status_code == 200, verified.text
+    return verified.json(), email
 
 
 def test_comments_are_read_and_marked_per_company_through_the_real_api():

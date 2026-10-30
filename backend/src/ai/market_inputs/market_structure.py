@@ -17,7 +17,7 @@ def build(conn, tenant_id: str) -> dict:
         cursor.execute(
             """
             SELECT COALESCE(tc.relationship, 'UNCLASSIFIED'), tc.distance_km, COALESCE(tc.branch_count, 1), gc.categories,
-                   gc.website_url IS NOT NULL, tc.intel_status
+                   gc.website_url IS NOT NULL, tc.intel_status, tc.discovery_method
             FROM tenant_competitors tc JOIN global_competitors gc USING (global_competitor_id)
             WHERE tc.tenant_id = %s;
             """,
@@ -27,11 +27,19 @@ def build(conn, tenant_id: str) -> dict:
         cursor.execute(
             """
             SELECT localized_text(p.product_name), p.current_price, p.currency, cp.scraped_price, cp.currency,
-                   gc.competitor_name, cpm.competitor_product_url, cp.observed_at
+                   gc.competitor_name, cpm.competitor_product_url, cp.observed_at,
+                   CASE
+                     WHEN EXISTS (SELECT 1 FROM evidence_records e WHERE e.tenant_id=cpm.tenant_id
+                       AND e.source_module='manual_competitor_price'
+                       AND e.source_record_ids->>'competitor_price_id'=cp.competitor_price_id::text) THEN 'manual'
+                     WHEN EXISTS (SELECT 1 FROM market_observations mo WHERE mo.tenant_id=cpm.tenant_id
+                       AND mo.mapping_id=cpm.mapping_id AND mo.observed_at=cp.observed_at) THEN 'scraped'
+                     ELSE 'manual_or_unrecorded'
+                   END
             FROM competitor_product_mappings cpm
             JOIN products p ON p.tenant_id = cpm.tenant_id AND p.product_id = cpm.product_id AND p.deleted_at IS NULL
             JOIN global_competitors gc ON gc.global_competitor_id = cpm.global_competitor_id
-            JOIN LATERAL (SELECT scraped_price, currency, observed_at FROM competitor_prices x
+            JOIN LATERAL (SELECT competitor_price_id, scraped_price, currency, observed_at FROM competitor_prices x
                           WHERE x.tenant_id = cpm.tenant_id AND x.mapping_id = cpm.mapping_id
                           ORDER BY observed_at DESC LIMIT 1) cp ON TRUE
             WHERE cpm.tenant_id = %s AND cpm.is_active;
@@ -43,7 +51,9 @@ def build(conn, tenant_id: str) -> dict:
     categories: Dict[str, int] = {}
     bands = {label: 0 for _limit, label in _DISTANCE_BANDS}
     chains = with_site = read = priced = 0
-    for relationship, distance, branches, cats, has_site, status in rows:
+    manually_added = 0
+    for relationship, distance, branches, cats, has_site, status, discovery_method in rows:
+        manually_added += 1 if discovery_method is None else 0
         relationships[relationship] = relationships.get(relationship, 0) + 1
         for raw in (cats or [])[:1]:
             name = _category(raw)
@@ -55,12 +65,13 @@ def build(conn, tenant_id: str) -> dict:
         read += 1 if status in ("prices_found", "no_price_published", "no_relevant_page") else 0
         priced += 1 if status == "prices_found" else 0
     products: Dict[str, dict] = {}
-    for name, own, own_currency, price, currency, competitor, url, observed in price_rows:
+    for name, own, own_currency, price, currency, competitor, url, observed, provenance in price_rows:
         if currency != own_currency:
             continue
         entry = products.setdefault(name, {"product": name, "your_price": float(own), "currency": own_currency, "prices": []})
         entry["prices"].append({"competitor": competitor, "price": float(price), "source_url": url,
-                                "observed_at": observed.isoformat() if observed else None})
+                                "observed_at": observed.isoformat() if observed else None,
+                                "provenance": provenance, "provider_verified": False})
     comparisons: List[dict] = []
     for entry in products.values():
         values = sorted(p["price"] for p in entry["prices"])
@@ -71,6 +82,7 @@ def build(conn, tenant_id: str) -> dict:
     comparisons.sort(key=lambda c: -c["count"])
     return {
         "businesses": len(rows),
+        "registration": {"manual_or_unrecorded": manually_added, "automatically_discovered": len(rows)-manually_added},
         "by_relationship": relationships,
         "top_categories": sorted(({"category": k, "count": v} for k, v in categories.items()), key=lambda c: -c["count"])[:10],
         "distance_bands": bands,

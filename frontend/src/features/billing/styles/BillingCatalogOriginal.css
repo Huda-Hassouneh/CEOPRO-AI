@@ -1,0 +1,1435 @@
+.ceopro-trial-banner span {
+  display: grid;
+  gap: 2px;
+}
+
+.ceopro-trial-banner span strong {
+  color: #24253d;
+  font-size: 12px;
+}
+
+.ceopro-trial-banner span small {
+  color: #5553a9;
+  font-size: 10px;
+}
+
+.ceopro-trial-banner b {
+  margin-inline-start: auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e8e4ff;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.ceopro-billing-period-row {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0 18px;
+}
+
+.ceopro-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ceopro-plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 360px;
+  padding: 20px 17px 16px;
+  border: 1px solid #dfddea;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--ceopro-shadow-sm);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.ceopro-plan-card:hover,
+.ceopro-plan-card:focus-within {
+  border-color: #aaa3f5;
+  box-shadow: 0 12px 28px -18px rgba(47, 43, 206, 0.38);
+  transform: translateY(-2px);
+}
+
+.ceopro-plan-card.is-selected,
+.ceopro-plan-card.is-featured {
+  border-color: var(--ceopro-primary);
+  box-shadow:
+    0 0 0 2px rgba(47, 43, 206, 0.06),
+    var(--ceopro-shadow);
+}
+
+.ceopro-plan-card.is-selected:hover,
+.ceopro-plan-card.is-selected:focus-within,
+.ceopro-plan-card.is-featured:hover,
+.ceopro-plan-card.is-featured:focus-within {
+  border-color: var(--ceopro-primary);
+  box-shadow:
+    0 0 0 2px rgba(47, 43, 206, 0.08),
+    0 14px 30px -18px rgba(47, 43, 206, 0.46);
+}
+
+.ceopro-plan-card__featured {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  padding: 5px 14px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--ceopro-primary);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ceopro-plan-card header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ceopro-plan-card__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+}
+
+.ceopro-plan-card header h2,
+.ceopro-plan-summary h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.ceopro-plan-card header p,
+.ceopro-plan-summary header span {
+  margin: 2px 0 0;
+  color: var(--ceopro-text-muted);
+  font-size: 10px;
+}
+
+.ceopro-plan-card__price {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: 15px 0;
+}
+
+.ceopro-plan-card__price small {
+  width: 100%;
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+}
+
+.ceopro-plan-card__price strong {
+  font-size: 25px;
+}
+
+.ceopro-plan-card__price span {
+  color: var(--ceopro-text-muted);
+  font-size: 11px;
+}
+
+.ceopro-plan-card ul,
+.ceopro-plan-summary ul {
+  display: grid;
+  gap: 9px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.ceopro-plan-card li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: #484a61;
+  font-size: 11px;
+}
+
+.ceopro-plan-card li svg {
+  flex: 0 0 auto;
+  color: var(--ceopro-primary);
+}
+
+.ceopro-plan-card .ceopro-button {
+  margin-top: auto;
+}
+
+.ceopro-plan-card.is-compact {
+  min-height: 332px;
+}
+
+.ceopro-plan-card__feature-summary {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.ceopro-plan-card__feature-heading {
+  margin: 0;
+  color: var(--ceopro-text-primary);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.ceopro-plan-card__feature-summary ul {
+  margin-bottom: 0;
+}
+
+.ceopro-plan-card__capacity-note {
+  margin: 0;
+  color: var(--ceopro-text-secondary);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.ceopro-custom-plan-callout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px dashed #c9c4ef;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #fbfaff 0%, #f7f5ff 100%);
+}
+
+.ceopro-custom-plan-callout__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 10px;
+  background: #ebe8ff;
+  color: var(--ceopro-primary);
+}
+
+.ceopro-custom-plan-callout__copy {
+  min-width: 0;
+}
+
+.ceopro-custom-plan-callout__copy small {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ceopro-primary);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ceopro-custom-plan-callout__copy h3 {
+  margin: 0;
+  color: var(--ceopro-text-primary);
+  font-size: 14px;
+}
+
+.ceopro-custom-plan-callout__copy p {
+  margin: 3px 0 0;
+  color: var(--ceopro-text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.ceopro-custom-plan-layout,
+.ceopro-payment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.ceopro-custom-plan-controls,
+.ceopro-custom-plan-layout > *,
+.ceopro-payment-layout > * {
+  min-width: 0;
+}
+
+.ceopro-custom-plan-range-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ceopro-custom-plan-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.ceopro-custom-choice-card {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #ebe9f4;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ceopro-custom-choice-card legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 3px;
+  font-size: 13px;
+  font-weight: 700;
+  max-width: 100%;
+}
+
+.ceopro-custom-choice-card legend span,
+.ceopro-custom-choice-card label {
+  overflow-wrap: anywhere;
+}
+
+.ceopro-custom-choice-card legend svg {
+  color: var(--ceopro-primary);
+}
+
+.ceopro-custom-choice-card > small {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--ceopro-text-muted);
+  font-size: 10px;
+}
+
+.ceopro-custom-choice-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ceopro-custom-choice-card label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #5e6074;
+  font-size: 10px;
+}
+
+.ceopro-custom-choice-card input {
+  accent-color: var(--ceopro-primary);
+}
+
+.ceopro-plan-summary {
+  padding: 19px;
+  border: 1px solid #e4e1f0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--ceopro-shadow-sm);
+}
+
+.ceopro-plan-summary header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #eceaf3;
+}
+
+.ceopro-plan-summary__identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.ceopro-plan-summary__identity > div {
+  min-width: 0;
+}
+
+.ceopro-plan-summary__identity small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+}
+
+.ceopro-plan-summary__icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+}
+
+.ceopro-plan-summary header > span {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+  font-weight: 700;
+}
+
+.ceopro-plan-summary ul {
+  gap: 8px;
+  margin: 15px 0;
+}
+
+.ceopro-plan-summary li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) minmax(52px, auto);
+  gap: 8px;
+  align-items: center;
+  min-height: 25px;
+  color: #626477;
+  font-size: 10px;
+}
+
+.ceopro-plan-summary li.ceopro-plan-summary__feature {
+  grid-template-columns: 16px minmax(0, 1fr) minmax(52px, auto);
+}
+
+.ceopro-plan-summary li svg {
+  justify-self: start;
+  color: #5550bd;
+}
+
+.ceopro-plan-summary li > span {
+  min-width: 0;
+  text-align: start;
+}
+
+.ceopro-plan-summary li strong {
+  justify-self: end;
+  color: #22243a;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.ceopro-plan-summary__price {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(70px, auto);
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #eceaf3;
+  font-size: 11px;
+}
+
+.ceopro-plan-summary__price > div {
+  display: contents;
+}
+
+.ceopro-plan-summary__price span {
+  min-width: 0;
+  text-align: start;
+}
+
+.ceopro-plan-summary__price strong {
+  justify-self: end;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.ceopro-plan-summary__price .is-success {
+  color: var(--ceopro-success);
+}
+
+.ceopro-plan-summary__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eceaf3;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ceopro-plan-summary__total strong {
+  text-align: end;
+}
+
+.ceopro-plan-summary__total .is-success {
+  color: var(--ceopro-success);
+}
+
+.ceopro-plan-summary > p {
+  margin: 10px 0 0;
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.ceopro-plan-summary__helper {
+  display: grid;
+  gap: 3px;
+  margin-top: 13px;
+  padding: 11px 12px;
+  border-radius: 7px;
+  background: var(--ceopro-primary-light);
+  color: #5553a9;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.ceopro-plan-summary__helper strong {
+  font-size: 10px;
+}
+
+.ceopro-payment-heading {
+  margin-bottom: 23px;
+  text-align: start;
+}
+
+.ceopro-payment-heading a,
+.ceopro-subpage-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 15px;
+  color: #65677d;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ceopro-payment-heading h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.ceopro-payment-method {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #e6e3ef;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--ceopro-shadow-sm);
+}
+
+.ceopro-payment-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ceopro-payment-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 6px;
+  border: 1px solid #e3e1ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #3c3e55;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.ceopro-payment-provider-logo {
+  width: 38px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.ceopro-payment-tabs button span {
+  overflow-wrap: anywhere;
+}
+
+.ceopro-payment-tabs button.is-active,
+.ceopro-payment-tabs button:focus-visible {
+  border-color: var(--ceopro-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ceopro-auth-focus-ring);
+}
+
+.ceopro-provider-wordmark--paypal {
+  color: #0877c9;
+}
+
+.ceopro-provider-wordmark--google {
+  color: #4285f4;
+}
+
+.ceopro-payment-panel {
+  min-height: 210px;
+  padding-top: 18px;
+}
+
+.ceopro-card-fields {
+  display: grid;
+  gap: 13px;
+}
+
+.ceopro-payment-field {
+  display: grid;
+  gap: 6px;
+  color: #292b40;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ceopro-payment-field > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ceopro-payment-field > span svg {
+  color: var(--ceopro-text-muted);
+}
+
+.ceopro-payment-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #e2e1eb;
+  border-radius: 6px;
+  color: #25273c;
+  font: inherit;
+}
+
+.ceopro-payment-field-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+}
+
+.ceopro-provider-button {
+  width: min(280px, 100%);
+  margin: 0 auto;
+}
+
+.ceopro-provider-button--paypal {
+  background: #0877c9;
+}
+
+.ceopro-provider-button--google {
+  background: #171717;
+}
+
+.ceopro-provider-panel {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 22px;
+  min-height: 192px;
+  text-align: center;
+}
+
+.ceopro-provider-panel__logo {
+  object-fit: contain;
+}
+
+.ceopro-provider-panel__logo--paypal {
+  width: 132px;
+  height: 68px;
+}
+
+.ceopro-provider-panel__logo--google {
+  width: 112px;
+  height: 52px;
+}
+
+.ceopro-preview-notice {
+  justify-content: center;
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  text-align: center;
+}
+
+.ceopro-subscription-result {
+  width: min(470px, 100%);
+  margin: 35px auto 0;
+  text-align: center;
+}
+
+.ceopro-subscription-result__icon {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 22px;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.ceopro-subscription-result.is-success .ceopro-subscription-result__icon {
+  background: #dff8ee;
+  color: var(--ceopro-success);
+}
+
+.ceopro-subscription-result.is-failed .ceopro-subscription-result__icon {
+  background: #ffe5e8;
+  color: var(--ceopro-error);
+}
+
+.ceopro-subscription-result h1 {
+  margin: 0;
+  font-size: 31px;
+}
+
+.ceopro-subscription-result > p {
+  color: var(--ceopro-text-muted);
+  font-size: 12px;
+}
+
+.ceopro-subscription-result__card {
+  display: grid;
+  margin: 22px 0 12px;
+  padding: 19px;
+  border: 1px solid #e6e3ef;
+  border-radius: 10px;
+  background: #fff;
+  text-align: start;
+}
+
+.ceopro-subscription-result__card > span {
+  margin-top: 3px;
+  color: var(--ceopro-text-muted);
+  font-size: 10px;
+}
+
+.ceopro-subscription-result dl {
+  display: grid;
+  gap: 9px;
+  margin: 15px 0 0;
+  padding-top: 13px;
+  border-top: 1px solid #eceaf3;
+}
+
+.ceopro-subscription-result dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 11px;
+}
+
+.ceopro-subscription-result dt {
+  color: var(--ceopro-text-muted);
+}
+
+.ceopro-subscription-result dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.ceopro-subscription-result__preview {
+  color: #6563a8 !important;
+}
+
+.ceopro-subscription-result__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.ceopro-subscription-result__actions .ceopro-button {
+  flex: 1;
+}
+
+.ceopro-standard-recommendation p {
+  margin: 0;
+  color: var(--ceopro-text-secondary);
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ceopro-plan-card {
+    transition: none;
+  }
+
+  .ceopro-plan-card:hover,
+  .ceopro-plan-card:focus-within {
+    transform: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .ceopro-plan-grid,
+  .ceopro-custom-plan-layout,
+  .ceopro-payment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ceopro-custom-plan-callout {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .ceopro-custom-plan-callout .ceopro-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .ceopro-plan-card {
+    min-height: 0;
+  }
+
+  .ceopro-plan-summary {
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .ceopro-custom-plan-range-grid,
+  .ceopro-custom-plan-choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ceopro-payment-tabs span {
+    display: none;
+  }
+
+  .ceopro-payment-field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ceopro-trial-banner b {
+    display: none;
+  }
+
+  .ceopro-range-field__header {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .ceopro-range-field output {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-inline-start: 0;
+  }
+}
+
+.ceopro-custom-quantity .ceopro-range-field__header {
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+
+.ceopro-custom-quantity input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  margin: 14px 0 8px;
+  padding: 10px 12px;
+  border: 1px solid #e3e1ed;
+  border-radius: 6px;
+  background: var(--ceopro-surface);
+  color: var(--ceopro-text-primary);
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+}
+
+.ceopro-custom-quantity input:focus-visible {
+  outline: 3px solid var(--ceopro-auth-focus-ring);
+  outline-offset: 2px;
+  border-color: var(--ceopro-primary);
+}
+
+.ceopro-custom-quantity input[aria-invalid="true"] {
+  border-color: #c53030;
+}
+
+.ceopro-subscription-result.is-pending .ceopro-subscription-result__icon {
+  background: #f5f0ff;
+  color: var(--ceopro-primary);
+}
+
+/* Automated custom-plan builder: reuses billing card/range visual language. */
+.ceopro-custom-feature-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #ebe9f4;
+  border-radius: 10px;
+  background: #fff;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ceopro-custom-feature-card.is-selected {
+  border-color: var(--ceopro-primary);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--ceopro-primary) 10%, transparent);
+}
+
+.ceopro-custom-feature-card__toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.ceopro-custom-feature-card__toggle input {
+  margin-top: 4px;
+  accent-color: var(--ceopro-primary);
+}
+
+.ceopro-custom-feature-card__toggle > span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ceopro-custom-feature-card__toggle strong {
+  color: var(--ceopro-text, #202235);
+  font-size: 13px;
+}
+
+.ceopro-custom-feature-card__toggle small {
+  color: var(--ceopro-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.ceopro-custom-feature-card .ceopro-custom-quantity {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #efedf5;
+}
+
+/* Custom-plan onboarding UX: compact grouped catalog + sticky live summary. */
+.ceopro-custom-plan-period-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid #ebe9f4;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.ceopro-custom-plan-period-section > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 180px;
+}
+
+.ceopro-custom-plan-period-section strong {
+  color: var(--ceopro-text-primary);
+  font-size: 12px;
+}
+
+.ceopro-custom-plan-period-section small {
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.ceopro-custom-plan-period-section .ceopro-billing-period-row {
+  margin: 0;
+}
+
+.ceopro-custom-plan-controls {
+  display: grid;
+  gap: 22px;
+}
+
+.ceopro-custom-feature-group {
+  display: grid;
+  gap: 11px;
+}
+
+.ceopro-custom-feature-group__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-inline: 2px;
+}
+
+.ceopro-custom-feature-group__header > div {
+  min-width: 0;
+}
+
+.ceopro-custom-feature-group__header h2 {
+  margin: 0;
+  color: var(--ceopro-text-primary);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.ceopro-custom-feature-group__header p {
+  margin: 3px 0 0;
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.ceopro-custom-feature-group__header > span {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.ceopro-custom-feature-card {
+  display: flex;
+  min-height: 118px;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+}
+
+.ceopro-custom-feature-card__toggle {
+  display: grid;
+  grid-template-columns: auto 32px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+}
+
+.ceopro-custom-feature-card__toggle input {
+  width: 15px;
+  height: 15px;
+  margin: 7px 0 0;
+  flex: 0 0 auto;
+}
+
+.ceopro-custom-feature-card__icon {
+  width: 32px;
+  height: 32px;
+}
+
+.ceopro-custom-feature-card__copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ceopro-custom-feature-card__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ceopro-custom-feature-card__title-row strong {
+  min-width: 0;
+  color: var(--ceopro-text-primary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.ceopro-custom-feature-card__state {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #f4f3f8;
+  color: var(--ceopro-text-muted);
+  font-size: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ceopro-custom-feature-card.is-selected .ceopro-custom-feature-card__state {
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+}
+
+.ceopro-custom-feature-card__copy > small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ceopro-custom-feature-card__details {
+  margin-inline-start: 56px;
+  color: var(--ceopro-text-muted);
+  font-size: 8px;
+}
+
+.ceopro-custom-feature-card__details summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--ceopro-primary);
+  font-weight: 700;
+}
+
+.ceopro-custom-feature-card__details p {
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.ceopro-custom-feature-card .ceopro-custom-quantity {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 11px;
+  border-top: 1px solid #efedf5;
+}
+
+.ceopro-custom-feature-card__configuration {
+  margin-top: auto;
+  margin-bottom: 0 !important;
+  padding-top: 11px;
+  border-top: 1px solid #efedf5;
+}
+
+.ceopro-custom-quantity__topline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ceopro-custom-quantity__topline label {
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.ceopro-custom-quantity__topline output {
+  color: var(--ceopro-text-primary);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: end;
+}
+
+.ceopro-custom-quantity__control {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 7px;
+  align-items: center;
+}
+
+.ceopro-custom-quantity__control input {
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 9px;
+  text-align: center;
+}
+
+.ceopro-custom-quantity__stepper {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid #e3e1ed;
+  border-radius: 7px;
+  background: var(--ceopro-surface);
+  color: var(--ceopro-primary);
+  cursor: pointer;
+}
+
+.ceopro-custom-quantity__stepper:hover:not(:disabled) {
+  border-color: var(--ceopro-primary);
+  background: var(--ceopro-primary-light);
+}
+
+.ceopro-custom-quantity__stepper:focus-visible {
+  outline: 3px solid var(--ceopro-auth-focus-ring);
+  outline-offset: 2px;
+}
+
+.ceopro-custom-quantity__stepper:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.ceopro-custom-quantity__range {
+  color: var(--ceopro-text-muted);
+  font-size: 8px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.ceopro-custom-plan-summary {
+  /* Long quotes remain reachable using the document scrollbar. */
+  position: static;
+}
+
+.ceopro-custom-plan-summary__empty {
+  display: grid;
+  gap: 5px;
+  padding: 18px 0 4px;
+  text-align: start;
+}
+
+.ceopro-custom-plan-summary__empty strong {
+  color: var(--ceopro-text-primary);
+  font-size: 11px;
+}
+
+.ceopro-custom-plan-summary__empty p {
+  margin: 0;
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.ceopro-custom-plan-summary__selection,
+.ceopro-custom-plan-summary__billing {
+  padding-top: 13px;
+}
+
+.ceopro-custom-plan-summary__billing {
+  margin-top: 12px;
+  border-top: 1px solid #eceaf3;
+}
+
+.ceopro-custom-plan-summary__section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+.ceopro-custom-plan-summary__section-title > strong {
+  display: inline-grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+  font-size: 8px;
+}
+
+.ceopro-custom-plan-summary__feature-list {
+  display: grid;
+  gap: 7px;
+  margin: 11px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ceopro-custom-plan-summary__feature-list li,
+.ceopro-plan-summary li.ceopro-custom-plan-summary__feature-list li {
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) minmax(54px, auto);
+  gap: 7px;
+  align-items: center;
+  min-height: 22px;
+  font-size: 9px;
+}
+
+.ceopro-custom-plan-summary__feature-list li svg {
+  color: var(--ceopro-primary);
+}
+
+.ceopro-custom-plan-summary__feature-list li > span {
+  overflow: hidden;
+  color: #55576b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ceopro-custom-plan-summary__feature-list li > strong {
+  color: var(--ceopro-text-primary);
+  font-size: 8px;
+  font-weight: 700;
+  text-align: end;
+}
+
+.ceopro-custom-plan-summary__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ceopro-primary);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ceopro-custom-plan-summary__updating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ceopro-primary);
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ceopro-custom-plan-summary__updating svg {
+  animation: ceopro-custom-plan-spin 800ms linear infinite;
+}
+
+@keyframes ceopro-custom-plan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ceopro-custom-plan-summary__price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  color: var(--ceopro-text-muted);
+  font-size: 9px;
+}
+
+.ceopro-custom-plan-summary__price-row strong {
+  color: var(--ceopro-text-primary);
+  font-size: 10px;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.ceopro-custom-plan-summary__price-row.is-total {
+  margin-top: 12px;
+  color: var(--ceopro-text-primary);
+  font-weight: 700;
+}
+
+.ceopro-custom-plan-summary__price-row.is-total strong {
+  font-size: 18px;
+}
+
+.ceopro-custom-plan-summary__price-row.is-saving,
+.ceopro-custom-plan-summary__price-row.is-saving strong {
+  color: var(--ceopro-success);
+}
+
+.ceopro-preview-notice.is-error {
+  color: var(--color-danger, #b42318);
+}
+
+.ceopro-custom-plan-summary__review {
+  display: grid;
+  gap: 5px;
+  margin-top: 14px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: var(--ceopro-primary-light);
+  color: #5553a9;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.ceopro-custom-plan-summary__review > strong {
+  color: var(--ceopro-text-primary);
+  font-size: 10px;
+}
+
+.ceopro-custom-plan-summary__review p {
+  margin: 0;
+}
+
+.ceopro-custom-plan-summary__review details {
+  margin-top: 2px;
+}
+
+.ceopro-custom-plan-summary__review summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.ceopro-custom-plan-summary__review ul {
+  display: grid;
+  gap: 4px;
+  margin: 7px 0 0;
+  padding-inline-start: 16px;
+  list-style: disc;
+}
+
+.ceopro-custom-plan-summary__review li {
+  display: list-item;
+  min-height: 0;
+  font-size: 8px;
+}
+
+.ceopro-custom-plan-summary__privacy-note {
+  margin: 12px 0 0;
+  color: var(--ceopro-text-muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .ceopro-custom-plan-period-section {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ceopro-custom-plan-summary {
+    position: static;
+    order: 0;
+    max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .ceopro-custom-feature-card__toggle {
+    grid-template-columns: auto 30px minmax(0, 1fr);
+  }
+
+  .ceopro-custom-feature-card__details {
+    margin-inline-start: 54px;
+  }
+
+  .ceopro-custom-feature-card__title-row {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ceopro-custom-plan-summary__updating svg {
+    animation: none;
+  }
+}
+.billing-inline-notice {
+  margin: 0 0 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid #b9d6e4;
+  border-radius: 0.6rem;
+  background: #f2f9fc;
+  color: #16415c;
+  line-height: 1.5;
+}
+
+.ceopro-subscription-result.is-warning .ceopro-subscription-result__icon {
+  background: color-mix(in srgb, var(--ceopro-warning) 14%, #fff);
+  color: var(--ceopro-warning);
+}
+
+.ceopro-subscription-result__action-error {
+  margin: 12px 0 0 !important;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--ceopro-error) 24%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ceopro-error) 6%, #fff);
+  color: var(--ceopro-error) !important;
+  font-size: 10px !important;
+  line-height: 1.5;
+}
+
+/* Semantic disabled fieldsets retain the original div grid geometry. */
+fieldset.billing-catalog-form-grid { border: 0; padding: 0; margin: 0; min-width: 0; }

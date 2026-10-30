@@ -62,7 +62,8 @@ def get_product_forecast_detail(conn, tenant_id: str, product_id: str) -> dict:
             SELECT COALESCE(SUM(ii.quantity), 0), COUNT(DISTINCT i.issue_date::date)
             FROM invoice_items ii
             JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
-            WHERE ii.tenant_id = %s AND ii.product_id = %s AND i.issue_date >= NOW() - INTERVAL '90 days';
+            WHERE ii.tenant_id = %s AND ii.product_id = %s AND i.payment_status <> 'CANCELLED'
+              AND i.issue_date >= NOW() - INTERVAL '90 days';
             """,
             (tenant_id, product_id),
         )
@@ -71,7 +72,8 @@ def get_product_forecast_detail(conn, tenant_id: str, product_id: str) -> dict:
         cursor.execute(
             """
             SELECT df.expected_demand, df.confidence_range_lower, df.confidence_range_upper,
-                   df.forecast_target_date, df.model_version, df.created_at, er.confidence_score
+                   df.forecast_target_date, df.model_version, df.created_at, er.confidence_score,
+                   df.features_used
             FROM demand_forecasts df
             LEFT JOIN evidence_records er ON er.tenant_id = df.tenant_id
                 AND er.source_module = 'ai.forecasting'
@@ -89,7 +91,7 @@ def get_product_forecast_detail(conn, tenant_id: str, product_id: str) -> dict:
     if not forecast_rows:
         latest_forecast = None
     else:
-        expected_demand, lower, upper, target_date, model_version, created_at, confidence_score = forecast_rows[0]
+        expected_demand, lower, upper, target_date, model_version, created_at, confidence_score, features_used = forecast_rows[0]
         latest_forecast = {
             "predicted_demand": round(float(expected_demand)),
             "confidence_range_lower": round(float(lower)) if lower is not None else None,
@@ -97,6 +99,8 @@ def get_product_forecast_detail(conn, tenant_id: str, product_id: str) -> dict:
             "forecast_target_date": target_date.isoformat(),
             "model_version": model_version,
             "model_accuracy_pct": round(float(confidence_score) * 100) if confidence_score is not None else None,
+            "confidence_score": float(confidence_score) if confidence_score is not None else None,
+            "data_sufficiency": (features_used or {}).get("data_sufficiency"),
         }
 
     return {
@@ -115,7 +119,8 @@ def get_product_forecast_detail(conn, tenant_id: str, product_id: str) -> dict:
                 "confidence_range_upper": round(float(upper)) if upper is not None else None,
                 "forecast_target_date": target_date.isoformat(),
                 "created_at": created_at.isoformat(),
+                "confidence_score": float(confidence_score) if confidence_score is not None else None,
             }
-            for expected_demand, lower, upper, target_date, _model_version, created_at, _confidence_score in forecast_rows
+                for expected_demand, lower, upper, target_date, _model_version, created_at, _confidence_score, _features in forecast_rows
         ],
     }

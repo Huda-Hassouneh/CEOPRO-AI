@@ -1,6 +1,9 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from src.ai.core import operation_receipts
 from src.market_scraper.persistence import PostgresPricePipeline
 
 
@@ -11,10 +14,23 @@ class FakeSignals:
 
 class FakeConnection:
     def rollback(self):
-        pass
+        self.rollback_called = True
 
     def close(self):
         self.closed = True
+
+
+def _receipt_attrs():
+    return dict(
+        operation_receipt_id="receipt-1", operation_worker_id="worker-1",
+        operation_lease_generation=1, operation_actor_user_id="actor-1",
+        operation_period_start="2026-10-01", operation_lease_seconds=1800,
+    )
+
+
+@pytest.fixture(autouse=True)
+def _no_database_receipt_checks(monkeypatch):
+    monkeypatch.setattr(operation_receipts, "assert_fence", lambda *args, **kwargs: None)
 
 
 def _crawler_with_spider(spider_name="market_source"):
@@ -22,7 +38,11 @@ def _crawler_with_spider(spider_name="market_source"):
     ever called - matches that, since PostgresPricePipeline now reads
     self.crawler.spider.name to record which collector a real scrape cost
     is attributed to (cost_ledger.py)."""
-    return SimpleNamespace(signals=FakeSignals(), spider=SimpleNamespace(name=spider_name))
+    spider = SimpleNamespace(
+        name=spider_name, tenant_id="tenant-1", source_id="source-1", job_id="job-1",
+        **_receipt_attrs(),
+    )
+    return SimpleNamespace(signals=FakeSignals(), spider=spider)
 
 
 def test_pipeline_persists_mapped_item_and_completes_job(monkeypatch):
@@ -57,7 +77,8 @@ def test_pipeline_persists_mapped_item_and_completes_job(monkeypatch):
 
     assert pipeline.process_item(item)["competitor_price_id"] == "price-1"
     spider = SimpleNamespace(
-        tenant_id="tenant-1", job_id="job-1", targets=[{"mapping_id": "mapping-1"}]
+        tenant_id="tenant-1", source_id="source-1", job_id="job-1",
+        targets=[{"mapping_id": "mapping-1"}], **_receipt_attrs(),
     )
     pipeline.spider_closed(spider, "finished")
 
@@ -172,8 +193,8 @@ def test_pipeline_publishes_analysis_event_even_when_job_status_is_failed(monkey
     # Two targets expected, only one succeeded - the job is FAILED overall,
     # but a review was still actually persisted for the one that succeeded.
     spider = SimpleNamespace(
-        tenant_id="tenant-1", job_id="job-1",
-        targets=[{"mapping_id": "mapping-1"}, {"mapping_id": "mapping-2"}],
+        tenant_id="tenant-1", source_id="source-1", job_id="job-1",
+        targets=[{"mapping_id": "mapping-1"}, {"mapping_id": "mapping-2"}], **_receipt_attrs(),
     )
 
     fake_redis = MagicMock()
@@ -187,7 +208,8 @@ def test_pipeline_publishes_analysis_event_even_when_job_status_is_failed(monkey
 
 
 def test_pipeline_does_not_publish_analysis_event_without_any_persisted_reviews(monkeypatch):
-    crawler = SimpleNamespace(signals=FakeSignals())
+    crawler = SimpleNamespace(signals=FakeSignals(), spider=SimpleNamespace(
+        name="market_source", tenant_id="tenant-1", source_id="source-1", **_receipt_attrs()))
     connection = FakeConnection()
     monkeypatch.setattr(
         "src.market_scraper.persistence.data_access.get_tenant_connection",
@@ -198,7 +220,7 @@ def test_pipeline_does_not_publish_analysis_event_without_any_persisted_reviews(
         lambda *args, **kwargs: None,
     )
     pipeline = PostgresPricePipeline.from_crawler(crawler)
-    spider = SimpleNamespace(tenant_id="tenant-1", job_id="job-1", targets=[])
+    spider = SimpleNamespace(tenant_id="tenant-1", source_id="source-1", job_id="job-1", targets=[], **_receipt_attrs())
 
     fake_redis = MagicMock()
     with patch("src.market_scraper.persistence.redis.Redis.from_url", return_value=fake_redis):
@@ -208,7 +230,8 @@ def test_pipeline_does_not_publish_analysis_event_without_any_persisted_reviews(
 
 
 def test_pipeline_marks_missing_target_as_failed(monkeypatch):
-    crawler = SimpleNamespace(signals=FakeSignals())
+    crawler = SimpleNamespace(signals=FakeSignals(), spider=SimpleNamespace(
+        name="market_source", tenant_id="tenant-1", source_id="source-1", **_receipt_attrs()))
     connection = FakeConnection()
     finished = []
     monkeypatch.setattr(
@@ -225,9 +248,40 @@ def test_pipeline_marks_missing_target_as_failed(monkeypatch):
     )
     pipeline = PostgresPricePipeline.from_crawler(crawler)
     spider = SimpleNamespace(
-        tenant_id="tenant-1", job_id="job-1", targets=[{"mapping_id": "mapping-1"}]
+        tenant_id="tenant-1", source_id="source-1", job_id="job-1",
+        targets=[{"mapping_id": "mapping-1"}], **_receipt_attrs(),
     )
 
     pipeline.spider_closed(spider, "finished")
 
     assert finished[0][3:6] == ("FAILED", 0, 1)
+
+
+def test_stale_receipt_fence_blocks_canonical_and_cost_writes(monkeypatch):
+    crawler = _crawler_with_spider()
+    connection = FakeConnection()
+    writes = []
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.data_access.get_tenant_connection",
+        lambda tenant_id: connection,
+    )
+    monkeypatch.setattr(
+        operation_receipts, "assert_fence",
+        lambda *args, **kwargs: (_ for _ in ()).throw(operation_receipts.ReceiptLeaseLost("stale lease")),
+    )
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.market_repository.save_market_record",
+        lambda *args, **kwargs: writes.append("canonical"),
+    )
+    monkeypatch.setattr(
+        "src.market_scraper.persistence.cost_ledger.record_scrape_cost",
+        lambda *args, **kwargs: writes.append("cost"),
+    )
+    pipeline = PostgresPricePipeline.from_crawler(crawler)
+
+    with pytest.raises(operation_receipts.ReceiptLeaseLost, match="stale lease"):
+        pipeline.process_item({"tenant_id": "tenant-1", "job_id": "job-1", "mapping_id": "mapping-1"})
+
+    assert writes == []
+    assert pipeline.failed == 1
+    assert connection.rollback_called is True

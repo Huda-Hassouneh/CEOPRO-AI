@@ -23,6 +23,7 @@ EMAIL_LOG_UNSENT_BODIES=true also logs the body so the signup/reset/
 verify/invite flows can be completed from the server log without a
 mailbox; it must stay unset anywhere real accounts exist.
 """
+from src.infrastructure.public_urls import frontend_origin
 import logging
 import os
 import smtplib
@@ -103,7 +104,7 @@ def send_email_verification_email(to_address: str, code: str) -> bool:
 
 
 def send_team_invitation_email(to_address: str, business_name: str, invite_token: str) -> bool:
-    frontend_base_url = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
+    frontend_base_url = frontend_origin()
     return send_email(
         to_address, f"You've been invited to join {business_name} on KEEL",
         f"You've been invited to join {business_name} on KEEL. "

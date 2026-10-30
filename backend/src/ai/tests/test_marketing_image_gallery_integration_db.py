@@ -87,14 +87,16 @@ class _ImageServer:
 
 @pytest.fixture
 def studio(monkeypatch):
+    from src.ai.core import notifications
     from src.ai.main import app
     from src.ai.rag import llm_client
     from src.ai.tests.test_marketing_content_generator import _valid_response_json
 
     def model(messages, **kwargs):
+        from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
         payload = json.loads(_valid_response_json())
         payload["image_prompt"] = "Golden kunafa on a marble counter, warm morning light"
-        return json.dumps(payload), {"total_tokens": 900}
+        return scripted_campaign_completion(messages, campaign_json=json.dumps(payload), total_tokens=900)
 
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage", model)
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "local")
@@ -102,13 +104,20 @@ def studio(monkeypatch):
     monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", server.url)
     monkeypatch.setenv("LOCAL_IMAGE_API", "openai")
     client = TestClient(app)
+    verification_codes = {}
+    monkeypatch.setattr(notifications, "send_email_verification_email",
+                        lambda address, code: verification_codes.__setitem__(address, code) or True)
 
     def company():
         email = f"gallery+{uuid.uuid4().hex[:8]}@example.com"
-        assert client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Gallery Bakery", "email": email,
-                                                 "country_code": "JO", "primary_currency": "JOD",
-                                                 "password": "Gallery!Test-2026"}).status_code in (200, 201)
-        session = client.post("/auth/login", json={"email": email, "password": "Gallery!Test-2026"}).json()
+        signup = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Gallery Bakery", "email": email,
+                                                    "country_code": "JO", "primary_currency": "JOD",
+                                                    "password": "Gallery!Test-2026"})
+        assert signup.status_code == 202, signup.text
+        verified = client.post("/auth/email/verify", json={"email": email,
+            "registration_token": signup.json()["registration_token"], "code": verification_codes[email]})
+        assert verified.status_code == 200, verified.text
+        session = verified.json()
         return session, {"Authorization": f"Bearer {session['access_token']}"}
 
     def campaign(headers):

@@ -7,7 +7,7 @@ import BusinessPageContainer from '../../../shared/components/layout/BusinessPag
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
 import { ApexButton, Delta, Meter, Pager, Panel, Pill, Stat, StateBlock } from '../../../shared/components/apex/Apex.jsx';
 import ForecastChart from '../../../shared/components/charts/ForecastChart.jsx';
-import { useDemandOverview, useRefreshForecasts } from '../hooks/useDemandOverview.js';
+import { useDemandForecastHistory, useDemandOverview, useGenerateForecast, useRefreshForecasts } from '../hooks/useDemandOverview.js';
 
 const TREND_TONE = { increasing: 'success', decreasing: 'danger', stable: 'neutral', not_forecast: 'neutral', no_sales: 'neutral' };
 const ACTION_TONE = { restock: 'warning', reduce: 'violet', monitor: 'neutral', none: 'neutral' };
@@ -22,6 +22,8 @@ export function DemandPredictionOverviewPage() {
   const [sort, setSort] = useState({ key: 'forecast_next_30', desc: true });
   const query = useDemandOverview({ productId });
   const refresh = useRefreshForecasts();
+  const generate = useGenerateForecast();
+  const history = useDemandForecastHistory(productId);
   const data = query.data;
 
   const number = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
@@ -63,9 +65,15 @@ export function DemandPredictionOverviewPage() {
               {data.products.map((p) => <option key={p.product_id} value={p.product_id}>{p.name}</option>)}
             </select>
           </label>
-          <ApexButton variant="secondary" icon={RefreshCw} loading={refresh.isPending} disabled={data?.refresh?.state === 'running'} onClick={() => refresh.mutate()}>
-            {t('demandApex.actions.refresh')}
-          </ApexButton>
+          {productId === 'all' ? (
+            <ApexButton variant="secondary" icon={RefreshCw} loading={refresh.isPending} disabled={data?.refresh?.state === 'running'} onClick={() => refresh.mutate()}>
+              {t('demandApex.actions.refresh')}
+            </ApexButton>
+          ) : (
+            <ApexButton variant="secondary" icon={RefreshCw} loading={generate.isPending} onClick={() => generate.mutate(productId)}>
+              {t('demandApex.actions.generateSelected')}
+            </ApexButton>
+          )}
         </>
       ) : null}
     />
@@ -109,11 +117,11 @@ export function DemandPredictionOverviewPage() {
     <BusinessPageContainer>
       {header}
       <div className="apex-page" dir={dir}>
-        {(refreshing || refresh.isError || progress?.state === 'failed') && (
-          <div className={`apex-notice ${refresh.isError || progress?.state === 'failed' ? 'apex-notice--danger' : 'apex-notice--info'}`} role="status" aria-live="polite">
-            {refresh.isError || progress?.state === 'failed' ? <AlertTriangle size={16} /> : <RefreshCw size={16} className="apex-rotating" />}
+        {(refreshing || refresh.isError || progress?.state === 'failed' || progress?.state === 'blocked' || generate.isError || generate.data?.status === 'UNKNOWN') && (
+          <div className={`apex-notice ${refresh.isError || progress?.state === 'failed' || progress?.state === 'blocked' ? 'apex-notice--danger' : 'apex-notice--info'}`} role="status" aria-live="polite">
+            {refresh.isError || progress?.state === 'failed' || progress?.state === 'blocked' || generate.isError ? <AlertTriangle size={16} /> : <RefreshCw size={16} className={refreshing || generate.isPending ? 'apex-rotating' : undefined} />}
             <div style={{ flex: 1 }}>
-              <strong>{refresh.isError || progress?.state === 'failed' ? t('demandApex.refresh.failed') : t('demandApex.refresh.running', { done: progress?.done ?? 0, total: progress?.total ?? progress?.pending_products ?? '…' })}</strong>
+              <strong>{progress?.state === 'blocked' ? t('demandApex.refresh.blocked') : generate.data?.status === 'UNKNOWN' ? t('demandApex.refresh.noHistory') : refresh.isError || progress?.state === 'failed' || generate.isError ? t('demandApex.refresh.failed') : generate.isPending ? t('demandApex.refresh.generating') : t('demandApex.refresh.running', { done: progress?.done ?? 0, total: progress?.total ?? progress?.pending_products ?? '…' })}</strong>
               {refreshing && progress?.total ? <div style={{ marginTop: 8 }}><Meter value={progress.done ?? 0} max={progress.total} label={t('demandApex.refresh.label')} /></div> : null}
             </div>
           </div>
@@ -145,6 +153,15 @@ export function DemandPredictionOverviewPage() {
             <StateBlock compact title={t('demandApex.chart.emptyTitle')} description={t('demandApex.chart.emptyDescription')} />
           )}
         </Panel>
+
+        {productId !== 'all' && (
+          <Panel eyebrow={t('demandApex.history.eyebrow')} title={t('demandApex.history.title')} subtitle={t('demandApex.history.subtitle')}>
+            {history.isPending ? <StateBlock kind="loading" compact title={t('common.loading')} />
+              : history.isError ? <StateBlock kind="error" compact title={t('demandApex.history.error')} onRetry={() => history.refetch()} retryLabel={t('demandApex.actions.retry')} />
+                : history.data.forecast_history.length === 0 ? <StateBlock kind="empty" compact title={t('demandApex.history.empty')} description={t('demandApex.history.emptyDescription')} />
+                  : <div className="apex-table-wrap"><table className="apex-table"><thead><tr><th>{t('demandApex.history.generated')}</th><th>{t('demandApex.history.target')}</th><th className="apex-table__num">{t('demandApex.table.forecast')}</th><th className="apex-table__num">{t('demandApex.history.range')}</th><th className="apex-table__num">{t('demandApex.history.confidence')}</th></tr></thead><tbody>{history.data.forecast_history.map((run, index) => <tr key={`${run.created_at}-${index}`}><td>{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(run.created_at))}</td><td>{new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(run.forecast_target_date))}</td><td className="apex-table__num">{units(run.predicted_demand)}</td><td className="apex-table__num">{run.confidence_range_lower == null || run.confidence_range_upper == null ? '—' : `${units(run.confidence_range_lower)}–${units(run.confidence_range_upper)}`}</td><td className="apex-table__num">{run.confidence_score == null ? '—' : `${number.format(run.confidence_score * 100)}%`}</td></tr>)}</tbody></table></div>}
+          </Panel>
+        )}
 
         <Panel
           eyebrow={t('demandApex.table.eyebrow')}
@@ -184,6 +201,7 @@ export function DemandPredictionOverviewPage() {
                       <td className="apex-table__num apex-table__primary">
                         {p.forecast_next_30 == null ? <span className="apex-muted">{refreshing ? t('demandApex.table.calculating') : t('demandApex.table.noForecast')}</span> : units(p.forecast_next_30)}
                         {p.forecast_lower != null && p.forecast_upper != null && <div className="apex-muted" style={{ fontSize: 11.5, fontWeight: 500 }} dir="ltr">{units(p.forecast_lower)}–{units(p.forecast_upper)}</div>}
+                        {p.forecast_next_30 != null && p.data_sufficiency?.sufficient === false && <div className="apex-muted" style={{ fontSize: 11.5 }}>{t('demandApex.history.buildingData', { days: p.data_sufficiency.available_days, minimum: p.data_sufficiency.minimum_required })}</div>}
                       </td>
                       <td>
                         {p.forecast_next_30 == null ? <span className="apex-muted">—</span> : (

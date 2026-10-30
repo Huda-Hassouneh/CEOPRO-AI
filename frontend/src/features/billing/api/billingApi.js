@@ -1,4 +1,5 @@
 import httpClient from '../../../shared/lib/httpClient.js';
+import { customOffersApi } from './customOffersApi.js';
 
 // Real billing: the plan catalog, the company's subscription and usage come
 // from the backend (/billing/*); payment happens on Stripe-hosted pages.
@@ -51,6 +52,8 @@ export function mapPlan(plan) {
   }]));
   return {
     id: plan.plan_key,
+    rawLimits: plan.limits || {},
+    feature_catalog: plan.feature_catalog || {},
     name: plan.name,
     monthlyPrice: plan.monthly_price,
     currency: plan.currency,
@@ -70,6 +73,15 @@ const SUBSCRIPTION_STATUS = Object.freeze({
   paused: 'failed', expired: 'expired', cancelled: 'expired',
 });
 
+// A return from Stripe Checkout is only navigation evidence. Activation comes
+// from the authenticated subscription read, which is reconciled from Stripe's
+// signed webhook path.
+export function checkoutConfirmationState(subscription) {
+  if (!subscription?.hasSubscription) return 'pending';
+  if (['active', 'trial'].includes(subscription.status)) return 'confirmed';
+  return 'notConfirmed';
+}
+
 export function errorReason(error) {
   return error?.response?.data?.detail?.reason || null;
 }
@@ -84,7 +96,7 @@ export const billingApi = Object.freeze({
     return { ...data, status: SUBSCRIPTION_STATUS[data.status] || 'failed', billingStatus: data.status };
   },
   getInvoices: async () => (await httpClient.get('/billing/invoices')).data.invoices || [],
-  checkout: async ({ planId, billingPeriod }) => (await httpClient.post('/billing/checkout', { plan_key: planId, period_code: billingPeriod })).data,
+  checkout: async ({ planId, billingPeriod, promotionCode }) => (await httpClient.post('/billing/checkout', { plan_key: planId, period_code: billingPeriod, ...(promotionCode ? { promotion_code:promotionCode } : {}) })).data,
   openPortal: async () => (await httpClient.post('/billing/portal')).data,
   changePlan: async ({ planId, billingPeriod }) => (await httpClient.post('/billing/change-plan', { plan_key: planId, period_code: billingPeriod })).data,
   cancelScheduledChange: async () => (await httpClient.delete('/billing/scheduled-change')).data,
@@ -92,4 +104,13 @@ export const billingApi = Object.freeze({
   resume: async () => (await httpClient.post('/billing/resume')).data,
   getUsageHistory: async () => (await httpClient.get('/billing/usage-history')).data.items || [],
   startTrial: async ({ planId }) => (await httpClient.post('/billing/trial', { plan_key: planId })).data,
+  getCustomOfferConfigurator: customOffersApi.getConfigurator,
+  validateCustomOfferConfiguration: customOffersApi.validateConfiguration,
+  previewCustomOfferPricing: customOffersApi.previewPricing,
+  requestCustomOfferQuote: customOffersApi.requestQuote,
+  listCustomOfferQuotes: customOffersApi.listQuotes,
+  getCustomOfferQuote: customOffersApi.getQuote,
+  acceptCustomOfferQuote: customOffersApi.acceptQuote,
+  rejectCustomOfferQuote: customOffersApi.rejectQuote,
+  createCustomOfferCheckoutAttempt: customOffersApi.createCheckoutAttempt,
 });

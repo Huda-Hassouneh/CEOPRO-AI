@@ -33,6 +33,8 @@ function toFieldMapping(mapping) {
 }
 
 export const dataConnectionsApi = Object.freeze({
+  previewProviderCatalog:async(source,revision)=>(await httpClient.get(`/onboarding/sources/${encodeURIComponent(source)}/provider-records/${encodeURIComponent(revision)}/catalog-preview`)).data,
+  postProviderCatalog:async(source,input)=>(await httpClient.post(`/onboarding/sources/${encodeURIComponent(source)}/provider-records/catalog-post`,input)).data,
   list: async () => {
     const [imports, sources] = await Promise.all([httpClient.get('/extraction/imports'), httpClient.get('/onboarding/sources')]);
     return { connectedSources: sources.data.sources, recentImports: mapRecentImports(imports.data) };
@@ -60,6 +62,25 @@ export const dataConnectionsApi = Object.freeze({
     field_mapping: toFieldMapping(form.mapping),
     sync_frequency_minutes: Number(form.frequency),
   })).data,
+  connectWooCommerce: async (form) => (await httpClient.post('/onboarding/connect/woocommerce', {
+    url: form.url.trim(), consumerKey: form.consumerKey.trim(), consumerSecret: form.consumerSecret.trim(),
+    consent: true, syncFrequencyMinutes: Number(form.frequency),
+  })).data,
+  beginShopifyConnect: async (form) => (await httpClient.post('/onboarding/connect/shopify/authorize', {
+    url: form.url.trim(), consent: true, includeTestOrders: Boolean(form.includeTestOrders),
+    syncFrequencyMinutes: Number(form.frequency),
+  })).data,
+  completeShopifyConnect: async (ticket) => (await httpClient.post('/onboarding/connect/shopify/complete', { ticket })).data,
   syncNow: async (sourceId) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/sync`)).data,
   disconnect: async (sourceId) => (await httpClient.delete(`/onboarding/sources/${encodeURIComponent(sourceId)}`)).data,
+  previewProviderOrder: async (sourceId, revisionId) => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records/${encodeURIComponent(revisionId)}/order-preview`)).data,
+  postProviderOrder: async (sourceId, request) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records/order-post`, request)).data,
+  reviewProviderStock: async sourceId => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/inventory-review`)).data,
+  postProviderStock: async (sourceId, request) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/inventory-post`, request)).data,
+  retryProviderPromotion: async sourceId => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/promotion-retry`)).data,
+  providerPromotionSettings: async sourceId => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/promotion-settings`)).data,
+  setProviderPromotion: async (sourceId, request) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/promotion-settings`, request)).data,
+  providerRecords: async (sourceId, params = {}) => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records`, { params })).data,
+  providerRecordHistory: async (sourceId, identityId) => (await httpClient.get(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records/${encodeURIComponent(identityId)}/revisions`)).data,
+  reviewProviderRecord: async (sourceId, request) => (await httpClient.post(`/onboarding/sources/${encodeURIComponent(sourceId)}/provider-records/reviews`, request)).data,
 });

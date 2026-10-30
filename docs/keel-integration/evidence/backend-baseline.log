@@ -1,0 +1,72 @@
+....................sssssssssssssssssssssssss..................sssssssss [ 48%]
+ssssssssssssssssss................ssssssssssssssssssssssssssssssssssssss [ 96%]
+ssss..                                                                   [100%]
+=============================== warnings summary ===============================
+../../../../../analysis/venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /workspace/scratch/327eb0b847b6/analysis/venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/billing/test_database.py:79: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:118: Database suite disabled; run the guarded runner with --database
+SKIPPED [8] tests/billing/test_database.py:155: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:189: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:206: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:245: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:284: Database suite disabled; run the guarded runner with --database
+SKIPPED [5] tests/billing/test_database.py:315: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:342: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:383: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:434: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:453: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:462: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/billing/test_database.py:497: Database suite disabled; run the guarded runner with --database
+SKIPPED [8] tests/entitlements/test_database.py:13: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:41: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:48: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:63: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:87: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:110: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:131: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:143: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:162: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:177: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:184: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:198: Database suite disabled; run the guarded runner with --database
+SKIPPED [3] tests/entitlements/test_database.py:214: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:222: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:234: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:257: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:269: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/entitlements/test_database.py:299: Database suite disabled; run the guarded runner with --database
+SKIPPED [6] tests/integration_review/test_http_database.py:30: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:62: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:74: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:85: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:101: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:119: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:129: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:143: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:179: Database suite disabled; run the guarded runner with --database
+SKIPPED [2] tests/integration_review/test_http_database.py:221: Database suite disabled; run the guarded runner with --database
+SKIPPED [2] tests/integration_review/test_http_database.py:262: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_http_database.py:321: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/integration_review/test_migration_failure.py:12: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:13: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:45: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:67: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:80: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:97: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:109: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:125: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:133: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:161: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:180: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:195: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_commercial_boundaries.py:215: Database suite disabled; run the guarded runner with --database
+SKIPPED [4] tests/remediation/test_commercial_boundaries.py:233: Database suite disabled; run the guarded runner with --database
+SKIPPED [3] tests/remediation/test_forecast_gate.py:22: Database suite disabled; run the guarded runner with --database
+SKIPPED [1] tests/remediation/test_migration_upgrade.py:11: Database suite disabled; run the guarded runner with --database
+SKIPPED [2] tests/remediation/test_native_concurrency.py:13: Database suite disabled; run the guarded runner with --database
+56 passed, 94 skipped, 1 warning in 0.87s

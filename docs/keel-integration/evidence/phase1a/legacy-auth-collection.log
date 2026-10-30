@@ -1,0 +1,78 @@
+COMMAND ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider", "src/ai/tests/test_auth.py", "src/ai/tests/test_auth_completeness.py", "src/ai/tests/test_auth_signup_integration_db.py", "src/ai/tests/test_rls_integration_db.py"]
+Clean offline environment; TCP fence, no live service credentials; current test dependencies in scratch
+src/ai/tests/test_auth_signup_integration_db.py::test_signup_accepts_a_real_plus_addressed_email
+src/ai/tests/test_auth_signup_integration_db.py::test_signup_rejects_a_genuinely_malformed_email_with_a_clean_400_not_a_500
+src/ai/tests/test_auth_signup_integration_db.py::test_signup_sets_the_companys_own_timezone_and_currency_not_jordans
+src/ai/tests/test_rls_integration_db.py::test_ceopro_app_role_is_not_superuser_and_does_not_bypass_rls
+src/ai/tests/test_rls_integration_db.py::test_app_role_with_no_tenant_context_sees_nothing
+src/ai/tests/test_rls_integration_db.py::test_app_role_scoped_to_tenant_a_sees_only_tenant_a
+src/ai/tests/test_rls_integration_db.py::test_app_role_scoped_to_tenant_b_sees_only_tenant_b
+src/ai/tests/test_rls_integration_db.py::test_revoked_membership_loses_tenant_context
+src/ai/tests/test_rls_integration_db.py::test_claiming_a_tenant_youre_not_a_member_of_sees_nothing
+src/ai/tests/test_rls_integration_db.py::test_service_actor_sees_only_the_tenant_its_connection_is_scoped_to
+src/ai/tests/test_rls_integration_db.py::test_service_actor_with_no_tenant_context_still_sees_nothing
+src/ai/tests/test_rls_integration_db.py::test_admin_superuser_still_bypasses_rls_entirely
+src/ai/tests/test_rls_integration_db.py::test_chk_evidence_shape_rejects_empty_non_forecast_row
+src/ai/tests/test_rls_integration_db.py::test_chk_review_subject_consistency_rejects_product_with_competitor_id
+src/ai/tests/test_rls_integration_db.py::test_uq_competitor_private_allows_same_name_across_different_tenants
+src/ai/tests/test_rls_integration_db.py::test_tenant_b_cannot_see_tenant_a_private_competitor
+src/ai/tests/test_rls_integration_db.py::test_soft_deleting_a_product_as_the_app_role_succeeds
+src/ai/tests/test_rls_integration_db.py::test_rag_documents_metadata_scoped_to_tenant_a_never_sees_tenant_b
+src/ai/tests/test_rls_integration_db.py::test_rag_document_chunks_scoped_to_tenant_a_never_sees_tenant_b_chunk_text
+src/ai/tests/test_rls_integration_db.py::test_rag_document_chunks_with_no_tenant_context_sees_nothing
+src/ai/tests/test_rls_integration_db.py::test_rag_data_access_load_tenant_chunks_respects_tenant_isolation
+
+==================================== ERRORS ====================================
+__________________ ERROR collecting src/ai/tests/test_auth.py __________________
+ImportError while importing test module '/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/backend/src/ai/tests/test_auth.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/ai/tests/test_auth.py:15: in <module>
+    from src.ai.main import app  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/ai/main.py:43: in <module>
+    from src.ai.routers import (
+src/ai/routers/competitors.py:16: in <module>
+    from src.market_scraper import data_access, enqueue, source_review
+src/market_scraper/enqueue.py:10: in <module>
+    from src.market_scraper.collectors import resolve_collector
+src/market_scraper/collectors.py:5: in <module>
+    from src.market_scraper.spiders.amazon_paapi import AmazonPricingSpider
+src/market_scraper/spiders/amazon_paapi.py:8: in <module>
+    import scrapy
+E   ModuleNotFoundError: No module named 'scrapy'
+___________ ERROR collecting src/ai/tests/test_auth_completeness.py ____________
+ImportError while importing test module '/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/backend/src/ai/tests/test_auth_completeness.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/ai/tests/test_auth_completeness.py:17: in <module>
+    from src.ai.main import app  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/ai/main.py:43: in <module>
+    from src.ai.routers import (
+src/ai/routers/competitors.py:16: in <module>
+    from src.market_scraper import data_access, enqueue, source_review
+src/market_scraper/enqueue.py:10: in <module>
+    from src.market_scraper.collectors import resolve_collector
+src/market_scraper/collectors.py:5: in <module>
+    from src.market_scraper.spiders.amazon_paapi import AmazonPricingSpider
+src/market_scraper/spiders/amazon_paapi.py:8: in <module>
+    import scrapy
+E   ModuleNotFoundError: No module named 'scrapy'
+=============================== warnings summary ===============================
+../../../analysis/venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /workspace/scratch/327eb0b847b6/analysis/venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR src/ai/tests/test_auth.py
+ERROR src/ai/tests/test_auth_completeness.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+21 tests collected, 2 errors in 1.79s

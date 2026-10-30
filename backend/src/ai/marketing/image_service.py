@@ -16,7 +16,7 @@ limits always apply.
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Callable, Optional
 
 from src.ai import db
 from src.ai.billing import credits
@@ -54,7 +54,8 @@ def uses_plan_allowance() -> bool:
 def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id: str, campaign: dict, *,
                        image_format: str = image_generation.DEFAULT_IMAGE_FORMAT, prompt: Optional[str] = None,
                        channel: Optional[str] = None, attach: bool = True, seed: Optional[int] = None,
-                       fallback_to_designed: bool = True) -> dict:
+                       fallback_to_designed: bool = True,
+                       on_pre_upload: Optional[Callable[[str, str, int], None]] = None) -> dict:
     """Makes a campaign image in `image_format` with the provider chain and
     adds it to the campaign's gallery (campaign_image_assets); with attach
     (or when the campaign has no image yet) it becomes the image the campaign
@@ -126,6 +127,7 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
         client = db.minio_client()
         image_key = image_storage.upload_generated_image(
             client, generated.content, generated.content_type, tenant_id, campaign_id,
+            on_pre_upload=on_pre_upload,
         )
         # Only "ai" or "designed" is shown; which provider/model served it is
         # kept for operators (server log and the asset row), never returned.

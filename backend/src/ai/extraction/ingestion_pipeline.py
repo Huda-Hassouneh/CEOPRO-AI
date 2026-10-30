@@ -59,7 +59,10 @@ from src.ai.extraction.template_contract import match_canonical_template
 from src.ai.extraction.row_parsing import RowParseResult, parse_mapped_row, validate_typed_fields
 from src.ai.extraction.extractor import extract_entities
 from src.ai.core import storage_ledger
-from src.ai.extraction.minio_persistence import EXTRACTION_RESULTS_BUCKET, build_extraction_document, upload_extraction_document
+from src.ai.extraction.minio_persistence import (
+    EXTRACTION_RESULTS_BUCKET, build_extraction_document, new_extraction_object_key,
+    upload_extraction_document,
+)
 from src.ai.extraction import regex_patterns
 from src.ai.extraction.locale_config import get_tenant_locale
 
@@ -145,13 +148,22 @@ class IngestionSummary:
         return self.rows_failed == 0 and self.rows_partial == 0 and self.rows_processed > 0
 
 
+def job_completion_state(summary) -> tuple[str, str | None]:
+    """Use the persisted ingestion_jobs vocabulary and retain partial-result detail."""
+    if summary.rows_partial or summary.rows_failed:
+        return "FAILED", "Some source records were staged with validation errors or could not be processed."
+    return "COMPLETED", None
+
+
 _SAVEPOINT_NAME = "ingestion_pipeline_write"
 
 
-def _record_stored_result(conn, tenant_id: str, object_key: str, document: dict) -> None:
-    """Counts the stored upload result toward the company's storage
-    (core/storage_ledger.py). Isolated in a savepoint: a failure here is
-    logged and never aborts the upload's own transaction."""
+def _record_stored_result(conn, minio_client, tenant_id: str, object_key: str, document: dict) -> bool:
+    """Count the stored result or remove it if its ledger write fails.
+
+    Returns True when the object was removed; False when it remains stored
+    and its bytes are retained in the storage ledger.
+    """
     size = len(json.dumps(document, ensure_ascii=False).encode("utf-8"))
     try:
         with conn.cursor() as cursor:
@@ -159,10 +171,25 @@ def _record_stored_result(conn, tenant_id: str, object_key: str, document: dict)
         storage_ledger.record(conn, tenant_id, EXTRACTION_RESULTS_BUCKET, object_key, size, "upload_result")
         with conn.cursor() as cursor:
             cursor.execute("RELEASE SAVEPOINT storage_ledger;")
+        return False
     except Exception:
         logger.exception("ingestion pipeline: could not record stored result size (tenant=%s)", tenant_id)
         with conn.cursor() as cursor:
             cursor.execute("ROLLBACK TO SAVEPOINT storage_ledger;")
+        try:
+            removed = storage_ledger.compensate_upload(
+                conn, tenant_id, EXTRACTION_RESULTS_BUCKET, object_key, size, "upload_result",
+                lambda: minio_client.remove_object(EXTRACTION_RESULTS_BUCKET, object_key),
+            )
+            with conn.cursor() as cursor:
+                cursor.execute("RELEASE SAVEPOINT storage_ledger;")
+            return removed
+        except Exception:
+            logger.exception("ingestion pipeline: could not reconcile stored result object (tenant=%s)", tenant_id)
+            with conn.cursor() as cursor:
+                cursor.execute("ROLLBACK TO SAVEPOINT storage_ledger;")
+                cursor.execute("RELEASE SAVEPOINT storage_ledger;")
+            return False
 
 
 def _execute_in_savepoint(conn, sql: str, params: tuple):
@@ -439,6 +466,8 @@ def process_records(
     redis_client=None,
     minio_client=None,
     commit_every: Optional[int] = None,
+    storage_preupload_callback=None,
+    existing_staging_ids=None,
 ) -> IngestionSummary:
     """
     Runs the full pipeline for one uploaded file or one batch of records
@@ -519,7 +548,10 @@ def process_records(
     for chunk_start in range(0, len(rows), bulk_chunk_size):
         chunk = rows[chunk_start : chunk_start + bulk_chunk_size]
 
-        if conn is not None:
+        if existing_staging_ids is not None:
+            if len(existing_staging_ids)!=len(rows):raise ValueError('Existing staging identity count differs from input.')
+            staged=[(sid,None) for sid in existing_staging_ids[chunk_start:chunk_start+len(chunk)]]
+        elif conn is not None:
             def _bulk_stage(chunk=chunk):
                 return [(sid, None) for sid in _bulk_insert_staging_rows(conn, tenant_id, job_id, chunk)]
 
@@ -594,6 +626,11 @@ def process_records(
                 for staging_row_id, status, errors_json in updates:
                     _update_staging_row_status(conn, staging_row_id, status, errors=errors_json)
 
+            if existing_staging_ids is not None:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT staging_row_id FROM import_staging_rows WHERE tenant_id=%s AND job_id=%s AND validation_status='COMMITTED'",(tenant_id,job_id))
+                    committed={row[0] for row in cursor.fetchall()}
+                pending_status_updates[:]=[u for u in pending_status_updates if u[0] not in committed]
             _run_bulk_or_fallback(conn, _BULK_SAVEPOINT_NAME, _bulk_status, _fallback_status)
 
         if commit_every and conn is not None:
@@ -621,11 +658,15 @@ def process_records(
     if minio_client is not None and parse_results:
         document = build_extraction_document(tenant_id, job_id, source_name, parse_results)
         try:
+            object_key = new_extraction_object_key(tenant_id, job_id)
             summary.minio_object_key = upload_extraction_document(
-                minio_client, document, tenant_id, job_id
+                minio_client, document, tenant_id, job_id, object_key=object_key,
+                on_pre_upload=storage_preupload_callback,
             )
-            if conn is not None:
-                _record_stored_result(conn, tenant_id, summary.minio_object_key, document)
+            if conn is not None and storage_preupload_callback is None:
+                removed = _record_stored_result(conn, minio_client, tenant_id, summary.minio_object_key, document)
+                if removed:
+                    summary.minio_object_key = None
         except Exception:
             # Same honest-degradation pattern as a genuinely unconfigured
             # MinIO (minio_client=None above): storing the raw document is

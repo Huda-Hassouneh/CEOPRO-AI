@@ -35,6 +35,32 @@ test('pricingApi.recommend sends product_id as a query param and returns the rea
   assert.equal(result.explanation, 'Real explanation text.');
 });
 
+test('pricingApi.recommendationHistory requests the tenant-scoped paginated backend history contract', async (t) => {
+  const server = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    const url = new URL(req.url, 'http://localhost');
+    assert.equal(req.method, 'GET');
+    assert.equal(url.pathname, '/pricing/history/product%20one');
+    assert.equal(url.searchParams.get('limit'), '10');
+    assert.equal(url.searchParams.get('offset'), '20');
+    res.end(JSON.stringify({
+      items: [{ evidence_id: 'e1', recommendation_id: 'r1', generated_at: '2026-10-22T10:00:00+00:00',
+        recommended_action: 'Hold price at 25 JOD', user_decision: 'PENDING', data_basis: 'INTERNAL_ONLY',
+        confidence_score: 0.4, explanation: 'Supported by internal business data.' }],
+      limit: 10, offset: 20, has_more: false,
+    }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const originalBaseURL = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = originalBaseURL; server.close(); });
+
+  const result = await pricingApi.recommendationHistory('product one', { limit: 10, offset: 20 });
+  assert.equal(result.items[0].data_basis, 'INTERNAL_ONLY');
+  assert.equal(result.items[0].user_decision, 'PENDING');
+  assert.equal(result.has_more, false);
+});
+
 // The comparison ladder endpoints (backend/src/ai/routers/pricing.py): a summary for a page of products, the full
 // ladder for one, and a refresh that recomputes from stored competitor items.
 test('pricingApi comparison calls send the right requests and unwrap the responses', async (t) => {

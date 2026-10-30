@@ -90,8 +90,8 @@ def record_quick_sale(
                 f"cannot sell {format_quantity(quantity)}."
             )
 
-        # Decimal, not float: invoice_items' chk_total_price_consistent
-        # requires total_price = ROUND(quantity * unit_price, 4) exactly.
+        # Preserve the existing 4-dp paid total and record its exact residual
+        # separately to satisfy invoice_items' accounting equality.
         resolved_unit_price = Decimal(str(unit_price if unit_price is not None else current_price)).quantize(_FOUR_DP)
         total = (quantity * resolved_unit_price).quantize(_FOUR_DP, rounding=ROUND_HALF_UP)
         invoice_id = str(uuid.uuid4())
@@ -104,9 +104,9 @@ def record_quick_sale(
             (invoice_id, tenant_id, invoice_number, total, total, currency, user_id),
         )
         cursor.execute(
-            "INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price) "
-            "VALUES (%s, %s, %s, %s, %s, %s);",
-            (tenant_id, invoice_id, product_id, quantity, resolved_unit_price, total),
+            "INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price, rounding_adjustment) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s);",
+            (tenant_id, invoice_id, product_id, quantity, resolved_unit_price, total, total - quantity * resolved_unit_price),
         )
         if inventory_row is not None:
             cursor.execute(

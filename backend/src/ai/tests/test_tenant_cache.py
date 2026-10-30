@@ -3,8 +3,32 @@ writes, single-flight under concurrency, and callers never sharing an
 object."""
 import threading
 import time
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+from src.infrastructure.request_language import get_request_language, set_request_language, reset_request_language
 
 from src.ai.core import tenant_cache
+
+
+def test_cached_read_isolates_request_language_and_user(monkeypatch):
+    from src.ai import db
+
+    tenant_cache.clear()
+    monkeypatch.setattr(tenant_cache, "_shared_store", lambda: None)
+    monkeypatch.setattr(db, "app_role_connection", lambda *args: MagicMock())
+    owner = SimpleNamespace(tenant_id="same-tenant", user_id="owner")
+    member = SimpleNamespace(tenant_id="same-tenant", user_id="member")
+    for ctx, language in [(owner, "en"), (owner, "ar"), (member, "ar")]:
+        token = set_request_language(language)
+        try:
+            expected = {"language": language, "user": ctx.user_id}
+            actual = tenant_cache.cached_read("localized", ctx, None,
+                lambda conn: {"language": get_request_language(), "user": ctx.user_id})
+            assert actual == expected
+        finally:
+            reset_request_language(token)
+    tenant_cache.clear()
 
 
 def _counter():

@@ -13,6 +13,15 @@ import pytest
 from src.ai.marketing import content_generator as cg
 
 
+@pytest.fixture(autouse=True)
+def _isolated_factual_review(monkeypatch):
+    """These parser/provider-contract tests isolate the separate factual auditor.
+
+    Its fail-closed behavior is exercised in test_phase3_ai_correctness.py.
+    """
+    monkeypatch.setattr(cg, '_check_grounding', lambda *a: None)
+
+
 def _valid_response_json(**overrides):
     base = {
         "audience_summary": "Likely audience (AI-suggested, not measured): busy professionals.",
@@ -26,6 +35,19 @@ def _valid_response_json(**overrides):
     }
     base.update(overrides)
     return json.dumps(base)
+
+
+def scripted_campaign_completion(messages, *, campaign_json=None, total_tokens=100, **kwargs):
+    """Explicit offline provider fixture for both generation and factual review.
+
+    The synthetic H1/B1 copy contains no product facts. Return the review
+    contract for that separate call; keep the real parser/grounding checks.
+    """
+    if messages[0]["content"] == cg._GROUNDING_PROMPT:
+        text = json.dumps({"supported": True, "unsupported_claims": [], "claims": []})
+    else:
+        text = campaign_json or _valid_response_json()
+    return text, {"total_tokens": total_tokens}
 
 
 def test_generate_campaign_content_parses_valid_response_and_enforces_google_ads_limits():

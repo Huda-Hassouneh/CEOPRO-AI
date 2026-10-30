@@ -39,6 +39,7 @@ def load_daily_demand(
         FROM invoice_items ii
         JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
         WHERE ii.tenant_id = %s AND ii.product_id = %s
+          AND i.payment_status <> 'CANCELLED'
         GROUP BY i.issue_date::date
         ORDER BY sale_date;
     """

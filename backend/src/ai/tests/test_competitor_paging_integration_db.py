@@ -10,6 +10,8 @@ import psycopg2
 import pytest
 from fastapi.testclient import TestClient
 
+from src.ai.tests.signup_helpers import create_verified_test_account
+
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
     not ADMIN_DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
@@ -23,10 +25,8 @@ def company():
     from src.ai.main import app
 
     client = TestClient(app)
-    response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Paging Co", "email": f"paging+{uuid.uuid4().hex[:8]}@example.com",
-                                                  "country_code": "JO", "primary_currency": "JOD", "password": "Paging!Test-2026"})
-    assert response.status_code == 200, response.text
-    session = response.json()
+    session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Paging Co", "email": f"paging+{uuid.uuid4().hex[:8]}@example.com",
+                                                     "country_code": "JO", "primary_currency": "JOD", "password": "Paging!Test-2026"})
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     with conn, conn.cursor() as cursor:
         for i in range(COMPETITORS):

@@ -3,7 +3,7 @@ from uuid import UUID
 
 import logging
 
-from fastapi import BackgroundTasks, HTTPException, APIRouter, Depends, Query
+from fastapi import BackgroundTasks, HTTPException, APIRouter, Depends, Query, Header
 from pydantic import BaseModel, Field
 
 from src.ai import db
@@ -23,10 +23,26 @@ logger = logging.getLogger("CEOPRO_AI_PRICING_ROUTER")
 
 
 @router.post("/recommend")
-def pricing_recommend(product_id: str, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def pricing_recommend(product_id: UUID, ctx: TenantContext = Depends(get_tenant_context), idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = pricing_pipeline.run_price_recommendation(conn, ctx.tenant_id, product_id)
+        product_id=str(product_id)
+        if isinstance(idempotency_key,str):
+            if not 1<=len(idempotency_key)<=200 or not idempotency_key.isascii() or any(ord(ch)<33 or ord(ch)>126 for ch in idempotency_key):
+                raise HTTPException(422,'Invalid pricing request identity.')
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT pg_advisory_xact_lock(hashtextextended(%s,0))',('pricing:'+ctx.tenant_id+':'+ctx.user_id+':'+idempotency_key,))
+                cursor.execute('SELECT product_id,response FROM keel_pricing_request_results WHERE tenant_id=%s AND actor_id=%s AND request_key=%s',(ctx.tenant_id,ctx.user_id,idempotency_key))
+                prior=cursor.fetchone()
+            if prior:
+                if str(prior[0])!=product_id:raise HTTPException(409,'Pricing request identity belongs to another product.')
+                conn.commit();return prior[1]
+            result=pricing_pipeline.run_price_recommendation(conn,ctx.tenant_id,product_id,commit=False)
+            from psycopg2.extras import Json
+            with conn.cursor() as cursor:
+                cursor.execute('INSERT INTO keel_pricing_request_results(tenant_id,actor_id,request_key,product_id,evidence_id,response) VALUES(%s,%s,%s,%s,%s,%s)',(ctx.tenant_id,ctx.user_id,idempotency_key,product_id,result['evidence_id'],Json(result)))
+        else:
+            result = pricing_pipeline.run_price_recommendation(conn, ctx.tenant_id, product_id)
         conn.commit()
         return result
     except pricing_pipeline.ProductNotFoundError:
@@ -47,6 +63,74 @@ def pricing_recommend_all(ctx: TenantContext = Depends(get_tenant_context)) -> d
         result = pricing_pipeline.run_price_recommendations_for_all(conn, ctx.tenant_id)
         conn.commit()
         return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@router.get("/history/{product_id}")
+def pricing_recommendation_history(
+    product_id: UUID,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> dict:
+    """Read this tenant's persisted recommendation evidence for one product.
+
+    This is a read-only projection over the existing shared evidence and
+    recommendation-outcome tables. It does not create a second history store
+    or imply that a recommendation was applied to the product price.
+    """
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM products WHERE tenant_id = %s AND product_id = %s AND deleted_at IS NULL;",
+                (ctx.tenant_id, str(product_id)),
+            )
+            if cursor.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Product not found")
+            cursor.execute(
+                """
+                SELECT outcome.recommendation_id, evidence.evidence_id, evidence.generated_at,
+                       outcome.recommended_action, outcome.user_decision,
+                       evidence.confidence_score, evidence.explanation_text,
+                       evidence.source_record_ids ->> 'data_basis'
+                FROM evidence_records AS evidence
+                LEFT JOIN recommendation_outcomes AS outcome
+                  ON outcome.tenant_id = evidence.tenant_id
+                 AND outcome.evidence_id = evidence.evidence_id
+                WHERE evidence.tenant_id = %s
+                  AND evidence.category = 'RECOMMENDATION'
+                  AND evidence.source_module = %s
+                  AND evidence.source_record_ids ->> 'product_id' = %s
+                ORDER BY evidence.generated_at DESC, evidence.evidence_id DESC
+                LIMIT %s OFFSET %s;
+                """,
+                (ctx.tenant_id, pricing_pipeline.SOURCE_MODULE, str(product_id), limit + 1, offset),
+            )
+            rows = cursor.fetchall()
+        conn.commit()
+        has_more = len(rows) > limit
+        items = [
+            {
+                "recommendation_id": str(row[0]) if row[0] else None,
+                "evidence_id": str(row[1]),
+                "generated_at": row[2].isoformat() if row[2] else None,
+                "recommended_action": row[3],
+                "user_decision": row[4],
+                "confidence_score": float(row[5]) if row[5] is not None else None,
+                "explanation": row[6],
+                "data_basis": row[7],
+            }
+            for row in rows[:limit]
+        ]
+        return {"items": items, "limit": limit, "offset": offset, "has_more": has_more}
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception:
         conn.rollback()
         raise

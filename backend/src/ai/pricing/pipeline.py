@@ -12,6 +12,7 @@ competitor prices via a real FK join. See data_access.py's module docstring.
 """
 
 import logging
+import math
 from datetime import datetime, timezone
 
 from src.ai.core.money import format_money
@@ -23,6 +24,19 @@ SOURCE_MODULE = "ai.pricing"
 
 # Price data older than this is still used, but the explanation says so.
 OLD_DATA_NOTE_AFTER_DAYS = 90
+
+
+def _validated_confidence_score(value) -> float:
+    """Fail closed if an internal recommendation ever emits invalid confidence."""
+    if isinstance(value, bool):
+        raise ValueError("Pricing confidence must be a finite number between 0 and 1.")
+    try:
+        score = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Pricing confidence must be a finite number between 0 and 1.") from exc
+    if not math.isfinite(score) or not 0.0 <= score <= 1.0:
+        raise ValueError("Pricing confidence must be a finite number between 0 and 1.")
+    return score
 
 
 def _build_cross_currency_reference(conn, tenant_id: str, product_id: str, own_currency: str) -> str:
@@ -119,7 +133,7 @@ class ProductNotFoundError(ValueError):
     callers that catch ValueError keep working; the API maps it to 404."""
 
 
-def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
+def run_price_recommendation(conn, tenant_id: str, product_id: str, *, commit: bool = True) -> dict:
     own = data_access.load_own_product(conn, tenant_id, product_id)
     if own is None:
         raise ProductNotFoundError(f"No product found for tenant={tenant_id} product_id={product_id}")
@@ -238,6 +252,10 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         # A regional estimate already uses (and explains) the converted prices.
         explanation += cross_currency_note
 
+    # The existing pricing scorers produce normalized confidence in [0, 1].
+    # Validate before evidence persistence so an internal regression cannot be
+    # saved or returned as a successful recommendation.
+    confidence_score = _validated_confidence_score(rec.confidence_score)
     evidence_id = evidence.insert_evidence_record(
         conn,
         tenant_id,
@@ -250,7 +268,7 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
             "price_comparison_ids": estimate.comparison_ids if estimate else [],
             "data_basis": rec.basis,
         },
-        rec.confidence_score,
+        confidence_score,
         explanation,
         None,
     )
@@ -259,7 +277,8 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
         else f"{action.capitalize()} price to {money(final_suggested_price)} {own_currency}"
     )
     outcome_id = evidence.insert_recommendation_outcome(conn, evidence_id, tenant_id, recommended_action)
-    conn.commit()
+    if commit:
+        conn.commit()
 
     logger.info(
         f"Price recommendation written tenant={tenant_id} product={product_id} "
@@ -283,7 +302,7 @@ def run_price_recommendation(conn, tenant_id: str, product_id: str) -> dict:
             None if rec.basis == estimation.INTERNAL_ONLY
             else {"average": rec.market_avg, "median": rec.market_median, "min": rec.market_min, "max": rec.market_max}
         ),
-        "confidence_score": rec.confidence_score,
+        "confidence_score": confidence_score,
         "max_price_age_days": data_access.MAX_PRICE_AGE_DAYS,
         # The same real explanation text already persisted to this
         # evidence record (evidence.py's own explanation_text column) -

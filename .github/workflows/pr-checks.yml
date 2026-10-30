@@ -6,8 +6,8 @@ name: PR Checks
 # production build, and the browser smoke test of every screen) on every pull request and every push to main - previously nothing
 # ran automatically at all (staging-deployment.yml only fires on a push to
 # `staging` and only extracts the OpenAPI schema, it never runs a single
-# test). Zero-cost: GitHub-hosted runners + the free pgvector/pgvector:pg15
-# image used locally and in docker-compose.yml, no paid service of any kind.
+# test). Zero-cost: GitHub-hosted runners with the PostgreSQL 17 + pgvector image
+# used by the reusable verification environment and billing integration tests.
 
 on:
   pull_request:
@@ -24,15 +24,15 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
-          POSTGRES_DB: ceopro_platform
+          POSTGRES_DB: keel_billing_test_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-cmd "pg_isready -U ceopro_admin -d keel_billing_test_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -56,21 +56,17 @@ jobs:
       # ceopro_admin, never the restricted ceopro_app role it creates) -
       # a throwaway password scoped to this one ephemeral CI database, not
       # a secret protecting anything real.
-      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
-      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
+      AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
       APP_DB_PASSWORD: ci_test_app_password
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
+      FRONTEND_BASE_URL: http://localhost:5173
       AI_TEST_REDIS_HOST: localhost
-      # connector_worker.py's own real production DSN env var - same admin
-      # connection as DATABASE_URL above is sufficient for this job (the
-      # SECURITY DEFINER grant under test doesn't need a separate role
-      # here), and SCRAPER_ACTOR_USER_ID is the fixed background-worker
-      # service principal UUID get_current_tenant() already trusts
-      # (src/infrastructure/database/migrations/
-      # 20260928000000_fix_service_actor_tenant_context.sql). Closes
-      # test_connector_worker_integration_db.py's 6 always-skipped tests -
-      # confirmed passing against a real local Postgres.
-      SCRAPER_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      # Disposable-only promotion tests require this explicit test DB prefix,
+      # a loopback socket and ceopro_app. Keep workers restricted; do not weaken
+      # the guard or globally enable automatic promotion. Individual fixtures
+      # explicitly opt in only their synthetic source/category.
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:ci_test_app_password@127.0.0.1:5432/keel_billing_test_ci
       SCRAPER_ACTOR_USER_ID: "00000000-0000-0000-0000-000000000000"
       # MinIO is built from source in the step below (no registry serves a prebuilt
       # image any more, so it cannot be a `services:` container). Closes the
@@ -126,7 +122,9 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install --no-cache-dir -r src/ai/requirements.txt
+        run: |
+          pip install --no-cache-dir -r src/ai/requirements.txt
+          pip check
 
       # Known vulnerabilities in exactly what was just installed (PyPI's
       # advisory data). Fails the job on any finding.
@@ -134,27 +132,9 @@ jobs:
         run: |
           pip install --no-cache-dir pip-audit
           pip freeze --exclude-editable | grep -v '^pip-audit==' > "$RUNNER_TEMP/installed.txt"
-          # CVE-2026-106454 (Twisted IMAP *server* wildcardToRegexp ReDoS) is the only
-          # ignored advisory: Twisted is just Scrapy's transitive dependency, nothing here
-          # imports twisted.mail/imap4 or runs an IMAP server, 26.4.0 is already the newest
-          # release and no fixed version exists (checked 2026-10-17). Remove this ignore as
-          # soon as Twisted publishes a fix; every other finding still fails the job.
-          # CVE-2026-112395, -112397, -112400, -112404, -112895, -112896, -112897 and
-          # -112899 are Pillow 12.3.0 advisories, all fixed only in Pillow 13.0.0. rembg
-          # (background removal, up to its newest 2.0.85) requires pillow<13, so the
-          # upgrade is blocked (checked 2026-10-21). Remove these ignores once rembg
-          # allows Pillow 13 and both requirements files are raised; tracked as #123 in
-          # backend/PENDING_ACTIONS.md.
-          pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off \
-            --ignore-vuln CVE-2026-106454 \
-            --ignore-vuln CVE-2026-112395 \
-            --ignore-vuln CVE-2026-112397 \
-            --ignore-vuln CVE-2026-112400 \
-            --ignore-vuln CVE-2026-112404 \
-            --ignore-vuln CVE-2026-112895 \
-            --ignore-vuln CVE-2026-112896 \
-            --ignore-vuln CVE-2026-112897 \
-            --ignore-vuln CVE-2026-112899
+          # All findings fail this job. Patched Twisted and Pillow versions
+          # are declared in the application manifests; no advisory exceptions.
+          pip-audit -r "$RUNNER_TEMP/installed.txt" --no-deps --disable-pip --progress-spinner off
 
       # Same source build docker-compose.yml uses (Dockerfile.minio, pinned version).
       - name: Build and start MinIO
@@ -178,6 +158,9 @@ jobs:
       - name: Validate Application Knowledge Registry is in sync with the real frontend
         working-directory: backend
         run: python scripts/validate_application_knowledge.py
+
+      - name: Verify developer environment recovery contracts
+        run: python -m unittest discover -s tools/dev/tests -v
 
       # Real, confirmed gap this fixes: only src/ai/tests ever ran here -
       # the entire src/market_scraper/tests suite (518 tests: Target
@@ -227,15 +210,15 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
-          POSTGRES_DB: ceopro_platform
+          POSTGRES_DB: keel_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ceopro_admin -d ceopro_platform"
+          --health-cmd "pg_isready -U ceopro_admin -d keel_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -250,15 +233,17 @@ jobs:
           --health-retries 10
     env:
       # Throwaway values for this one ephemeral job, not secrets.
-      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/ceopro_platform
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
       APP_DB_PASSWORD: ci_test_app_password
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
+      FRONTEND_BASE_URL: http://localhost:5173
       REDIS_URL: redis://localhost:6379/0
       REDIS_HOST: localhost
       DISCOVERY_REFRESH_ENABLED: "false"
       NOTIFICATION_DIGEST_ENABLED: "false"
       E2E_EMAIL: ci-smoke@keel-ci.example
       E2E_PASSWORD: Ci!Smoke-Only-2026
+      E2E_EXPECT_PLATFORM_DENIAL: "true"
       APP_URL: http://localhost:5173
       API_URL: http://localhost:8000
       CHROMIUM_PATH: /usr/bin/google-chrome
@@ -284,7 +269,9 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install --no-cache-dir -r src/ai/requirements.txt
+        run: |
+          pip install --no-cache-dir -r src/ai/requirements.txt
+          pip check
 
       - name: Apply database migrations
         working-directory: backend
@@ -295,12 +282,12 @@ jobs:
         run: |
           export CREDENTIAL_VAULT_MASTER_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
           nohup uvicorn src.ai.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/api.log" 2>&1 &
-          for i in $(seq 1 90); do curl -sf http://localhost:8000/health && exit 0; sleep 1; done
+          for i in $(seq 1 90); do curl -sf http://localhost:8000/health/ready && exit 0; sleep 1; done
           cat "$RUNNER_TEMP/api.log"; exit 1
 
       - name: Create the test company
         working-directory: backend
-        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD"
+        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD" --test-email-verification-fixture
 
       - name: Build and serve the frontend
         working-directory: frontend

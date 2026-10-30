@@ -6,9 +6,10 @@ JSON records partitioned cleanly by tenant and ingestion job parameters.
 """
 import io
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
-from typing import List
+from typing import Callable, List, Optional
 
 from minio import Minio
 from minio.error import S3Error
@@ -16,6 +17,8 @@ from minio.error import S3Error
 from src.ai.extraction.row_parsing import RowParseResult
 
 EXTRACTION_RESULTS_BUCKET = "ceopro-extraction-results"
+logger = logging.getLogger(__name__)
+PreUploadCallback = Callable[[str, str, int], None]
 
 
 def _entity_to_dict(entity) -> dict:
@@ -84,9 +87,42 @@ def _object_key(tenant_id: str, ingestion_job_id: str) -> str:
     return f"{tenant_id}/{ingestion_job_id}/{ts}_{uuid.uuid4().hex}.json"
 
 
+def new_extraction_object_key(tenant_id: str, ingestion_job_id: str) -> str:
+    """Create a tenant/job-scoped key callers can track before the remote write."""
+    return _object_key(tenant_id, ingestion_job_id)
+
+
+def _validate_object_key(tenant_id: str, ingestion_job_id: str, object_key: str) -> None:
+    prefix = f"{tenant_id}/{ingestion_job_id}/"
+    if (not object_key.startswith(prefix) or object_key == prefix
+            or any(part in (".", "..") for part in object_key.split("/"))):
+        raise ValueError("Extraction object key must remain within its tenant and ingestion-job prefix")
+
+
+def _remove_after_failed_upload(client: Minio, bucket: str, object_key: str) -> None:
+    try:
+        client.remove_object(bucket, object_key)
+    except S3Error as e:
+        if getattr(e, "code", "") not in ("NoSuchKey", "NoSuchObject"):
+            logger.exception("Could not clean up extraction object after ambiguous PUT failure (key=%s)", object_key)
+    except Exception:
+        logger.exception("Could not clean up extraction object after ambiguous PUT failure (key=%s)", object_key)
+
+
 def _ensure_bucket(client: Minio, bucket: str) -> None:
     if not client.bucket_exists(bucket):
         client.make_bucket(bucket)
+
+
+def object_exists(client: Minio, bucket: str, object_key: str) -> bool:
+    """Return False only when MinIO confirms that this object is absent."""
+    try:
+        client.stat_object(bucket, object_key)
+        return True
+    except S3Error as e:
+        if getattr(e, "code", "") in ("NoSuchKey", "NoSuchObject"):
+            return False
+        raise
 
 
 def upload_extraction_document(
@@ -95,14 +131,20 @@ def upload_extraction_document(
     tenant_id: str,
     ingestion_job_id: str,
     bucket: str = EXTRACTION_RESULTS_BUCKET,
+    *,
+    object_key: Optional[str] = None,
+    on_pre_upload: Optional[PreUploadCallback] = None,
 ) -> str:
     """
     Streams a structural JSON document into object storage under an immutable tracking path. 
     Guarantees no file clobbering or write-lock contention using unique transaction keys.
     """
+    key = object_key or new_extraction_object_key(tenant_id, ingestion_job_id)
+    _validate_object_key(tenant_id, ingestion_job_id, key)
     _ensure_bucket(client, bucket)
-    key = _object_key(tenant_id, ingestion_job_id)
     payload = json.dumps(document, ensure_ascii=False, indent=None).encode("utf-8")
+    if on_pre_upload is not None:
+        on_pre_upload(bucket, key, len(payload))
     try:
         client.put_object(
             bucket_name=bucket,
@@ -111,6 +153,9 @@ def upload_extraction_document(
             length=len(payload),
             content_type="application/json",
         )
-    except S3Error as e:
-        raise RuntimeError(f"Failed to persist extraction document to MinIO: {e}") from e
+    except Exception as e:
+        _remove_after_failed_upload(client, bucket, key)
+        if isinstance(e, S3Error):
+            raise RuntimeError(f"Failed to persist extraction document to MinIO: {e}") from e
+        raise
     return key
