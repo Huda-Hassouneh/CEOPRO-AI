@@ -2,8 +2,9 @@
 Operator actions on prices, spending controls, Custom contracts and credit
 adjustments - used by scripts/billing_admin.py, never by a customer API.
 Each one writes entitlement_audit_log (who approved it, why, against which
-contract) in the same transaction as the change. Callers pass a system
-connection and commit.
+contract) in the same transaction as the change. set_price also accepts an
+owner-scoped restricted connection through the narrow accounting function.
+Callers commit; other operator operations retain their existing connection rules.
 """
 import json
 from datetime import date, datetime, timedelta, timezone
@@ -178,36 +179,35 @@ def set_price(conn, *, budget_kind: str, provider: str, operation: str, unit: st
     approved_by, reason, source = _require(approved_by, "approved_by"), _require(reason, "reason"), _require(source, "source")
     if budget_kind not in (credits.DATA, credits.AI):
         raise AdminError("budget must be data or ai")
-    if Decimal(unit_cost_usd) < 0:
-        raise AdminError("a price can't be negative")
+    provider, operation, unit = (_require(provider, "provider"), _require(operation, "operation"), _require(unit, "unit"))
+    if len(provider) > 60 or len(operation) > 120 or unit not in (
+        "request", "record", "page", "input_token", "output_token", "cache_read_token", "cache_write_token", "image"
+    ):
+        raise AdminError("invalid provider, operation or accounting unit")
+    price = Decimal(unit_cost_usd)
+    if not price.is_finite() or price < 0 or price.as_tuple().exponent < -12 or price >= Decimal("100000000"):
+        raise AdminError("price must be finite and fit NUMERIC(20,12)")
+    if safety_margin is not None and (not Decimal(safety_margin).is_finite() or not 0 <= Decimal(safety_margin) <= 2):
+        raise AdminError("safety margin must be between 0 and 2")
+    if not isinstance(verified_on, date) or not isinstance(charged_on_failure, bool) or not isinstance(cost_is_final, bool):
+        raise AdminError("verification date and boolean failure/finality policies are required")
+    payload = dict(budget_kind=budget_kind, provider=provider, operation=operation, unit=unit,
+                   unit_cost_usd=str(price), source=source, verified_on=verified_on.isoformat(),
+                   approved_by=approved_by, reason=reason,
+                   safety_margin=str(safety_margin) if safety_margin is not None else None,
+                   charged_on_failure=charged_on_failure, cost_is_final=cost_is_final, if_missing=if_missing)
+    from psycopg2.extras import Json
     with conn.cursor() as cursor:
-        cursor.execute(
-            "SELECT unit_cost_usd, safety_margin, source FROM provider_cost_schedules "
-            "WHERE budget_kind = %s AND provider = %s AND operation = %s AND unit = %s;",
-            (budget_kind, provider, operation, unit),
-        )
-        old = cursor.fetchone()
-        if if_missing and old and old[0] is not None:
-            return False
-        cursor.execute(
-            """
-            INSERT INTO provider_cost_schedules (budget_kind, provider, operation, unit, unit_cost_usd, safety_margin,
-                                                 charged_on_failure, cost_is_final, source, verified_at, configured_by)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (budget_kind, provider, operation, unit) DO UPDATE SET
-                unit_cost_usd = EXCLUDED.unit_cost_usd, safety_margin = EXCLUDED.safety_margin,
-                charged_on_failure = EXCLUDED.charged_on_failure, cost_is_final = EXCLUDED.cost_is_final,
-                source = EXCLUDED.source, verified_at = EXCLUDED.verified_at, configured_by = EXCLUDED.configured_by,
-                updated_at = NOW();
-            """,
-            (budget_kind, provider, operation, unit, Decimal(unit_cost_usd), safety_margin, charged_on_failure,
-             cost_is_final, source, verified_on, approved_by),
-        )
-        _audit(cursor, None, "set_price", f"{budget_kind}:{provider}:{operation}:{unit}",
-               None if not old else {"unit_cost_usd": old[0], "safety_margin": old[1], "source": old[2]},
-               {"unit_cost_usd": Decimal(unit_cost_usd), "safety_margin": safety_margin, "source": source,
-                "verified_on": verified_on}, approved_by, reason)
-    return True
+        cursor.execute("SELECT public.billing_provider_accounting('set_price',%s::jsonb)", (Json(payload),))
+        return cursor.fetchone()[0]["written"]
+
+
+def list_provider_prices(conn) -> list:
+    """Owner-scoped read; never exposes provider credentials or grants table access."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT public.billing_provider_accounting('list')")
+        return cursor.fetchone()[0]
+
 
 
 def set_control(conn, *, provider: str, approved_by: str, reason: str, monthly_cap_usd: Optional[Decimal] = None,

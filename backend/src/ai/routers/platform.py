@@ -23,6 +23,82 @@ class Reason(BaseModel):
     reason: str = Field(min_length=1, max_length=2000)
 
 
+AccountingUnit = Literal["request", "record", "page", "input_token", "output_token", "cache_read_token", "cache_write_token", "image"]
+
+
+class ProviderAccountingPrice(Reason):
+    budget_kind: Literal["data", "ai"]
+    provider: str = Field(min_length=1, max_length=60)
+    operation: str = Field(min_length=1, max_length=120)
+    unit: AccountingUnit
+    unit_cost_usd: Decimal = Field(ge=0, max_digits=20, decimal_places=12, allow_inf_nan=False)
+    safety_margin: Decimal | None = Field(default=None, ge=0, le=2, max_digits=5, decimal_places=4)
+    charged_on_failure: StrictBool
+    cost_is_final: StrictBool
+    source: str = Field(min_length=1, max_length=2000)
+    verified_at: date
+
+
+class ProviderAccountingSchedule(BaseModel):
+    schedule_id: UUID
+    budget_kind: Literal["data", "ai"]
+    provider: str
+    operation: str
+    unit: AccountingUnit
+    unit_cost_usd: Decimal | None
+    safety_margin: Decimal | None
+    charged_on_failure: bool
+    cost_is_final: bool
+    source: str
+    verified_at: date | None
+    configured_by: str
+    updated_at: datetime
+    reason: str | None = None
+
+
+class ProviderAccountingSchedules(BaseModel):
+    schedules: list[ProviderAccountingSchedule]
+
+
+@router.get("/billing/provider-accounting", response_model=ProviderAccountingSchedules)
+def list_provider_accounting(ctx: Ctx):
+    return _provider_accounting(ctx)
+
+
+@router.put("/billing/provider-accounting", response_model=ProviderAccountingSchedules)
+def save_provider_accounting(body: ProviderAccountingPrice, ctx: Ctx):
+    return _provider_accounting(ctx, body)
+
+
+def _provider_accounting(ctx, body=None):
+    # Existing platform service validates current membership; SQL repeats owner
+    # authorization under the authority lock. No schema-owner socket is opened.
+    if service.command(ctx, "me").get("role") != "owner":
+        raise HTTPException(403, "Platform Owner permission is required.")
+    from psycopg2 import Error as DatabaseError
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if body is not None:
+            values = body.model_dump()
+            values["verified_on"] = values.pop("verified_at")
+            billing_admin.set_price(conn, **values, approved_by=ctx.user_id)
+        schedules = billing_admin.list_provider_prices(conn)
+        conn.commit()
+        return {"schedules": schedules}
+    except billing_admin.AdminError as exc:
+        conn.rollback()
+        raise HTTPException(422, str(exc)) from None
+    except DatabaseError as exc:
+        conn.rollback()
+        if exc.pgcode == "42501":
+            raise HTTPException(403, "Platform Owner permission is required.") from None
+        if exc.pgcode and exc.pgcode.startswith(("22", "23")):
+            raise HTTPException(422, "Invalid provider accounting schedule.") from None
+        raise HTTPException(503, "Provider accounting is temporarily unavailable.") from None
+    finally:
+        conn.close()
+
+
 class Status(Reason):
     active: bool
 
