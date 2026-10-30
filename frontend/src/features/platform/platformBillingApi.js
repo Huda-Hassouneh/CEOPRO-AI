@@ -4,6 +4,10 @@ const enc = encodeURIComponent;
 const root = '/platform/billing';
 export function createPlatformBillingApi(client) {
   return Object.freeze({
+    pricingStudio: () => unwrap(client.get(`${root}/pricing-studio`)),
+    analyzePlan: (body) => unwrap(client.post(`${root}/pricing-studio/analyze`, body)),
+    createAnalysisPolicy: (body) => unwrap(client.post(`${root}/pricing-studio/policies`, body)),
+    analysisHistory: () => unwrap(client.get(`${root}/pricing-studio/history`)),
     providerAccounting: () => unwrap(client.get(`${root}/provider-accounting`)),
     saveProviderAccounting: (body) => unwrap(client.put(`${root}/provider-accounting`, body)),
     view: (name, limit = 100, offset = 0) => unwrap(client.get(`${root}/admin-views/${enc(name)}`, { params: { limit, offset } })),

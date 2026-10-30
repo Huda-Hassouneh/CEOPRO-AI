@@ -1,5 +1,135 @@
 # Platform Billing: original UI and Python pricing parity
 
+## Standard Plan Pricing Studio — 2026-10-31
+
+Base: `d326f732910769c4636762617730bd9056a07aed`. Standard Plans currently
+publish USD catalog/Stripe prices. The Studio preserves those contracts and
+offers **JOD economic analysis**, using only an explicit, versioned USD/JOD
+assumption. No commercial values, utilization ratios or allocations are seeded.
+
+### Architecture and authorities
+
+`BillingCatalogPage` adds Pricing Studio immediately after Plans and an
+`Analyze Pricing` action with the plan preselected. `PricingStudio.jsx` renders
+server results and versioned policy controls in English/Arabic. The owner-only
+`/platform/billing/pricing-studio` API delegates to `billing/plan_studio.py`
+(use cases), `plan_analysis.py` (pure model), and the restricted
+`billing_plan_studio` SQL capability. The ordinary app login is used; no admin
+socket or additional runtime table grants are introduced.
+
+`pricing_math.py` contains the small shared Decimal operations for usage cost,
+margin floors and monetary rounding. Custom Plan calculation uses these same
+operations with unchanged policy, order and output. The Studio reuses its
+feature/unit/monitoring cost normalization with zero Custom commercial fee and
+margin; it does not inherit Custom automatic-review or checkout policy.
+
+| Input | Authoritative source | Interpretation |
+|---|---|---|
+| Plan configuration | `usage_plans`, `usage_plan_limits`, `usage_plan_entitlements`, `usage_features` | Current Standard Plan contract, including explicit zero/unbounded and reset semantics |
+| Published price/interval | `billing_plan_prices`, catalog metadata | Display/comparison only; original currency retained |
+| AI/Data Credit value | `billing_cost_policy.credit_usd_value` | Provider-cost exposure per Credit, not revenue or measured spend |
+| Additional external unit cost | `provider_cost_schedules` | Provider Accounting authority, verified source/date/ID/update evidence |
+| Feature/unit conversion | Approved `billing_custom_cost_bindings` | Reused mapping and multipliers; **Custom quotation rate amounts are not used as actual provider costs** |
+| Observed provider spend | `usage_ledger.plan_key` and final `actual_cost_usd` | Rolling 30-day aggregate, using historical plan attribution; pending estimates separate |
+| Utilization, allocations, FX, commercial objectives | New immutable owner policy | Configured assumptions, never presented as observed data |
+
+Credit-funded features must be explicitly classified as covered by AI/Data
+Credits, preventing duplicate feature and Credit costs. Internal coverage is an
+explicit owner assumption. Additional external features require bound, current,
+verified Provider Accounting rates. A missing or stale quotation price cannot
+silently substitute for a missing actual provider rate. Reconciled ledger costs
+already contain the final amount; reconciliation adjustments are not added again.
+
+### Policy, formulas and evidence
+
+Migration `20261118000000_standard_plan_pricing_studio.sql` introduces only
+`billing_plan_analysis_policies` and `billing_plan_analyses`, both FORCE RLS,
+append-only, accessed through an owner-checked capability. Policies are immutable
+versions with effective dates, actor and justification. Analyses freeze plan,
+policy, provider evidence, Credit value, FX provenance, observed spend and results
+with a SHA-256 source hash. The history API returns the frozen snapshot.
+
+Owner-configured fields include target/minimum margins, risk buffer,
+expected/stress utilization, monthly per-tenant infrastructure/support/operations,
+payment ratio/fixed fee, annual discount and allowance cycles, whole-cent upward
+rounding, FX rate/source/version, rate-age threshold, cost coverage, unbounded
+usage estimates and optional tier-gap threshold. No draft or future policy is
+silently selected: latest effective date/version wins, or an explicit effective
+version can be selected. Existing approved binding versions are referenced.
+
+For each scenario, Credit exposure is `allocation × credit USD value ×
+utilization × USD/JOD`. Additional feature cost uses the shared calculator's
+normalized units times actual provider unit price, operational multiplier,
+variability reserve, FX and utilization. Micro-costs remain Decimal through
+aggregation. Internal allocations are added once. Observed spend is shown
+separately and never added to modeled exposure.
+
+Let `E` and `S` be expected/stress costs, `b` risk buffer, `f` processing ratio,
+`k` fixed fee per charge, `m` minimum margin and `t` target margin:
+
+- Break-even: `(E + k) / (1 - f)`.
+- Safe minimum: `((S × (1+b)) + k) / (1 - f - m)`.
+- Target: `((E × (1+b)) + k) / (1 - f - t)`.
+- Recommended: upward-round `max(safe minimum, target)` to the configured increment.
+- Current contribution: `price × (1-f) - k - E`; margin is contribution / price.
+- Stress margin substitutes `S` for `E`. Nonpositive revenue has no margin ratio.
+
+Existing multi-month sum allowances are charged once per assigned billing
+period in this analysis; recurring allocations scale with months. This follows
+the current `usage.get_plan`/Credit budget period rather than assuming monthly
+resets that the runtime does not implement. Annual pricing is **hypothetical**:
+recurring cost scales by 12, allowance exposure by the explicitly configured
+annual cycle count, with one fixed payment fee. The discounted annual candidate
+is `recommended monthly × 12 × (1-annual discount)`, rounded upward. A candidate
+below the annual safe floor is flagged, never silently published or corrected.
+
+Missing policy, coverage, finite usage, important bound rates or verification
+produces `INCOMPLETE_DATA`, labeled known subtotals and **no recommendation**.
+Unsafe current margins/annual discounts produce warnings. Tier comparisons flag
+non-increasing prices, configured weak gaps, cost growth exceeding price growth,
+and lower-tier allowance/module dominance. They make no willingness-to-pay claim.
+Provider schedule inventory separately labels missing/unverified/stale rows;
+unreferenced providers do not masquerade as costs used in the model. A SAFE label
+means only safe under the configured model, not a guarantee of realized profit.
+
+### Safety and verification boundary
+
+Analysis and simulation write only analysis evidence. Policy creation writes
+policy/audit evidence. Neither calls Stripe, changes plan prices/allowances,
+creates subscriptions, grants rights, settles Credits, or reprices subscribers.
+Native tests fingerprint catalog, price, subscription, payment, assignment,
+contract, balance and usage tables before/after simulation. Provider price-change
+tests verify a new result changes while the earlier snapshot and Custom quotation
+rate remain unchanged. Restricted app sockets, direct SQL denial and FORCE RLS
+are verified. Browser acceptance uses the production Billing page/API/database
+with an explicitly injected synthetic identity, not production login acceptance.
+
+Normal application migrations, real provider operations and production economic
+configuration are outside this implementation. Rollout requires the documented
+verified backup procedure and deliberate owner policy/mapping configuration.
+Future work may add provider-mix forecasts, per-plan/per-feature utilization,
+market/value evidence and publication workflows. None is invented here; no PAYG
+or automatic subscriber repricing is introduced.
+
+Final verification:
+
+- `dev.ps1 test --suite backend --pytest-args tests/billing src/ai/tests/test_credits_integration_db.py src/ai/tests/test_usage_integration_db.py -q`: **425 passed, zero skips**, including Billing, Custom Plan self-service, Provider Accounting, Credits, allowances, owner/RLS and browser checks. Evidence: `.dev/evidence/tests/9b1ecb8ccf77/`.
+- Final browser run with app stylesheet foundations: **4 passed** (English desktop, Arabic/RTL mobile, tenant denial, incomplete-cost warning). Evidence: `.dev/evidence/tests/334311bc267d/`; captures under `.dev/evidence/standard-pricing-studio/`.
+- `dev.ps1 test --suite frontend`: **242 passed, zero skips**, ESLint and production build passed. Evidence: `.dev/evidence/standard-pricing-studio/frontend-final.log`.
+- Migrations: **153**, repeat/idempotency check passed; restricted password login and **122 FORCE RLS tables** verified. Existing Starlette/httpx deprecation and font/dynamic-import build warnings remain.
+- Original Node parity: **42/42 calculator** and **10/10 Custom validation/review/payment vectors** passed after extraction. Evidence under `standard-pricing-studio/calculator-parity/` and `custom-decision-parity/`.
+- Read-only normal DB check confirms Studio function and both new tables are absent: `standard-pricing-studio/normal-schema-check.json`. No normal migration, real Stripe/provider action, customer record edit, service restart, push or merge occurred.
+
+Changed files:
+
+- Backend: `backend/src/ai/billing/{plan_analysis.py,plan_studio.py,pricing_math.py,custom_plan_pricing.py}` and `backend/src/ai/routers/platform.py`.
+- Migration: `backend/src/infrastructure/database/migrations/20261118000000_standard_plan_pricing_studio.sql`.
+- Backend tests: `backend/tests/billing/{test_plan_studio.py,test_plan_studio_browser.py}`.
+- UI: `frontend/src/features/platform/{PricingStudio.jsx,pricingStudio.js,pricingStudio.css,platformBillingApi.js}` and `frontend/src/features/billing/pages/BillingCatalogPage.jsx`.
+- Translations: `frontend/src/assets/locales/{en.json,ar.json}`.
+- Frontend tests: `frontend/tests/pricingStudio.test.mjs` and `frontend/tests/browser/pricing-studio.{html,jsx,mjs}`.
+- Documentation: this existing report. The two unrelated untracked documents are untouched.
+
 ## Customer self-service Custom plans — 2026-10-31
 
 The customer currency decision now authorizes JOD commercial quotes with USD

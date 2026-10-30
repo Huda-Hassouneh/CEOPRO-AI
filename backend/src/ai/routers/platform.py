@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, field_validator
 
 from src.ai import db
-from src.ai.billing import admin as billing_admin, custom_offers, custom_plan_pricing_service, promotions, owner_promotions
+from src.ai.billing import admin as billing_admin, custom_offers, custom_plan_pricing_service, promotions, owner_promotions, plan_studio
 from src.ai.core import auth_throttle, security
 from src.ai.core.authorization import require_platform_permission
 from src.ai.core.security import TenantContext, get_tenant_context
@@ -16,6 +16,54 @@ from src.ai.platform import service
 
 router = APIRouter(prefix="/platform", tags=["platform"])
 Ctx = Annotated[TenantContext, Depends(get_tenant_context)]
+
+def _pricing_studio(ctx, action, body=None):
+    if service.command(ctx, 'me').get('role') != 'owner':
+        raise HTTPException(403, 'Platform Owner permission is required.')
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        if action == 'analyze':
+            result = plan_studio.run_analysis(conn, body)
+        elif action == 'create_policy':
+            result = plan_studio.create_policy(conn, body)
+        elif action == 'inputs':
+            result = plan_studio.bootstrap(conn)
+        else:
+            result = plan_studio.command(conn, action)
+        conn.commit()
+        return plan_studio.plan_analysis.serial(result)
+    except ValueError as exc:
+        conn.rollback()
+        raise HTTPException(422, str(exc)) from None
+    except Exception as exc:
+        conn.rollback()
+        if getattr(exc, 'pgcode', None) == '42501':
+            raise HTTPException(403, 'Platform Owner permission is required.') from None
+        if getattr(exc, 'pgcode', None) in ('22023', '23503', '23514'):
+            raise HTTPException(422, 'Invalid pricing analysis policy or configuration.') from None
+        raise
+    finally:
+        conn.close()
+
+
+@router.get('/billing/pricing-studio')
+def pricing_studio_inputs(ctx: Ctx):
+    return _pricing_studio(ctx, 'inputs')
+
+
+@router.post('/billing/pricing-studio/policies', status_code=201)
+def pricing_studio_policy(body: plan_studio.PolicyCreate, ctx: Ctx):
+    return _pricing_studio(ctx, 'create_policy', body)
+
+
+@router.post('/billing/pricing-studio/analyze')
+def pricing_studio_analyze(body: plan_studio.AnalysisRequest, ctx: Ctx):
+    return _pricing_studio(ctx, 'analyze', body)
+
+
+@router.get('/billing/pricing-studio/history')
+def pricing_studio_history(ctx: Ctx):
+    return _pricing_studio(ctx, 'history')
 
 
 class Reason(BaseModel):

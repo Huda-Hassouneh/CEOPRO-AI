@@ -6,8 +6,9 @@ business policy, persist a quote, contact Stripe, or grant rights.
 """
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
+from src.ai.billing.pricing_math import money as _money, round_up as _round_up, price_for_margin, usage_cost
 
 ZERO = Decimal("0")
 ONE = Decimal("1")
@@ -37,10 +38,6 @@ def _field(row: dict, snake: str, camel: str | None = None, default=None):
     if camel and camel in row:
         return row[camel]
     return default
-
-
-def _money(value: Decimal) -> Decimal:
-    return value.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
 def _convert_rate(rate: dict, args: dict) -> Decimal:
@@ -94,12 +91,6 @@ def _resolve_vendor_usage(rate: dict, args: dict, fallback: Decimal, features: l
         "monitoringRunsPerMonth": str(runs),
         "unitsPerCompetitorCheck": str(units_per_check),
     }
-
-
-def _round_up(value: Decimal, increment: Decimal) -> Decimal:
-    if increment <= 0:
-        return _money(value)
-    return _money((value / increment).to_integral_value(rounding=ROUND_CEILING) * increment)
 
 
 def calculate_custom_plan_price(args: dict) -> dict:
@@ -163,7 +154,7 @@ def calculate_custom_plan_price(args: dict) -> dict:
         reserve = _decimal(_field(rate, "variability_reserve", "variabilityReserve"), "variability reserve")
         if operational <= 0 or reserve < 1:
             raise CustomPlanPricingError(f"Invalid multiplier on vendor rate {_field(rate, 'id', default='unknown')}")
-        cost = units * unit_cost * operational * reserve
+        cost = usage_cost(units, unit_cost, operational, reserve)
         vendor_cost += cost
         vendor_breakdown.append({
             "rateId": _field(rate, "id"), "featureId": fid,
@@ -217,7 +208,7 @@ def calculate_custom_plan_price(args: dict) -> dict:
             raise CustomPlanPricingError(f"Invalid multiplier or conversion factor on infrastructure rate {_field(rate, 'id')}")
         billable = quantity * conversion
         unit_cost = _convert_rate(rate, args)
-        cost = billable * unit_cost * operational * reserve
+        cost = usage_cost(billable, unit_cost, operational, reserve)
         infra_cost += cost
         infra_breakdown.append({
             "rateId": _field(rate, "id"), "featureId": fid,
@@ -239,7 +230,7 @@ def calculate_custom_plan_price(args: dict) -> dict:
     base_infra = monthly_infra / Decimal(paying_tenants)
     estimated_infra = base_infra + infra_cost
     total_cost = vendor_cost + estimated_infra + other_cost
-    margin_floor = total_cost / (ONE - margin)
+    margin_floor = price_for_margin(total_cost, margin)
     ratio_floor = vendor_cost / max_ratio if max_ratio is not None else ZERO
     safe_price = max(ratio_floor, margin_floor) if enforce_ratio else margin_floor
     pre_round = safe_price + fee

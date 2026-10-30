@@ -18,6 +18,7 @@ import Toast from "../../../shared/components/ui/Toast.jsx";
 import CustomPlanQuoteManager from "../components/CustomPlanQuoteManager.jsx";
 import BillingOptionsEditor from "../components/BillingOptionsEditor.jsx";
 import { ProviderAccounting } from "../../platform/ProviderAccounting.jsx";
+import { PricingStudio } from "../../platform/PricingStudio.jsx";
 import { billingApi } from "../api/billingApi.js";
 import { getApiError, isForbiddenBillingError } from "../api/catalogPresentationErrors.js";
 import "../styles/BillingCatalogOriginal.css";
@@ -1754,8 +1755,10 @@ export function BillingCatalogPage({
     {
       header: t("billing.catalog.actions"),
       render: (plan) =>
-        canManageAll ? (
+        canManageAll || (platformMode && plan.self_serve) ? (
           <div className="billing-catalog-row-actions">
+            {platformMode && plan.self_serve && <Button variant="outline" size="sm" onClick={() => navigate(`?tab=pricing-studio&plan=${encodeURIComponent(plan.id)}`)}>{t('billing.pricingStudio.analyzePricing')}</Button>}
+            {canManageAll && <>
             <Button
               variant="ghost"
               size="sm"
@@ -1773,6 +1776,7 @@ export function BillingCatalogPage({
                 {t(plan.isActive ? "common.deactivate" : "common.activate")}
               </Button>
             )}
+            </>}
           </div>
         ) : (
           <span className="billing-catalog-read-only">
@@ -2112,6 +2116,7 @@ export function BillingCatalogPage({
             label: t("billing.catalog.tabs.plans"),
             content: plansContent
           },
+          ...(platformMode ? [{id:'pricing-studio',label:t('billing.pricingStudio.title'),content:<PricingStudio />}]:[]),
           {
             id: "custom-plans",
             label: t("billing.catalog.tabs.customPlans"),
