@@ -1,0 +1,41 @@
+name: keel-verification
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: keel-verification-postgres
+    environment:
+      POSTGRES_DB: keel_verification
+      POSTGRES_USER: keel_verify_admin
+      POSTGRES_PASSWORD: ${KEEL_VERIFY_ADMIN_PASSWORD:?create local verification credentials first}
+    ports:
+      - "127.0.0.1:55446:5432"
+    volumes:
+      - keel_verification_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keel_verify_admin -d keel_verification"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7.4.11
+    container_name: keel-verification-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:56340:6379"
+  minio:
+    image: keel-minio-rag:local
+    container_name: keel-verification-minio
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${KEEL_VERIFY_MINIO_USER:?create local verification credentials first}
+      MINIO_ROOT_PASSWORD: ${KEEL_VERIFY_MINIO_PASSWORD:?create local verification credentials first}
+    ports:
+      - "127.0.0.1:59002:9000"
+      - "127.0.0.1:59003:9001"
+    volumes:
+      - keel_verification_miniodata:/data
+volumes:
+  keel_verification_pgdata:
+    name: keel_verification_pgdata
+  keel_verification_miniodata:
+    name: keel_verification_miniodata

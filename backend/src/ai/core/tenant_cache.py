@@ -31,6 +31,7 @@ import threading
 import time
 from collections import OrderedDict
 from typing import Callable, Hashable
+from src.infrastructure.request_language import get_request_language
 
 TTL_SECONDS = float(os.getenv("TENANT_CACHE_TTL_SECONDS", "30"))
 MAX_ENTRIES = int(os.getenv("TENANT_CACHE_MAX_ENTRIES", "512"))
@@ -112,7 +113,7 @@ def get_or_compute(namespace: str, tenant_id, key: Hashable, compute: Callable[[
     if ttl <= 0:
         return compute()
     tenant_id = str(tenant_id)
-    full_key = (namespace, tenant_id, key)
+    full_key = (namespace, tenant_id, (get_request_language(), key))
     shared = _shared_generation(tenant_id)
     while True:
         with _lock:
@@ -150,9 +151,10 @@ def get_or_compute(namespace: str, tenant_id, key: Hashable, compute: Callable[[
 def cached_read(namespace: str, ctx, key: Hashable, read: Callable[[object], object], ttl: float = None):
     """get_or_compute() for a read on the caller's own company connection:
     `read(conn)` runs on a fresh row-level-security connection for
-    ctx.tenant_id / ctx.user_id, and only when the value isn't cached. Only for
-    results that depend on the company's data alone, never on who asks
-    (role checks belong in the endpoint's dependencies, before this)."""
+    ctx.tenant_id / ctx.user_id, and only when the value isn't cached. Include
+    the principal and request language: SQL localized_text() and RLS can
+    change the result within the same company. Role checks still run in the
+    endpoint dependencies before every cache lookup."""
     from src.ai import db
 
     def compute():
@@ -163,4 +165,4 @@ def cached_read(namespace: str, ctx, key: Hashable, read: Callable[[object], obj
             conn.rollback()  # reads only: nothing to keep
             conn.close()
 
-    return get_or_compute(namespace, ctx.tenant_id, key, compute, ttl)
+    return get_or_compute(namespace, ctx.tenant_id, (str(ctx.user_id), key), compute, ttl)

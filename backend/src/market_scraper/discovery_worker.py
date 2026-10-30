@@ -37,7 +37,7 @@ import os
 import redis
 
 from src.market_scraper import data_access
-from src.market_scraper.competitor_enrichment import enrich_tenant_competitors
+from src.market_scraper import enrichment_worker
 from src.market_scraper.discovery import refresh_tenant_competitors
 from src.ai.billing import credits
 from src.market_scraper.enqueue import enqueue_collection
@@ -117,7 +117,11 @@ def discover_for_tenant(tenant_id: str) -> dict:
         # reason as the refresh above; per-competitor outcomes, including a
         # missing/rejected Places key, are recorded in competitor_enrichment.
         try:
-            enrichment_summary = enrich_tenant_competitors(conn, tenant_id)
+            enrichment_summary = {
+                "receipts_created": enrichment_worker.enqueue_competitor_receipts(
+                    conn, tenant_id, "due", actor_user_id,
+                ),
+            }
         except Exception:  # noqa: BLE001
             conn.rollback()
             logger.exception("competitor enrichment failed for tenant %s", tenant_id)

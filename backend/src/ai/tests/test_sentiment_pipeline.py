@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.ai.core import usage
 from src.ai.sentiment import pipeline
 from src.ai.sentiment.model import SentimentPrediction
 
@@ -35,6 +36,34 @@ def _prediction(label: str = "positive") -> SentimentPrediction:
     )
 
 
+def test_rating_upgrade_is_not_reserved_or_charged_again(fake_conn):
+    review = {**_review("rated"), "upgrade": True}
+    with patch.object(usage, "remaining", return_value=10), \
+         patch.object(usage, "reserve") as reserve, patch.object(usage, "settle") as settle, \
+         patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=[review]), \
+         patch.object(pipeline.model, "classify_or_unavailable", return_value=[_prediction()]), \
+         patch.object(pipeline.evidence, "insert_sentiment_result"):
+        result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
+    assert result["upgraded_count"] == 1 and result["analyzed_count"] == 0
+    reserve.assert_not_called()
+    settle.assert_not_called()
+
+
+def test_mixed_batch_reserves_only_new_reviews_and_settles_successes(fake_conn):
+    reviews = [_review("new"), {**_review("rated"), "upgrade": True}]
+    reservation = {"amount": 1}
+    with patch.object(usage, "remaining", return_value=10), \
+         patch.object(usage, "reserve", return_value=reservation) as reserve, \
+         patch.object(usage, "settle") as settle, \
+         patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=reviews), \
+         patch.object(pipeline.model, "classify_or_unavailable", return_value=[_prediction(), _prediction()]), \
+         patch.object(pipeline.evidence, "insert_sentiment_result"):
+        result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
+    assert result["analyzed_count"] == 1 and result["upgraded_count"] == 1
+    reserve.assert_called_once_with(fake_conn, "tenant-1", usage.SENTIMENT_ANALYSIS, 1)
+    settle.assert_called_once_with(fake_conn, reservation, 1)
+
+
 def test_classify_and_store_reviews_no_unanalyzed_reviews(fake_conn):
     with patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=[]):
         result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
@@ -47,7 +76,9 @@ def test_classify_and_store_reviews_writes_one_sentiment_result_per_review(fake_
     reviews = [_review("r1"), _review("r2")]
     predictions = [_prediction("positive"), _prediction("negative")]
 
-    with patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=reviews), \
+    with patch("src.ai.core.usage.reserve", return_value={"amount": 2}) as mock_reserve, \
+         patch("src.ai.core.usage.settle") as mock_settle, \
+         patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=reviews), \
          patch.object(pipeline.model, "classify", return_value=predictions), \
          patch.object(pipeline.evidence, "insert_sentiment_result", return_value="sentiment-1") as mock_insert:
         result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
@@ -55,6 +86,8 @@ def test_classify_and_store_reviews_writes_one_sentiment_result_per_review(fake_
     assert result == {"status": "OK", "analyzed_count": 2, "failed_count": 0, "method": "model"}
     assert mock_insert.call_count == 2
     mock_insert.assert_any_call(fake_conn, "r1", "tenant-1", "positive", 0.8, 0.1, 0.1, 0.8, "fake-model")
+    mock_reserve.assert_called_once_with(fake_conn, "tenant-1", usage.SENTIMENT_ANALYSIS, 2)
+    mock_settle.assert_called_once_with(fake_conn, {"amount": 2}, 2)
     fake_conn.commit.assert_called_once()
 
 
@@ -74,13 +107,17 @@ def test_classify_and_store_reviews_isolates_a_failing_review_without_blocking_o
             raise Exception("simulated constraint violation")
         return "sentiment-2"
 
-    with patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=reviews), \
+    with patch("src.ai.core.usage.reserve", return_value={"amount": 2}) as mock_reserve, \
+         patch("src.ai.core.usage.settle") as mock_settle, \
+         patch.object(pipeline.data_access, "load_unanalyzed_reviews", return_value=reviews), \
          patch.object(pipeline.model, "classify", return_value=predictions), \
          patch.object(pipeline.evidence, "insert_sentiment_result", side_effect=_insert_side_effect) as mock_insert:
         result = pipeline.classify_and_store_reviews(fake_conn, "tenant-1")
 
     assert result == {"status": "OK", "analyzed_count": 1, "failed_count": 1, "method": "model"}
     assert mock_insert.call_count == 2  # both reviews were attempted, not stopped after the first failure
+    mock_reserve.assert_called_once_with(fake_conn, "tenant-1", usage.SENTIMENT_ANALYSIS, 2)
+    mock_settle.assert_called_once_with(fake_conn, {"amount": 2}, 1)
     fake_conn.commit.assert_called_once()  # the whole batch still commits despite one failure
 
     cursor = fake_conn.cursor.return_value.__enter__.return_value

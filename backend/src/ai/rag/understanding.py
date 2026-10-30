@@ -436,6 +436,13 @@ def _contains_run(haystack: List[str], needle: List[str]) -> bool:
     return any(haystack[i:i + len(needle)] == needle for i in range(len(haystack) - len(needle) + 1))
 
 
+def _all_history(text: str) -> bool:
+    return bool(re.search(
+        r"\b(?:all[- ]time|lifetime|all (?:of )?(?:our |the )?(?:sales )?history|all historical sales|"
+        r"entire (?:sales )?history|since (?:the )?beginning)\b|"
+        r"(?:كامل|كل|جميع) (?:سجل |تاريخ |تاريخية )?(?:المبيعات|الفترات)|منذ البداية|على مر التاريخ", text))
+
+
 def _products(text: str, catalog: List[dict]) -> List[dict]:
     """Catalog products named in the question: whole names first (either language); when none is named in
     full, the products a partial name points at ("olive oil", "the honey", "زيت الزيتون", "التمر"): two
@@ -487,7 +494,9 @@ def extract_slots(question: str, catalog: Optional[List[dict]] = None, company_c
     if destination:
         slots["destination_country"] = destination
     period = _period_days(text)
-    if period:
+    if _all_history(text):
+        slots["all_history"] = True
+    elif period:
         slots["period_days"] = period
     calendar_periods = _periods.resolve_periods(text, today or date.today())
     if calendar_periods:
@@ -579,6 +588,15 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
                              public_scope=is_public_scope(question, intents, slots))
 
     merged = dict(previous.get("slots") or {})
+    if (slots.get('all_history') or slots.get('period_days')) and merged.get('top_product') and not slots.get('products'):
+        # A product resolved as "top" in the previous window must be ranked
+        # again when the user changes the period, rather than becoming a name filter.
+        merged.pop('products', None)
+    if slots.get("all_history"):
+        merged.pop("period_days", None)
+        merged.pop("periods", None)
+    elif slots.get("period_days") or slots.get("periods"):
+        merged.pop("all_history", None)
     if any(key in slots for key in ("origin_country", "destination_country", "countries")):
         for key in ("origin_country", "destination_country", "countries"):
             merged.pop(key, None)

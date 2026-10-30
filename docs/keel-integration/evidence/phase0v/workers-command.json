@@ -1,0 +1,27 @@
+{
+  "target": "workers",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-ra",
+    "-p",
+    "no:cacheprovider",
+    "--continue-on-collection-errors",
+    "src/market_scraper/tests/test_worker.py",
+    "src/market_scraper/tests/test_analysis_worker.py",
+    "src/market_scraper/tests/test_discovery_worker.py",
+    "src/market_scraper/tests/test_connector_sync.py",
+    "src/market_scraper/tests/test_api_connector_sync.py",
+    "src/market_scraper/tests/test_network_security.py",
+    "--junitxml",
+    "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/docs/keel-integration/evidence/phase0v/workers-offline.xml"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/backend",
+  "exit_code": 1,
+  "seconds": 1.573,
+  "environment": "allowlist PATH/LANG/LC_ALL/TMPDIR; no DB/Stripe/provider settings inherited; Python socket TCP fence; production metering defaults; offline background/model flags",
+  "network": "No live providers or databases authorized; no Docker/server available",
+  "log": "workers.log"
+}

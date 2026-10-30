@@ -1,8 +1,8 @@
 """
 Billing persistence. Reads take a tenant-scoped connection (row-level
-security applies); writes take db.system_connection() because only the
-billing service - acting on a verified Stripe event or the one-time trial -
-may change a company's plan.
+security applies). Local writes use separate restricted setup, verified-webhook
+and accounting capabilities. Existing manual deployments retain their trusted
+connection configuration; an administrator DSN is never a local API default.
 """
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -50,10 +50,14 @@ def catalog(conn) -> list:
             """
         )
         prices = cursor.fetchall()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT feature_code,unit,aggregation_type,reset_cycle,display_name,display_name_ar,description,description_ar FROM usage_features")
+        feature_catalog = {row[0]: dict(zip(('unit','aggregation_type','reset_cycle','name','name_ar','description','description_ar'),row[1:])) for row in cursor.fetchall()}
     out = []
     for key, name, name_ar, monthly, currency, trial_days, tier, self_serve in plans:
         out.append({
             "plan_key": key,
+            "feature_catalog": feature_catalog,
             "name": {"en": name, "ar": name_ar or name},
             "monthly_price": float(monthly) if monthly is not None else None,
             "currency": currency,
@@ -101,6 +105,52 @@ def plan_tier(conn, plan_key: str) -> int:
     return int(row[0]) if row else 0
 
 
+def configured_plan_rights(conn, tenant_id: str, plan_key: str, *, trialing: bool = False) -> dict:
+    """Read a plan's configured rights using the same catalog and tenant
+    overrides consumed by the entitlement evaluator.
+
+    Missing limit rows are kept absent so callers cannot mistake an
+    unconfigured feature for either zero or unlimited. ``None`` in an
+    existing limit row retains the catalog's established unlimited meaning.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT f.feature_code, f.unit, f.aggregation_type, f.reset_cycle,
+                   l.limit_value, l.trial_limit_value, o.limit_value
+            FROM usage_plan_limits l
+            JOIN usage_features f ON f.feature_code = l.feature_code
+            LEFT JOIN tenant_entitlement_overrides o
+              ON o.tenant_id = %s AND o.feature_code = l.feature_code
+            WHERE l.plan_key = %s;
+            """,
+            (tenant_id, plan_key),
+        )
+        rows = cursor.fetchall()
+        cursor.execute("SELECT feature_code FROM usage_plan_entitlements WHERE plan_key = %s;", (plan_key,))
+        entitlements = {row[0] for row in cursor.fetchall()}
+    features = {}
+    for code, unit, aggregation, reset_cycle, limit, trial_limit, override in rows:
+        if override is not None:
+            limit = override
+        elif trialing and trial_limit is not None:
+            limit = trial_limit
+        features[code] = {
+            "unit": unit,
+            "aggregation_type": aggregation,
+            "reset_cycle": reset_cycle,
+            "limit": None if limit is None else int(limit),
+        }
+    return {"features": features, "entitlements": entitlements}
+
+
+def has_custom_contract(conn, tenant_id: str) -> bool:
+    """Private contracts carry terms outside the public plan-rights vector."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT 1 FROM tenant_custom_contracts WHERE tenant_id = %s;", (tenant_id,))
+        return cursor.fetchone() is not None
+
+
 def resolve_price(conn, stripe_price_id: str) -> Optional[tuple]:
     """Stripe price id -> (plan_key, period_code), retired prices included."""
     with conn.cursor() as cursor:
@@ -118,6 +168,8 @@ def trial_eligibility(conn, tenant_id: str, plan_key: str, started_by_user_id: O
     reason it may not: one trial per company ever, one per person across
     their companies, never on top of a plan or subscription, and only on a
     self-serve plan that offers a trial."""
+    if getattr(conn, "billing_setup_only", False):
+        return _setup_trial_command(conn, tenant_id, started_by_user_id, plan_key, start=False).get("reason")
     with conn.cursor() as cursor:
         cursor.execute("SELECT trial_days, self_serve, is_active FROM usage_plans WHERE plan_key = %s;", (plan_key,))
         row = cursor.fetchone()
@@ -139,14 +191,31 @@ def trial_eligibility(conn, tenant_id: str, plan_key: str, started_by_user_id: O
     return None
 
 
+def _setup_trial_command(conn, tenant_id, user_id, plan_key, *, start):
+    if str(tenant_id) != conn._tenant_id or str(user_id) != conn._user_id:
+        raise ValueError("Trial identity must match the authenticated billing context.")
+    with conn.cursor() as cur:
+        cur.execute("SELECT public.billing_setup_trial(%s,%s)", (plan_key, start))
+        return cur.fetchone()[0]
+
+
 def start_trial(sys_conn, tenant_id: str, now: Optional[datetime] = None, *,
                 started_by_user_id: Optional[str] = None, plan_key: Optional[str] = None) -> Optional[dict]:
     """Gives a company its one free trial if it is eligible
     (trial_eligibility). The trial lasts the plan's trial_days from `now`, to
     the second (UTC). Returns the trial, or None when not granted. Caller
     commits."""
-    now = now or datetime.now(timezone.utc)
     plan_key = plan_key or config.trial_plan_key()
+    if getattr(sys_conn, "billing_setup_only", False):
+        if now is not None:
+            raise ValueError("The restricted trial command uses database time, not a caller-selected date.")
+        result = _setup_trial_command(sys_conn, tenant_id, started_by_user_id, plan_key, start=True)
+        if result.get("reason"):
+            return None
+        return {"plan_key": result["plan_key"],
+                "started_at": datetime.fromisoformat(result["started_at"]),
+                "ends_at": datetime.fromisoformat(result["ends_at"])}
+    now = now or datetime.now(timezone.utc)
     with sys_conn.cursor() as cursor:
         # Two sign-ups by the same person can't both pass the per-person check.
         cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
@@ -194,6 +263,8 @@ def customer_id(conn, tenant_id: str) -> Optional[str]:
 
 
 def save_customer(sys_conn, tenant_id: str, stripe_customer_id: str) -> None:
+    if getattr(sys_conn, "verified_webhook_only", False):
+        sys_conn.bind_tenant(tenant_id)
     with sys_conn.cursor() as cursor:
         cursor.execute(
             """
@@ -205,6 +276,11 @@ def save_customer(sys_conn, tenant_id: str, stripe_customer_id: str) -> None:
 
 
 def tenant_for_customer(sys_conn, stripe_customer_id: str) -> Optional[str]:
+    if getattr(sys_conn, "verified_webhook_only", False):
+        with sys_conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_provider_tenant(%s,%s)", ("customer", stripe_customer_id))
+            row = cursor.fetchone()
+            return str(row[0]) if row and row[0] else None
     with sys_conn.cursor() as cursor:
         cursor.execute("SELECT tenant_id FROM billing_customers WHERE stripe_customer_id = %s;", (stripe_customer_id,))
         row = cursor.fetchone()
@@ -212,6 +288,11 @@ def tenant_for_customer(sys_conn, stripe_customer_id: str) -> Optional[str]:
 
 
 def tenant_for_subscription(sys_conn, stripe_subscription_id: str) -> Optional[str]:
+    if getattr(sys_conn, "verified_webhook_only", False):
+        with sys_conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_provider_tenant(%s,%s)", ("subscription", stripe_subscription_id))
+            row = cursor.fetchone()
+            return str(row[0]) if row and row[0] else None
     with sys_conn.cursor() as cursor:
         cursor.execute(
             "SELECT tenant_id FROM billing_subscriptions WHERE stripe_subscription_id = %s;", (stripe_subscription_id,)
@@ -264,15 +345,33 @@ def subscription_price_id(stripe_sub: dict) -> Optional[str]:
 
 def apply_subscription(
     sys_conn, tenant_id: str, stripe_sub: dict, plan_key: str, period_code: str, event_created: datetime,
+    *, trial_payment_verified: bool = False,
 ) -> dict:
     """Stores Stripe's current view of a subscription and makes the company's
     plan follow it. Only ever called with a subscription freshly retrieved
     from Stripe, so a late or repeated event can't roll it back."""
     status = STATUS_FROM_STRIPE.get(stripe_sub.get("status"), "pending")
     period_start, period_end = period_bounds(stripe_sub)
+    previous = current_subscription(sys_conn, tenant_id)
+    if (previous and previous["stripe_subscription_id"] == stripe_sub["id"]
+            and (previous.get("trial_end") or previous["status"] == "trialing")
+            and status in config.CURRENT_STATUSES):
+        approved_end = previous.get("trial_end")
+        provider_end = _ts(stripe_sub.get("trial_end"))
+        if (not approved_end or provider_end != approved_end
+                or (status == "active" and (not period_start or period_start < approved_end))):
+            # A schedule update is not authority to shorten/extend an existing
+            # trial or grant an early paid period. Preserve the last good grant;
+            # Stripe can retry after the inconsistency is audited/reconciled.
+            raise ValueError("trial_boundary_conflict: verified trial terms changed without an authorized transition")
+        if status == "active" and previous["status"] != "active" and not trial_payment_verified:
+            raise ValueError("trial_payment_unverified: a paid invoice covering the first post-trial period is required")
     customer = stripe_sub.get("customer")
     customer = customer.get("id") if isinstance(customer, dict) else customer
     with sys_conn.cursor() as cursor:
+        # Different subscription objects share one commercial assignment.
+        cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
+                       ("keel_billing_tenant:" + str(tenant_id),))
         cursor.execute(
             f"""
             INSERT INTO billing_subscriptions
@@ -295,6 +394,7 @@ def apply_subscription(
                                              ELSE billing_subscriptions.scheduled_period_code END,
                 last_event_at = GREATEST(billing_subscriptions.last_event_at, EXCLUDED.last_event_at),
                 updated_at = CURRENT_TIMESTAMP
+            WHERE billing_subscriptions.tenant_id = EXCLUDED.tenant_id
             RETURNING {_SUB_COLUMNS};
             """,
             (
@@ -303,7 +403,18 @@ def apply_subscription(
                 _ts(stripe_sub.get("canceled_at")), event_created,
             ),
         )
-        row = _sub_row(cursor.fetchone())
+        saved = cursor.fetchone()
+        if saved is None:
+            raise ValueError("subscription is already assigned to another company")
+        row = _sub_row(saved)
+        cursor.execute(
+            "SELECT 1 FROM billing_subscriptions WHERE tenant_id=%s "
+            "AND stripe_subscription_id<>%s AND status=ANY(%s);",
+            (tenant_id, stripe_sub["id"], list(config.CURRENT_STATUSES)),
+        )
+        if cursor.fetchone():
+            # Preserve history without revoking a replacement subscription.
+            return row
         # The company's plan follows its live subscription. A subscription that
         # ended only replaces the plan if it was the one in force.
         cursor.execute(
@@ -326,6 +437,10 @@ def apply_subscription(
 
 
 def set_schedule(sys_conn, tenant_id: str, stripe_subscription_id: str, plan_key, period_code) -> None:
+    if getattr(sys_conn, "billing_setup_only", False):
+        with sys_conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_setup_schedule(%s,%s,%s)", (stripe_subscription_id,plan_key,period_code))
+        return
     with sys_conn.cursor() as cursor:
         cursor.execute(
             """
@@ -339,7 +454,10 @@ def set_schedule(sys_conn, tenant_id: str, stripe_subscription_id: str, plan_key
 # --- payments ---------------------------------------------------------------
 
 def _minor_to_major(amount: int, currency: str) -> float:
-    zero_decimal = {"bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf"}
+    # ISK and UGX are compatibility exceptions in Stripe: their API amounts
+    # still use two-decimal representation (with a trailing 00), despite the
+    # currencies having no fractional charge unit.
+    zero_decimal = {"bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg", "rwf", "vnd", "vuv", "xaf", "xof", "xpf"}
     return float(amount) if currency.lower() in zero_decimal else round(amount / 100.0, 2)
 
 
@@ -361,7 +479,9 @@ def record_payment(sys_conn, tenant_id: str, invoice: dict, subscription_id: Opt
             ON CONFLICT (stripe_invoice_id) DO UPDATE SET
                 amount = EXCLUDED.amount, status = EXCLUDED.status, paid_at = EXCLUDED.paid_at,
                 failure_reason = EXCLUDED.failure_reason, hosted_invoice_url = EXCLUDED.hosted_invoice_url,
-                invoice_pdf_url = EXCLUDED.invoice_pdf_url;
+                invoice_pdf_url = EXCLUDED.invoice_pdf_url
+            WHERE billing_payments.tenant_id = EXCLUDED.tenant_id
+              AND (billing_payments.status <> 'succeeded' OR EXCLUDED.status = 'succeeded');
             """,
             (
                 tenant_id, invoice["id"], subscription_id, _minor_to_major(amount_minor or 0, currency), currency, status,
@@ -419,7 +539,11 @@ def claim_event(sys_conn, event_id: str, event_type: str, created: datetime, pay
             "SELECT processed_at FROM billing_webhook_events WHERE stripe_event_id = %s FOR UPDATE;", (event_id,)
         )
         row = cursor.fetchone()
-    return row is not None and row[0] is None
+    pending = row is not None and row[0] is None
+    if pending and getattr(sys_conn, "verified_webhook_only", False):
+        with sys_conn.cursor() as cursor:
+            cursor.execute("UPDATE billing_webhook_events SET error=NULL WHERE stripe_event_id=%s", (event_id,))
+    return pending
 
 
 def finish_event(sys_conn, event_id: str, tenant_id: Optional[str], error: Optional[str] = None) -> None:
@@ -427,8 +551,29 @@ def finish_event(sys_conn, event_id: str, tenant_id: Optional[str], error: Optio
         cursor.execute(
             """
             UPDATE billing_webhook_events
-            SET processed_at = CASE WHEN %s IS NULL THEN CURRENT_TIMESTAMP ELSE NULL END, error = %s, tenant_id = %s
+            SET processed_at = CASE WHEN %s IS NULL THEN CURRENT_TIMESTAMP ELSE NULL END, error = %s, tenant_id = COALESCE(%s,tenant_id)
             WHERE stripe_event_id = %s;
             """,
             (error, error, tenant_id, event_id),
         )
+
+
+def subscription_price_snapshot(conn, tenant_id: str) -> dict:
+    with conn.cursor() as cur:
+        cur.execute("""SELECT p.amount,p.currency,p.interval_months FROM billing_subscriptions s
+          LEFT JOIN billing_plan_prices p ON p.stripe_price_id=s.stripe_price_id
+          WHERE s.tenant_id=%s AND s.status=ANY(%s) ORDER BY s.updated_at DESC LIMIT 1""",
+          (tenant_id,list(config.CURRENT_STATUSES)))
+        row=cur.fetchone()
+    return {'amount':float(row[0]) if row and row[0] is not None else None,
+            'currency':row[1] if row and row[1] else 'USD','intervalUnit':'month',
+            'intervalCount':row[2] if row and row[2] else 1}
+
+
+def checkout_subscription_ended(conn, tenant_id, subscription_id):
+    if not subscription_id:
+        return False
+    with conn.cursor() as cur:
+        cur.execute("SELECT status FROM billing_subscriptions WHERE tenant_id=%s AND stripe_subscription_id=%s",(tenant_id,subscription_id))
+        row=cur.fetchone()
+    return bool(row and row[0] in ('cancelled','expired'))

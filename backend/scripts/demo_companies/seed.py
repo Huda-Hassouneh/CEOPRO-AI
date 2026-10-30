@@ -37,7 +37,9 @@ class Client:
     def request(self, method, path, expected=(200,), **kwargs):
         response = self.http.request(method, path, headers=self.headers, **kwargs)
         if response.status_code not in expected:
-            raise RuntimeError(f"{method} {path} -> {response.status_code}: {response.text[:400]}")
+            # API bodies can contain registration codes, tokens, JWTs, or
+            # echoed request data. Keep CI and seed-script errors secret-free.
+            raise RuntimeError(f"API request failed (HTTP {response.status_code}).")
         return response.json() if response.content else None
 
 
@@ -46,13 +48,20 @@ def sign_in(client: Client, company, email: str, password: str) -> dict:
     if login.status_code == 200:
         data = login.json()
         created = False
-    else:
-        data = client.request("POST", "/auth/signup", json={
+    elif login.status_code == 401:
+        signup = client.http.post("/auth/signup", json={
             "email": email, "password": password, "full_name": company.owner_name,
             "business_name": company.business_name, "country_code": company.country,
             "primary_currency": company.currency,
         })
+        if signup.status_code == 202:
+            raise RuntimeError("Registration is pending email verification; verify the address, then rerun the seed script.")
+        if signup.status_code != 200:
+            raise RuntimeError(f"Account registration failed (HTTP {signup.status_code}).")
+        data = signup.json()
         created = True
+    else:
+        raise RuntimeError(f"Login failed (HTTP {login.status_code}).")
     client.headers = {"Authorization": f"Bearer {data['access_token']}"}
     return {"tenant_id": data.get("tenant_id"), "created": created}
 

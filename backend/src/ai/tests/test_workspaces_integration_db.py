@@ -12,6 +12,8 @@ import psycopg2
 import pytest
 from fastapi.testclient import TestClient
 
+from src.ai.tests.signup_helpers import create_verified_test_account
+
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
     not ADMIN_DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
@@ -28,10 +30,8 @@ def client():
 
 
 def _signup(client, email, business, country="JO", currency="JOD"):
-    response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": business, "email": email,
+    return create_verified_test_account(client, {"full_name": "Owner", "business_name": business, "email": email,
                                                   "country_code": country, "primary_currency": currency, "password": PASSWORD})
-    assert response.status_code == 200, response.text
-    return response.json()
 
 
 def _auth(session):
@@ -63,8 +63,17 @@ def test_owner_runs_two_companies_in_different_industries_without_leakage(client
         assert client.patch("/settings/company", headers=_auth(restaurant), json={"industry_key": "restaurant"}).status_code == 200
         product = client.post("/products", headers=_auth(restaurant), json={"product_name": {"en": "Mixed grill"}, "current_price": 7.5, "currency": "JOD"})
         assert product.status_code in (200, 201), product.text
-        done = client.post("/settings/company/onboarding/complete", headers=_auth(restaurant)).json()
-        assert done["onboarding_completed_at"] is not None
+        # Profile/plan acknowledgement is now durable; a direct completion bypass is refused.
+        assert client.post("/settings/company/onboarding/complete", headers=_auth(restaurant)).status_code == 409
+        choices = [dict(country="JO",city="amman",language="en"),dict(industry="restaurants"),
+                   dict(businessSize="1-50",annualRevenue="under-100k"),dict(objectives=["forecasting"]),
+                   dict(selectedPlan="growth",billingPeriod="monthly")]
+        for revision, values in enumerate(choices):
+            saved = client.put("/onboarding/state",headers=_auth(restaurant),json=dict(step=revision+1,expected_revision=revision,**values))
+            assert saved.status_code == 200, saved.text
+        done_response = client.post("/settings/company/onboarding/complete", headers=_auth(restaurant))
+        assert done_response.status_code == 200, done_response.text
+        assert done_response.json()["onboarding_completed_at"] is not None
 
         created = client.post("/auth/workspaces", headers=_auth(restaurant),
                               json={"business_name": "Shifa Pharmacy", "country_code": "AE", "primary_currency": "AED"})

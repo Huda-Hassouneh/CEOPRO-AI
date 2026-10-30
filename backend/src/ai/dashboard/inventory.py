@@ -27,9 +27,14 @@ def get_inventory_status(conn, tenant_id: str) -> dict:
                 COUNT(*) AS total_products,
                 COUNT(*) FILTER (WHERE i.stock_quantity > 0) AS in_stock_count,
                 COUNT(*) FILTER (WHERE i.stock_quantity <= i.reorder_level) AS low_stock_count
-            FROM inventory i
-            JOIN products p ON p.tenant_id = i.tenant_id AND p.product_id = i.product_id
-            WHERE i.tenant_id = %s AND p.deleted_at IS NULL;
+            FROM products p
+            JOIN LATERAL (
+                SELECT stock_quantity, reorder_level FROM inventory
+                WHERE tenant_id = p.tenant_id AND product_id = p.product_id
+                ORDER BY updated_at DESC NULLS LAST, inventory_id
+                LIMIT 1
+            ) i ON TRUE
+            WHERE p.tenant_id = %s AND p.deleted_at IS NULL;
             """,
             (tenant_id,),
         )
@@ -68,9 +73,14 @@ def get_low_stock_products(conn, tenant_id: str, limit: int = DEFAULT_LOW_STOCK_
             f"""
             SELECT p.product_id, {_NAME_EXPR} AS product_name,
                    i.stock_quantity, i.reorder_level
-            FROM inventory i
-            JOIN products p ON p.tenant_id = i.tenant_id AND p.product_id = i.product_id
-            WHERE i.tenant_id = %s AND p.deleted_at IS NULL
+            FROM products p
+            JOIN LATERAL (
+                SELECT stock_quantity, reorder_level FROM inventory
+                WHERE tenant_id = p.tenant_id AND product_id = p.product_id
+                ORDER BY updated_at DESC NULLS LAST, inventory_id
+                LIMIT 1
+            ) i ON TRUE
+            WHERE p.tenant_id = %s AND p.deleted_at IS NULL
               AND i.stock_quantity <= i.reorder_level
             ORDER BY (i.stock_quantity - i.reorder_level) ASC
             LIMIT %s;

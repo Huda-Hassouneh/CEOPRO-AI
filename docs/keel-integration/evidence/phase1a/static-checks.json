@@ -1,0 +1,41 @@
+{
+  "changed_python_ast": "PASS",
+  "python_files": [
+    "backend/scripts/billing_admin.py",
+    "backend/scripts/bootstrap_platform_owner.py",
+    "backend/scripts/phase1a_migration_rehearsal.py",
+    "backend/scripts/phase1a_verification.py",
+    "backend/src/ai/core/authorization.py",
+    "backend/src/ai/core/pending_registration.py",
+    "backend/src/ai/core/security.py",
+    "backend/src/ai/core/usage.py",
+    "backend/src/ai/main.py",
+    "backend/src/ai/platform/__init__.py",
+    "backend/src/ai/platform/service.py",
+    "backend/src/ai/routers/auth.py",
+    "backend/src/ai/routers/platform.py",
+    "backend/src/ai/routers/settings.py",
+    "backend/tests/keel_integration/__init__.py",
+    "backend/tests/keel_integration/conftest.py",
+    "backend/tests/keel_integration/test_auth_phase1a.py",
+    "backend/tests/keel_integration/test_native_phase1a.py",
+    "backend/tests/keel_integration/test_platform_phase1a.py",
+    "backend/tests/keel_integration/test_redis_phase1a.py"
+  ],
+  "sql_parse": "PASS",
+  "sql_statements": 71,
+  "plpgsql_bodies": 17,
+  "parser": "pglast PostgreSQL18 grammar, not native17 execution",
+  "native_pg17": "NOT RUN / INTEGRATION BLOCKED",
+  "targeted_eslint": {
+    "status": "PASS",
+    "command": [
+      "node_modules/.bin/eslint",
+      "src/features/platform",
+      "src/features/auth/pendingRegistration.js",
+      "tests/phase1a.test.mjs"
+    ],
+    "log": "frontend-eslint.log"
+  },
+  "ruff": "BLOCKED: module unavailable"
+}

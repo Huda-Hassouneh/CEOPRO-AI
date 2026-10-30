@@ -13,9 +13,11 @@ import logging
 from datetime import date
 from typing import Optional
 
-from src.ai.mpi import cold_start, data_access, evidence
+from src.ai.mpi import cold_start, postgres
+from src.ai.mpi.ports import CountryReader, EvidenceWriter, ReviewReader, SubjectValidator
 from src.ai.mpi.scoring import (
     MPIComparison,
+    MPIResult,
     ReviewContribution,
     compare_mpi_results,
     compute_mpi,
@@ -74,29 +76,55 @@ def _label_counts(reviews: list) -> dict:
     return counts
 
 
-def get_subject_mpi(
-    conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None, as_of: Optional[date] = None
-) -> dict:
-    as_of = as_of or date.today()
-    reviews = data_access.load_scored_reviews(conn, tenant_id, subject_type, subject_id)
-    country_context = data_access.load_country_context(conn, tenant_id, subject_type, subject_id)
-
+def _score_reviews(reviews: list, as_of: date) -> tuple[list, Optional[MPIResult]]:
     usable_reviews = _usable_reviews(reviews)
-    contributions = _build_contributions(usable_reviews, as_of)
-    label_counts = _label_counts(usable_reviews)
-    result = compute_mpi(contributions, label_counts)
+    return usable_reviews, compute_mpi(_build_contributions(usable_reviews, as_of), _label_counts(usable_reviews))
+
+
+def get_subject_mpi(
+    conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None, as_of: Optional[date] = None,
+    *, review_reader: Optional[ReviewReader] = None, evidence_writer: Optional[EvidenceWriter] = None,
+    subject_validator: Optional[SubjectValidator] = None, country_reader: Optional[CountryReader] = None,
+) -> dict:
+    """Own the evidence commit for both FACT and UNKNOWN summaries.
+
+    The commit covers all pending work on the supplied connection. Callers
+    must supply the intended feature transaction and own rollback/cleanup on
+    failure. A later failure (including context restoration after raw COMMIT,
+    logging or delivery) cannot undo evidence already committed in PostgreSQL.
+    Adapters only write; moving this boundary to request completion would
+    change the characterized durability contract.
+    """
+    as_of = as_of or date.today()
+    if subject_validator is None:
+        subject_validator = postgres.subject_validator(conn, tenant_id)
+    subject_validator(subject_type, subject_id)
+    if review_reader is None:
+        review_reader = postgres.review_reader(conn, tenant_id)
+    reviews = review_reader(subject_type, subject_id)
+    if country_reader is None:
+        country_reader = postgres.country_reader(conn, tenant_id)
+    country_context = country_reader(subject_type, subject_id)
+    if evidence_writer is None:
+        evidence_writer = postgres.evidence_writer(conn, tenant_id)
+
+    usable_reviews, result = _score_reviews(reviews, as_of)
 
     if result is None:
         # Either no reviews at all, or every review had no effective_date and
         # got filtered out - same UNKNOWN outcome either way: nothing usable
         # to score.
         explanation = f"No analyzed reviews are available yet for this {subject_type.lower()}."
-        evidence_id = evidence.insert_evidence_record(
-            conn,
-            tenant_id,
+        evidence_id = evidence_writer(
             "UNKNOWN",
             SOURCE_MODULE,
-            {"subject_type": subject_type, "subject_id": subject_id},
+            {
+                "subject_type": subject_type,
+                "subject_id": subject_id,
+                "status": "UNKNOWN",
+                "review_ids": [],
+                "eligible_review_count": 0,
+            },
             None,
             explanation,
             None,
@@ -106,6 +134,7 @@ def get_subject_mpi(
         logger.info(f"No usable reviews for MPI tenant={tenant_id} subject={subject_type}/{subject_id}")
         return {"status": "UNKNOWN", "evidence_id": evidence_id}
 
+    label_counts = result.label_counts
     sample_assessment = cold_start.assess(result.review_count)
 
     if sample_assessment.sufficient:
@@ -124,12 +153,34 @@ def get_subject_mpi(
             f"reliable market conclusion."
         )
 
-    evidence_id = evidence.insert_evidence_record(
-        conn,
-        tenant_id,
+    review_provenance = [
+        {
+            "review_id": review["review_id"],
+            "source_platform": review.get("source_platform"),
+            "source_id": review.get("source_id"),
+            "collection_method": review.get("collection_method"),
+            "effective_date": review["effective_date"].isoformat(),
+            "sentiment_model_version": review.get("sentiment_model_version"),
+        }
+        for review in usable_reviews
+    ]
+    evidence_id = evidence_writer(
         "FACT",
         SOURCE_MODULE,
-        {"subject_type": subject_type, "subject_id": subject_id, **result.as_dict()},
+        {
+            "subject_type": subject_type,
+            "subject_id": subject_id,
+            "status": "OK",
+            "eligible_review_count": result.review_count,
+            "eligible_review_ids": [review["review_id"] for review in usable_reviews],
+            "eligible_date_range": {
+                "from": min(review["effective_date"] for review in usable_reviews).isoformat(),
+                "through": max(review["effective_date"] for review in usable_reviews).isoformat(),
+            },
+            "sample_size": sample_assessment.as_dict(),
+            **result.as_dict(),
+            "review_provenance": review_provenance,
+        },
         confidence_score,
         explanation,
         None,
@@ -158,6 +209,8 @@ def compare_subjects(
     subject_b: tuple,
     as_of: Optional[date] = None,
     min_volume_for_comparison: int = 10,
+    *, review_reader: Optional[ReviewReader] = None,
+    subject_validator: Optional[SubjectValidator] = None,
 ) -> MPIComparison:
     """
     subject_a/subject_b are (subject_type, subject_id) tuples. Computes each
@@ -167,12 +220,16 @@ def compare_subjects(
     comparison guard before returning a difference.
     """
     as_of = as_of or date.today()
+    if subject_validator is None:
+        subject_validator = postgres.subject_validator(conn, tenant_id)
+    if review_reader is None:
+        review_reader = postgres.review_reader(conn, tenant_id)
 
     def _score(subject_type: str, subject_id: Optional[str]):
-        reviews = data_access.load_scored_reviews(conn, tenant_id, subject_type, subject_id)
-        usable_reviews = _usable_reviews(reviews)
-        contributions = _build_contributions(usable_reviews, as_of)
-        return compute_mpi(contributions, _label_counts(usable_reviews))
+        subject_validator(subject_type, subject_id)
+        reviews = review_reader(subject_type, subject_id)
+        _, result = _score_reviews(reviews, as_of)
+        return result
 
     result_a = _score(*subject_a)
     result_b = _score(*subject_b)

@@ -45,6 +45,27 @@ def _app_database_url() -> str:
     return urlunparse(parsed._replace(netloc=netloc))
 
 
+@pytest.mark.parametrize("boundary", ["commit", "rollback"])
+def test_existing_cursor_retains_context_after_transaction_boundary(two_tenant_setup, boundary):
+    pool = TenantConnectionPool(_app_database_url(), minconn=1, maxconn=1)
+    data = two_tenant_setup
+    # A cursor can outlive a transaction. Restoring only at cursor creation
+    # leaves this next execution without its tenant/user/language settings.
+    conn = pool.get_tenant_connection(data["tenant_a"], data["user_a"])
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT current_setting('app.current_tenant_id')")
+            assert cur.fetchone()[0] == data["tenant_a"]
+            getattr(conn, boundary)()
+            cur.execute("SELECT current_setting('app.current_tenant_id'), current_setting('app.current_user_id')")
+            assert cur.fetchone() == (data["tenant_a"], data["user_a"])
+            cur.execute("SELECT DISTINCT tenant_id::text FROM products")
+            assert cur.fetchall() == [(data["tenant_a"],)]
+    finally:
+        conn.close()
+        pool.closeall()
+
+
 @pytest.fixture
 def admin_conn():
     connection = psycopg2.connect(ADMIN_DATABASE_URL)

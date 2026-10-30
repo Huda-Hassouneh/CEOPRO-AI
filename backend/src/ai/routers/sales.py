@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from src.ai import db
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.sales import quick_sale
+from src.ai.extraction.product_identity import resolve_reference
 
 logger = logging.getLogger("CEOPRO_AI_SALES_API")
 
@@ -17,7 +18,9 @@ class QuickSaleRequest(BaseModel):
     """The dashboard's "Quick Sale" quick action - one manual sale entry.
     unit_price is optional: defaults to the product's own current_price
     when omitted (see sales/quick_sale.py's own docstring)."""
-    product_id: str
+    product_id: Optional[str] = None
+    sku: Optional[str] = Field(default=None,max_length=100)
+    product_name: Optional[str] = Field(default=None,max_length=255)
     # Fractional quantities are real sales (2.5 kg, 1.5 hours, 12.75 m).
     quantity: float = Field(gt=0, le=10_000_000)
     unit_price: Optional[float] = Field(default=None, ge=0, le=99_999_999)
@@ -35,11 +38,16 @@ def quick_sale_endpoint(body: QuickSaleRequest, ctx: TenantContext = Depends(get
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        product_id=body.product_id
+        if body.sku or body.product_name or not product_id:
+            identity=resolve_reference(conn,ctx.tenant_id,{'product_id':product_id,'sku':body.sku,'product_name':body.product_name})
+            if identity['status']!='matched':raise HTTPException(409 if identity['status'] in ('ambiguous','conflict') else 404,detail={'code':'product_reference_'+identity['status']})
+            product_id=identity['product_id']
         result = quick_sale.record_quick_sale(
-            conn, ctx.tenant_id, ctx.user_id, body.product_id, body.quantity, body.unit_price,
+            conn, ctx.tenant_id, ctx.user_id, product_id, body.quantity, body.unit_price,
         )
         conn.commit()
-        _refresh_product_forecast(ctx, body.product_id)
+        _refresh_product_forecast(ctx, product_id)
         return result
     except quick_sale.ProductNotFoundError as err:
         conn.rollback()

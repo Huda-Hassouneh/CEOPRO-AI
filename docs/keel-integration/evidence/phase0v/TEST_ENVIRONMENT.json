@@ -1,0 +1,22 @@
+{
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "packages": {
+    "pytest": "9.1.1",
+    "fastapi": "0.150.0",
+    "starlette": "1.9.0",
+    "httpx": "0.28.1",
+    "stripe": "15.6.1",
+    "psycopg2-binary": "2.9.13",
+    "PyJWT": "2.15.1",
+    "redis": "8.1.0",
+    "scrapy": "NOT INSTALLED",
+    "prometheus-client": "NOT INSTALLED",
+    "rank-bm25": "NOT INSTALLED"
+  },
+  "node": "v24.19.0",
+  "npm": "11.9.0",
+  "native_postgresql": null,
+  "redis_server": "NOT PROVISIONED / NOT VERIFIED",
+  "vite": "8.2.2 (executed build output)",
+  "isolated_dependencies": "Existing Phase 0 test site-packages exposed via scratch PYTHONPATH; no pip install or repository dependency edit in Phase 0V"
+}

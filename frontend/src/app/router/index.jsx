@@ -1,5 +1,7 @@
 import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import { routePaths } from './routePaths.js';
+import { useLocation } from 'react-router-dom';
+import { ownerBillingDestination } from '../../features/platform/ownerBillingRoutes.js';
 import { page } from './lazyPage.jsx';
 import { ProtectedRoute } from './ProtectedRoute.jsx';
 import { GuestRoute } from './GuestRoute.jsx';
@@ -7,6 +9,7 @@ import { PublicLayout } from '../layouts/PublicLayout.jsx';
 import { AuthLayout } from '../layouts/AuthLayout.jsx';
 import { DashboardLayout } from '../layouts/DashboardLayout.jsx';
 import { AppErrorPage } from '../../shared/components/feedback/ErrorBoundary.jsx';
+import { platformAdminRoute } from '../../features/platform-admin/routes.jsx';
 
 import { LoginPage } from '../../features/auth/pages/LoginPage.jsx';
 import { SignupPage } from '../../features/auth/pages/SignupPage.jsx';
@@ -19,12 +22,22 @@ import { VerificationCodePage } from '../../features/auth/pages/VerificationCode
 
 
 
-const SetupPage = page(() => import('../../features/onboarding/pages/SetupPage.jsx').then((m) => ({ default: m.SetupPage })));
+import { OnboardingLayout } from '../layouts/OnboardingLayout.jsx';
+import { OnboardingGate, OnboardingResume } from '../../features/onboarding/components/OnboardingGate.jsx';
+const OnboardingRegionalPreferencesPage = page(() => import('../../features/onboarding/pages/OnboardingRegionalPreferencesPage.jsx').then(m=>({default:m.OnboardingRegionalPreferencesPage})));
+const OnboardingIndustryPage = page(() => import('../../features/onboarding/pages/OnboardingIndustryPage.jsx').then(m=>({default:m.OnboardingIndustryPage})));
+const OnboardingBusinessSizePage = page(() => import('../../features/onboarding/pages/OnboardingBusinessSizePage.jsx').then(m=>({default:m.OnboardingBusinessSizePage})));
+const OnboardingGoalsPage = page(() => import('../../features/onboarding/pages/OnboardingGoalsPage.jsx').then(m=>({default:m.OnboardingGoalsPage})));
+const OnboardingSubscriptionSuccessPage = page(() => import('../../features/onboarding/pages/OnboardingSubscriptionSuccessPage.jsx').then(m=>({default:m.OnboardingSubscriptionSuccessPage})));
+const OnboardingSubscriptionFailedPage = page(() => import('../../features/onboarding/pages/OnboardingSubscriptionFailedPage.jsx').then(m=>({default:m.OnboardingSubscriptionFailedPage})));
+const OnboardingFinishPage = page(() => import('../../features/onboarding/pages/OnboardingDataSourcesPage.jsx').then(m=>({default:m.OnboardingDataSourcesPage})));
 const CreateWorkspacePage = page(() => import('../../features/workspaces/pages/CreateWorkspacePage.jsx').then((m) => ({ default: m.CreateWorkspacePage })));
 const InvitationPage = page(() => import('../../features/auth/pages/InvitationPage.jsx').then((m) => ({ default: m.InvitationPage })));
 const WelcomePage = page(() => import('../../features/system/pages/WelcomePage.jsx'));
 const CommandCenterPage = page(() => import('../../features/dashboard/pages/CommandCenterPage.jsx').then((m) => ({ default: m.CommandCenterPage })));
 const ProductsListPage = page(() => import('../../features/products/pages/ProductsListPage.jsx').then((m) => ({ default: m.ProductsListPage })));
+const CatalogPage = page(() => import('../../features/products/pages/CatalogPage.jsx').then(m=>({default:m.CatalogPage})));
+const CatalogProductPage = page(() => import('../../features/products/pages/CatalogProductPage.jsx').then(m=>({default:m.CatalogProductPage})));
 const ProductFormPage = page(() => import('../../features/products/pages/ProductFormPage.jsx').then((m) => ({ default: m.ProductFormPage })));
 const PriceComparisonReportPage = page(() => import('../../features/pricing/pages/PriceComparisonReportPage.jsx').then((m) => ({ default: m.PriceComparisonReportPage })));
 const PricingPage = page(() => import('../../features/pricing/pages/PricingPage.jsx').then((m) => ({ default: m.PricingPage })));
@@ -43,7 +56,13 @@ const MarketingStudioPage = page(() => import('../../features/marketing/pages/Ma
 const SettingsPage = page(() => import('../../features/settings/pages/SettingsPage.jsx'));
 const ConnectDataPage = page(() => import('../../features/data-connections/pages/ConnectDataPage.jsx').then((m) => ({ default: m.ConnectDataPage })));
 const UnifiedReportsCenterPage = page(() => import('../../features/reports/pages/UnifiedReportsCenterPage.jsx'));
+const ChoosePlanPage = page(() => import('../../features/billing/pages/ChoosePlanPage.jsx').then((m) => ({ default: m.ChoosePlanPage })));
+const BillingCheckoutPage = page(() => import('../../features/billing/pages/BillingCheckoutPage.jsx').then((m) => ({ default: m.BillingCheckoutPage })));
 const PlansSubscriptionPage = page(() => import('../../features/billing/pages/PlansSubscriptionPage.jsx').then((m) => ({ default: m.PlansSubscriptionPage })));
+const OnboardingPlanSelectionPage = page(() => import('../../features/billing/pages/OnboardingPlanSelectionPage.jsx').then((m) => ({ default: m.OnboardingPlanSelectionPage })));
+const OnboardingPaymentPage = page(() => import('../../features/billing/pages/OnboardingPaymentPage.jsx').then((m) => ({ default: m.OnboardingPaymentPage })));
+const CustomPlanBuilderPage = page(() => import('../../features/billing/pages/CustomPlanBuilderPage.jsx').then((m) => ({ default: m.CustomPlanBuilderPage })));
+const CustomPlanQuotePage = page(() => import('../../features/billing/pages/CustomPlanQuotePage.jsx').then((m) => ({ default: m.CustomPlanQuotePage })));
 
 const LegacyForecastProductRedirect = () => {
   const { productId } = useParams();
@@ -55,12 +74,20 @@ const ProductPageRedirect = () => {
   return <Navigate to={`/products/${productId}`} replace />;
 };
 
+const OwnerBillingRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={ownerBillingDestination(location)} replace />;
+};
+
 const routes = [
   // Old billing and onboarding-plan addresses: payment now happens on
   // Stripe-hosted Checkout from Billing.
-  ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/billing/checkout', '/onboarding/*']
+  ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/onboarding/*']
     .map((path) => ({ path, element: <Navigate to={path.startsWith('/onboarding') ? '/onboarding' : '/billing'} replace /> })),
-  { path: '/admin/*', element: <Navigate to={routePaths.landing} replace /> },
+  platformAdminRoute,
+  { path: '/platform/billing', element: <OwnerBillingRedirect /> },
+  { path: '/platform', element: <Navigate to="/admin" replace /> },
+  { path: '/platform/invitations/:token', lazy: async () => ({ Component: (await import('../../features/platform/PlatformInvitation.jsx')).PlatformInvitation }) },
   {
     path: routePaths.welcome,
     element: (
@@ -142,7 +169,7 @@ const routes = [
     ),
   },
   {
-    path: routePaths.invitation,
+    path: `${routePaths.invitation}/:token?`,
     element: (
       <AuthLayout brand wide>
         <InvitationPage />
@@ -151,12 +178,28 @@ const routes = [
   },
   {
     path: routePaths.onboarding,
-    element: <ProtectedRoute><SetupPage /></ProtectedRoute>,
+    element: <ProtectedRoute><OnboardingResume /></ProtectedRoute>,
   },
   {
     path: routePaths.newWorkspace,
     element: <ProtectedRoute><CreateWorkspacePage /></ProtectedRoute>,
   },
+  {
+    path: routePaths.onboardingPlan,
+    element: <ProtectedRoute><OnboardingLayout><OnboardingGate step={5}><OnboardingPlanSelectionPage /></OnboardingGate></OnboardingLayout></ProtectedRoute>,
+  },
+  { path: routePaths.onboardingPlanSuccess,element:<ProtectedRoute><OnboardingLayout><OnboardingGate step={6}><OnboardingSubscriptionSuccessPage/></OnboardingGate></OnboardingLayout></ProtectedRoute> },
+  { path: routePaths.onboardingPlanFailed,element:<ProtectedRoute><OnboardingLayout><OnboardingGate step={6}><OnboardingSubscriptionFailedPage/></OnboardingGate></OnboardingLayout></ProtectedRoute> },
+  { path: routePaths.onboardingPlanPayment, element: <ProtectedRoute><OnboardingLayout><OnboardingGate step={5}><OnboardingPaymentPage /></OnboardingGate></OnboardingLayout></ProtectedRoute> },
+  ...[[routePaths.onboardingRegion,1,<OnboardingRegionalPreferencesPage key="OnboardingRegionalPreferencesPage"/>],[routePaths.onboardingIndustry,2,<OnboardingIndustryPage key="OnboardingIndustryPage"/>],[routePaths.onboardingBusiness,3,<OnboardingBusinessSizePage key="OnboardingBusinessSizePage"/>],[routePaths.onboardingObjectives,4,<OnboardingGoalsPage key="OnboardingGoalsPage"/>],[routePaths.onboardingConnectData,6,<OnboardingFinishPage key="OnboardingFinishPage"/>]].map(([path,step,element])=>({path,element:<ProtectedRoute><OnboardingLayout><OnboardingGate step={step}>{element}</OnboardingGate></OnboardingLayout></ProtectedRoute>})),
+  { path: routePaths.onboardingPlanCustom, element: <ProtectedRoute><OnboardingLayout><OnboardingGate step={5}><CustomPlanBuilderPage /></OnboardingGate></OnboardingLayout></ProtectedRoute> },
+  { path: routePaths.customPlanBuilder, element: <ProtectedRoute><DashboardLayout><CustomPlanBuilderPage /></DashboardLayout></ProtectedRoute> },
+  { path: routePaths.customPlanQuote, element: <ProtectedRoute><DashboardLayout><CustomPlanQuotePage /></DashboardLayout></ProtectedRoute> },
+  {
+    path: routePaths.billingPlans,
+    element: <ProtectedRoute><DashboardLayout><ChoosePlanPage /></DashboardLayout></ProtectedRoute>,
+  },
+  { path: routePaths.billingCheckout, element: <ProtectedRoute><DashboardLayout><BillingCheckoutPage /></DashboardLayout></ProtectedRoute> },
   {
     path: routePaths.billing,
     element: (
@@ -177,6 +220,8 @@ const routes = [
       </ProtectedRoute>
     ),
   },
+  {path:'/catalog',element:<ProtectedRoute><DashboardLayout><CatalogPage /></DashboardLayout></ProtectedRoute>},
+  {path:'/catalog/:productId',element:<ProtectedRoute><DashboardLayout><CatalogProductPage /></DashboardLayout></ProtectedRoute>},
   {
     path: routePaths.products,
     element: <ProtectedRoute><ProductsListPage /></ProtectedRoute>,
@@ -432,3 +477,5 @@ const routes = [
 // One root route so every screen shares the same error screen instead of
 // React Router's developer error page.
 export const router = createBrowserRouter([{ errorElement: <AppErrorPage />, children: routes }]);
+
+

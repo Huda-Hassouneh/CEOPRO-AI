@@ -21,6 +21,8 @@ import psycopg2
 import pytest
 from fastapi.testclient import TestClient
 
+from src.ai.tests.signup_helpers import create_verified_test_account
+
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 APP_DB_PASSWORD = os.getenv("APP_DB_PASSWORD")
 
@@ -48,7 +50,7 @@ def test_signup_accepts_a_real_plus_addressed_email():
     client = TestClient(app)
     email = f"amir.nabulsi+{uuid.uuid4().hex[:8]}@example.com"
     try:
-        response = client.post("/auth/signup", json={
+        session = create_verified_test_account(client, {
             "full_name": "Amir Nabulsi",
             "business_name": "Nabulsi Home Goods",
             "email": email,
@@ -56,18 +58,14 @@ def test_signup_accepts_a_real_plus_addressed_email():
             "primary_currency": "JOD",
             "password": "FirstCustomer!2026",
         })
-        assert response.status_code == 200, response.text
-        body = response.json()
-        assert body["access_token"]
-        assert body["tenant_id"]
+        assert session["access_token"]
+        assert session["tenant_id"]
     finally:
         _cleanup_user(email)
 
 
-def test_signup_rejects_a_genuinely_malformed_email_with_a_clean_400_not_a_500():
-    """Defense-in-depth: any future CheckViolation on signup must come back
-    as a clean 400, never an unhandled 500 (the actual shape of the bug -
-    the frontend could only show a generic connection error)."""
+def test_signup_rejects_a_genuinely_malformed_email_with_request_validation():
+    """Malformed input is rejected before registration state is written."""
     from src.ai.main import app
 
     client = TestClient(app, raise_server_exceptions=False)
@@ -79,8 +77,8 @@ def test_signup_rejects_a_genuinely_malformed_email_with_a_clean_400_not_a_500()
         "primary_currency": "JOD",
         "password": "Str0ng!Passw0rd",
     })
-    assert response.status_code == 400
-    assert "invalid" in response.json()["detail"].lower()
+    assert response.status_code == 422
+    assert response.json()["detail"]
 
 
 def test_signup_sets_the_companys_own_timezone_and_currency_not_jordans():
@@ -91,14 +89,13 @@ def test_signup_sets_the_companys_own_timezone_and_currency_not_jordans():
     client = TestClient(app)
     email = f"owner+{uuid.uuid4().hex[:8]}@atlas-example.ma"
     try:
-        response = client.post("/auth/signup", json={
+        session = create_verified_test_account(client, {
             "full_name": "Salma Idrissi", "business_name": "Atlas Couture", "email": email,
             "country_code": "MA", "primary_currency": "MAD", "password": "FirstCustomer!2026",
         })
-        assert response.status_code == 200, response.text
         admin = psycopg2.connect(ADMIN_DATABASE_URL)
         with admin.cursor() as cursor:
-            cursor.execute("SELECT timezone, supported_currencies FROM companies WHERE tenant_id = %s;", (response.json()["tenant_id"],))
+            cursor.execute("SELECT timezone, supported_currencies FROM companies WHERE tenant_id = %s;", (session["tenant_id"],))
             assert cursor.fetchone() == ("Africa/Casablanca", ["MAD"])
         admin.close()
     finally:

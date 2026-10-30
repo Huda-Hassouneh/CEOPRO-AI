@@ -34,3 +34,17 @@ truth (`manifest.json`) and reports any difference.
 
 `documents/` holds the generated PDFs (rebuild with
 `python -m scripts.demo_companies.build_documents`, which needs reportlab).
+
+## Local meeting fixture (Phase 1)
+
+For the single isolated meeting tenant, use the checkout-scoped
+`tools/dev/seed_meeting_demo.py` from the repository root. It reuses this
+folder's bilingual Zaytouna catalog and the existing onboarding helper, but
+uses the current structured invoice/inventory preview and confirmation API,
+normal signup with Mailpit OTP, and dedicated Knowledge Base upload endpoint.
+It creates no Stripe objects or entitlement overrides. Run `prepare`, then
+`seed`; repeated `seed` calls replay the same reviewed confirmations. `verify`
+reconciles the fixed business facts without requesting generation.
+
+See [the Seed Truth Manifest and Phase 2 handoff](../../../docs/DEMO_SEED_PHASE1.md)
+for commands, private credential location, actual counts, metrics and limits.

@@ -35,8 +35,18 @@ def test_a_session_from_before_a_password_change_is_refused():
     assert refused.value.status_code == 401
 
 
-def test_a_session_started_in_the_same_second_as_the_change_is_still_refused():
-    token = _token(auth_time=time.time())  # a stolen session, moments before the reset
+def test_a_session_started_in_the_same_second_as_the_change_is_still_refused(monkeypatch):
+    from datetime import datetime, timezone
+
+    auth_time = 1_800_000_000.125
+    token = _token(auth_time=auth_time)
+
+    class FixedClock:
+        @staticmethod
+        def now(_tz=None):
+            return datetime.fromtimestamp(auth_time + 0.001, timezone.utc)
+
+    monkeypatch.setattr(security, "datetime", FixedClock)
     security.invalidate_sessions("11111111-1111-1111-1111-111111111111")
     with pytest.raises(HTTPException) as refused:
         security.get_tenant_context(authorization=f"Bearer {token}")
@@ -81,7 +91,7 @@ def test_an_unknown_email_still_costs_a_password_check(monkeypatch):
     checked = []
     monkeypatch.setattr(auth, "verify_password", lambda plain, hashed: checked.append(hashed) or False)
     monkeypatch.setattr(auth.db, "auth_lookup_connection", lambda: MagicMock())
-    monkeypatch.setattr(auth, "_fetch_user_by_email", lambda conn, email: None)
+    monkeypatch.setattr(auth, "_fetch_login_identity", lambda conn, email: None)
     with pytest.raises(HTTPException) as refused:
         auth.login(auth.LoginRequest(email="nobody@example.com", password="Whatever1!"))
     assert refused.value.status_code == 401

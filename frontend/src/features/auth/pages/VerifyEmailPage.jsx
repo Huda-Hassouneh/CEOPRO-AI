@@ -1,4 +1,5 @@
 import React from 'react';
+import { readPendingRegistration, clearPendingRegistration, registrationFields } from '../pendingRegistration.js';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Button from '../../../shared/components/ui/Button.jsx';
 import VerificationCodeInput from '../../../shared/components/ui/VerificationCodeInput.jsx';
@@ -26,20 +27,30 @@ export function VerifyEmailPage() {
   const { locale, t } = useI18n();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const required = useAuthStore((state) => state.emailVerificationBlocked || needsEmailVerification(state.accessToken));
-  const email = location.state?.email || useAuthStore.getState().user?.email || '';
+  const pending = readPendingRegistration();
+  const email = location.state?.email || useAuthStore.getState().user?.email || pending?.email || '';
+  const fields = registrationFields(email);
   const [code, setCode] = React.useState('');
   const [error, setError] = React.useState('');
   const [requestMessage, setRequestMessage] = React.useState(null);
   const { isCoolingDown, remainingSeconds, startCooldown } = useResendCooldown(30);
 
-  const finish = async () => {
+  const finish = async (response) => {
+    clearPendingRegistration();
+    if (response?.access_token) {
+      const { toSession } = await import('../api/authHttpAdapter.js');
+      useAuthStore.getState().setSession(toSession(response));
+      navigate(routePaths.dashboard, { replace: true });
+      return;
+    }
     if (!isAuthenticated) {
       navigate(routePaths.login, { replace: true, state: { authNotice: 'email-verified' } });
       return;
     }
     // A fresh token carries the confirmed state, so the app opens straight away.
     try {
-      useAuthStore.getState().setAccessToken(await authHttpAdapter.refresh());
+      const previous = useAuthStore.getState().accessToken;
+      useAuthStore.getState().setAccessToken(await authHttpAdapter.refresh(), previous);
     } catch {
       // The next renewal picks it up; nothing is blocked once confirmed.
     }
@@ -54,9 +65,9 @@ export function VerifyEmailPage() {
     }),
   });
   const resendMutation = useResendVerificationMutation({
-    onSuccess: () => {
+    onSuccess: (response) => {
       startCooldown();
-      setRequestMessage({ tone: 'success', key: 'auth.success.codeResent' });
+      setRequestMessage(response?.delivery === 'unavailable' ? { tone: 'error', key: 'auth.errors.deliveryUnavailable' } : { tone: 'success', key: 'auth.success.codeResent' });
     },
     onError: (requestFailure) => setRequestMessage({
       tone: 'error',
@@ -86,13 +97,13 @@ export function VerifyEmailPage() {
     const nextError = validate(code);
     setError(nextError);
     setRequestMessage(null);
-    if (!nextError) verifyMutation.mutate({ email, code });
+    if (!nextError) verifyMutation.mutate({ email, code, ...fields });
   };
 
   const resend = () => {
     if (isCoolingDown || resendMutation.isPending || !email) return;
     setRequestMessage(null);
-    resendMutation.mutate({ email });
+    resendMutation.mutate({ email, ...fields });
   };
 
   const busy = verifyMutation.isPending || resendMutation.isPending;
@@ -102,6 +113,7 @@ export function VerifyEmailPage() {
       subtitle={<>{email ? <>{t('auth.verifyEmail.subtitlePrefix')} <bdi dir="ltr">{email}</bdi>.</> : t('auth.verifyEmail.subtitleGeneric')}{required ? <><br />{t('auth.verifyEmail.required')}</> : null}</>}
       className="ceopro-auth-body--narrow"
     >
+      {pending?.delivery === 'unavailable' && !requestMessage ? <AuthStatusMessage tone="error">{t('auth.errors.deliveryUnavailable')}</AuthStatusMessage> : null}
       <AuthStatusMessage tone={requestMessage?.tone}>{requestMessage?.key ? t(requestMessage.key) : ''}</AuthStatusMessage>
       <form onSubmit={verify} noValidate>
         <div className="ceopro-auth-code-copy">

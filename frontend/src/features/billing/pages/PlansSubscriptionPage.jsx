@@ -1,196 +1,769 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { CalendarCheck, ShieldCheck } from 'lucide-react';
-import { useI18n } from '../../../app/providers/I18nProvider.jsx';
-import { useAuthStore } from '../../auth/store/authStore.js';
-import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
-import Button from '../../../shared/components/ui/Button.jsx';
-import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
-import Modal from '../../../shared/components/ui/Modal.jsx';
-import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
-import Toast from '../../../shared/components/ui/Toast.jsx';
-import { CurrentPlanCard } from '../components/CurrentPlanCard.jsx';
-import { UsageLimitGrid } from '../components/UsageLimitGrid.jsx';
-import { UpgradeRecommendation } from '../components/UpgradeRecommendation.jsx';
-import { PlanCard, PlanSharedFeatures } from '../components/PlanCard.jsx';
-import { PlanComparisonTable } from '../components/PlanComparisonTable.jsx';
-import { PeriodSelector } from '../components/PeriodSelector.jsx';
-import { InvoiceList } from '../components/InvoiceList.jsx';
-import { CreditBudgets, UsageHistory } from '../components/CreditBudgets.jsx';
-import { usePlans } from '../hooks/usePlans.js';
-import { useSubscription } from '../hooks/useSubscription.js';
-import { useBillingAction, useInvoices, useUsageHistory } from '../hooks/useBillingActions.js';
-import { errorReason } from '../api/billingApi.js';
-import { getUpgradeRecommendation } from '../utils/subscriptionRecommendations.js';
-import { formatMoney } from '../utils/money.js';
-import '../styles/Billing.css';
-import '../styles/PlansSubscription.css';
+import { useMemo, useState } from "react";
 
-const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || '';
-const KNOWN_ERRORS = new Set([
-  'payments_not_configured', 'price_not_synced', 'subscription_exists', 'plan_not_available', 'contact_sales',
-  'no_billing_account', 'no_subscription', 'payment_required', 'cancellation_pending', 'already_on_plan',
-  'downgrade_scheduled', 'already_scheduled', 'already_cancelling', 'not_cancelling', 'provider_error',
-  'trial_already_used', 'trial_already_used_by_person', 'plan_has_no_trial', 'plan_already_assigned',
-]);
+import { useNavigate } from "react-router-dom";
+
+import useSWR from "../hooks/useBillingResource.js";
+
+import { useI18n } from "../../../app/providers/I18nProvider.jsx";
+
+import { routePaths } from "../../../app/router/routePaths.js";
+
+import { billingApi, getApiError } from "../api/customerBillingApi.js";
+
+import Modal from "../../../shared/components/ui/Modal.jsx";
+
+import PageHeader from "../../../shared/components/layout/PageHeader.jsx";
+
+import Button from "../../../shared/components/ui/Button.jsx";
+
+import EmptyState from "../../../shared/components/ui/EmptyState.jsx";
+
+import Skeleton from "../../../shared/components/ui/Skeleton.jsx";
+
+import Toast from "../../../shared/components/ui/Toast.jsx";
+
+import { CheckoutReturnNotice } from "../components/CheckoutReturnNotice.jsx";
+import { CreditBudgets, UsageHistory } from "../components/CreditBudgets.jsx";
+import { useUsageHistory } from "../hooks/useBillingActions.js";
+import { CurrentPlanCard } from "../components/CurrentPlanCard.jsx";
+
+import { InvoiceHistoryTable } from "../components/InvoiceHistoryTable.jsx";
+
+import { UsageLimitGrid } from "../components/UsageLimitGrid.jsx";
+
+import { UpgradeRecommendation } from "../components/UpgradeRecommendation.jsx";
+
+import { SubscriptionRecoveryBanner } from "../components/SubscriptionRecoveryBanner.jsx";
+
+import { useSubscriptionRecovery } from "../hooks/useSubscriptionRecovery.js";
+
+import { getUpgradeRecommendation } from "../utils/subscriptionRecommendations.js";
+
+import { isRecoverableSubscriptionStatus } from "../utils/subscriptionStatus.js";
+
+import "../styles/Billing.css";
+
+import "../styles/PlansSubscription.css";
+import { describeBillingOption } from "../utils/billingPeriodPresentation.js";
+import { PlanCard, PlanSharedFeatures } from "../components/OriginalPlanCard.jsx";
+import { PeriodSelector } from "../components/PeriodSelector.jsx";
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const swrOptions = { shouldRetryOnError: false, revalidateOnFocus: false };
 
 export function PlansSubscriptionPage() {
   const { t, locale, dir } = useI18n();
-  const companyId = useAuthStore((state) => state.tenantId);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const checkoutResult = searchParams.get('checkout');
-  const plansQuery = usePlans();
-  // After returning from Stripe the webhook usually lands within seconds:
-  // poll briefly so the new plan shows without a manual reload.
-  const subscriptionQuery = useSubscription(companyId, { refetchInterval: checkoutResult === 'success' ? 3000 : false });
-  const subscription = subscriptionQuery.data;
-  const invoicesQuery = useInvoices(Boolean(subscription?.canManageBilling && subscription?.hasBillingAccount));
-  const checkout = useBillingAction('checkout');
-  const changePlan = useBillingAction('changePlan');
-  const portal = useBillingAction('openPortal');
-  const cancel = useBillingAction('cancel');
-  const resume = useBillingAction('resume');
-  const cancelScheduled = useBillingAction('cancelScheduledChange');
-  const startTrial = useBillingAction('startTrial');
-  const historyQuery = useUsageHistory(Boolean(subscription));
-  const [billingPeriod, setBillingPeriod] = useState('monthly');
-  const [confirm, setConfirm] = useState(null);
+
+  const navigate = useNavigate();
+
+  const [isCancelAlertOpen, setIsCancelAlertOpen] = useState(false);
+
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const [isResuming, setIsResuming] = useState(false);
+
+  const [isCancelScheduledChangeOpen, setIsCancelScheduledChangeOpen] =
+    useState(false);
+
+  const [isCancellingScheduledChange, setIsCancellingScheduledChange] =
+    useState(false);
+
   const [notice, setNotice] = useState(null);
-  const compareRef = useRef(null);
-  const comparisonRef = useRef(null);
-  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
-  const numberFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }), [locale]);
-  const formatDate = (value) => dateFormatter.format(new Date(value));
 
-  useEffect(() => {
-    if (subscription?.hasSubscription && subscription.billingPeriod) setBillingPeriod(subscription.billingPeriod);
-  }, [subscription?.hasSubscription, subscription?.billingPeriod]);
-  useEffect(() => {
-    if (checkoutResult === 'success') setNotice({ variant: 'success', message: t('billing.checkout.success') });
-    if (checkoutResult === 'cancelled') setNotice({ variant: 'info', message: t('billing.checkout.cancelled') });
-    if (checkoutResult) {
-      const timer = window.setTimeout(() => setSearchParams({}, { replace: true }), 30000);
-      return () => window.clearTimeout(timer);
-    }
-    return undefined;
-  }, [checkoutResult, setSearchParams, t]);
+  const [planPeriod, setPlanPeriod] = useState(null);
 
-  if (plansQuery.isPending || subscriptionQuery.isPending) return <div className="billing-management-loading" aria-busy="true"><Skeleton height="78px" variant="rectangular" /><div>{[0, 1, 2, 3].map((item) => <Skeleton key={item} height="460px" variant="rectangular" />)}</div></div>;
-  if (plansQuery.isError || subscriptionQuery.isError) return <EmptyState title={t('billing.management.errorTitle')} description={t('billing.management.errorDescription')} action={<Button size="sm" onClick={() => { plansQuery.refetch(); subscriptionQuery.refetch(); }}>{t('billing.management.retry')}</Button>} />;
+  const recovery = useSubscriptionRecovery();
+  const historyQuery = useUsageHistory(true);
 
-  const plans = plansQuery.data.plans;
-  const paymentsEnabled = plansQuery.data.paymentsEnabled;
-  const currentPlan = plans.find((plan) => plan.id === subscription.planId)
-    || { id: subscription.planId, name: { en: subscription.planName, ar: subscription.planName }, limits: subscription.limits || {}, prices: {}, selfServe: false };
-  const canManage = subscription.canManageBilling;
-  const busy = checkout.isPending || changePlan.isPending || portal.isPending || cancel.isPending || resume.isPending || cancelScheduled.isPending || startTrial.isPending;
+  const {
+    data: plansResponse,
 
-  const fail = (error) => {
-    const reason = errorReason(error);
-    setNotice({ variant: 'error', message: t(`billing.errors.${KNOWN_ERRORS.has(reason) ? reason : 'generic'}`) });
-  };
-  const run = (mutation, payload, successKey) => mutation.mutate(payload, {
-    onSuccess: (result) => { if (successKey && !result?.url) setNotice({ variant: 'success', message: t(successKey, { date: result?.effective_at ? formatDate(result.effective_at) : '' }) }); },
-    onError: fail,
-  });
+    isLoading: plansLoading,
 
-  const recommendation = (() => {
-    const raw = getUpgradeRecommendation(subscription, searchParams.get('reason'));
-    if (!raw) return null;
-    return {
-      titleKey: raw.contextual ? `billing.management.context.${raw.key}.title` : `billing.management.recommendation.${raw.type}Title`,
-      descriptionKey: raw.contextual ? `billing.management.context.${raw.key}.description` : `billing.management.recommendation.${raw.type}Description`,
-      values: raw.key ? { metric: t(`billing.management.usageLabels.${raw.key}`), used: numberFormatter.format(subscription.usage[raw.key]), limit: numberFormatter.format(subscription.limits[raw.key]) } : {},
-    };
-  })();
+    error: plansError
+  } = useSWR("subscription-plans", billingApi.getPlans, swrOptions);
 
-  const planAction = (plan) => {
-    const isCurrent = plan.id === currentPlan.id && (!subscription.hasSubscription || billingPeriod === subscription.billingPeriod);
-    if (!plan.selfServe) return { label: t('billing.management.contactSales'), disabled: !SUPPORT_EMAIL, hint: SUPPORT_EMAIL ? null : t('billing.management.contactTeam'), onAction: () => { window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('KEEL Custom plan')}`; } };
-    if (!canManage) return { label: isCurrent && subscription.hasSubscription ? t('billing.management.yourCurrentPlan') : t('billing.management.askOwner'), disabled: true };
-    // A company that never had a trial can start one (no payment; checked again on the server).
-    if (subscription.trialAvailable && plan.trialDays > 0) return { label: t('billing.management.startTrial', { days: plan.trialDays }), note: t('billing.management.assurance.noCardTrial'), mutation: startTrial, onAction: () => run(startTrial, { planId: plan.id }, 'billing.management.trialStarted') };
-    if (!paymentsEnabled) return { label: t('billing.management.paymentsUnavailable'), disabled: true };
-    if (!plan.prices?.[billingPeriod]?.purchasable) return { label: t('billing.management.notAvailable'), disabled: true };
-    if (subscription.hasSubscription) {
-      if (isCurrent) return { label: t('billing.management.yourCurrentPlan'), disabled: true };
-      // Same rule as the server (billing/service.py change_plan): a higher tier, or the same
-      // tier at an equal or higher price, applies now; anything else at the end of the paid period.
-      const currentAmount = currentPlan.prices?.[subscription.billingPeriod]?.amount ?? 0;
-      const upgrade = plan.tier > (currentPlan.tier ?? 0) || (plan.tier === currentPlan.tier && plan.prices[billingPeriod].amount >= currentAmount);
-      const name = plan.name?.[locale] || plan.name?.en;
-      const label = plan.id === currentPlan.id ? t('billing.management.switchPeriod') : t(upgrade ? 'billing.management.upgradeTo' : 'billing.management.downgradeTo', { plan: name });
-      return { label, note: t(upgrade ? 'billing.management.upgradeNote' : 'billing.management.downgradeNote'), onAction: () => setConfirm({ plan, period: billingPeriod }) };
-    }
-    return { label: subscription.status === 'trial' ? t('billing.management.subscribeKeepTrial') : t('billing.management.subscribe'),
-      mutation: checkout, onAction: () => run(checkout, { planId: plan.id, billingPeriod }) };
-  };
+  const { data: customPlansResponse, isLoading: customPlansLoading } = useSWR(
+    "subscription-custom-plans",
 
-  const currentActions = canManage && subscription.hasBillingAccount && paymentsEnabled ? <>
-    <Button size="sm" variant="outline" loading={portal.isPending} disabled={busy} onClick={() => run(portal)}>{t('billing.management.manageBilling')}</Button>
-    {subscription.hasSubscription && (subscription.cancelAtPeriodEnd
-      ? <Button size="sm" loading={resume.isPending} disabled={busy} onClick={() => run(resume, undefined, 'billing.management.resumed')}>{t('billing.management.resume')}</Button>
-      : <Button size="sm" variant="ghost" disabled={busy} onClick={() => setConfirm({ cancel: true })}>{t('billing.management.cancel')}</Button>)}
-  </> : null;
+    billingApi.getCustomPlans,
 
-  const confirmPrice = confirm?.plan?.prices?.[confirm.period];
-  const pendingFor = (plan, mutation) => [mutation, changePlan].some((m) => m?.isPending && m.variables?.planId === plan.id);
-  const assurances = [
-    paymentsEnabled && canManage && ['stripe', ShieldCheck],
-    paymentsEnabled && canManage && ['cancel', CalendarCheck],
-  ].filter(Boolean);
-  const plansSection = <section ref={compareRef} className="billing-management-section billing-plans-section" aria-labelledby="compare-title">
-    <header className="billing-plans-header">
-      <div><h2 id="compare-title">{t('billing.management.plansTitle')}</h2><p>{t('billing.management.plansSubtitle')}</p></div>
-      <PeriodSelector plans={plans} value={billingPeriod} onChange={setBillingPeriod} name="in-app-billing-period" />
-    </header>
-    <div className="ceopro-plan-grid billing-management-plans" style={{ '--plan-count': plans.length }}>{plans.map((plan) => {
-      const action = planAction(plan);
-      return <PlanCard key={plan.id} plan={plan} billingPeriod={billingPeriod} currentPlan={plan.id === currentPlan.id} showTrial={Boolean(subscription.trialAvailable)}
-        onAction={action.onAction || (() => {})} actionLabel={action.label} actionDisabled={action.disabled || busy} actionHint={action.hint} actionNote={action.note} actionLoading={pendingFor(plan, action.mutation)} />;
-    })}</div>
-    <footer className="billing-plans-footer">
-      <PlanSharedFeatures plans={plans} />
-      {assurances.length > 0 && <ul className="billing-plans-assurance">{assurances.map(([key, Icon]) => <li key={key}><Icon size={15} aria-hidden="true" />{t(`billing.management.assurance.${key}`)}</li>)}</ul>}
-      <p>{t('billing.management.creditsHelp')} <button type="button" className="billing-text-link" onClick={() => comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{t('billing.plans.seeAllLimits')}</button></p>
-    </footer>
-  </section>;
-  return <div className="billing-management-page" dir={dir}>
-    <PageHeader title={t('billing.management.title')} subtitle={t('billing.management.subtitle')} />
-    {!paymentsEnabled && <div className="billing-provider-note" role="note">{t('billing.management.paymentsUnavailableHint')}</div>}
-    <CurrentPlanCard subscription={subscription} plan={currentPlan} locale={locale} t={t} formatDate={formatDate} actions={currentActions} />
-    {subscription.scheduledChange && <div className="billing-provider-note" role="status">
-      <span>{t('billing.management.scheduledChange', { plan: plans.find((p) => p.id === subscription.scheduledChange.planId)?.name?.[locale] || subscription.scheduledChange.planId, date: subscription.scheduledChange.effectiveAt ? formatDate(subscription.scheduledChange.effectiveAt) : '' })}</span>
-      {canManage && <Button size="sm" variant="ghost" loading={cancelScheduled.isPending} onClick={() => run(cancelScheduled, undefined, 'billing.management.scheduledCancelled')}>{t('billing.management.keepCurrentPlan')}</Button>}
-    </div>}
-    {['failed', 'expired'].includes(subscription.status) && <div className="billing-provider-note is-warning" role="alert">{t(`billing.management.statusHelp.${subscription.status}`)}</div>}
+    swrOptions
+  );
 
-    <UpgradeRecommendation recommendation={recommendation} onCompare={() => compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} t={t} />
-    {plansSection}
+  const {
+    data: coreSubResponse,
 
-    <section className="billing-management-section" aria-labelledby="credits-title"><header><h2 id="credits-title">{t('billing.management.credits.title')}</h2><p>{t('billing.management.credits.subtitle')}</p></header>
-      <CreditBudgets credits={subscription.credits} locale={locale} t={t} formatDate={formatDate} />
-      <p className="billing-credit-note">{t('billing.management.credits.competitorNote')}{subscription.credits?.top_ups_enabled ? '' : ` ${t('billing.management.credits.topUpsUnavailable')}`}</p>
-    </section>
-    <section className="billing-management-section" aria-labelledby="usage-title"><header><h2 id="usage-title">{t('billing.management.usageTitle')}</h2><p>{t('billing.management.usageSubtitle')}</p></header><UsageLimitGrid usage={subscription.usage} limits={subscription.limits} locale={locale} t={t} /></section>
-    <section ref={comparisonRef} className="billing-management-section" aria-labelledby="comparison-title"><header><h2 id="comparison-title">{t('billing.management.comparison.title')}</h2><p>{t('billing.management.comparison.subtitle')}</p></header><PlanComparisonTable plans={plans} currentPlanId={currentPlan.id} /></section>
-    <section className="billing-management-section" aria-labelledby="history-title"><header><h2 id="history-title">{t('billing.management.credits.historyTitle')}</h2></header>{historyQuery.isPending ? <Skeleton height="80px" /> : <UsageHistory items={historyQuery.data} locale={locale} t={t} />}</section>
-    {canManage && subscription.hasBillingAccount && <section className="billing-management-section" aria-labelledby="invoices-title"><header><h2 id="invoices-title">{t('billing.invoices.title')}</h2></header>{invoicesQuery.isPending ? <Skeleton height="80px" /> : <InvoiceList invoices={invoicesQuery.data} locale={locale} t={t} formatDate={formatDate} />}</section>}
+    isLoading: coreSubLoading,
 
-    <Modal isOpen={Boolean(confirm)} onClose={() => setConfirm(null)} title={confirm?.cancel ? t('billing.management.cancelTitle') : t('billing.management.switchTitle')}>
-      {confirm?.cancel
-        ? <p>{t('billing.management.cancelBody', { date: subscription.renewsAt ? formatDate(subscription.renewsAt) : '' })}</p>
-        : confirm && <p>{t('billing.management.switchBody', { plan: confirm.plan.name?.[locale] || confirm.plan.name?.en, price: confirmPrice ? formatMoney(confirmPrice.amount, confirmPrice.currency, locale) : '' })}</p>}
-      <div className="billing-modal-actions">
-        <Button variant="outline" onClick={() => setConfirm(null)}>{t('billing.management.back')}</Button>
-        <Button variant="primary" loading={busy} onClick={() => {
-          const current = confirm;
-          setConfirm(null);
-          if (current.cancel) run(cancel, undefined, 'billing.management.cancelled');
-          else run(changePlan, { planId: current.plan.id, billingPeriod: current.period }, 'billing.management.changed');
-        }}>{confirm?.cancel ? t('billing.management.confirmCancel') : t('billing.management.confirmSwitch')}</Button>
+    error: coreSubError,
+
+    mutate: mutateCoreSubscription
+  } = useSWR("subscription-current", billingApi.getSubscription, swrOptions);
+
+  const hasSubscriptionResponse = Boolean(
+    coreSubResponse?.data ?? coreSubResponse
+  );
+
+  const {
+    data: usageResponse,
+
+    isLoading: usageLoading,
+
+    error: usageError
+  } = useSWR(
+    hasSubscriptionResponse ? "subscription-current-usage" : null,
+
+    hasSubscriptionResponse ? billingApi.getSubscriptionUsage : null,
+
+    swrOptions
+  );
+
+  const {
+    data: invoicesResponse,
+
+    isLoading: invoicesLoading,
+
+    error: invoicesError
+  } = useSWR(
+    hasSubscriptionResponse ? "subscription-invoices" : null,
+
+    hasSubscriptionResponse ? billingApi.getInvoices : null,
+
+    swrOptions
+  );
+
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { dateStyle: "medium" }),
+
+    [locale]
+  );
+
+  if (plansLoading || customPlansLoading || coreSubLoading) {
+    return (
+      <div className="billing-management-loading" aria-busy="true">
+        <Skeleton
+          height="82px"
+          variant="rectangular"
+          style={{ marginBottom: "20px" }}
+        />
+
+        <Skeleton height="360px" variant="rectangular" />
       </div>
-    </Modal>
-    {notice && <div className="billing-management-toast"><Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} /></div>}
-  </div>;
+    );
+  }
+
+  if (plansError) {
+    return (
+      <div className="billing-management-page" dir={dir}>
+        <PageHeader
+          title={t("billing.management.title")}
+          subtitle={t("billing.management.subtitle")}
+        />
+
+        <p className="billing-inline-error">
+          {getApiError(plansError).message}
+        </p>
+      </div>
+    );
+  }
+
+  const coreError = coreSubError ? getApiError(coreSubError) : null;
+
+  const noSubscription =
+    coreError?.code === "SUBSCRIPTION_NOT_FOUND" || coreError?.status === 404;
+
+  if (coreSubError && !noSubscription) {
+    return (
+      <div className="billing-management-page" dir={dir}>
+        <PageHeader
+          title={t("billing.management.title")}
+          subtitle={t("billing.management.subtitle")}
+        />
+
+        <p className="billing-inline-error">{coreError.message}</p>
+      </div>
+    );
+  }
+
+  const plans = [
+    ...(plansResponse?.data ?? []),
+
+    ...(customPlansResponse?.data ?? [])
+  ];
+
+  const coreSub = coreSubResponse?.data ?? null;
+
+  const usageData = usageResponse ?? null;
+
+  const invoices = invoicesResponse?.data ?? [];
+
+  const subscriptionPlanFallback = coreSub?.plan
+    ? (() => {
+        const basePrice = Number(coreSub.plan.price ?? 0);
+
+        const pricingOptions = (coreSub.plan.billingOptions ?? []).map(
+          (option) => {
+            const intervalUnit = option?.intervalUnit ?? "month";
+
+            const intervalCount = Number(
+              option?.intervalCount ?? option?.months ?? 1
+            );
+
+            const months =
+              intervalUnit === "day"
+                ? undefined
+                : intervalCount * (intervalUnit === "year" ? 12 : 1);
+
+            const discountPercent = Number(option?.discountPercent ?? 0);
+
+            const baseIntervalValue = Number(
+              coreSub.plan.billingIntervalValue ?? 1
+            );
+
+            const baseIntervalUnit =
+              coreSub.plan.billingIntervalUnit ?? "month";
+
+            const baseUnits =
+              baseIntervalValue * (baseIntervalUnit === "year" ? 12 : 1);
+
+            const totalPrice = Number(
+              (
+                ((basePrice * (months ?? intervalCount)) / baseUnits) *
+                (1 - discountPercent / 100)
+              ).toFixed(2)
+            );
+
+            return {
+              ...option,
+
+              months,
+
+              intervalUnit,
+
+              intervalCount,
+
+              discountPercent,
+
+              totalPrice,
+
+              monthlyEquivalent: months ? totalPrice / months : null
+            };
+          }
+        );
+
+        return {
+          ...coreSub.plan,
+
+          basePrice,
+
+          pricingOptions
+        };
+      })()
+    : null;
+
+  const rawCurrentPlan = coreSub
+    ? (plans.find((plan) => plan.id === coreSub.planId) ??
+      subscriptionPlanFallback)
+    : null;
+
+  const currentPlan = rawCurrentPlan
+    ? {
+        ...rawCurrentPlan,
+
+        displayName:
+          locale === "ar" && rawCurrentPlan.name_ar
+            ? rawCurrentPlan.name_ar
+            : rawCurrentPlan.name,
+
+        displayDescription:
+          locale === "ar" && rawCurrentPlan.description_ar
+            ? rawCurrentPlan.description_ar
+            : rawCurrentPlan.description
+      }
+    : coreSub
+      ? {
+          id: coreSub.planId,
+
+          displayName:
+            usageData?.planName || t("billing.management.unavailablePlanName"),
+
+          pricingOptions: [],
+
+          features: usageData?.features ?? {}
+        }
+      : null;
+
+  const features = {
+    ...(currentPlan?.features ?? {}),
+
+    ...(usageData?.features ?? {})
+  };
+
+  const unifiedSubscription = coreSub
+    ? {
+        ...coreSub,
+
+        renewsAt: coreSub.currentPeriodEnd,
+
+        billingPeriod: coreSub.billingPeriod || "monthly",
+
+        usage: usageData?.usage ?? {},
+
+        limits: usageData?.limits ?? {},
+
+        features
+      }
+    : null;
+
+  const hasCurrentSubscription = Boolean(coreSub);
+
+  const needsRecovery = isRecoverableSubscriptionStatus(coreSub?.status);
+
+  const isPendingCancellation = Boolean(coreSub?.cancelAtPeriodEnd);
+
+  if (!hasCurrentSubscription) {
+    return (
+      <div className="billing-management-page" dir={dir}>
+        <PageHeader
+          title={t("billing.management.title")}
+          subtitle={t("billing.management.subtitle")}
+        />
+
+        <CheckoutReturnNotice />
+        <EmptyState
+          title={
+            t("billing.management.missingTitle")
+          }
+          description={
+            t("billing.management.missingDescription")
+          }
+          action={
+            <div className="billing-empty-actions">
+              <Button onClick={() => navigate(routePaths.billingPlans)}>
+                {t("billing.management.comparePlansAction")}
+              </Button>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
+
+  const reconcileCancellation = async (expectedCancelAtPeriodEnd) => {
+    for (const delay of [400, 800, 1500, 2500]) {
+      await wait(delay);
+
+      try {
+        const freshResponse = await billingApi.getSubscription();
+
+        const freshSubscription = freshResponse?.data ?? freshResponse;
+
+        if (
+          Boolean(freshSubscription?.cancelAtPeriodEnd) ===
+          expectedCancelAtPeriodEnd
+        ) {
+          await mutateCoreSubscription(freshResponse, { revalidate: false });
+
+          return true;
+        }
+      } catch {
+        // The optimistic state remains visible until a later successful revalidation.
+      }
+    }
+
+    return false;
+  };
+
+  const handleConfirmCancel = async () => {
+    setIsCancelAlertOpen(false);
+
+    setIsCancelling(true);
+
+    const previousSubscription = coreSubResponse;
+
+
+
+    try {
+      await billingApi.cancelSubscription();
+
+      setNotice({
+        variant: "success",
+
+        message:
+          t("billing.management.cancelSuccess")
+      });
+
+      void reconcileCancellation(true);
+    } catch (error) {
+      await mutateCoreSubscription(previousSubscription, { revalidate: false });
+
+      setNotice({
+        variant: "error",
+
+        message:
+          getApiError(error).message || t("billing.management.cancelError")
+      });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleResumeSubscription = async () => {
+    setIsResuming(true);
+
+    const previousSubscription = coreSubResponse;
+
+
+
+    try {
+      await billingApi.resumeSubscription();
+
+      setNotice({
+        variant: "success",
+
+        message:
+          t("billing.management.resumeSuccess")
+      });
+
+      void reconcileCancellation(false);
+    } catch (error) {
+      await mutateCoreSubscription(previousSubscription, { revalidate: false });
+
+      setNotice({
+        variant: "error",
+
+        message:
+          getApiError(error).message || t("billing.management.resumeError")
+      });
+    } finally {
+      setIsResuming(false);
+    }
+  };
+  const scheduledPlan = coreSub?.scheduledPlan ?? null;
+
+  const scheduledBillingPeriod = coreSub?.scheduledBillingPeriod ?? null;
+
+  const scheduledPlanName = scheduledPlan
+    ? locale === "ar" && scheduledPlan.name_ar
+      ? scheduledPlan.name_ar
+      : scheduledPlan.name
+    : t("billing.management.nextPlan");
+
+  const scheduledBillingOption = scheduledPlan?.pricingOptions?.find(
+    (option) => option.period === scheduledBillingPeriod
+  ) ?? {
+    period: scheduledBillingPeriod
+  };
+
+  const scheduledBillingPeriodLabel = scheduledBillingPeriod
+    ? describeBillingOption(scheduledBillingOption, t)
+    : "";
+  const handleCancelScheduledChange = async () => {
+    setIsCancellingScheduledChange(true);
+    setNotice(null);
+
+    try {
+      /*
+       * Do not optimistically clear scheduledPlanId.
+       *
+       * The backend first releases the Stripe Subscription Schedule and only
+       * then clears the local scheduled-plan fields. Revalidate afterwards so
+       * the UI reflects the authoritative backend/provider state.
+       */
+      await billingApi.cancelScheduledPlanChange();
+      await mutateCoreSubscription();
+
+      setIsCancelScheduledChangeOpen(false);
+      setNotice({
+        variant: "success",
+        message:
+          t("billing.management.cancelScheduledChangeSuccess")
+      });
+    } catch (error) {
+      setNotice({
+        variant: "error",
+        message:
+          getApiError(error).message ||
+          t("billing.management.cancelScheduledChangeError") ||
+          t("interfaceCopy.theScheduledPlanChangeCouldNotBeCancelled")
+      });
+    } finally {
+      setIsCancellingScheduledChange(false);
+    }
+  };
+
+  const rawRecommendation = getUpgradeRecommendation(unifiedSubscription);
+
+  const recommendation = rawRecommendation
+    ? {
+        titleKey: rawRecommendation.contextual
+          ? `billing.management.context.${rawRecommendation.key}.title`
+          : `billing.management.recommendation.${rawRecommendation.type}Title`,
+
+        descriptionKey: rawRecommendation.contextual
+          ? `billing.management.context.${rawRecommendation.key}.description`
+          : `billing.management.recommendation.${rawRecommendation.type}Description`,
+
+        values: rawRecommendation.key
+          ? {
+              metric: t(
+                `billing.management.usageLabels.${rawRecommendation.key}`
+              ),
+
+              used: new Intl.NumberFormat(locale, {
+                maximumFractionDigits: 1
+              }).format(unifiedSubscription.usage[rawRecommendation.key] || 0),
+
+              limit: new Intl.NumberFormat(locale, {
+                maximumFractionDigits: 1
+              }).format(unifiedSubscription.limits[rawRecommendation.key] || 0)
+            }
+          : {}
+      }
+    : null;
+
+  return (
+    <div className="billing-management-page" dir={dir}>
+      <PageHeader
+        title={t("billing.management.title")}
+        subtitle={t("billing.management.subtitle")}
+      />
+
+      <CheckoutReturnNotice />
+      <div className="tab-content-fade-in">
+        <CurrentPlanCard
+          currentSubscription={coreSub}
+          subscription={unifiedSubscription}
+          plan={currentPlan}
+          locale={locale}
+          t={t}
+          isPendingCancellation={isPendingCancellation}
+          formatDate={(value) => dateFormatter.format(new Date(value))}
+          onCancelScheduledChange={
+            coreSub?.scheduledPlanId
+              ? () => setIsCancelScheduledChangeOpen(true)
+              : undefined
+          }
+          cancellingScheduledChange={isCancellingScheduledChange}
+        />
+
+        {needsRecovery && (
+          <SubscriptionRecoveryBanner
+            status={coreSub.status}
+            onRecover={recovery.recover}
+            recovering={recovery.isRecovering}
+            error={recovery.error}
+          />
+        )}
+
+        <div className="billing-management-actions">
+          {coreSub.canManageBilling && coreSub.hasStripeSubscription && isPendingCancellation ? (
+            <Button onClick={handleResumeSubscription} loading={isResuming}>
+              {t("billing.management.resumeSubscription")}
+            </Button>
+          ) : (
+            <>
+              <button
+                onClick={() => setIsCancelAlertOpen(true)}
+                disabled={isCancelling || !coreSub.canManageBilling || !coreSub.hasStripeSubscription}
+                className="billing-cancel-link"
+              >
+                {isCancelling
+                  ? t("billing.management.cancelling")
+                  : t("billing.management.cancelSubscription")}
+              </button>
+
+              {!needsRecovery && coreSub.canManageBilling && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(routePaths.billingPlans)}
+                >
+                  {t("billing.management.changePlan")}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+
+        {!needsRecovery && (() => {
+          // The plans side by side, as on the redesigned page; each action
+          // leads into this area's own flows (the plan review page, or the
+          // Custom plan builder).
+          const period = planPeriod || coreSub.billingPeriod || "monthly";
+          const listed = plans.filter((plan) => !plan.isCustomBuilder);
+          const planAction = (plan) => {
+            const isCurrent = plan.id === currentPlan?.id;
+            if (!plan.selfServe) return { label: t("billing.plans.custom.action"), onSelect: () => navigate(routePaths.billingCustomPlan) };
+            if (!coreSub.canManageBilling) return { label: isCurrent ? t("billing.management.yourCurrentPlan") : t("billing.management.askOwner"), disabled: true };
+            if (isCurrent && period === (coreSub.billingPeriod || "monthly")) return { label: t("billing.management.yourCurrentPlan"), disabled: true };
+            const upgrade = (plan.tier ?? plan.tier_level ?? 0) >= (currentPlan?.tier ?? currentPlan?.tier_level ?? 0);
+            const name = plan.displayName || (locale === "ar" && plan.name_ar ? plan.name_ar : plan.name);
+            return { label: t(upgrade ? "billing.management.upgradeTo" : "billing.management.downgradeTo", { plan: name }), onSelect: () => navigate(routePaths.billingPlans) };
+          };
+          return <section className="billing-management-section billing-plans-section" aria-labelledby="plans-title">
+            <header className="billing-plans-header">
+              <div><h2 id="plans-title">{t("billing.management.plansTitle")}</h2><p>{t("billing.management.plansSubtitle")}</p></div>
+              <PeriodSelector plans={listed} value={period} onChange={setPlanPeriod} name="subscription-billing-period" />
+            </header>
+            <div className="ceopro-plan-grid" style={{ "--plan-count": listed.length }}>
+              {listed.map((plan) => {
+                const action = planAction(plan);
+                return <PlanCard key={plan.id} plan={{ ...plan, displayName: plan.displayName || (locale === "ar" && plan.name_ar ? plan.name_ar : plan.name) }}
+                  billingPeriod={period} currentPlan={plan.id === currentPlan?.id} showTrial={false}
+                  onSelect={action.onSelect || (() => {})} actionLabel={action.label} actionDisabled={Boolean(action.disabled)} />;
+              })}
+            </div>
+            <footer className="billing-plans-footer"><PlanSharedFeatures plans={listed} /></footer>
+          </section>;
+        })()}
+
+        <section className="billing-management-section">
+          <header><h2>{t('billing.management.credits.title')}</h2></header>
+          <CreditBudgets credits={coreSub.credits} locale={locale} t={t} formatDate={(value) => dateFormatter.format(new Date(value))} />
+          <UsageHistory items={historyQuery.data} locale={locale} t={t} />
+        </section>
+        <section className="billing-management-section">
+          <header>
+            <h2>{t("billing.management.usageTitle")}</h2>
+
+            <p>
+              {t("billing.management.usageSubtitle")}
+            </p>
+          </header>
+
+          {usageLoading ? (
+            <Skeleton height="180px" variant="rectangular" />
+          ) : usageError ? (
+            <p className="billing-usage-unavailable">
+              {getApiError(usageError).message}
+            </p>
+          ) : (
+            <UsageLimitGrid
+              features={features}
+              usage={unifiedSubscription.usage}
+              limits={unifiedSubscription.limits}
+              locale={locale}
+              t={t}
+            />
+          )}
+        </section>
+
+        {!isPendingCancellation && !needsRecovery && recommendation && (
+          <UpgradeRecommendation
+            recommendation={recommendation}
+            onCompare={() => navigate(routePaths.billingPlans)}
+            t={t}
+          />
+        )}
+
+        <section className="billing-management-section">
+          <header>
+            <h2>{t("billing.invoices.title")}</h2>
+
+            <p>
+              {t("billing.invoices.subtitle")}
+            </p>
+          </header>
+
+          {invoicesLoading ? (
+            <Skeleton height="170px" variant="rectangular" />
+          ) : invoicesError ? (
+            <p className="billing-usage-unavailable">
+              {getApiError(invoicesError).message}
+            </p>
+          ) : (
+            <InvoiceHistoryTable invoices={invoices} locale={locale} t={t} />
+          )}
+        </section>
+      </div>
+
+      <Modal
+        isOpen={isCancelAlertOpen}
+        onClose={() => setIsCancelAlertOpen(false)}
+        title={
+          t("billing.management.cancelSubscription")
+        }
+        maxWidth="430px"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setIsCancelAlertOpen(false)}
+            >
+              {t("common.keep")}
+            </Button>
+
+            <Button
+              onClick={handleConfirmCancel}
+              disabled={isCancelling || !coreSub.canManageBilling || !coreSub.hasStripeSubscription}
+              style={{
+                background: "var(--ceopro-error)",
+
+                borderColor: "var(--ceopro-error)"
+              }}
+            >
+              {t("billing.management.confirmCancel")}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          {t("billing.management.cancelConfirmMessage")}
+        </p>
+      </Modal>
+
+      <Modal
+        isOpen={isCancelScheduledChangeOpen}
+        onClose={() => {
+          if (!isCancellingScheduledChange) {
+            setIsCancelScheduledChangeOpen(false);
+          }
+        }}
+        title={
+          t("billing.management.cancelScheduledChangeTitle")
+        }
+        maxWidth="430px"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setIsCancelScheduledChangeOpen(false)}
+              disabled={isCancellingScheduledChange}
+            >
+              {t("common.cancel")}
+            </Button>
+
+            <Button
+              onClick={handleCancelScheduledChange}
+              loading={isCancellingScheduledChange}
+              loadingLabel={
+                t("billing.management.cancellingScheduledChange")
+              }
+            >
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      >
+        <p>
+          {t("billing.management.cancelScheduledChangeConfirmMessage", {
+            plan: scheduledPlanName,
+            billingPeriod: scheduledBillingPeriodLabel
+          })}
+        </p>
+      </Modal>
+
+      {notice && (
+        <div className="billing-management-toast">
+          <Toast
+            variant={notice.variant}
+            message={notice.message}
+            onClose={() => setNotice(null)}
+          />
+        </div>
+      )}
+    </div>
+  );
 }

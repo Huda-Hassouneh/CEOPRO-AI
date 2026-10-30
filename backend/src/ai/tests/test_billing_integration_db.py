@@ -112,6 +112,34 @@ def test_the_catalog_lists_self_serve_plans_with_prices_and_limits(sys_conn):
         assert {"market_intelligence", "demand_prediction", "competitor_management"} <= set(plans[plan_key]["entitlements"])
 
 
+def test_retired_stripe_price_remains_resolvable_but_is_not_sold(sys_conn, stripe_prices):
+    historical_price = stripe_prices[("growth", "monthly")]
+    with sys_conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE billing_plan_prices SET retired_at = CURRENT_TIMESTAMP "
+            "WHERE plan_key = 'growth' AND period_code = 'monthly' AND stripe_price_id = %s;",
+            (historical_price,),
+        )
+    sys_conn.commit()
+    try:
+        assert store.resolve_price(sys_conn, historical_price) == ("growth", "monthly")
+        current = {
+            price["period_code"]
+            for plan in store.catalog(sys_conn)
+            if plan["plan_key"] == "growth"
+            for price in plan["prices"]
+        }
+        assert "monthly" not in current
+    finally:
+        with sys_conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE billing_plan_prices SET retired_at = NULL "
+                "WHERE plan_key = 'growth' AND period_code = 'monthly' AND stripe_price_id = %s;",
+                (historical_price,),
+            )
+        sys_conn.commit()
+
+
 def test_a_company_gets_the_free_trial_once(sys_conn):
     tenant = _company(sys_conn)
     first = store.start_trial(sys_conn, tenant)
@@ -145,6 +173,7 @@ def test_payment_actions_say_payments_are_not_configured(sys_conn, monkeypatch):
 def test_checkout_reuses_the_customer_and_sends_the_expected_session(sys_conn, stripe_prices, monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
     monkeypatch.setenv("APP_BASE_URL", "https://app.example")
+    monkeypatch.setenv("PUBLIC_FRONTEND_ORIGIN", "https://app.example")
     tenant = _company(sys_conn)
     calls = {"customers": 0}
 
@@ -154,15 +183,20 @@ def test_checkout_reuses_the_customer_and_sends_the_expected_session(sys_conn, s
 
     def fake_session(params, idempotency_key):
         calls["params"], calls["key"] = params, idempotency_key
-        return {"id": "cs_1", "url": "https://checkout.stripe.com/c/cs_1"}
+        calls["sessions"] = calls.get("sessions", 0) + 1
+        return {"id": "cs_" + tenant, "url": "https://checkout.stripe.com/c/cs_" + tenant}
 
     monkeypatch.setattr(stripe_api, "create_customer", fake_customer)
     monkeypatch.setattr(stripe_api, "create_checkout_session", fake_session)
+    monkeypatch.setattr(stripe_api, "retrieve_checkout_session", lambda sid: {
+        "id": sid, "url": "https://checkout.stripe.com/c/" + sid, "status": "open",
+    })
     result = service.create_checkout(sys_conn, sys_conn, tenant, "owner@example.com", "Co", "growth", "six-months")
     service.create_checkout(sys_conn, sys_conn, tenant, "owner@example.com", "Co", "growth", "six-months")
 
     assert result["url"].startswith("https://checkout.stripe.com/")
     assert calls["customers"] == 1  # stored and reused, never looked up by email
+    assert calls["sessions"] == 1
     params = calls["params"]
     assert params["mode"] == "subscription" and params["customer"] == calls["cid"]
     assert params["line_items"] == [{"price": stripe_prices[("growth", "six-months")], "quantity": 1}]
@@ -192,6 +226,21 @@ def client(monkeypatch):
     from src.ai.main import app
 
     return TestClient(app)
+
+
+@pytest.fixture
+def billing_http_client():
+    """Mount the production billing router in a small HTTP app for native tests."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from src.ai.core.exceptions import register_exception_handlers
+    from src.ai.routers.billing import router
+
+    app = FastAPI()
+    register_exception_handlers(app)
+    app.include_router(router)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def _event(event_type, obj, created=None):
@@ -262,12 +311,67 @@ def test_a_failed_renewal_records_the_payment_and_removes_access(client, sys_con
         "id": f"in_{uuid.uuid4().hex[:10]}", "object": "invoice", "subscription": sub_id, "customer": customer,
         "amount_due": 4900, "amount_paid": 0, "currency": "usd", "hosted_invoice_url": "https://invoice.stripe.com/i/1",
     }
+    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda invoice_id: invoice)
     payload = json.dumps(_event("invoice.payment_failed", invoice)).encode()
     assert client.post("/billing/webhook", content=payload, headers={"Stripe-Signature": _signed(payload)}).status_code == 200
     plan = usage.get_plan(sys_conn, tenant)
     assert (plan["plan_key"], plan["status"]) == ("starter", "past_due")
     payments = store.payments(sys_conn, tenant)
     assert payments[0]["status"] == "failed" and payments[0]["amount"] == 49.0
+
+
+def test_delayed_payment_failure_cannot_downgrade_a_paid_invoice(client, sys_conn, stripe_prices, monkeypatch):
+    tenant = _company(sys_conn)
+    sub_id, customer = f"sub_{uuid.uuid4().hex[:10]}", f"cus_{uuid.uuid4().hex[:10]}"
+    store.save_customer(sys_conn, tenant, customer)
+    sys_conn.commit()
+    monkeypatch.setattr(
+        stripe_api,
+        "retrieve_subscription",
+        lambda sid: _stripe_sub(sub_id, customer, stripe_prices[("starter", "monthly")]),
+    )
+    invoice = {
+        "id": f"in_{uuid.uuid4().hex[:10]}", "object": "invoice", "subscription": sub_id,
+        "customer": customer, "status": "paid", "paid": True, "amount_due": 4900,
+        "amount_paid": 4900, "currency": "usd", "hosted_invoice_url": "https://invoice.stripe.com/i/paid",
+        "status_transitions": {"paid_at": int(time.time())},
+    }
+    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda invoice_id: invoice)
+
+    for event_type in ("invoice.payment_succeeded", "invoice.payment_failed"):
+        payload = json.dumps(_event(event_type, {**invoice, "status": "open" if event_type.endswith("failed") else "paid"})).encode()
+        response = client.post("/billing/webhook", content=payload, headers={"Stripe-Signature": _signed(payload)})
+        assert response.status_code == 200, response.text
+
+    payments = store.payments(sys_conn, tenant)
+    assert len(payments) == 1
+    assert payments[0]["status"] == "succeeded"
+    assert payments[0]["amount"] == 49.0
+
+
+def test_terminal_event_for_old_subscription_does_not_disable_replacement(
+    client, sys_conn, stripe_prices, monkeypatch
+):
+    tenant = _company(sys_conn)
+    customer = f"cus_{uuid.uuid4().hex[:10]}"
+    old_id, new_id = f"sub_{uuid.uuid4().hex[:10]}", f"sub_{uuid.uuid4().hex[:10]}"
+    store.save_customer(sys_conn, tenant, customer)
+    old = _stripe_sub(old_id, customer, stripe_prices[("starter", "monthly")])
+    new = _stripe_sub(new_id, customer, stripe_prices[("growth", "monthly")])
+    store.apply_subscription(sys_conn, tenant, old, "starter", "monthly", datetime.now(timezone.utc))
+    canceled_old = _stripe_sub(old_id, customer, stripe_prices[("starter", "monthly")], status="canceled")
+    store.apply_subscription(sys_conn, tenant, canceled_old, "starter", "monthly", datetime.now(timezone.utc))
+    store.apply_subscription(sys_conn, tenant, new, "growth", "monthly", datetime.now(timezone.utc))
+    sys_conn.commit()
+
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: canceled_old if sid == old_id else new)
+    payload = json.dumps(_event("customer.subscription.deleted", {"id": old_id})).encode()
+    response = client.post("/billing/webhook", content=payload, headers={"Stripe-Signature": _signed(payload)})
+
+    assert response.status_code == 200, response.text
+    plan = usage.get_plan(sys_conn, tenant)
+    assert (plan["plan_key"], plan["status"], plan["source"]) == ("growth", "active", "stripe")
+    assert store.current_subscription(sys_conn, tenant)["stripe_subscription_id"] == new_id
 
 
 def test_an_event_for_an_unknown_company_is_retried_not_dropped(client, stripe_prices, monkeypatch):
@@ -315,6 +419,126 @@ def test_payments_flag_follows_the_secret(monkeypatch):
 
 def test_today_is_a_date():  # guards the trial-expiry comparison type
     assert isinstance(datetime.now(timezone.utc).date(), date)
+
+
+def _tenant_billing_state(conn, tenant_ids):
+    """Stable snapshots for read-only subscription/usage/credit assertions."""
+    tables = (
+        "tenant_plan_assignments",
+        "billing_subscriptions",
+        "billing_trials",
+        "billing_customers",
+        "billing_payments",
+        "tenant_usage_counters",
+        "tenant_credit_balances",
+        "usage_ledger",
+        "usage_ledger_adjustments",
+    )
+    state = {}
+    with conn.cursor() as cursor:
+        for table in tables:
+            cursor.execute(
+                f"SELECT to_jsonb(row_data) FROM {table} AS row_data "
+                "WHERE tenant_id = ANY(%s::uuid[]) ORDER BY to_jsonb(row_data)::text;",
+                (tenant_ids,),
+            )
+            state[table] = [row[0] for row in cursor.fetchall()]
+    return state
+
+
+def test_subscription_effective_rights_are_tenant_isolated_and_read_only(billing_http_client, sys_conn):
+    """Exercise the authenticated route over PostgreSQL with the real app role/RLS."""
+    from src.ai import db
+    from src.ai.core.security import create_access_token
+
+    tenant_a, tenant_b = _company(sys_conn), _company(sys_conn)
+    user_a, user_b, outsider = (str(uuid.uuid4()) for _ in range(3))
+    tenants = [tenant_a, tenant_b]
+    users = [user_a, user_b, outsider]
+    with sys_conn.cursor() as cursor:
+        for user_id, label in ((user_a, "a"), (user_b, "b"), (outsider, "outsider")):
+            cursor.execute(
+                "INSERT INTO users (user_id, email, password_hash, full_name, email_verified_at) "
+                "VALUES (%s, %s, 'not-a-login-password', %s, NOW());",
+                (user_id, f"b3-{label}-{user_id}@example.test", f"B3 {label}"),
+            )
+        cursor.execute(
+            "INSERT INTO tenant_users (tenant_id, user_id, role_key) VALUES (%s, %s, 'owner'), (%s, %s, 'owner');",
+            (tenant_a, user_a, tenant_b, user_b),
+        )
+        cursor.execute(
+            "INSERT INTO tenant_plan_assignments (tenant_id, plan_key, status, source) "
+            "VALUES (%s, 'starter', 'active', 'manual'), (%s, 'growth', 'active', 'manual');",
+            (tenant_a, tenant_b),
+        )
+        cursor.execute(
+            "SELECT plan_key, limit_value FROM usage_plan_limits "
+            "WHERE feature_code = 'tracked_products' AND plan_key IN ('starter', 'growth');"
+        )
+        expected_limits = dict(cursor.fetchall())
+    sys_conn.commit()
+
+    assert set(expected_limits) == {"starter", "growth"}
+    assert expected_limits["starter"] != expected_limits["growth"]
+    token_a, _ = create_access_token(tenant_a, user_a, email_verified=True)
+    token_b, _ = create_access_token(tenant_b, user_b, email_verified=True)
+    forged_cross_tenant_token, _ = create_access_token(tenant_a, user_b, email_verified=True)
+    before = _tenant_billing_state(sys_conn, tenants)
+
+    try:
+        assert billing_http_client.get("/billing/subscription").status_code == 401
+        denied = billing_http_client.get(
+            "/billing/subscription",
+            headers={"Authorization": f"Bearer {forged_cross_tenant_token}"},
+        )
+        assert denied.status_code == 403
+
+        response_a = billing_http_client.get(
+            "/billing/subscription", headers={"Authorization": f"Bearer {token_a}"}
+        )
+        response_b = billing_http_client.get(
+            "/billing/subscription", headers={"Authorization": f"Bearer {token_b}"}
+        )
+        assert response_a.status_code == response_b.status_code == 200
+
+        legacy_fields = {
+            "available", "planId", "planName", "status", "hasAccess", "assigned", "source",
+            "billingPeriod", "periodStart", "periodEnd", "trialEndsAt", "trialUsed", "renewsAt",
+            "endsAt", "cancelAtPeriodEnd", "scheduledChange", "hasSubscription", "hasBillingAccount",
+            "canManageBilling", "paymentsEnabled", "limits", "usage", "features", "entitlements",
+            "credits", "trialAvailable", "trialEndsAtExact",
+        }
+        expected_top_level = legacy_fields | {"effectiveRights", "currentPrice", "checkoutTrialEndsAt"}
+        for response in (response_a.json(), response_b.json()):
+            assert set(response) == expected_top_level
+            assert response["checkoutTrialEndsAt"] is None  # no preserved trial exists for these two fixtures
+            if response["currentPrice"] is not None:
+                assert set(response["currentPrice"]) == {"amount", "currency", "intervalUnit", "intervalCount"}
+            rights = response["effectiveRights"]
+            assert set(rights) == {"version", "basis", "items"}
+            assert rights["version"] == 1 and rights["basis"] == "configured_plan"
+            assert all(
+                set(item) == {"featureCode", "state", "unit", "aggregationType", "resetCycle", "limit"}
+                for item in rights["items"]
+            )
+
+        def tracked_product_limit(response):
+            items = response["effectiveRights"]["items"]
+            return next(item["limit"] for item in items if item["featureCode"] == "tracked_products")
+
+        assert tracked_product_limit(response_a.json()) == expected_limits["starter"]
+        assert tracked_product_limit(response_b.json()) == expected_limits["growth"]
+        assert tracked_product_limit(response_a.json()) != tracked_product_limit(response_b.json())
+        assert "tenant_id" not in response_a.json()["effectiveRights"]
+        assert "tenant_id" not in response_b.json()["effectiveRights"]
+        assert _tenant_billing_state(sys_conn, tenants) == before
+    finally:
+        db.close_pool()
+        sys_conn.rollback()
+        with sys_conn.cursor() as cursor:
+            cursor.execute("DELETE FROM companies WHERE tenant_id = ANY(%s::uuid[]);", (tenants,))
+            cursor.execute("DELETE FROM users WHERE user_id = ANY(%s::uuid[]);", (users,))
+        sys_conn.commit()
 
 
 def test_two_simultaneous_deliveries_of_one_event_process_it_once(sys_conn, stripe_prices, monkeypatch):

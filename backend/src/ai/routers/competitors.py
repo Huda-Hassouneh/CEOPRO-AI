@@ -227,7 +227,7 @@ def review_discovered_source(
     result["enqueue_error"] = None
     if result["status"] == "ALLOWED":
         try:
-            enqueue.enqueue_collection(ctx.tenant_id, source_id)
+            enqueue.enqueue_collection(ctx.tenant_id, source_id, actor_user_id=ctx.user_id)
             result["enqueued"] = True
         except Exception as exc:  # noqa: BLE001 - a real infra/gate failure here must not look like a failed review
             result["enqueue_error"] = str(exc)

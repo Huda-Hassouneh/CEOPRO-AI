@@ -41,14 +41,17 @@ from src.ai.core.body_limit import BodySizeLimitMiddleware
 from src.ai.core.rate_limit import RateLimitMiddleware
 from src.infrastructure.monitoring.error_tracking import init_error_tracking
 from src.infrastructure.request_language import RequestLanguageMiddleware
+from src.ai.routers import platform
 from src.ai.routers import (
-    alerts, auth, billing, competitor_enrichment, competitors, dashboard, discovery, extraction, forecasting, health, marketing, mpi, onboarding, operator, pricing, products, rag, reports,
+    alerts, auth, billing, competitor_enrichment, competitors, dashboard, discovery, extraction, forecasting, health, marketing, mpi, notifications, onboarding, operator, pricing, products, rag, reports,
     reviews, sales, sentiment, settings,
 )
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    from src.ai.billing import test_clock
+    test_clock.adapter()  # Local adapter absent/forbidden in production; disabled is a no-op.
     # The connection pool (src/infrastructure/db_pool.py) is still created
     # lazily on first real use (db.py's own established convention -
     # importing/starting this service must never itself require a
@@ -193,11 +196,14 @@ async def _forget_cached_views_after_writes(request, call_next):
 # to every plan and simply have no competitor or forecast data on Starter.
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(platform.router)
 app.include_router(pricing.router)
 app.include_router(sentiment.router, dependencies=[requires(usage.MARKET_INTELLIGENCE), Depends(permissions.forbid_read_only_writes)])
 app.include_router(mpi.router, dependencies=[requires(usage.MARKET_INTELLIGENCE)])
 app.include_router(rag.router)
 app.include_router(extraction.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
+from src.ai.routers import provider_webhooks
+app.include_router(provider_webhooks.router)
 app.include_router(onboarding.router)
 app.include_router(dashboard.router)
 app.include_router(sales.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
@@ -205,6 +211,9 @@ app.include_router(competitors.router, dependencies=[requires(usage.COMPETITOR_M
 app.include_router(competitor_enrichment.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT), Depends(permissions.forbid_read_only_writes)])
 app.include_router(discovery.router, dependencies=[requires(usage.COMPETITOR_MANAGEMENT), Depends(permissions.forbid_read_only_writes)])
 app.include_router(alerts.router)
+app.include_router(notifications.router)
+from src.ai.routers import catalog
+app.include_router(catalog.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
 app.include_router(products.router, dependencies=[Depends(permissions.forbid_read_only_writes)])
 app.include_router(settings.router)
 app.include_router(operator.router)

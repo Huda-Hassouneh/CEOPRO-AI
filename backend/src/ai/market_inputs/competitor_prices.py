@@ -76,6 +76,13 @@ def record_competitor_price(
             (tenant_id, mapping_id, price, currency, observed),
         )
         price_id = cursor.fetchone()[0]
+    # Source permission and exact-product matching do not establish provenance.
+    # Keep an explicit record for new manual observations in the existing
+    # tenant-isolated evidence store; historical rows are not backfilled.
+    from src.ai.forecasting.evidence import insert_evidence_record
+    insert_evidence_record(conn, tenant_id, 'FACT', 'manual_competitor_price',
+                           {'competitor_price_id': str(price_id)}, None,
+                           'Price entered manually by a tenant member; not scraped or provider-verified.', None)
     return {
         "competitor_price_id": str(price_id),
         "competitor_id": competitor_id,
@@ -85,6 +92,7 @@ def record_competitor_price(
         "price": float(price),
         "currency": currency,
         "observed_at": observed.isoformat(),
+        "provenance": "manual", "provider_verified": False,
     }
 
 

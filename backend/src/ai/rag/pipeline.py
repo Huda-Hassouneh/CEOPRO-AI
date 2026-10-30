@@ -120,6 +120,24 @@ def ingest_pending_documents(conn, minio_client, tenant_id: str, bucket: str = D
     see replace_document_chunks()'s own docstring for the boundary of what
     this module does and doesn't own of that lifecycle).
     """
+    # Session-level lock survives the per-document commits below. A worker
+    # crash releases it automatically; another worker can then resume the
+    # remaining Pending documents without concurrent duplicate chunk writes.
+    lock_key = f"rag-ingest:{tenant_id}"
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_lock(hashtextextended(%s, 0));", (lock_key,))
+    try:
+        return _ingest_pending_documents_locked(conn, minio_client, tenant_id, bucket)
+    finally:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0));", (lock_key,))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+
+def _ingest_pending_documents_locked(conn, minio_client, tenant_id: str, bucket: str) -> int:
     pending = data_access.list_documents(conn, tenant_id, status="Pending")
     processed_count = 0
 
@@ -143,7 +161,11 @@ def ingest_pending_documents(conn, minio_client, tenant_id: str, bucket: str = D
             conn.commit()  # per document: one bad file must not roll back or poison the rest
             processed_count += 1
         except Exception as err:
-            logger.error(f"Failed to ingest document={doc['document_id']} file={doc['file_name']}: {err}")
+            # Do not copy document names, extracted text, parser details, or
+            # object keys into application logs. The tenant-visible status
+            # records failure; operators only need a safe exception class.
+            logger.error("Failed to ingest RAG document id=%s tenant=%s error_type=%s",
+                         doc["document_id"], tenant_id, type(err).__name__)
             # A DB error mid-insert leaves the transaction aborted, which would make
             # the status update below (and every later document) fail too.
             conn.rollback()

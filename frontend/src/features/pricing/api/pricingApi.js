@@ -1,3 +1,4 @@
+import {useAuthStore} from '../../auth/store/authStore.js';
 import httpClient from '../../../shared/lib/httpClient.js';
 
 // The real backend endpoint - backend/src/ai/routers/pricing.py's
@@ -8,11 +9,23 @@ import httpClient from '../../../shared/lib/httpClient.js';
 // change guardrail and a real minimum-margin-over-cost guardrail - never
 // a fabricated number when there's nothing to compare against (status
 // "UNKNOWN" when no competitor price data exists for this product yet).
+const pendingRequests=new Map();
 export const pricingApi = {
   recommend: async (productId) => {
-    const response = await httpClient.post('/pricing/recommend', null, { params: { product_id: productId } });
+    const tenant=useAuthStore.getState().tenantId,key=`keel.pricing.${tenant}.${productId}`;
+    let requestKey=pendingRequests.get(key);
+    try{requestKey=globalThis.sessionStorage?.getItem(key)||requestKey;}catch{ /* in-memory retry identity remains */ }
+    requestKey ||= crypto.randomUUID();pendingRequests.set(key,requestKey);
+    try{globalThis.sessionStorage?.setItem(key,requestKey);}catch{ /* storage may be disabled */ }
+    const response = await httpClient.post('/pricing/recommend', null, { params: { product_id: productId },headers:{'Idempotency-Key':requestKey} });
+    pendingRequests.delete(key);try{globalThis.sessionStorage?.removeItem(key);}catch{ /* acknowledged */ }
     return response.data;
   },
+
+  // Read-only history from the shared evidence/recommendation tables.
+  recommendationHistory: async (productId, { limit = 20, offset = 0 } = {}) => (
+    await httpClient.get(`/pricing/history/${encodeURIComponent(productId)}`, { params: { limit, offset } })
+  ).data,
 
   // backend/src/ai/routers/pricing.py - the price comparison ladder: how a product relates to what competitors
   // sell, in four tiers (EXACT / EQUIVALENT / SIMILAR / ADDED_VALUE). Reads only; stored competitor items are

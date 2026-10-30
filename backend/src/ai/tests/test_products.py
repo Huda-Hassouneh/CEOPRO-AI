@@ -12,19 +12,21 @@ import time
 
 import jwt
 import pytest
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
 
-from src.ai.main import app  # noqa: E402
 from src.ai.routers import products  # noqa: E402
 
+app = FastAPI()
+app.include_router(products.router)
 client = TestClient(app)
 _SECRET = os.environ["JWT_SECRET"]
 
 
 def _token(tenant_id="t1", user_id="u1"):
-    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, _SECRET, algorithm="HS256")
+    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "ev": True, "exp": int(time.time()) + 3600}, _SECRET, algorithm="HS256")
 
 
 def _auth():
@@ -217,7 +219,9 @@ def test_create_product_calls_with_manual_semantics_and_returns_result():
     fake_conn = MagicMock()
     fake_result = {"product_id": "new-1", "product_name": {"en": "Widget"}, "source": "MANUAL"}
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.products.create_product", return_value=fake_result) as mock_create:
+         patch("src.ai.routers.products._require_catalog_admin"), \
+         patch("src.ai.routers.products.create_product", return_value=fake_result) as mock_create, \
+         patch("src.ai.routers.products._publish_discovery_request"):
         response = client.post(
             "/products",
             json={
@@ -240,7 +244,9 @@ def test_create_product_calls_with_manual_semantics_and_returns_result():
 def test_create_product_defaults_initial_stock_to_none_when_omitted():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
-         patch("src.ai.routers.products.create_product", return_value={}) as mock_create:
+         patch("src.ai.routers.products._require_catalog_admin"), \
+         patch("src.ai.routers.products.create_product", return_value={}) as mock_create, \
+         patch("src.ai.routers.products._publish_discovery_request"):
         client.post(
             "/products",
             json={"product_name": {"en": "Widget"}, "current_price": 10.0, "currency": "JOD"},
@@ -262,6 +268,7 @@ def test_update_product_sends_only_provided_fields():
     fake_conn = MagicMock()
     fake_result = {"product_id": "p1", "current_price": 12.0}
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.update_product", return_value=fake_result) as mock_update:
         response = client.patch("/products/p1", json={"current_price": 12.0}, headers=_auth())
 
@@ -283,6 +290,7 @@ def test_update_product_rejects_product_name_without_en_key():
 def test_update_product_returns_404_for_missing_or_deleted_product():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.update_product", return_value=None):
         response = client.patch("/products/missing", json={"current_price": 12.0}, headers=_auth())
 
@@ -298,6 +306,7 @@ def test_delete_product_requires_auth():
 def test_delete_product_soft_deletes_and_returns_ok():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.delete_product", return_value=True) as mock_delete:
         response = client.delete("/products/p1", headers=_auth())
 
@@ -310,6 +319,7 @@ def test_delete_product_soft_deletes_and_returns_ok():
 def test_delete_product_returns_404_for_missing_or_already_deleted_product():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.delete_product", return_value=False):
         response = client.delete("/products/missing", headers=_auth())
 
@@ -327,6 +337,7 @@ def test_update_inventory_upserts_and_returns_the_row():
     fake_result = {"stock_quantity": 5, "reorder_level": 10, "safety_stock": 5,
                     "warehouse_location": None, "updated_at": "2026-09-01T00:00:00+00:00"}
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.upsert_inventory", return_value=fake_result) as mock_upsert:
         response = client.patch("/products/p1/inventory", json={"stock_quantity": 5}, headers=_auth())
 
@@ -340,9 +351,41 @@ def test_update_inventory_rejects_negative_stock_quantity():
     assert response.status_code == 422
 
 
+def test_canonical_inventory_preserves_fractional_quantities():
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
+         patch("src.ai.routers.products.upsert_inventory", return_value={"stock_quantity": 1.2345}) as mock_upsert:
+        response = client.patch("/products/p1/inventory", json={"stock_quantity": 1.2345}, headers=_auth())
+    assert response.status_code == 200
+    assert str(mock_upsert.call_args.args[3]) == "1.2345"
+    assert client.patch("/products/p1/inventory", json={"stock_quantity": 1.23456}, headers=_auth()).status_code == 422
+
+
+def test_catalog_mutations_require_current_owner_or_admin_membership():
+    member_conn = MagicMock()
+    member_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = ("staff",)
+    with pytest.raises(HTTPException) as denied:
+        products._require_catalog_admin(member_conn, "t1", "u1")
+    assert denied.value.status_code == 403
+    executed_sql = member_conn.cursor.return_value.__enter__.return_value.execute.call_args.args[0]
+    assert "FOR SHARE" in executed_sql
+    assert "role_key IN" not in executed_sql  # role is checked against a fixed code set in Python
+
+
+def test_discovery_dependency_failure_does_not_report_committed_product_create_as_failed(caplog):
+    # Discovery is a post-commit notification. An absent optional extraction
+    # dependency must not turn a persisted product create into an apparent
+    # failure that could duplicate on client retry.
+    with patch("src.ai.routers.products.importlib.import_module", side_effect=ImportError("optional parser unavailable")):
+        products._publish_discovery_request("tenant-a")
+    assert "Could not enqueue product discovery" in caplog.text
+
+
 def test_update_inventory_returns_404_for_missing_or_deleted_product():
     fake_conn = MagicMock()
     with patch("src.ai.routers.products.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products.upsert_inventory", return_value=None):
         response = client.patch("/products/missing/inventory", json={"stock_quantity": 5}, headers=_auth())
 
@@ -402,8 +445,8 @@ def test_query_list_products_total_reflects_the_real_count_not_the_page_size():
     cursor = _cursor_returning(
         fetchone_values=[(137,)],
         fetchall_value=[
-            ("p1", "Widget", None, None, 10.0, None, "JOD", "MANUAL", None),
-            ("p2", "Gadget", None, None, 20.0, None, "JOD", "IMPORTED", None),
+            ("p1", "Widget", None, None, 10.0, None, "JOD", "MANUAL", None, None,1),
+            ("p2", "Gadget", None, None, 20.0, None, "JOD", "IMPORTED", None, None,1),
         ],
     )
     conn.cursor.return_value = cursor
@@ -428,7 +471,8 @@ def test_query_list_products_searches_every_name_language_brand_and_category():
         assert f"jsonb_typeof({column})" in list_sql
     assert list_sql.count("jsonb_each_text") == 3
     # LIKE wildcards typed by the user are matched literally.
-    assert list_params == ["t1", "%50\\%\\_off%", "%50\\%\\_off%", "%50\\%\\_off%", 50, 0]
+    assert list_params == ["t1", *([r"%50\%\_off%"]*4), 50, 0]
+    assert "p.sku ILIKE %s" in list_sql
 
 
 def test_query_get_product_returns_none_when_missing():
@@ -464,7 +508,7 @@ def test_query_create_product_always_writes_manual_source():
     conn = MagicMock()
     insert_cursor = _cursor_returning(fetchone_values=[("new-product-id",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None),
+        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None, None, 1),
         None,
     ])
     conn.cursor.side_effect = [insert_cursor, get_cursor]
@@ -488,7 +532,7 @@ def test_query_create_product_leaves_stock_untracked_when_omitted():
     conn = MagicMock()
     insert_cursor = _cursor_returning(fetchone_values=[("new-product-id",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None),
+        ("new-product-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, None, None, 1),
         None,
     ])
     conn.cursor.side_effect = [insert_cursor, get_cursor]
@@ -510,7 +554,7 @@ def test_query_update_product_builds_set_clause_only_from_whitelisted_columns():
     conn = MagicMock()
     update_cursor = _cursor_returning(fetchone_values=[("p1",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("p1", {"en": "New Name"}, None, None, None, 12.0, None, "JOD", "MANUAL", None, None, None), None,
+        ("p1", {"en": "New Name"}, None, None, None, 12.0, None, "JOD", "MANUAL", None, None, None, None, 1), None,
     ])
     conn.cursor.side_effect = [update_cursor, get_cursor]
 
@@ -569,6 +613,7 @@ def test_query_upsert_inventory_inserts_when_no_row_exists_yet():
     assert "INSERT INTO inventory" in insert_call.args[0]
     assert result["stock_quantity"] == 5
     assert result["reorder_level"] == 10
+    assert "FOR UPDATE" in cursor.execute.call_args_list[0].args[0]
 
 
 def test_query_upsert_inventory_updates_only_provided_fields_when_row_exists():
@@ -615,6 +660,7 @@ def test_create_and_update_refuse_a_bad_barcode_with_a_422():
 
 def test_create_passes_a_normalized_barcode_through():
     with patch("src.ai.routers.products.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.products._require_catalog_admin"), \
          patch("src.ai.routers.products._publish_discovery_request"), \
          patch("src.ai.routers.products.create_product", return_value={"product_id": "n"}) as mock_create:
         response = client.post(
@@ -629,7 +675,7 @@ def test_query_create_product_stores_the_barcode_in_metadata_without_touching_ot
     conn = MagicMock()
     insert_cursor = _cursor_returning(fetchone_values=[("new-id",)])
     get_cursor = _cursor_returning(fetchone_values=[
-        ("new-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, "3017620422003"), None,
+        ("new-id", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", "MANUAL", None, None, "3017620422003", None, 1), None,
     ])
     conn.cursor.side_effect = [insert_cursor, get_cursor]
     result = products.create_product(conn, "t1", "u1", {"en": "Widget"}, None, None, None, 10.0, None, "JOD", None, "3017620422003")
@@ -637,7 +683,7 @@ def test_query_create_product_stores_the_barcode_in_metadata_without_touching_ot
     assert "metadata" in sql and '"barcode": "3017620422003"' in params[8]
     assert result["barcode"] == "3017620422003"
     conn.cursor.side_effect = [_cursor_returning(fetchone_values=[("n2",)]), _cursor_returning(fetchone_values=[
-        ("n2", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, None), None])]
+        ("n2", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, None, None, 1), None])]
     products.create_product(conn, "t1", "u1", {"en": "W"}, None, None, None, 1.0, None, "JOD", None)
     assert conn.cursor.call_count == 4
 
@@ -647,7 +693,7 @@ def test_query_update_product_sets_and_clears_the_barcode_key_only():
         conn = MagicMock()
         update_cursor = _cursor_returning(fetchone_values=[("p1",)])
         get_cursor = _cursor_returning(fetchone_values=[
-            ("p1", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, value), None])
+            ("p1", {"en": "W"}, None, None, None, 1.0, None, "JOD", "MANUAL", None, None, value, None, 1), None])
         conn.cursor.side_effect = [update_cursor, get_cursor]
         products.update_product(conn, "t1", "u1", "p1", {"barcode": value})
         sql, params = update_cursor.execute.call_args.args

@@ -31,3 +31,27 @@ def test_missing_sync_frequency_falls_back_to_the_module_default():
     over_default = now - timedelta(minutes=DEFAULT_SYNC_INTERVAL_MINUTES + 1)
     assert is_due_for_sync(just_under_default, sync_frequency_minutes=None, now=now) is False
     assert is_due_for_sync(over_default, sync_frequency_minutes=None, now=now) is True
+
+from types import SimpleNamespace
+
+from src.ai.extraction.ingestion_pipeline import job_completion_state
+
+
+def test_connector_job_is_completed_when_every_row_is_clean():
+    summary = SimpleNamespace(rows_partial=0, rows_failed=0)
+    assert job_completion_state(summary) == ("COMPLETED", None)
+
+
+def test_connector_job_fails_when_rows_are_partial_or_fail():
+    assert job_completion_state(SimpleNamespace(rows_partial=1, rows_failed=0))[0] == "FAILED"
+    assert job_completion_state(SimpleNamespace(rows_partial=0, rows_failed=1))[0] == "FAILED"
+    assert job_completion_state(SimpleNamespace(rows_partial=1, rows_failed=1))[0] == "FAILED"
+
+def test_safe_connector_error_never_persists_raw_exception_details():
+    from src.market_scraper.connector_sync import safe_connector_error
+
+    error = RuntimeError("request to https://api.example/sales?token=plain-secret failed")
+    safe = safe_connector_error(error, "Connector API request")
+    assert "RuntimeError" in safe
+    assert "plain-secret" not in safe
+    assert "api.example" not in safe

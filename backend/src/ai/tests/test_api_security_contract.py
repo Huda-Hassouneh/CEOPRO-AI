@@ -2,8 +2,8 @@
 P0 security-contract tests for src/ai/main.py (see QA_TEST_STRATEGY.md).
 
 Offline: DB access is mocked. These tests guard the single gate every
-endpoint relies on - the Bearer JWT -> tenant context - and are written so a
-newly added route is covered automatically.
+tenant endpoint relies on - the Bearer JWT -> tenant context - plus the
+separate exact-body provider HMAC gate. New routes are covered automatically.
 """
 import os
 import time
@@ -23,8 +23,11 @@ client = TestClient(app, raise_server_exceptions=False)
 _SECRET = os.environ["JWT_SECRET"]
 
 # Routes that are intentionally reachable without a Bearer token: liveness,
-# the sign-in / password / e-mail-verification / invitation flows, and the
-# public plan list. Anything else showing up unauthenticated is a defect.
+# the sign-in / password / e-mail-verification / invitation flows, the signed
+# one-use Shopify OAuth callback, and the public plan list. The callback
+# authenticates Shopify and binds its result to the initiating user's
+# authenticated one-use state. Anything else showing up unauthenticated is a
+# defect.
 _PUBLIC = {
     ("GET", "/health"),
     ("GET", "/health/ready"),
@@ -37,8 +40,21 @@ _PUBLIC = {
     ("POST", "/auth/email/verify"),
     ("GET", "/auth/invitations/{token}"),
     ("POST", "/auth/invitations/{token}/accept"),
+    ("GET", "/platform/invitations/{token}"),
+    ("POST", "/platform/invitations/{token}/accept"),
+    ("GET", "/onboarding/shopify/callback"),
+    # The static industry catalog is safe to read before login so the public
+    # workspace setup flow can render profile choices. It performs no
+    # discovery, tenant lookup, or mutation; all other onboarding operations
+    # remain authenticated.
+    ("GET", "/onboarding/industries"),
     ("GET", "/billing/plans"),
 }
+
+# Provider deliveries authenticate the raw body with Shopify's HMAC, not a
+# customer JWT. They have an explicit fail-closed contract below; they are
+# neither public profile reads nor exempt from authentication testing.
+_SIGNED_WEBHOOKS = {("POST", "/onboarding/shopify/webhooks/{source_id}")}
 
 _METHODS = {"GET", "POST", "PUT", "PATCH", "DELETE"}
 
@@ -56,7 +72,7 @@ def _all_operations():
 
 
 def _routes():
-    return [op for op in _all_operations() if op not in _PUBLIC]
+    return [op for op in _all_operations() if op not in _PUBLIC | _SIGNED_WEBHOOKS]
 
 
 def _concrete(path: str) -> str:
@@ -85,13 +101,48 @@ def test_every_non_public_route_rejects_a_forged_token(method, path):
     assert response.status_code == 401, f"{method} {path} accepted a token signed with the wrong secret"
 
 
-def test_public_routes_are_exactly_the_documented_set():
+def test_public_routes_are_exactly_the_documented_set(monkeypatch):
+    from fastapi import HTTPException
+    from src.ai.platform import service
+
+    def reject_invalid_invitation_token(token, payload=None):
+        raise HTTPException(status_code=404, detail="Invitation not found.")
+
+    monkeypatch.setattr(service, "invitation", reject_invalid_invitation_token)
     open_routes = {
         (method, path)
         for method, path in _all_operations()
-        if client.request(method, _concrete(path)).status_code != 401
+        if (method, path) not in _SIGNED_WEBHOOKS
+        and client.request(method, _concrete(path)).status_code != 401
     }
     assert open_routes == _PUBLIC
+
+
+@pytest.mark.parametrize("signature", [None, "invalid", "Zm9yZ2Vk"])
+@pytest.mark.parametrize("bearer", [False, True])
+def test_shopify_delivery_requires_hmac_before_database_lookup(monkeypatch, signature, bearer):
+    from src.ai import db
+    monkeypatch.setenv("SHOPIFY_CLIENT_SECRET", "ci-only-synthetic-hmac-secret")
+    monkeypatch.setattr(db, "auth_lookup_connection", lambda: pytest.fail("Unauthenticated provider lookup"))
+    monkeypatch.setattr(db, "app_role_connection", lambda *args: pytest.fail("Unauthenticated tenant write"))
+    assert _SIGNED_WEBHOOKS <= set(_all_operations())
+    headers = {"X-Shopify-Shop-Domain": "synthetic.myshopify.com", "X-Shopify-Topic": "products/update",
+               "X-Shopify-Webhook-Id": "00000000-0000-0000-0000-000000000001"}
+    if signature is not None:
+        headers["X-Shopify-Hmac-Sha256"] = signature
+    if bearer:
+        headers.update(_bearer(_tok(secret="x" * 40)))
+    response = client.post("/onboarding/shopify/webhooks/00000000-0000-0000-0000-000000000002",
+                           content=b"{}", headers=headers)
+    assert response.status_code == 401
+
+
+def test_shopify_delivery_without_configured_secret_is_unavailable_before_lookup(monkeypatch):
+    from src.ai import db
+    monkeypatch.delenv("SHOPIFY_CLIENT_SECRET", raising=False)
+    monkeypatch.setattr(db, "auth_lookup_connection", lambda: pytest.fail("Unconfigured provider lookup"))
+    response = client.post("/onboarding/shopify/webhooks/00000000-0000-0000-0000-000000000002", content=b"{}")
+    assert response.status_code == 503
 
 
 @pytest.mark.parametrize(

@@ -48,3 +48,13 @@ export function summarizeImport(files, t, formatNumber = (value) => String(value
   else if (!anyImported) variant = 'info';
   return { variant, message: lines.join(' · ') };
 }
+
+// Keep only upload requests rejected before a durable import job was created.
+// Successful and partial-result uploads already have their status/evidence in
+// import history and should not be re-submitted when the user retries failures.
+export function retainFailedImportFiles(selectedFiles, results) {
+  const failedKeys = new Set((results || [])
+    .filter((result) => result.status !== 'uploaded')
+    .map((result) => `${result.name}\u0000${result.size}`));
+  return (selectedFiles || []).filter((file) => failedKeys.has(`${file.name}\u0000${file.size}`));
+}

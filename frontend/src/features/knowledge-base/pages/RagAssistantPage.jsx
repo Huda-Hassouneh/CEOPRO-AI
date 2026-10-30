@@ -155,6 +155,13 @@ export function RagAssistantPage() {
     try {
       const result = await chatMutation.mutateAsync({ question: content, sessionId, companyId });
       if (!result?.available || !result.message) {
+        // Provider failures still return the persisted session identity so
+        // the customer's original question remains in the same conversation
+        // when they retry or open history.
+        if (result?.sessionId && result.sessionId !== sessionId) {
+          setSessionId(result.sessionId);
+          writeStoredSessionId(companyId, result.sessionId);
+        }
         // A 404 on a session id this page already believed was live means
         // it was deleted/invalidated server-side since restore - drop it
         // so the next attempt starts a fresh session instead of repeating
@@ -201,7 +208,7 @@ export function RagAssistantPage() {
       setNotice({
         variant: problems ? 'warning' : 'success',
         message: t('ragAssistant.feedback.uploadSummary', {
-          added: result.documentsAdded, data: result.importedAsData, failed: problems,
+          added: result.documentsAdded, processing: result.documentsProcessing, failed: problems,
         }),
       });
       documentsQuery.refetch();
@@ -222,7 +229,7 @@ export function RagAssistantPage() {
 
     <Modal isOpen={uploadOpen} onClose={() => setUploadOpen(false)} title={t('ragAssistant.upload.title')} closeLabel={t('common.close')} maxWidth="680px" footer={<><Button variant="outline" onClick={() => setUploadOpen(false)}>{t('ragAssistant.actions.cancel')}</Button><Button leadingIcon={<Upload size={15} />} disabled={!files.length} loading={uploadMutation.isPending} loadingLabel={t('ragAssistant.upload.uploading')} onClick={uploadDocuments}>{t('ragAssistant.knowledge.upload')}</Button></>}>
       <p className="rag-upload-copy">{t('ragAssistant.upload.description')}</p>
-      <FileUploadDropzone files={files} onFilesChange={setFiles} />
+        <FileUploadDropzone files={files} onFilesChange={setFiles} knowledgeBase />
     </Modal>
     {notice && <div className="rag-toast"><Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} /></div>}
   </div>;

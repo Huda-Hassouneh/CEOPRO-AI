@@ -1,0 +1,588 @@
+ M .devcontainer/devcontainer.json
+ M .devcontainer/env_utils.sh
+ M .devcontainer/setup.sh
+ M .devcontainer/start-services.sh
+ M .githooks/pre-commit
+ M .github/pull_request_template.md
+ M .github/source-links-to-check.txt
+ M .github/workflows/check-source-links.yml
+ M .github/workflows/docker-build.yml
+ M .github/workflows/live-discovery-check.yml
+ M .github/workflows/live-llm-verification.yml
+ M .github/workflows/pr-checks.yml
+ M .github/workflows/rag-runtime-check.yml
+ M .github/workflows/secret-scan.yml
+ M .github/workflows/staging-deployment.yml
+ M .gitignore
+ M .gitleaks.toml
+ M CODESPACES_DEVELOPMENT.md
+ M CURRENT_STATUS.md
+ M README.md
+ M RUNNING_LOCALLY.md
+ M STAGING_DEPLOYMENT.md
+ M backend/src/ai/billing/store.py
+ M backend/src/ai/billing/webhooks.py
+ M backend/src/ai/core/usage.py
+ M backend/src/ai/routers/dashboard.py
+ M backend/src/ai/routers/reports.py
+ M design/liquid-glass/README.md
+ M design/liquid-glass/index.html
+ M design/liquid-glass/liquid-glass.css
+ M docs/APIFY_DISCOVERY.md
+ M docs/PLAN_LIMITS_FEASIBILITY.md
+ M docs/SECRETS.md
+ M docs/STAGING_BILLING_RUNBOOK.md
+ M docs/SUBSCRIPTIONS_AND_CREDITS.md
+ M docs/archive/COMPLETENESS_MATRIX_HISTORY.md
+ M docs/archive/REFERENCE_PROJECT_COMPLETION_REPORT.md
+ M docs/archive/STATUS_HISTORY.md
+ M docs/perf/README.md
+ M docs/perf/baseline-phases.json
+ M docs/perf/cache-ttl0.json
+ M docs/perf/cache-ttl30.json
+ M docs/perf/load35-ttl0.json
+ M docs/perf/load35-ttl30.json
+ M frontend/.env.example
+ M frontend/.gitignore
+ M frontend/README.md
+ M frontend/eslint.config.js
+ M frontend/index.html
+ M frontend/package-lock.json
+ M frontend/package.json
+ M frontend/postcss.config.js
+ M frontend/public/assets/brands/csv.svg
+ M frontend/public/assets/brands/database.svg
+ M frontend/public/assets/brands/excel.svg
+ M frontend/public/assets/brands/google-analytics.svg
+ M frontend/public/assets/brands/google-pay.svg
+ M frontend/public/assets/brands/image-file.svg
+ M frontend/public/assets/brands/mongodb.svg
+ M frontend/public/assets/brands/mysql.svg
+ M frontend/public/assets/brands/oracle.svg
+ M frontend/public/assets/brands/paypal.svg
+ M frontend/public/assets/brands/pdf.svg
+ M frontend/public/assets/brands/postgresql.svg
+ M frontend/public/assets/brands/sql-server.svg
+ M frontend/public/assets/brands/text-file.svg
+ M frontend/public/assets/brands/word.svg
+ M frontend/public/favicon.svg
+ M frontend/public/manifest.webmanifest
+ M frontend/public/theme-init.js
+ M frontend/scripts/render-icons.mjs
+ M frontend/src/App.jsx
+ M frontend/src/app/layouts/AuthLayout.jsx
+ M frontend/src/app/layouts/DashboardLayout.jsx
+ M frontend/src/app/layouts/PublicLayout.jsx
+ M frontend/src/app/providers/AuthProvider.jsx
+ M frontend/src/app/providers/I18nProvider.jsx
+ M frontend/src/app/providers/QueryProvider.jsx
+ M frontend/src/app/providers/ThemeProvider.jsx
+ M frontend/src/app/router/GuestRoute.jsx
+ M frontend/src/app/router/PlanGate.jsx
+ M frontend/src/app/router/ProtectedRoute.jsx
+ M frontend/src/app/router/RoutePending.jsx
+ M frontend/src/app/router/SetupGate.jsx
+ M frontend/src/app/router/index.jsx
+ M frontend/src/app/router/lazyPage.jsx
+ M frontend/src/app/router/routePaths.js
+ M frontend/src/assets/locales/ar.json
+ M frontend/src/assets/locales/en.json
+ M frontend/src/features/alerts/AlertsBell.jsx
+ M frontend/src/features/auth/api/authApi.js
+ M frontend/src/features/auth/api/authContracts.js
+ M frontend/src/features/auth/api/authHttpAdapter.js
+ M frontend/src/features/auth/components/AuthLanguageSwitch.jsx
+ M frontend/src/features/auth/components/AuthPanel.jsx
+ M frontend/src/features/auth/components/AuthStatusMessage.jsx
+ M frontend/src/features/auth/components/PasswordRequirements.jsx
+ M frontend/src/features/auth/hooks/useForgotPasswordMutation.js
+ M frontend/src/features/auth/hooks/useInvitation.js
+ M frontend/src/features/auth/hooks/useLoginMutation.js
+ M frontend/src/features/auth/hooks/useResendCooldown.js
+ M frontend/src/features/auth/hooks/useResendVerificationMutation.js
+ M frontend/src/features/auth/hooks/useResetPasswordMutation.js
+ M frontend/src/features/auth/hooks/useSignupMutation.js
+ M frontend/src/features/auth/hooks/useVerifyCodeMutation.js
+ M frontend/src/features/auth/hooks/useVerifyEmailMutation.js
+ M frontend/src/features/auth/pages/ForgotPasswordPage.jsx
+ M frontend/src/features/auth/pages/InvitationPage.jsx
+ M frontend/src/features/auth/pages/LoginPage.jsx
+ M frontend/src/features/auth/pages/ResetPasswordPage.jsx
+ M frontend/src/features/auth/pages/SignupPage.jsx
+ M frontend/src/features/auth/pages/VerificationCodePage.jsx
+ M frontend/src/features/auth/pages/VerifyEmailPage.jsx
+ M frontend/src/features/auth/permissions/rolePermissions.js
+ M frontend/src/features/auth/sessionKeeper.js
+ M frontend/src/features/auth/store/authSessionStorage.js
+ M frontend/src/features/auth/store/authStore.js
+ M frontend/src/features/auth/styles/AuthForms.css
+ M frontend/src/features/auth/utils/authErrors.js
+ M frontend/src/features/auth/utils/authRouting.js
+ M frontend/src/features/auth/validation/authValidation.js
+ M frontend/src/features/billing/api/billingApi.js
+ M frontend/src/features/billing/components/CreditBudgets.jsx
+ M frontend/src/features/billing/components/CurrentPlanCard.jsx
+ M frontend/src/features/billing/components/InvoiceList.jsx
+ M frontend/src/features/billing/components/PeriodSelector.jsx
+ M frontend/src/features/billing/components/PlanCard.jsx
+ M frontend/src/features/billing/components/PlanComparisonTable.jsx
+ M frontend/src/features/billing/components/PlanSelector.jsx
+ M frontend/src/features/billing/components/UpgradeRecommendation.jsx
+ M frontend/src/features/billing/components/UsageLimitGrid.jsx
+ M frontend/src/features/billing/hooks/useBillingActions.js
+ M frontend/src/features/billing/hooks/usePlans.js
+ M frontend/src/features/billing/hooks/useSubscription.js
+ M frontend/src/features/billing/hooks/useTrialDays.js
+ M frontend/src/features/billing/pages/PlansSubscriptionPage.jsx
+ M frontend/src/features/billing/styles/Billing.css
+ M frontend/src/features/billing/styles/PlansSubscription.css
+ M frontend/src/features/billing/utils/money.js
+ M frontend/src/features/billing/utils/subscriptionRecommendations.js
+ M frontend/src/features/dashboard/components/DashboardActivity.jsx
+ M frontend/src/features/dashboard/pages/CommandCenterPage.jsx
+ M frontend/src/features/dashboard/styles/CommandCenter.css
+ M frontend/src/features/data-connections/api/dataConnectionsApi.js
+ M frontend/src/features/data-connections/components/ConnectSystemForm.jsx
+ M frontend/src/features/data-connections/components/ConnectionStatusBadge.jsx
+ M frontend/src/features/data-connections/components/CustomerReviewsSection.jsx
+ M frontend/src/features/data-connections/hooks/useDataConnections.js
+ M frontend/src/features/data-connections/pages/ConnectDataPage.jsx
+ M frontend/src/features/data-connections/styles/ConnectDataPage.css
+ M frontend/src/features/data-connections/styles/DataConnections.css
+ M frontend/src/features/data-connections/types/dataConnections.types.js
+ M frontend/src/features/data-ingestion/api/ingestionApi.js
+ M frontend/src/features/data-ingestion/components/FileUploadDropzone.jsx
+ M frontend/src/features/data-ingestion/components/UploadedFileRow.jsx
+ M frontend/src/features/data-ingestion/config/dataTemplateOptions.js
+ M frontend/src/features/data-ingestion/config/fileTypeAssets.js
+ M frontend/src/features/data-ingestion/styles/DataIngestion.css
+ M frontend/src/features/data-ingestion/utils/fileValidation.js
+ M frontend/src/features/data-ingestion/utils/importSummary.js
+ M frontend/src/features/forecasting/api/demandApi.js
+ M frontend/src/features/forecasting/hooks/useDemandOverview.js
+ M frontend/src/features/forecasting/pages/DemandPredictionOverviewPage.jsx
+ M frontend/src/features/knowledge-base/api/knowledgeBaseApi.js
+ M frontend/src/features/knowledge-base/components/AnswerReferences.jsx
+ M frontend/src/features/knowledge-base/components/AssistantResponse.jsx
+ M frontend/src/features/knowledge-base/components/CalculationCard.jsx
+ M frontend/src/features/knowledge-base/components/CalculationTrace.jsx
+ M frontend/src/features/knowledge-base/components/ChatMessage.jsx
+ M frontend/src/features/knowledge-base/components/CitationMarker.jsx
+ M frontend/src/features/knowledge-base/components/DocumentStatusBadge.jsx
+ M frontend/src/features/knowledge-base/components/KnowledgeBaseDocumentRow.jsx
+ M frontend/src/features/knowledge-base/components/KnowledgeBasePanel.jsx
+ M frontend/src/features/knowledge-base/components/MessageAttachments.jsx
+ M frontend/src/features/knowledge-base/components/MessageComposer.jsx
+ M frontend/src/features/knowledge-base/components/RagChatWindow.jsx
+ M frontend/src/features/knowledge-base/components/RagSessionHistory.jsx
+ M frontend/src/features/knowledge-base/components/ReferencePanel.jsx
+ M frontend/src/features/knowledge-base/hooks/useDocumentUpload.js
+ M frontend/src/features/knowledge-base/hooks/useKnowledgeDocuments.js
+ M frontend/src/features/knowledge-base/hooks/useRagChat.js
+ M frontend/src/features/knowledge-base/pages/RagAssistantPage.jsx
+ M frontend/src/features/knowledge-base/styles/RagAssistant.css
+ M frontend/src/features/knowledge-base/utils/markdown.js
+ M frontend/src/features/knowledge-base/utils/references.js
+ M frontend/src/features/landing/components/LandingNavigation.jsx
+ M frontend/src/features/landing/components/LandingPrimitives.jsx
+ M frontend/src/features/landing/components/MarketingVisuals.jsx
+ M frontend/src/features/landing/components/SplineHero.jsx
+ M frontend/src/features/landing/data/demoData.js
+ M frontend/src/features/landing/locales/ar.json
+ M frontend/src/features/landing/locales/en.json
+ M frontend/src/features/landing/pages/LandingPage.jsx
+ M frontend/src/features/landing/sections/FeaturesSection.jsx
+ M frontend/src/features/landing/sections/HeroSection.jsx
+ M frontend/src/features/landing/sections/IntelligenceSections.jsx
+ M frontend/src/features/landing/sections/KnowledgeSections.jsx
+ M frontend/src/features/landing/sections/PricingSection.jsx
+ M frontend/src/features/landing/sections/ValueSections.jsx
+ M frontend/src/features/landing/styles/Landing.css
+ M frontend/src/features/legal/legalContent.js
+ M frontend/src/features/legal/pages/LegalPage.jsx
+ M frontend/src/features/legal/styles/Legal.css
+ M frontend/src/features/market-intelligence/api/competitorDataApi.js
+ M frontend/src/features/market-intelligence/api/competitorsApi.js
+ M frontend/src/features/market-intelligence/api/discoveryApi.js
+ M frontend/src/features/market-intelligence/api/searchScopeApi.js
+ M frontend/src/features/market-intelligence/api/sourceReviewApi.js
+ M frontend/src/features/market-intelligence/components/BarcodeEditor.jsx
+ M frontend/src/features/market-intelligence/components/Citations.jsx
+ M frontend/src/features/market-intelligence/components/CompetitorComments.jsx
+ M frontend/src/features/market-intelligence/components/CompetitorDirectory.jsx
+ M frontend/src/features/market-intelligence/components/CompetitorIntel.jsx
+ M frontend/src/features/market-intelligence/components/DataCompleteness.jsx
+ M frontend/src/features/market-intelligence/components/MarketInsights.jsx
+ M frontend/src/features/market-intelligence/components/MarketIntelligenceSection.jsx
+ M frontend/src/features/market-intelligence/components/MarketIntelligenceTable.jsx
+ M frontend/src/features/market-intelligence/components/MarketMetricCard.jsx
+ M frontend/src/features/market-intelligence/components/MarketOverviewCards.jsx
+ M frontend/src/features/market-intelligence/components/MarketScan.jsx
+ M frontend/src/features/market-intelligence/components/MarketStructure.jsx
+ M frontend/src/features/market-intelligence/components/MarketTabs.jsx
+ M frontend/src/features/market-intelligence/components/PendingSourcesTable.jsx
+ M frontend/src/features/market-intelligence/components/PriceCoverage.jsx
+ M frontend/src/features/market-intelligence/components/ProductMarketDetail.jsx
+ M frontend/src/features/market-intelligence/components/RecordCompetitorPrice.jsx
+ M frontend/src/features/market-intelligence/components/ReviewSourceModal.jsx
+ M frontend/src/features/market-intelligence/hooks/useAddCompetitor.js
+ M frontend/src/features/market-intelligence/hooks/useCompetitorData.js
+ M frontend/src/features/market-intelligence/hooks/useCompetitorProfile.js
+ M frontend/src/features/market-intelligence/hooks/useCompetitors.js
+ M frontend/src/features/market-intelligence/hooks/useDiscovery.js
+ M frontend/src/features/market-intelligence/hooks/useMarketOverview.js
+ M frontend/src/features/market-intelligence/hooks/usePendingSources.js
+ M frontend/src/features/market-intelligence/hooks/useReviewSource.js
+ M frontend/src/features/market-intelligence/hooks/useSearchScope.js
+ M frontend/src/features/market-intelligence/hooks/useUpdateSearchScope.js
+ M frontend/src/features/market-intelligence/pages/AddCompetitorPage.jsx
+ M frontend/src/features/market-intelligence/pages/CompetitorLandscapePage.jsx
+ M frontend/src/features/market-intelligence/pages/CompetitorProfileDetailPage.jsx
+ M frontend/src/features/market-intelligence/pages/IndustryMarketTrendsPage.jsx
+ M frontend/src/features/market-intelligence/pages/MarketLeaderboardPage.jsx
+ M frontend/src/features/market-intelligence/pages/PendingSourcesPage.jsx
+ M frontend/src/features/market-intelligence/pages/SearchScopePage.jsx
+ M frontend/src/features/market-intelligence/styles/MarketIntelligence.css
+ M frontend/src/features/marketing/api/marketingApi.js
+ M frontend/src/features/marketing/components/CampaignEditor.jsx
+ M frontend/src/features/marketing/components/MarketingErrorMessage.jsx
+ M frontend/src/features/marketing/components/PhotoPicker.jsx
+ M frontend/src/features/marketing/components/ProductReferenceEditor.jsx
+ M frontend/src/features/marketing/hooks/useCampaignActions.js
+ M frontend/src/features/marketing/hooks/useCampaignImage.js
+ M frontend/src/features/marketing/hooks/useCampaigns.js
+ M frontend/src/features/marketing/hooks/useCreateCampaign.js
+ M frontend/src/features/marketing/hooks/useGenerateCampaignImage.js
+ M frontend/src/features/marketing/hooks/useMarketingOptions.js
+ M frontend/src/features/marketing/hooks/useRemoveBackground.js
+ M frontend/src/features/marketing/hooks/useSetReferenceSelection.js
+ M frontend/src/features/marketing/hooks/useUploadCampaignImage.js
+ M frontend/src/features/marketing/lib/marketingErrors.js
+ M frontend/src/features/marketing/pages/MarketingStudioPage.jsx
+ M frontend/src/features/marketing/styles/Marketing.css
+ M frontend/src/features/onboarding/pages/SetupPage.jsx
+ M frontend/src/features/onboarding/styles/Setup.css
+ M frontend/src/features/pricing/api/pricingApi.js
+ M frontend/src/features/pricing/components/PriceRecommendationModal.jsx
+ M frontend/src/features/pricing/hooks/usePriceRecommendation.js
+ M frontend/src/features/pricing/pages/PricingPage.jsx
+ M frontend/src/features/pricing/styles/Pricing.css
+ M frontend/src/features/products/api/productsApi.js
+ M frontend/src/features/products/api/quickSaleApi.js
+ M frontend/src/features/products/components/ProductForm.jsx
+ M frontend/src/features/products/components/QuickAddProductModal.jsx
+ M frontend/src/features/products/components/QuickSaleModal.jsx
+ M frontend/src/features/products/hooks/useCreateProduct.js
+ M frontend/src/features/products/hooks/useDeleteProduct.js
+ M frontend/src/features/products/hooks/useProduct.js
+ M frontend/src/features/products/hooks/useQuickSale.js
+ M frontend/src/features/products/hooks/useUpdateProduct.js
+ M frontend/src/features/products/pages/ProductDetailPage.jsx
+ M frontend/src/features/products/pages/ProductFormPage.jsx
+ M frontend/src/features/products/pages/ProductHubPage.jsx
+ M frontend/src/features/products/pages/ProductsListPage.jsx
+ M frontend/src/features/products/styles/Products.css
+ M frontend/src/features/reports/api/reportsApi.js
+ M frontend/src/features/reports/hooks/useFinancialSummaryReport.js
+ M frontend/src/features/reports/hooks/useSalesReport.js
+ M frontend/src/features/reports/pages/UnifiedReportsCenterPage.jsx
+ M frontend/src/features/reports/styles/Reports.css
+ M frontend/src/features/reports/utils/exportFile.js
+ M frontend/src/features/settings/api/companyApi.js
+ M frontend/src/features/settings/api/preferencesApi.js
+ M frontend/src/features/settings/api/profileApi.js
+ M frontend/src/features/settings/api/securityApi.js
+ M frontend/src/features/settings/api/settingsCapabilities.js
+ M frontend/src/features/settings/api/teamApi.js
+ M frontend/src/features/settings/components/ActiveSessionsList.jsx
+ M frontend/src/features/settings/components/CompanyDataSettings.jsx
+ M frontend/src/features/settings/components/CompanySettings.jsx
+ M frontend/src/features/settings/components/InviteMemberModal.jsx
+ M frontend/src/features/settings/components/NotificationSettings.jsx
+ M frontend/src/features/settings/components/PreferenceSettings.jsx
+ M frontend/src/features/settings/components/ProfileForm.jsx
+ M frontend/src/features/settings/components/RoleBadge.jsx
+ M frontend/src/features/settings/components/SecuritySettings.jsx
+ M frontend/src/features/settings/components/SettingsSection.jsx
+ M frontend/src/features/settings/components/TargetMarketsSettings.jsx
+ M frontend/src/features/settings/components/TeamMemberTable.jsx
+ M frontend/src/features/settings/components/TeamSettings.jsx
+ M frontend/src/features/settings/hooks/useActiveSessions.js
+ M frontend/src/features/settings/hooks/useChangePassword.js
+ M frontend/src/features/settings/hooks/useCompany.js
+ M frontend/src/features/settings/hooks/useInviteMember.js
+ M frontend/src/features/settings/hooks/useManageTeamMember.js
+ M frontend/src/features/settings/hooks/useNotificationPreferences.js
+ M frontend/src/features/settings/hooks/useProfile.js
+ M frontend/src/features/settings/hooks/useTargetMarkets.js
+ M frontend/src/features/settings/hooks/useTeamMembers.js
+ M frontend/src/features/settings/hooks/useUpdateCompany.js
+ M frontend/src/features/settings/hooks/useUpdateProfile.js
+ M frontend/src/features/settings/hooks/useUpdateTargetMarkets.js
+ M frontend/src/features/settings/pages/SettingsPage.jsx
+ M frontend/src/features/settings/permissions/settingsPermissions.js
+ M frontend/src/features/settings/styles/Settings.css
+ M frontend/src/features/system/components/InsightOrb.jsx
+ M frontend/src/features/system/pages/WelcomePage.css
+ M frontend/src/features/system/pages/WelcomePage.jsx
+ M frontend/src/features/workspaces/api/workspacesApi.js
+ M frontend/src/features/workspaces/components/WorkspaceSwitcher.jsx
+ M frontend/src/features/workspaces/pages/CreateWorkspacePage.jsx
+ M frontend/src/features/workspaces/useOpenWorkspace.js
+ M frontend/src/main.jsx
+ M frontend/src/shared/components/apex/Apex.jsx
+ M frontend/src/shared/components/apex/CountUp.jsx
+ M frontend/src/shared/components/brand/KeelMark.jsx
+ M frontend/src/shared/components/charts/ForecastChart.jsx
+ M frontend/src/shared/components/charts/TrendChart.jsx
+ M frontend/src/shared/components/charts/chartTheme.js
+ M frontend/src/shared/components/feedback/ErrorBoundary.jsx
+ M frontend/src/shared/components/forms/FormError.jsx
+ M frontend/src/shared/components/layout/BusinessAppShell.jsx
+ M frontend/src/shared/components/layout/BusinessPageContainer.jsx
+ M frontend/src/shared/components/layout/PageHeader.jsx
+ M frontend/src/shared/components/layout/ThemeToggle.jsx
+ M frontend/src/shared/components/layout/TopNav.jsx
+ M frontend/src/shared/components/layout/signOut.js
+ M frontend/src/shared/components/ui/Avatar.jsx
+ M frontend/src/shared/components/ui/Badge.jsx
+ M frontend/src/shared/components/ui/Button.jsx
+ M frontend/src/shared/components/ui/Card.jsx
+ M frontend/src/shared/components/ui/Checkbox.jsx
+ M frontend/src/shared/components/ui/DataStatusBadge.jsx
+ M frontend/src/shared/components/ui/Dropdown.jsx
+ M frontend/src/shared/components/ui/EmptyState.jsx
+ M frontend/src/shared/components/ui/Input.jsx
+ M frontend/src/shared/components/ui/Modal.jsx
+ M frontend/src/shared/components/ui/PasswordInput.jsx
+ M frontend/src/shared/components/ui/PasswordStrength.jsx
+ M frontend/src/shared/components/ui/SegmentedControl.jsx
+ M frontend/src/shared/components/ui/Select.jsx
+ M frontend/src/shared/components/ui/SelectableCard.jsx
+ M frontend/src/shared/components/ui/Skeleton.jsx
+ M frontend/src/shared/components/ui/Stepper.jsx
+ M frontend/src/shared/components/ui/Table.jsx
+ M frontend/src/shared/components/ui/Tabs.jsx
+ M frontend/src/shared/components/ui/Toast.jsx
+ M frontend/src/shared/components/ui/Tooltip.jsx
+ M frontend/src/shared/components/ui/VerificationCodeInput.jsx
+ M frontend/src/shared/config/businessNavigation.js
+ M frontend/src/shared/config/countries.js
+ M frontend/src/shared/hooks/useDebounce.js
+ M frontend/src/shared/hooks/useSubmitLock.js
+ M frontend/src/shared/lib/errorTracking.js
+ M frontend/src/shared/lib/httpClient.js
+ M frontend/src/shared/lib/i18n.js
+ M frontend/src/shared/lib/queryClient.js
+ M frontend/src/shared/utils/accountProfile.js
+ M frontend/src/shared/utils/barcode.js
+ M frontend/src/shared/utils/validators.js
+ M frontend/src/styles/apex-components.css
+ M frontend/src/styles/apex-motion.css
+ M frontend/src/styles/apex-theme.css
+ M frontend/src/styles/business-shell.css
+ M frontend/src/styles/globals.css
+ M frontend/src/styles/keel-glass.css
+ M frontend/tests/assistant-markdown.test.mjs
+ M frontend/tests/assistantReferences.test.mjs
+ M frontend/tests/auth.test.mjs
+ M frontend/tests/barcode.test.mjs
+ M frontend/tests/billingApi.test.mjs
+ M frontend/tests/browser/a11y.mjs
+ M frontend/tests/browser/assistant-references.mjs
+ M frontend/tests/browser/connect-data.mjs
+ M frontend/tests/browser/run-all.mjs
+ M frontend/tests/browser/smoke.mjs
+ M frontend/tests/competitorData.test.mjs
+ M frontend/tests/competitors.test.mjs
+ M frontend/tests/errorTracking.test.mjs
+ M frontend/tests/httpClientUnauthorized.test.mjs
+ M frontend/tests/importSummary.test.mjs
+ M frontend/tests/ingestion.test.mjs
+ M frontend/tests/knowledgeBase.test.mjs
+ M frontend/tests/locales.test.mjs
+ M frontend/tests/marketing.test.mjs
+ M frontend/tests/marketingErrors.test.mjs
+ M frontend/tests/pricing.test.mjs
+ M frontend/tests/products.test.mjs
+ M frontend/tests/recentImports.test.mjs
+ M frontend/tests/reports.test.mjs
+ M frontend/tests/searchScope.test.mjs
+ M frontend/tests/sessionKeeper.test.mjs
+ M frontend/tests/settings.test.mjs
+ M frontend/tests/sourceReviewApi.test.mjs
+ M frontend/tests/utilities.test.mjs
+ M frontend/vite.config.js
+ M keel
+ M render.yaml
+?? SUBSCRIPTION_REMEDIATION.patch
+?? SUBSCRIPTION_REMEDIATION_REPORT.md
+?? backend/scripts/billing_verification.py
+?? backend/scripts/entitlement_verification.py
+?? backend/scripts/integration_review.py
+?? backend/src/infrastructure/database/migrations/20261024000000_report_request_identity.sql
+?? backend/tests/__init__.py
+?? backend/tests/billing/__init__.py
+?? backend/tests/billing/conftest.py
+?? backend/tests/billing/docker-compose.yml
+?? backend/tests/billing/requirements.txt
+?? backend/tests/billing/test_contract.py
+?? backend/tests/billing/test_database.py
+?? backend/tests/billing/test_safety.py
+?? backend/tests/entitlements/__init__.py
+?? backend/tests/entitlements/conftest.py
+?? backend/tests/entitlements/test_database.py
+?? backend/tests/entitlements/test_policy.py
+?? backend/tests/entitlements/test_routes.py
+?? backend/tests/integration_review/__init__.py
+?? backend/tests/integration_review/conftest.py
+?? backend/tests/integration_review/test_http_database.py
+?? backend/tests/integration_review/test_migration_failure.py
+?? backend/tests/remediation/__init__.py
+?? backend/tests/remediation/conftest.py
+?? backend/tests/remediation/test_commercial_boundaries.py
+?? backend/tests/remediation/test_forecast_gate.py
+?? backend/tests/remediation/test_migration_upgrade.py
+?? backend/tests/remediation/test_native_concurrency.py
+?? docs/keel-integration/CAPABILITY_TRACEABILITY.csv
+?? docs/keel-integration/COVERAGE_RECONCILIATION.md
+?? docs/keel-integration/DECISION_REGISTER.md
+?? docs/keel-integration/DEPENDENCY_AND_SCHEMA_MAP.md
+?? docs/keel-integration/DOMAIN_READINESS.md
+?? docs/keel-integration/FEATURE_AND_ENTITLEMENT_CROSSWALK.csv
+?? docs/keel-integration/IMPLEMENTATION_PHASES.md
+?? docs/keel-integration/NEXT_TASK.md
+?? docs/keel-integration/OPEN_GAPS_AND_RELEASE_BLOCKERS.md
+?? docs/keel-integration/OWNER_DECISION_WORKSHEET.md
+?? docs/keel-integration/OWNER_RECONCILIATION_REPORT.md
+?? docs/keel-integration/PHASE0R_FINAL_REPORT.md
+?? docs/keel-integration/PHASE0R_README.md
+?? docs/keel-integration/PHASE0_FINAL_REPORT.md
+?? docs/keel-integration/README.md
+?? docs/keel-integration/ROUTE_MOUNT_MAP.md
+?? docs/keel-integration/SCHEMA_VERIFICATION.md
+?? docs/keel-integration/SOURCE_BASELINES.md
+?? docs/keel-integration/SOURCE_SNAPSHOT_RECONCILIATION.md
+?? docs/keel-integration/SOURCE_TRACE_CORRECTIONS.md
+?? docs/keel-integration/TEST_EVIDENCE.md
+?? docs/keel-integration/TRACE_BOUNDARIES.md
+?? docs/keel-integration/UNIFIED_FILE_CHANGE_LEDGER.md
+?? docs/keel-integration/architecture/ADR-ACCOUNTING-001-partial-failure-replay-and-crash-charging.md
+?? docs/keel-integration/architecture/ADR-AUTH-001-identity-bootstrap-and-session-policy.md
+?? docs/keel-integration/architecture/ADR-AUTH-002-platform-authority-and-role-boundaries.md
+?? docs/keel-integration/architecture/ADR-CATALOG-001-catalog-trials-and-existing-contracts.md
+?? docs/keel-integration/architecture/ADR-CUSTOM-001-quote-acceptance-versus-activation.md
+?? docs/keel-integration/architecture/ADR-CUSTOM-002-quote-economics-provider-costs-and-fx.md
+?? docs/keel-integration/architecture/ADR-ENT-001-feature-rights-units-and-credit-crosswalk.md
+?? docs/keel-integration/architecture/ADR-IMPORT-001-canonical-identity-stock-and-invoice-ownership.md
+?? docs/keel-integration/architecture/ADR-MPI-001-mpi-eligibility-sample-and-public-reliability.md
+?? docs/keel-integration/architecture/ADR-PRICE-001-pricing-evidence-freshness-and-fallback.md
+?? docs/keel-integration/architecture/ADR-PRIVACY-001-provider-privacy-and-retained-business-records.md
+?? docs/keel-integration/architecture/ADR-PROMO-001-promotion-authority-redemption-and-stacking.md
+?? docs/keel-integration/architecture/ADR-TRANSITION-001-effective-grants-and-mixed-plan-change.md
+?? docs/keel-integration/architecture/FEATURE-auth.md
+?? docs/keel-integration/architecture/FEATURE-billing.md
+?? docs/keel-integration/architecture/FEATURE-entitlements.md
+?? docs/keel-integration/architecture/FEATURE-imports.md
+?? docs/keel-integration/architecture/FEATURE-mpi.md
+?? docs/keel-integration/architecture/FEATURE-pricing.md
+?? docs/keel-integration/architecture/FEATURE-stores.md
+?? docs/keel-integration/evidence/ACCEPTANCE_TEST_SPEC.csv
+?? docs/keel-integration/evidence/ACTIVE_PYTHON_ROUTES.csv
+?? docs/keel-integration/evidence/CAPABILITY_SYMBOL_REFERENCES.csv
+?? docs/keel-integration/evidence/ENVIRONMENT_DEPENDENCIES.csv
+?? docs/keel-integration/evidence/FRONTEND_HTTP_CONTRACTS.csv
+?? docs/keel-integration/evidence/FUNCTION_BEHAVIOR_FACTS.csv
+?? docs/keel-integration/evidence/FUNCTION_CALL_INDEX.csv
+?? docs/keel-integration/evidence/IMPORT_GRAPH.csv
+?? docs/keel-integration/evidence/IMPORT_GRAPH_RESOLVED.csv
+?? docs/keel-integration/evidence/INCOMING_GIT_STATUS.txt
+?? docs/keel-integration/evidence/INCOMING_SEMANTIC_DIFF.txt
+?? docs/keel-integration/evidence/INPUT_ARCHIVE_HASHES.json
+?? docs/keel-integration/evidence/PERSISTENCE_SURFACES.csv
+?? docs/keel-integration/evidence/PHASE0_VERIFICATION.json
+?? docs/keel-integration/evidence/REACHABILITY.csv
+?? docs/keel-integration/evidence/README.md
+?? docs/keel-integration/evidence/ROUTE_CANDIDATES.csv
+?? docs/keel-integration/evidence/SOURCE_INTEGRITY_FINAL.json
+?? docs/keel-integration/evidence/SQL_OBJECT_LINEAGE.csv
+?? docs/keel-integration/evidence/SUPPLIED_CONTENT_HASHES.json
+?? docs/keel-integration/evidence/TEST_CATALOG.csv
+?? docs/keel-integration/evidence/TRANSITIVE_CAPABILITY_DEPENDENCIES.csv
+?? docs/keel-integration/evidence/UNRESOLVED_DOMAIN_PATHS.json
+?? docs/keel-integration/evidence/backend-baseline.log
+?? docs/keel-integration/evidence/backend-baseline.xml
+?? docs/keel-integration/evidence/frontend-baseline.log
+?? docs/keel-integration/evidence/frontend-build.log
+?? docs/keel-integration/evidence/frontend-installed.log
+?? docs/keel-integration/evidence/owner-decisions/DOCUMENT_BASELINE_OWNER_RECONCILIATION.json
+?? docs/keel-integration/evidence/owner-decisions/GIT_DOCUMENT_DIFF_OWNER_RECONCILIATION.txt
+?? docs/keel-integration/evidence/owner-decisions/OWNER_RECONCILIATION_VERIFICATION.json
+?? docs/keel-integration/evidence/owner-decisions/OWNER_SELECTIONS.json
+?? docs/keel-integration/evidence/owner-decisions/verify_owner_decisions.py
+?? docs/keel-integration/evidence/phase0r/ATOMIC_CALL_EDGES.csv
+?? docs/keel-integration/evidence/phase0r/ATOMIC_FAILURE_AND_STATE_FACTS.csv
+?? docs/keel-integration/evidence/phase0r/ATOMIC_FLOW_TRACES.csv
+?? docs/keel-integration/evidence/phase0r/CALLER_ENTRY_JOINS.csv
+?? docs/keel-integration/evidence/phase0r/DOCUMENT_BASELINE_PHASE0R.json
+?? docs/keel-integration/evidence/phase0r/DOMAIN_READINESS.csv
+?? docs/keel-integration/evidence/phase0r/DTO_CONTRACT_DECLARATIONS.csv
+?? docs/keel-integration/evidence/phase0r/DTO_SOURCE_REFERENCES.csv
+?? docs/keel-integration/evidence/phase0r/DTO_TOKEN_CANDIDATE_REJECTIONS.csv
+?? docs/keel-integration/evidence/phase0r/DYNAMIC_SQL_OBLIGATIONS.csv
+?? docs/keel-integration/evidence/phase0r/ENTRYPOINT_REGISTRY.csv
+?? docs/keel-integration/evidence/phase0r/EVIDENCE_GUIDE.md
+?? docs/keel-integration/evidence/phase0r/EXTERNAL_BOUNDARIES.csv
+?? docs/keel-integration/evidence/phase0r/FRONTEND_CONSUMER_JOINS.csv
+?? docs/keel-integration/evidence/phase0r/GIT_DOCUMENT_DIFF_PHASE0R.txt
+?? docs/keel-integration/evidence/phase0r/PHASE0R_VERIFICATION.json
+?? docs/keel-integration/evidence/phase0r/PRISMA_MODEL_COLUMN_MAP.csv
+?? docs/keel-integration/evidence/phase0r/RAW_DTO_TOKEN_CANDIDATES.csv
+?? docs/keel-integration/evidence/phase0r/RAW_PHASE0_DB_CANDIDATES.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_COLUMNS.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_DDL_OBJECTS.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_AUTH.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_CONNECT.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_CREDIT.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_CUSTOM.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_ENT.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_IMPORT.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_MPI.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_PLATFORM.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_PRICE.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_PROMO.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_SHOP.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_STORE.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_SUB.csv
+?? docs/keel-integration/evidence/phase0r/SCHEMA_LINEAGE_WOO.csv
+?? docs/keel-integration/evidence/phase0r/SOURCE_CONTENT_RECONCILIATION.json
+?? docs/keel-integration/evidence/phase0r/SOURCE_FUNCTION_REFERENCES.csv
+?? docs/keel-integration/evidence/phase0r/SQL_ACCESS_SOURCE_FACTS.csv
+?? docs/keel-integration/evidence/phase0r/UNRESOLVED_CALL_EDGES.csv
+?? docs/keel-integration/evidence/phase0r/UNRESOLVED_ROUTE_HANDLERS.csv
+?? docs/keel-integration/evidence/phase0r/verify_phase0r.py
+?? docs/keel-integration/evidence/phase0v/DOCUMENT_BASELINE_PHASE0V.json
+?? docs/keel-integration/evidence/verify_phase0.py
+?? docs/keel-integration/reference/EXECUTION_CONTRACT.md
+?? docs/keel-integration/reference/KEEL_PHASE0R_OWNER_ARCHITECTURE_DECISION_REGISTER.md
+?? docs/keel-integration/reference/LEDGER_TEMPLATE.md
+?? docs/keel-integration/reference/PHASE0_INDEPENDENT_REVIEW_AND_NEXT_PROMPT.md
+?? docs/keel-integration/traces/TRACE-AUTH.md
+?? docs/keel-integration/traces/TRACE-CONNECT.md
+?? docs/keel-integration/traces/TRACE-CREDIT.md
+?? docs/keel-integration/traces/TRACE-CUSTOM.md
+?? docs/keel-integration/traces/TRACE-ENT.md
+?? docs/keel-integration/traces/TRACE-IMPORT.md
+?? docs/keel-integration/traces/TRACE-MPI.md
+?? docs/keel-integration/traces/TRACE-PLATFORM.md
+?? docs/keel-integration/traces/TRACE-PRICE.md
+?? docs/keel-integration/traces/TRACE-PROMO.md
+?? docs/keel-integration/traces/TRACE-SHOP.md
+?? docs/keel-integration/traces/TRACE-STORE.md
+?? docs/keel-integration/traces/TRACE-SUB.md
+?? docs/keel-integration/traces/TRACE-WOO.md
+?? docs/remediation/manifest.json
+?? docs/remediation/native_capability.json
+?? docs/remediation/source_integrity.json
+?? docs/remediation/test_results.xml
+?? docs/remediation/test_run.log

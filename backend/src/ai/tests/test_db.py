@@ -13,6 +13,7 @@ local development, and only surfaced against real Neon-hosted staging.
 """
 import os
 from unittest.mock import patch
+from urllib.parse import unquote, urlsplit
 
 from src.ai.db import _app_database_url
 
@@ -38,3 +39,20 @@ def test_app_database_url_preserves_explicit_port():
         result = _app_database_url()
 
     assert result == "postgresql://ceopro_app:app-secret@postgres:5433/ceopro"
+
+
+def test_app_database_url_encodes_reserved_characters_in_app_password():
+    password = "app:@/ ?#[]%+secret"
+    env = {
+        "DATABASE_URL": "postgresql://keel_test_admin:adminpass@postgres:5433/keel_billing_test",
+        "APP_DB_PASSWORD": password,
+    }
+    with patch.dict(os.environ, env, clear=False):
+        result = _app_database_url()
+
+    parsed = urlsplit(result)
+    assert parsed.username == "ceopro_app"
+    assert parsed.password is not None and unquote(parsed.password) == password
+    assert parsed.hostname == "postgres"
+    assert parsed.port == 5433
+    assert parsed.path == "/keel_billing_test"

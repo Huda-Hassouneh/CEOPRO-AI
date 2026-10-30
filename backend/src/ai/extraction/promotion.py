@@ -96,17 +96,28 @@ class _EligibleRow:
         # Otherwise line_total stays exactly what the customer paid. A paid
         # total like 15.53 for 3 units has no exact 4-dp unit price; the
         # stored effective_unit_price reproduces it to within 0.00005 per
-        # unit, which is what chk_total_price_consistent allows (migration
-        # 20261006020000). It used to be snapped instead, so recorded
-        # revenue drifted from the money actually received.
+        # unit. The invoice mirror records that exact residual explicitly,
+        # as required by chk_total_price_consistent (20261110000100).
+        # Never snap the paid line total to the rounded unit price.
 
     @property
     def effective_unit_price(self) -> Decimal:
-        """Unit price actually paid (after any discount) - stored as unit_price
-        so quantity x unit_price == total_price in every table."""
-        if not self.quantity or self.line_total == _round4(self.quantity * self.unit_price):
-            return self.unit_price  # no discount: the list price, exactly
+        """Stored effective paid price; the invoice retains the exact paid total."""
+        if not self.quantity:
+            return self.unit_price
+        if self.line_total == _round4(self.quantity * self.unit_price):
+            residual = self.line_total - self.quantity * self.unit_price
+            if abs(residual) <= self.quantity * Decimal("0.00005"):
+                return self.unit_price
+        # Owner-approved compatibility rule: when line rounding would exceed
+        # the existing per-unit bound, derive the effective paid unit price.
+        # The source unit price stays in staging and product creation data.
         return _round4(self.line_total / self.quantity)
+
+    @property
+    def rounding_adjustment(self) -> Decimal:
+        """Exact reconciliation of the paid total and the stored 4-dp unit price."""
+        return self.line_total - self.quantity * self.effective_unit_price
 
 
 _CENT4 = Decimal("0.0001")
@@ -278,7 +289,7 @@ def _extract_eligible_rows(
     return eligible, skipped
 
 
-def _load_existing_products(conn, tenant_id: str) -> Dict[str, str]:
+def _load_existing_products(conn, tenant_id: str) -> Tuple[Dict[str, str], set[str]]:
     """Every name a product has, in every language. Found in acceptance
     testing: only the English name was matched, so a catalog product
     {"en": "Fresh Labneh", "ar": "لبنة طازجة"} sold through a POS that
@@ -290,13 +301,16 @@ def _load_existing_products(conn, tenant_id: str) -> Dict[str, str]:
             (tenant_id,),
         )
         rows = cursor.fetchall()
-    known: Dict[str, str] = {}
+    name_products: Dict[str, set[str]] = {}
     for product_id, names in rows:
+        product_id = str(product_id)
         values = names.values() if isinstance(names, dict) else [names]
         for name in values:
             if isinstance(name, str) and name.strip():
-                known.setdefault(name.strip().casefold(), str(product_id))
-    return known
+                name_products.setdefault(name.strip().casefold(), set()).add(product_id)
+    ambiguous_names = {name for name, ids in name_products.items() if len(ids) > 1}
+    known = {name: next(iter(ids)) for name, ids in name_products.items() if len(ids) == 1}
+    return known, ambiguous_names
 
 
 _ARABIC_SCRIPT = re.compile(r"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]")
@@ -354,15 +368,89 @@ def _insert_one_product(
         return str(cursor.fetchone()[0])
 
 
-def _load_barcode_index(conn, tenant_id: str) -> Dict[str, str]:
-    """{barcode: product_id} for this tenant's active products that have one."""
+def _load_barcode_identities(conn, tenant_id: str) -> Tuple[Dict[str, str], set[str]]:
+    """Return unique tenant barcode identities and barcodes owned by multiple products."""
     with conn.cursor() as cursor:
         cursor.execute(
             "SELECT metadata->>'barcode', product_id FROM products "
             "WHERE tenant_id = %s AND deleted_at IS NULL AND metadata->>'barcode' IS NOT NULL;",
             (tenant_id,),
         )
-        return {barcode: str(product_id) for barcode, product_id in cursor.fetchall() if barcode}
+        rows = cursor.fetchall()
+    products_by_barcode: Dict[str, set[str]] = {}
+    for barcode, product_id in rows:
+        if barcode:
+            products_by_barcode.setdefault(barcode, set()).add(str(product_id))
+    ambiguous = {barcode for barcode, ids in products_by_barcode.items() if len(ids) > 1}
+    unique = {barcode: next(iter(ids)) for barcode, ids in products_by_barcode.items() if len(ids) == 1}
+    return unique, ambiguous
+
+
+def _load_barcode_index(conn, tenant_id: str) -> Dict[str, str]:
+    """Compatibility helper returning only unambiguous barcode identities."""
+    return _load_barcode_identities(conn, tenant_id)[0]
+
+
+def _identity_review_reasons(
+    rows: List[_EligibleRow], known: Dict[str, str], ambiguous_names: set[str],
+    barcode_index: Dict[str, str], ambiguous_barcodes: set[str],
+) -> Dict[int, str]:
+    """Find identity conflicts without resolving them by an invented precedence."""
+    by_name_barcodes: Dict[str, set[str]] = {}
+    rows_by_name: Dict[str, List[_EligibleRow]] = {}
+    for row in rows:
+        rows_by_name.setdefault(row.product_name_normalized, []).append(row)
+        if row.barcode:
+            by_name_barcodes.setdefault(row.product_name_normalized, set()).add(row.barcode)
+
+    reasons: Dict[int, str] = {}
+    for name, group in rows_by_name.items():
+        if len(by_name_barcodes.get(name, set())) > 1:
+            for row in group:
+                reasons[row.staging_row_id] = "same product name has conflicting imported barcodes"
+    for row in rows:
+        if row.staging_row_id in reasons:
+            continue
+        if row.product_name_normalized in ambiguous_names:
+            reasons[row.staging_row_id] = "product name matches multiple tenant products"
+            continue
+        if row.barcode and row.barcode in ambiguous_barcodes:
+            reasons[row.staging_row_id] = "barcode matches multiple tenant products"
+            continue
+        name_product = known.get(row.product_name_normalized)
+        barcode_product = barcode_index.get(row.barcode) if row.barcode else None
+        if name_product and barcode_product and name_product != barcode_product:
+            reasons[row.staging_row_id] = "product name and barcode identify different tenant products"
+            continue
+    return reasons
+
+
+def _mark_identity_review_rows(conn, tenant_id: str, job_id: str, rows: List[_EligibleRow], reasons: Dict[int, str],
+                               result: PromotionSummary) -> None:
+    """Persist review reasons using the existing PARTIAL staging state."""
+    if not reasons:
+        return
+    updates = [(staging_id, json.dumps({"product_identity": reason}), tenant_id, job_id)
+               for staging_id, reason in reasons.items()]
+    with conn.cursor() as cursor:
+        execute_values(
+            cursor,
+            """
+            UPDATE import_staging_rows AS s
+            SET validation_status = 'PARTIAL', validation_errors = v.errors
+            FROM (VALUES %s) AS v(staging_row_id, errors, tenant_id, job_id)
+            WHERE s.tenant_id = v.tenant_id AND s.job_id = v.job_id AND s.staging_row_id = v.staging_row_id
+              AND s.validation_status <> 'COMMITTED';
+            """,
+            updates,
+            template="(%s, %s, %s::uuid, %s::uuid)",
+            fetch=False,
+        )
+    rows_by_id = {row.staging_row_id: row for row in rows}
+    for staging_id, reason in reasons.items():
+        row = rows_by_id[staging_id]
+        result.rows_failed += 1
+        result.errors.append({"row_index": row.row_index, "error": reason, "status": "review_required"})
 
 
 def _alias_names_by_barcode(rows: List[_EligibleRow], known: Dict[str, str], barcode_index: Dict[str, str]) -> int:
@@ -516,17 +604,17 @@ def _insert_invoices_mirror_batch(
     for row, (invoice_id,) in zip(batch, invoice_ids):
         item_values.append((
             tenant_id, str(invoice_id), known[row.product_name_normalized], row.quantity,
-            row.effective_unit_price, row.line_total,
+            row.effective_unit_price, row.line_total, row.rounding_adjustment,
         ))
     with conn.cursor() as cursor:
         execute_values(
             cursor,
             """
-            INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price)
+            INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price, rounding_adjustment)
             VALUES %s;
             """,
             item_values,
-            template="(%s, %s, %s, %s, %s, %s)",
+            template="(%s, %s, %s, %s, %s, %s, %s)",
         )
 
 
@@ -551,10 +639,10 @@ def _insert_invoice_mirror_row(
         invoice_id = str(cursor.fetchone()[0])
         cursor.execute(
             """
-            INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price)
-            VALUES (%s, %s, %s, %s, %s, %s);
+            INSERT INTO invoice_items (tenant_id, invoice_id, product_id, quantity, unit_price, total_price, rounding_adjustment)
+            VALUES (%s, %s, %s, %s, %s, %s, %s);
             """,
-            (tenant_id, invoice_id, known[row.product_name_normalized], row.quantity, row.effective_unit_price, total_price),
+            (tenant_id, invoice_id, known[row.product_name_normalized], row.quantity, row.effective_unit_price, total_price, row.rounding_adjustment),
         )
 
 
@@ -692,8 +780,19 @@ def promote_ingested_rows(
     if not eligible:
         return result
 
-    known = _load_existing_products(conn, tenant_id)
-    barcode_index = _load_barcode_index(conn, tenant_id) if any(row.barcode for row in eligible) else {}
+    known, ambiguous_names = _load_existing_products(conn, tenant_id)
+    if any(row.barcode for row in eligible):
+        barcode_index, ambiguous_barcodes = _load_barcode_identities(conn, tenant_id)
+    else:
+        barcode_index, ambiguous_barcodes = {}, set()
+    review_reasons = _identity_review_reasons(
+        eligible, known, ambiguous_names, barcode_index, ambiguous_barcodes,
+    )
+    _mark_identity_review_rows(conn, tenant_id, job_id, eligible, review_reasons, result)
+    if review_reasons:
+        eligible = [row for row in eligible if row.staging_row_id not in review_reasons]
+    if not eligible:
+        return result
     result.products_matched_by_barcode = _alias_names_by_barcode(eligible, known, barcode_index)
     known_before = set(known)
     result.products_created = _create_missing_products(conn, tenant_id, user_id, job_id, eligible, known)

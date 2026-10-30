@@ -1,0 +1,9 @@
+{
+  "prior_virtualenv_interpreter": "analysis/venv/bin/python",
+  "symlink_target": null,
+  "exists": false,
+  "initial_backend_auth_launch": "FAILED_BEFORE_TEST_START; missing prior interpreter target",
+  "resolution": "Use current Python interpreter plus previously installed isolated test site-packages via scratch PYTHONPATH; no repository requirements/source changes",
+  "current_interpreter": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+  "current_python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]"
+}

@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.ai.core import entitlements, usage
+from src.ai.tests.signup_helpers import create_verified_test_account
 
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -46,9 +47,9 @@ def _admin(sql, params=()):
 
 def _company(client, plan_key):
     email = f"plan+{uuid.uuid4().hex[:8]}@example.com"
-    session = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Plan Co", "email": email,
-                                                 "country_code": "JO", "primary_currency": "JOD",
-                                                 "password": "Plan!Catalog-2026"}).json()
+    session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Plan Co", "email": email,
+                                                     "country_code": "JO", "primary_currency": "JOD",
+                                                     "password": "Plan!Catalog-2026"})
     _admin("UPDATE tenant_plan_assignments SET plan_key = %s, status = 'active', source = 'manual' WHERE tenant_id = %s;",
            (plan_key, session["tenant_id"]))
     entitlements.forget(session["tenant_id"])
@@ -142,9 +143,9 @@ def test_one_companys_usage_never_reduces_anothers_allowance(client):
 
 def test_new_companies_start_on_the_growth_trial(client):
     email = f"trial+{uuid.uuid4().hex[:8]}@example.com"
-    session = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Trial Co", "email": email,
-                                                 "country_code": "JO", "primary_currency": "JOD",
-                                                 "password": "Plan!Catalog-2026"}).json()
+    session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Trial Co", "email": email,
+                                                     "country_code": "JO", "primary_currency": "JOD",
+                                                     "password": "Plan!Catalog-2026"})
     [(plan_key, status, days)] = _admin(
         "SELECT a.plan_key, a.status, (a.current_period_end - a.current_period_start) FROM tenant_plan_assignments a WHERE tenant_id = %s;",
         (session["tenant_id"],))
@@ -237,17 +238,17 @@ def test_imports_create_products_only_up_to_the_plan_limit(client):
 
 def test_campaign_writing_uses_the_ai_token_allowance(client, monkeypatch):
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
 
     session, headers = _company(client, "starter")  # 100,000 tokens
     tenant = session["tenant_id"]
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage",
-                        lambda messages, **kw: (_valid_response_json(), {"total_tokens": 3210}))
+                        lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=3210))
     body = {"text": "Cold-pressed olive oil, 1 litre", "strategy_type": "SALES_DRIVEN"}
     assert client.post("/marketing/campaigns", json=body, headers=headers).status_code in (200, 201)
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     try:
-        assert usage.remaining(conn, tenant, usage.RAG_ASSISTANT) == 100_000 - 3210  # the real count
+        assert usage.remaining(conn, tenant, usage.RAG_ASSISTANT) == 100_000 - 2 * 3210  # generation and independent factual review
     finally:
         conn.close()
 
@@ -306,11 +307,11 @@ def test_stored_upload_results_count_toward_storage(client):
 @requires_minio
 def test_a_marketing_image_is_refused_when_storage_is_full(client, monkeypatch):
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
 
     session, headers = _company(client, "starter")  # 1 GB
     tenant = session["tenant_id"]
-    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=100))
     campaign = client.post("/marketing/campaigns", json={"text": "Olive oil", "strategy_type": "SALES_DRIVEN"}, headers=headers).json()
     png = b"\x89PNG\r\n\x1a\n" + b"0" * 2048
     ok = client.post(f"/marketing/campaigns/{campaign['campaign_id']}/image", files={"file": ("p.png", png, "image/png")}, headers=headers)
@@ -327,11 +328,11 @@ def test_a_marketing_image_is_refused_when_storage_is_full(client, monkeypatch):
 def test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_counted(client, monkeypatch):
     from src.ai.marketing import designed_poster, image_generation
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
 
     session, headers = _company(client, "starter")  # 20 images a month
     tenant = session["tenant_id"]
-    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=100))
     campaign = client.post("/marketing/campaigns", json={"text": "Olive oil", "strategy_type": "SALES_DRIVEN"}, headers=headers).json()
     url = f"/marketing/campaigns/{campaign['campaign_id']}/generate-image"
 
@@ -350,7 +351,7 @@ def test_marketing_images_stop_at_the_monthly_allowance_and_failures_are_not_cou
     monkeypatch.setattr(image_generation, "generate_campaign_image", fail)
     assert client.post(url, headers=headers).json()["image_generation_status"] == "PROVIDER_ERROR"
     monkeypatch.undo()
-    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=100))
     monkeypatch.setattr(designed_poster, "render_designed_poster", poster_fails)
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "none")
     assert client.post(url, headers=headers).json()["image_generation_status"] == "NOT_CONFIGURED"
@@ -375,11 +376,11 @@ def test_a_designed_poster_counts_as_one_image_of_the_monthly_allowance(client, 
     # drawn poster is still a delivered image and uses one allowance.
     from src.ai.marketing import image_generation
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import scripted_campaign_completion
 
     session, headers = _company(client, "starter")
     tenant = session["tenant_id"]
-    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: (_valid_response_json(), {"total_tokens": 100}))
+    monkeypatch.setattr(llm_client, "_chat_completion_with_usage", lambda messages, **kw: scripted_campaign_completion(messages, total_tokens=100))
     campaign = client.post("/marketing/campaigns", json={"text": "Olive oil", "strategy_type": "SALES_DRIVEN"}, headers=headers).json()
     url = f"/marketing/campaigns/{campaign['campaign_id']}/generate-image"
 
