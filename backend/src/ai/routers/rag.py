@@ -4,12 +4,16 @@ here) for query_text/top_k/history_json bound reasoning.
 """
 
 import json
+import hashlib
+import io
 import logging
+import math
 import os
+from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
 from src.ai import db
@@ -20,6 +24,8 @@ from src.ai.rag import advisor as rag_advisor
 from src.ai.rag import conversation_store
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
+from src.ai.rag import access as rag_access
+from src.ai.core import storage_ledger
 
 router = APIRouter(prefix="/rag", tags=["rag"])
 
@@ -60,6 +66,7 @@ _STORED_ANSWER_FIELDS = ("answer_summary", "answer_blocks", "references", "calcu
 # Why a question got no answer, for the chat to explain it in the user's
 # language: not_configured | provider_busy | provider_unavailable | internal_error.
 ASSISTANT_REASON_HEADER = "X-Assistant-Reason"
+ASSISTANT_SESSION_HEADER = "X-Assistant-Session-Id"
 
 
 class RagQueryBody(BaseModel):
@@ -157,7 +164,8 @@ def rag_query(
             estimate = usage.RAG_TOKEN_RESERVATION if left is None else max(1, min(usage.RAG_TOKEN_RESERVATION, left))
             reservation = usage.reserve(conn, ctx.tenant_id, usage.RAG_ASSISTANT, estimate)
         except usage.PlanLimitReached as err:
-            if err.reason not in _ALLOWANCE_USED:
+            # Zero/missing configuration is not a consumed positive allowance.
+            if err.reason not in _ALLOWANCE_USED or err.limit is None or err.limit <= 0:
                 raise
             conn.rollback()
             use_ai = False
@@ -174,6 +182,11 @@ def rag_query(
             session_id = conversation_store.create_session(conn, ctx.tenant_id, ctx.user_id, query_text)
 
         conversation_store.append_message(conn, ctx.tenant_id, session_id, ctx.user_id, "user", query_text)
+        # Keep the customer's question and its conversation identity even if
+        # the external model is unavailable. The client can reopen this same
+        # session and retry instead of seeing an error that claims the turn
+        # was kept while the rollback silently discarded it.
+        conn.commit()
         # Every AI call this answer makes is paid from the company's AI Credits.
         ask = lambda use_ai: rag_advisor.answer(conn, ctx.tenant_id, query_text, top_k=top_k,  # noqa: E731
                                                 history=history, user_id=ctx.user_id, state=state, use_ai=use_ai)
@@ -190,14 +203,22 @@ def rag_query(
             answer_payload={key: result.get(key) for key in _STORED_ANSWER_FIELDS},
         )
         conversation_store.save_session_state(conn, ctx.tenant_id, session_id, result.pop("state", None) or {})
-        conn.commit()
         # An evidence-mode reply used no AI capacity, so it doesn't count
         # against the plan's allowance (released in `finally`).
-        answered = result.get("answer_mode") != "evidence"
-        if answered:
+        chargeable_answer = result.get("answer_mode") != "evidence"
+        reserved_amount = reservation["amount"] if reservation is not None else 0
+        if chargeable_answer:
             tokens = int((result.get("token_usage") or {}).get("total_tokens") or 0)
             usage.settle(conn, reservation, tokens or reservation["amount"])
+        # Persist the answer and its customer allowance settlement together.
+        # If settlement fails, the retained answer is rolled back as well.
+        try:
             conn.commit()
+        except Exception:
+            if reservation is not None:
+                reservation["amount"] = reserved_amount
+            raise
+        answered = chargeable_answer
         return {**result, "session_id": session_id}
     except (HTTPException, usage.PlanLimitReached, credits.BudgetError):
         conn.rollback()
@@ -211,8 +232,18 @@ def rag_query(
         raise HTTPException(
             status_code=503,
             detail=f"The assistant is handling too many questions right now. Please try again in about {retry_after} seconds.",
-            headers={"Retry-After": str(retry_after), ASSISTANT_REASON_HEADER: "provider_busy"},
+            headers={"Retry-After": str(retry_after), ASSISTANT_REASON_HEADER: "provider_busy",
+                     ASSISTANT_SESSION_HEADER: str(session_id)},
         )
+    except rag_llm_client.LLMPricingNotConfiguredError:
+        logger.warning("RAG query refused: configured AI provider has no confirmed pricing")
+        conn.rollback()
+        refusal = credits.BudgetError("COST_NOT_CONFIGURED", credits.AI).as_http()
+        raise HTTPException(
+            status_code=refusal.status_code, detail=refusal.detail,
+            headers={ASSISTANT_REASON_HEADER: "cost_not_configured",
+                     ASSISTANT_SESSION_HEADER: str(session_id)},
+        ) from None
     except rag_llm_client.LLMNotConfiguredError as err:
         # An operator problem, not a transient one: say so instead of "try again".
         logger.error("RAG query: no language model is configured: %s", err)
@@ -220,7 +251,7 @@ def rag_query(
         raise HTTPException(
             status_code=503,
             detail="The assistant's AI service is not set up on this server yet. An administrator needs to configure it.",
-            headers={ASSISTANT_REASON_HEADER: "not_configured"},
+            headers={ASSISTANT_REASON_HEADER: "not_configured", ASSISTANT_SESSION_HEADER: str(session_id)},
         )
     except rag_llm_client.LLMError as err:
         logger.error("RAG query failed at the LLM provider (tenant=%s): %s", ctx.tenant_id, err)
@@ -228,13 +259,18 @@ def rag_query(
         raise HTTPException(
             status_code=502,
             detail="The assistant's language model is temporarily unavailable. Please try again shortly.",
-            headers={ASSISTANT_REASON_HEADER: "provider_unavailable"},
+            headers={ASSISTANT_REASON_HEADER: "provider_unavailable", ASSISTANT_SESSION_HEADER: str(session_id)},
         )
     except Exception:
         logger.exception("RAG query failed (tenant=%s)", ctx.tenant_id)
         conn.rollback()
+        failure_headers = {ASSISTANT_REASON_HEADER: "internal_error"}
+        if session_id is not None:
+            failure_headers[ASSISTANT_SESSION_HEADER] = str(session_id)
         raise HTTPException(
-            status_code=500, detail="RAG query failed.", headers={ASSISTANT_REASON_HEADER: "internal_error"},
+            status_code=500, detail="RAG query failed.", headers={
+                **failure_headers,
+            },
         )
     finally:
         if reservation is not None and not answered:
@@ -281,8 +317,10 @@ def list_uploaded_documents(conn, tenant_id: str) -> list:
             "size_bytes": int(size),
             "type": (os.path.splitext(file_name)[1].lstrip(".") or "pdf").lower(),
             "uploaded_at": uploaded_at.isoformat() if uploaded_at else None,
-            "status": _DOCUMENT_STATUS.get(status, "failed"),
+            "status": ("ready" if status == "Processed" and int(chunks) > 0
+                       else _DOCUMENT_STATUS.get(status, "failed")),
             "chunk_count": int(chunks),
+            "searchable": status == "Processed" and int(chunks) > 0,
         }
         for document_id, file_name, size, _content_type, uploaded_at, status, chunks in rows
     ]
@@ -292,6 +330,8 @@ def list_uploaded_documents(conn, tenant_id: str) -> list:
 def list_documents(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        if not rag_access.load_access(conn, ctx.tenant_id, ctx.user_id).allows(rag_access.DOCUMENTS):
+            raise HTTPException(status_code=403, detail="Your role cannot access Knowledge Base documents.")
         return {"documents": list_uploaded_documents(conn, ctx.tenant_id)}
     finally:
         conn.close()
@@ -333,7 +373,21 @@ def retry_document(document_id: UUID, ctx: TenantContext = Depends(get_tenant_co
     uploaded while the search model was unavailable). Only the company's own
     uploaded documents; returns the document's new status."""
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    reservation = None
+    reservation_committed = False
     try:
+        if not rag_access.load_access(conn, ctx.tenant_id, ctx.user_id).allows(rag_access.DOCUMENTS):
+            raise HTTPException(status_code=403, detail="Your role cannot access Knowledge Base documents.")
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT file_size_bytes, processed_status FROM rag_documents_metadata WHERE tenant_id=%s AND document_id=%s AND storage_bucket_path LIKE %s;",
+                           (ctx.tenant_id, str(document_id), UPLOADED_DOCUMENT_PREFIX + "%"))
+            stored = cursor.fetchone()
+        if stored is None:
+            raise HTTPException(status_code=404, detail="Document not found.")
+        if stored[1] != "Failed":
+            raise HTTPException(status_code=409, detail="Only a failed document can be retried.")
+        reservation = usage.reserve(conn, ctx.tenant_id, usage.DOCUMENT_EXTRACTION,
+                                    max(1, math.ceil(int(stored[0]) / 1024)))
         with conn.cursor() as cursor:
             cursor.execute(
                 """
@@ -346,11 +400,169 @@ def retry_document(document_id: UUID, ctx: TenantContext = Depends(get_tenant_co
             if cursor.fetchone() is None:
                 raise HTTPException(status_code=404, detail="Document not found.")
         conn.commit()
+        reservation_committed = True
+        rag_pipeline.invalidate_tenant_index_cache(ctx.tenant_id)
         rag_pipeline.ingest_pending_documents(conn, db.minio_client(), ctx.tenant_id)
         document = next((d for d in list_uploaded_documents(conn, ctx.tenant_id) if d["document_id"] == str(document_id)), None)
+        if not document or not document["searchable"]:
+            usage.release(conn, reservation)
+            conn.commit()
+            reservation_committed = False
         return {"document": document}
     except HTTPException:
         conn.rollback()
+        if reservation is not None and reservation_committed:
+            usage.release(conn, reservation)
+            conn.commit()
         raise
+    except Exception:
+        conn.rollback()
+        if reservation is not None and reservation_committed:
+            try:
+                usage.release(conn, reservation)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+        logger.exception("Knowledge Base retry failed (tenant=%s document=%s)", ctx.tenant_id, document_id)
+        raise HTTPException(status_code=500, detail="Document processing could not be completed.")
     finally:
+        conn.close()
+
+
+_RAG_UPLOAD_LIMIT = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+_RAG_MAGIC = {".pdf": b"%PDF-", ".docx": b"PK\x03\x04", ".xlsx": b"PK\x03\x04"}
+_RAG_CONTENT_TYPES = {".txt": "text/plain", ".md": "text/markdown", ".pdf": "application/pdf",
+                      ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                      ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+
+
+@router.post("/documents/upload")
+def upload_knowledge_document(file: UploadFile = File(...), ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    """Upload a Knowledge Base file without invoking business-data ingestion.
+
+    The supported extensions are exactly those the existing RAG extractor can
+    read. This route deliberately does not create an ingestion job or promote
+    sales/products/invoices.
+    """
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in rag_pipeline.data_access.SUPPORTED_DOCUMENT_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="This file type is not supported for Knowledge Base documents.")
+    contents = file.file.read(_RAG_UPLOAD_LIMIT + 1)
+    if len(contents) > _RAG_UPLOAD_LIMIT:
+        raise HTTPException(status_code=413, detail=f"File exceeds the {_RAG_UPLOAD_LIMIT}-byte upload limit.")
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    magic = _RAG_MAGIC.get(extension)
+    if magic and not contents.startswith(magic):
+        raise HTTPException(status_code=400, detail=f"File content doesn't match its '{extension}' extension.")
+    try:
+        minio_client = db.minio_client()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Document storage is unavailable.")
+
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    digest = hashlib.sha256(contents).hexdigest()
+    lock_key = f"rag-document:{ctx.tenant_id}:{digest}"
+    lock_acquired = False
+    reservation = None
+    reservation_committed = False
+    object_key = f"uploads/{ctx.tenant_id}/{digest}{extension}"
+    try:
+        if not rag_access.load_access(conn, ctx.tenant_id, ctx.user_id).allows(rag_access.DOCUMENTS):
+            raise HTTPException(status_code=403, detail="Your role cannot add Knowledge Base documents.")
+        # A session lock spans DB commits and the object-store PUT, making a
+        # repeated/concurrent identical upload resolve to the same document.
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_lock(hashtextextended(%s, 0));", (lock_key,))
+            lock_acquired = True
+            cursor.execute("SELECT document_id, processed_status, file_name FROM rag_documents_metadata "
+                           "WHERE tenant_id=%s AND content_hash=%s ORDER BY uploaded_at DESC LIMIT 1;",
+                           (ctx.tenant_id, digest))
+            existing = cursor.fetchone()
+        if existing:
+            if existing[1] == "Pending":
+                rag_pipeline.ingest_pending_documents(conn, minio_client, ctx.tenant_id)
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT processed_status FROM rag_documents_metadata WHERE tenant_id=%s AND document_id=%s;",
+                                   (ctx.tenant_id, existing[0]))
+                    latest_status = cursor.fetchone()[0]
+            else:
+                latest_status = existing[1]
+            return {"document_id": str(existing[0]), "status": _DOCUMENT_STATUS.get(latest_status, "failed"),
+                "searchable": latest_status == "Processed",
+                    "duplicate": True, "file_name": existing[2]}
+
+        size_mb = len(contents) / 1048576
+        usage.ensure_capacity(conn, ctx.tenant_id, usage.DOCUMENT_STORAGE_MB, size_mb)
+        reservation = usage.reserve(conn, ctx.tenant_id, usage.DOCUMENT_EXTRACTION,
+                                    max(1, math.ceil(len(contents) / 1024)))
+        storage_ledger.record(conn, ctx.tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key, len(contents),
+                              "rag_document_upload")
+        file_name = Path((file.filename or f"document{extension}").replace("\\", "/")).name[:255]
+        conn.commit()
+        reservation_committed = True
+        if not minio_client.bucket_exists(rag_pipeline.DEFAULT_BUCKET):
+            minio_client.make_bucket(rag_pipeline.DEFAULT_BUCKET)
+        minio_client.put_object(rag_pipeline.DEFAULT_BUCKET, object_key, io.BytesIO(contents),
+                                length=len(contents), content_type=_RAG_CONTENT_TYPES[extension])
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rag_documents_metadata "
+                "(tenant_id,file_name,storage_bucket_path,file_size_bytes,content_type,uploaded_by_user_id,"
+                "processed_status,content_hash) VALUES (%s,%s,%s,%s,%s,%s,'Pending',%s) RETURNING document_id;",
+                (ctx.tenant_id, file_name, object_key, len(contents), _RAG_CONTENT_TYPES[extension], ctx.user_id, digest))
+            document_id = str(cursor.fetchone()[0])
+        storage_ledger.forget(conn, ctx.tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key)
+        conn.commit()
+        processed = rag_pipeline.ingest_pending_documents(conn, minio_client, ctx.tenant_id)
+        document = next((item for item in list_uploaded_documents(conn, ctx.tenant_id)
+                         if item["document_id"] == document_id), None)
+        if not document or document["status"] != "ready":
+            usage.release(conn, reservation)
+            conn.commit()
+        return {"document_id": document_id, "status": document["status"] if document else "failed",
+                "searchable": bool(document and document["status"] == "ready"), "duplicate": False,
+                "processed_count": processed}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except usage.PlanLimitReached as exc:
+        conn.rollback()
+        raise exc.as_http() from exc
+    except Exception:
+        logger.exception("Knowledge Base upload failed (tenant=%s)", ctx.tenant_id)
+        conn.rollback()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM rag_documents_metadata WHERE tenant_id=%s AND storage_bucket_path=%s;",
+                               (ctx.tenant_id, object_key))
+                metadata_exists = cursor.fetchone() is not None
+            if metadata_exists:
+                with conn.cursor() as cursor:
+                    cursor.execute("UPDATE rag_documents_metadata SET processed_status='Failed' "
+                                   "WHERE tenant_id=%s AND storage_bucket_path=%s;",
+                                   (ctx.tenant_id, object_key))
+                    storage_ledger.forget(conn, ctx.tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key)
+                conn.commit()
+            elif minio_client.stat_object(rag_pipeline.DEFAULT_BUCKET, object_key):
+                storage_ledger.compensate_upload(
+                    conn, ctx.tenant_id, rag_pipeline.DEFAULT_BUCKET, object_key, len(contents),
+                    "rag_document_upload",
+                    lambda: minio_client.remove_object(rag_pipeline.DEFAULT_BUCKET, object_key),
+                )
+                conn.commit()
+        except Exception:
+            conn.rollback()
+        if reservation is not None and reservation_committed:
+            usage.release(conn, reservation)
+            conn.commit()
+        raise HTTPException(status_code=500, detail="Knowledge Base upload could not be completed.")
+    finally:
+        if lock_acquired:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT pg_advisory_unlock(hashtextextended(%s, 0));", (lock_key,))
+                conn.commit()
+            except Exception:
+                conn.rollback()
         conn.close()

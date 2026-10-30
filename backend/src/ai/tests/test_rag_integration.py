@@ -125,7 +125,7 @@ def test_replace_document_chunks_bulk_inserts_preserve_chunk_order(conn, seeded_
     not just that it's faster. Doesn't need AI_TEST_EMBEDDINGS - fake,
     deterministic embeddings are enough to check persistence/ordering.
     """
-    document_id = _insert_document(conn, seeded_tenant, "multi.txt", f"test/{uuid.uuid4()}.txt")
+    document_id = _insert_document(conn, seeded_tenant, "multi.txt", f"test/{uuid.uuid4()}.txt", status="Processed")
     chunks = [f"chunk number {i}" for i in range(5)]
     embeddings = np.stack([np.full(384, float(i), dtype=np.float32) for i in range(5)])
 

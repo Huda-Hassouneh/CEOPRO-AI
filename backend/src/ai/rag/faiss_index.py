@@ -29,8 +29,6 @@ class FAISSIndex:
         `chunks` is a list of (chunk_id, text) pairs; `embeddings` is an
         (n, dim) array in the same order, e.g. from embeddings.embed().
         """
-        import faiss
-
         if len(chunks) != len(embeddings):
             raise ValueError(f"chunks ({len(chunks)}) and embeddings ({len(embeddings)}) must have the same length")
 
@@ -41,6 +39,10 @@ class FAISSIndex:
             self._index = None
             self._dim = None
         else:
+            # An empty semantic index must leave keyword-only retrieval usable
+            # without loading the optional FAISS dependency.
+            import faiss
+
             self._dim = embeddings.shape[1]
             self._index = faiss.IndexFlatIP(self._dim)
             self._index.add(embeddings)

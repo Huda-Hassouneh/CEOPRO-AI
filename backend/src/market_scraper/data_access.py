@@ -33,7 +33,7 @@ def _get_pool() -> TenantConnectionPool:
     return _POOL
 
 
-def get_tenant_connection(tenant_id: str) -> PooledTenantConnection:
+def get_tenant_connection(tenant_id: str, actor_user_id: Optional[str] = None) -> PooledTenantConnection:
     """
     Pooled tenant-scoped connection (production-hardening audit follow-up -
     see src/infrastructure/db_pool.py's own docstring for why a pooled
@@ -41,7 +41,7 @@ def get_tenant_connection(tenant_id: str) -> PooledTenantConnection:
     issue, to stay RLS-safe across reuse). No caller needs to change: this
     still returns something that duck-types a plain psycopg2 connection.
     """
-    actor_user_id = os.getenv("SCRAPER_ACTOR_USER_ID")
+    actor_user_id = actor_user_id or os.getenv("SCRAPER_ACTOR_USER_ID")
     if not actor_user_id:
         raise RuntimeError("SCRAPER_ACTOR_USER_ID must identify an active tenant service principal")
     return _get_pool().get_tenant_connection(tenant_id, actor_user_id)
@@ -79,6 +79,7 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
         credentials = {}
     else:
         credentials = decrypt_credentials(row[16], get_default_kms_backend())
+    from src.ai.core.operation_receipts import connector_source_fingerprint
     return {
         "source_id": str(row[0]),
         "source_name": row[1],
@@ -97,11 +98,12 @@ def load_source(conn, tenant_id: str, source_id: str) -> Optional[dict]:
         "retention_days": row[14],
         "contains_personal_data": row[15],
         "connection_credentials": credentials,
+        "source_execution_fingerprint": connector_source_fingerprint(row[10], row[16]),
     }
 
 
 def set_source_credentials(
-    conn, tenant_id: str, source_id: str, credentials: dict, kms=None,
+    conn, tenant_id: str, source_id: str, credentials: dict, kms=None, *, commit: bool = True,
 ) -> None:
     """
     Writes connection_credentials_vault - the real replacement for a raw
@@ -132,7 +134,8 @@ def set_source_credentials(
                 "source not found for this tenant - create it first with "
                 "`python -m src.market_scraper.policy_cli register-source`"
             )
-    conn.commit()
+    if commit:
+        conn.commit()
 
 
 def load_scrape_targets(conn, tenant_id: str, source_id: str) -> list[dict]:
@@ -255,7 +258,7 @@ def count_tenant_sources_by_status(conn, tenant_id: str) -> dict:
     return counts
 
 
-def create_ingestion_job(conn, tenant_id: str, source_id: str) -> str:
+def create_ingestion_job(conn, tenant_id: str, source_id: str, receipt: dict | None = None) -> str:
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -272,8 +275,62 @@ def create_ingestion_job(conn, tenant_id: str, source_id: str) -> str:
         row = cursor.fetchone()
     if not row:
         raise ValueError("source is missing, inactive, or not ALLOWED")
+    if receipt is not None:
+        from src.ai.core import operation_receipts
+        operation_receipts.attach_ingestion_job(conn, receipt, str(row[0]))
     conn.commit()
     return str(row[0])
+
+
+def create_or_reuse_receipt_ingestion_job(
+    conn, tenant_id: str, source_id: str, receipt: dict, *, replay_safe_provider_read: bool = False,
+    provider: str | None = None,
+) -> str:
+    """Reuse a receipt-owned job, optionally reopening a failed safe provider read."""
+    if not receipt or str(receipt.get("tenant_id")) != str(tenant_id):
+        raise ValueError("tenant-scoped operation receipt required")
+    existing_job_id = receipt.get("ingestion_job_id")
+    if existing_job_id:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT source_id,job_status FROM ingestion_jobs "
+                "WHERE tenant_id=%s::uuid AND job_id=%s::uuid FOR UPDATE;",
+                (tenant_id, existing_job_id),
+            )
+            row = cursor.fetchone()
+        if row and str(row[0]) != str(source_id):
+            raise ValueError("receipt ingestion job belongs to a different source")
+        if row and row[1] == "PROCESSING":
+            return str(existing_job_id)
+        if row and row[1] == "FAILED" and replay_safe_provider_read:
+            # Reuse the receipt's existing job identity for verified Shopify
+            # GraphQL and WooCommerce REST reads. Both are read-only provider
+            # operations; their M95/M96/M98 writes are idempotent and the
+            # failed attempt never advanced a checkpoint.
+            from src.ai.core import operation_receipts
+            if receipt.get("operation_type") != operation_receipts.SCHEDULED_CONNECTOR_SYNC:
+                raise ValueError("safe provider retry requires a scheduled connector receipt")
+            if provider not in {"shopify", "woocommerce"}:
+                raise ValueError("safe provider retry requires a supported verified provider")
+            operation_receipts.assert_fence(conn, receipt, allow_pre_provider=True)
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE ingestion_jobs SET job_status='PROCESSING',started_at=NOW(),ended_at=NULL, "
+                    "heartbeat_at=NOW(),rows_processed=0,rows_failed=0,rows_partial=0,rows_quarantined=0,error_log=NULL "
+                    "WHERE tenant_id=%s::uuid AND source_id=%s::uuid AND job_id=%s::uuid "
+                    "AND job_status='FAILED' AND EXISTS (SELECT 1 FROM data_sources ds "
+                    "JOIN public.keel_provider_sources ps ON ps.tenant_id=ds.tenant_id AND ps.source_id=ds.source_id "
+                    "WHERE ds.tenant_id=%s::uuid AND ds.source_id=%s::uuid AND ds.collector_key=%s "
+                    "AND ds.is_active IS TRUE AND ds.policy_status='ALLOWED' "
+                    "AND ps.provider=ds.collector_key AND ps.provider=%s AND ps.connection_state='verified');",
+                    (tenant_id, source_id, existing_job_id, tenant_id, source_id, provider, provider),
+                )
+                reopened = cursor.rowcount == 1
+            if not reopened:
+                raise ValueError("failed receipt job is no longer eligible for safe retry")
+            conn.commit()
+            return str(existing_job_id)
+    return create_ingestion_job(conn, tenant_id, source_id, receipt=receipt)
 
 
 def load_ingestion_job_status(conn, tenant_id: str, job_id: str) -> Optional[str]:
@@ -319,10 +376,53 @@ def recover_stale_ingestion_jobs(conn, tenant_id: str, stale_minutes: int = 30) 
     return recovered
 
 
+def fail_source_changed_ingestion_job(conn, tenant_id: str, receipt: dict) -> bool:
+    """Mark this receipt-owned job failed after its source settings changed.
+
+    This updates only the job status, never staged/canonical data, and requires
+    the same live receipt generation so an old worker cannot overwrite a newer
+    claim.
+    """
+    job_id = receipt.get("ingestion_job_id")
+    if not job_id:
+        return False
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT 1 FROM public.keel_operation_receipts WHERE tenant_id=%s::uuid "
+            "AND receipt_id=%s::uuid AND lease_owner=%s AND lease_generation=%s "
+            "AND state IN ('authorized','provider_started') AND lease_expires_at > NOW() FOR UPDATE;",
+            (tenant_id, receipt["receipt_id"], receipt["worker_id"], receipt["lease_generation"]),
+        )
+        owns_live_lease = cursor.fetchone() is not None
+        if not owns_live_lease:
+            conn.rollback()
+            return False
+        cursor.execute(
+            "UPDATE public.ingestion_jobs SET job_status='FAILED', "
+            "error_log='Connector settings changed during synchronization; no further rows were committed.', "
+            "ended_at=NOW(), heartbeat_at=NOW() WHERE tenant_id=%s::uuid AND job_id=%s::uuid "
+            "AND job_status='PROCESSING';",
+            (tenant_id, job_id),
+        )
+        updated = cursor.rowcount == 1
+    conn.commit()
+    return updated
+
+
 def finish_ingestion_job(
     conn, tenant_id: str, job_id: str, status: str, processed: int,
-    failed: int, error=None, quarantined: int = 0,
+    failed: int, error=None, quarantined: int = 0, receipt: dict | None = None,
+    receipt_allow_pre_provider: bool = False,
+    provider_checkpoint: dict | None = None,
+    provider_checkpoints: list[dict] | None = None,
 ):
+    if provider_checkpoint is not None and provider_checkpoints is not None:
+        raise ValueError("use one provider checkpoint argument")
+    if receipt is not None:
+        from src.ai.core import operation_receipts
+        operation_receipts.assert_fence(
+            conn, receipt, allow_pre_provider=receipt_allow_pre_provider,
+        )
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -343,6 +443,29 @@ def finish_ingestion_job(
             """,
             (tenant_id, job_id),
         )
+        checkpoints = provider_checkpoints if provider_checkpoints is not None else (
+            [provider_checkpoint] if provider_checkpoint is not None else []
+        )
+        if checkpoints and status == "COMPLETED":
+            # The checkpoint and successful job state share this transaction.
+            # The database function also verifies the receipt lease generation,
+            # source configuration version, and completed ingestion job.
+            from src.market_scraper.provider_lifecycle import advance_completed_checkpoint
+
+            for checkpoint in checkpoints:
+                advance_completed_checkpoint(
+                    conn,
+                    tenant_id=tenant_id,
+                    source_id=checkpoint["source_id"],
+                    stream_key=checkpoint["stream_key"],
+                    continuation=checkpoint["continuation"],
+                    receipt=receipt or {},
+                    job_id=job_id,
+                    configuration_version=checkpoint["configuration_version"],
+                    job_completed=True,
+                    rows_failed=failed,
+                    rows_partial=checkpoint.get("rows_partial", 0),
+                )
     conn.commit()
 
 
@@ -482,6 +605,7 @@ def list_tenant_competitors_by_proximity(
 def register_self_service_data_source(
     conn, tenant_id: str, actor_user_id: str, source_name: str, collector_key: str,
     collector_config: dict, credentials: Optional[dict] = None, sync_frequency_minutes: Optional[int] = None,
+    *, source_url: Optional[str] = None, commit: bool = True,
 ) -> str:
     """
     The onboarding flow's real INSERT - the one missing piece between the
@@ -516,20 +640,20 @@ def register_self_service_data_source(
             """
             INSERT INTO data_sources
                 (source_id, tenant_id, source_name, source_type, collector_key, collector_config,
-                 policy_status, is_active, approval_reference, approved_by, approved_at,
+                 source_url, policy_status, is_active, approval_reference, approved_by, approved_at,
                  privacy_reviewed_at, sync_frequency_minutes)
-            VALUES (%s, %s, %s, 'OWN_SYSTEM_CONNECTOR', %s, %s::jsonb, 'ALLOWED', TRUE,
+            VALUES (%s, %s, %s, 'OWN_SYSTEM_CONNECTOR', %s, %s::jsonb, %s, 'ALLOWED', TRUE,
                     %s, %s, NOW(), NOW(), %s);
             """,
             (
-                source_id, tenant_id, source_name, collector_key, json.dumps(collector_config),
+                source_id, tenant_id, source_name, collector_key, json.dumps(collector_config), source_url,
                 "Self-service connection to the tenant's own business system", actor_user_id,
                 sync_frequency_minutes,
             ),
         )
     if credentials:
-        set_source_credentials(conn, tenant_id, source_id, credentials)  # commits
-    else:
+        set_source_credentials(conn, tenant_id, source_id, credentials, commit=False)
+    if commit:
         conn.commit()
     return source_id
 

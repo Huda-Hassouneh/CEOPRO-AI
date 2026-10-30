@@ -426,6 +426,14 @@ class LLMNotConfiguredError(LLMError):
     An operator must fix it; retrying won't help."""
 
 
+class LLMPricingNotConfiguredError(LLMNotConfiguredError):
+    """A configured provider was refused before invocation: no confirmed cost.
+
+    Remains an LLM error so the existing grounded evidence fallback is preserved;
+    the HTTP/UI boundary can distinguish pricing from missing credentials.
+    """
+
+
 class LLMRequestTooLargeError(LLMError):
     """The provider refused the request for its size (413, e.g. a free tier's
     tokens-per-minute ceiling) - a smaller prompt may still succeed."""
@@ -632,6 +640,7 @@ def chat_completion(
     timeout: float = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     usage_out: dict = None,
+    json_mode: bool = False,
 ) -> str:
     """Thin wrapper over _chat_completion_with_usage() that keeps this
     function's long-standing "just the answer text" contract (and every
@@ -640,6 +649,7 @@ def chat_completion(
     since it also needs the token usage."""
     answer, call_usage = _chat_completion_with_usage(
         messages, api_key=api_key, model=model, temperature=temperature, timeout=timeout, max_tokens=max_tokens,
+        **({'json_mode': True} if json_mode else {}),
     )
     if usage_out is not None:  # callers that meter plan usage add up the real token count
         usage_out["total_tokens"] = usage_out.get("total_tokens", 0) + int((call_usage or {}).get("total_tokens") or 0)
@@ -784,6 +794,12 @@ def _call_provider(
             api_key = "local"  # llama-server ignores this; only Groq actually validates it.
 
     model = model or (PAID_LLM_MODEL if using_paid else HUGGINGFACE_LLM_MODEL if using_hf else None) or MODEL_NAME
+    from src.ai.billing import credits
+
+    approved_limit = credits.ai_output_token_limit()
+    retry_limit = min(MAX_TOKENS_ON_RETRY, approved_limit) if approved_limit is not None else MAX_TOKENS_ON_RETRY
+    if approved_limit is not None:
+        max_tokens = min(max_tokens, approved_limit)
     payload = {
         "model": model,
         "messages": messages,
@@ -804,12 +820,15 @@ def _call_provider(
         # the provider's own JSON check): ask once more without it.
         payload.pop("response_format", None)
         response = _metered_post(provider, model, url, payload, headers, timeout, billed)
-    while _ran_out_of_tokens(response) and payload["max_tokens"] < MAX_TOKENS_ON_RETRY:
-        budget = min(payload["max_tokens"] * 2, MAX_TOKENS_ON_RETRY)
+    while _ran_out_of_tokens(response) and payload["max_tokens"] < retry_limit:
+        budget = min(payload["max_tokens"] * 2, retry_limit)
         logger.warning("LLM answer ran out of its %s-token budget (empty or cut off); retrying with %s",
                        payload["max_tokens"], budget)
         payload["max_tokens"] = budget
         response = _metered_post(provider, model, url, payload, headers, timeout, billed)
+
+    if _ran_out_of_tokens(response):
+        raise LLMError("The answer exceeded the permitted output budget; no complete answer was produced.")
 
     if response.status_code == 429:
         raise LLMRateLimitError(

@@ -7,6 +7,7 @@
 //   [CHROMIUM_PATH=/path/to/chrome] node tests/browser/smoke.mjs
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
+import { isExpectedPlatformMeDenial } from './response-policy.mjs';
 
 const BASE = process.env.APP_URL || 'http://localhost:5173';
 const API = process.env.API_URL || 'http://localhost:8000';
@@ -14,9 +15,14 @@ const { E2E_EMAIL: email, E2E_PASSWORD: password } = process.env;
 const locale = process.env.E2E_LOCALE || 'en';
 const width = Number(process.env.E2E_WIDTH || 1440);
 const theme = process.env.E2E_THEME || '';
+const expectsTenantPlatformDenial = process.env.E2E_EXPECT_PLATFORM_DENIAL === 'true';
+const ciTenantEmail = 'ci-smoke@keel-ci.example';
 if (!email || !password) {
   console.error('Set E2E_EMAIL and E2E_PASSWORD to an account that has finished setup.');
   process.exit(2);
+}
+if (expectsTenantPlatformDenial && email.trim().toLowerCase() !== ciTenantEmail) {
+  throw new Error('The platform-denial expectation is restricted to the disposable CI tenant identity.');
 }
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
@@ -25,14 +31,28 @@ await context.addInitScript(([l, th]) => { localStorage.setItem('ceopro_locale',
 const page = await context.newPage();
 let problems = [];
 page.on('pageerror', (e) => problems.push(`page error: ${String(e).slice(0, 200)}`));
-page.on('response', (r) => { if (r.status() >= 400 && r.url().startsWith(API)) problems.push(`${r.status()} ${r.request().method()} ${r.url().slice(API.length)}`); });
+page.on('response', (r) => {
+  if (r.status() >= 400 && r.url().startsWith(API)) {
+    const expected = isExpectedPlatformMeDenial({ status: r.status(), method: r.request().method(), url: r.url() }, {
+      expectedTenantFixture: expectsTenantPlatformDenial,
+      apiUrl: API,
+    });
+    if (!expected) problems.push(`${r.status()} ${r.request().method()} ${r.url().slice(API.length)}`);
+  }
+});
 
 await page.goto(`${BASE}/login`);
 await page.fill('input[type="email"]', email);
 await page.fill('input[type="password"]', password);
 await page.click('button[type="submit"]');
 await page.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 30000 });
-const token = await page.evaluate(() => JSON.parse(localStorage.getItem('ceopro_auth_session') || '{}').accessToken);
+const session = await page.evaluate(() => JSON.parse(localStorage.getItem('ceopro_auth_session') || '{}'));
+const token = session.accessToken;
+if (expectsTenantPlatformDenial) {
+  if (!session.roles?.includes('owner')) throw new Error('The CI browser fixture must sign in as a tenant Owner.');
+  const platformMe = await page.request.get(new URL('/platform/me', API).href, { headers: { Authorization: `Bearer ${token}` } });
+  if (platformMe.status() !== 403) throw new Error(`Tenant Owner should be denied /platform/me (received HTTP ${platformMe.status()}).`);
+}
 const get = async (path) => (await page.request.get(API + path, { headers: { Authorization: `Bearer ${token}` } })).json().catch(() => null);
 const product = (await get('/products?limit=1'))?.products?.[0];
 const competitor = (await get('/discovery/competitors?limit=1'))?.competitors?.[0];

@@ -6,16 +6,33 @@ one computation.
 """
 import os
 import uuid
+import subprocess
+import sys
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.ai.dashboard import command_center
+from src.ai.core import tenant_cache
+from src.ai.tests.signup_helpers import create_verified_test_account
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("AI_TEST_DATABASE_URL") or not os.getenv("APP_DB_PASSWORD"),
     reason="AI_TEST_DATABASE_URL and/or APP_DB_PASSWORD not set - skipping live-DB cache test",
 )
+
+
+def test_real_redis_invalidation_reaches_a_second_python_process():
+    tenant = str(uuid.uuid4())
+    store = tenant_cache._shared_store()
+    assert store is not None and store.ping(), "Disposable Redis must be available"
+    assert tenant_cache.get_or_compute("cross-process", tenant, None, lambda: "before", ttl=60) == "before"
+    result = subprocess.run([sys.executable, "-c",
+        "from src.ai.core.tenant_cache import bump; bump(" + repr(tenant) + ")"],
+        capture_output=True, timeout=20)
+    assert result.returncode == 0
+    assert store.get(tenant_cache.SHARED_KEY_PREFIX + tenant) == "1"
+    assert tenant_cache.get_or_compute("cross-process", tenant, None, lambda: "after", ttl=60) == "after"
 
 
 @pytest.fixture
@@ -26,9 +43,9 @@ def client():
 
 
 def _company(client, name):
-    session = client.post("/auth/signup", json={
+    session = create_verified_test_account(client, {
         "full_name": "Owner", "business_name": name, "email": f"cc+{uuid.uuid4().hex[:8]}@example.com",
-        "country_code": "JO", "primary_currency": "JOD", "password": "Cache!Test-2026"}).json()
+        "country_code": "JO", "primary_currency": "JOD", "password": "Cache!Test-2026"})
     headers = {"Authorization": f"Bearer {session['access_token']}"}
     product = client.post("/products", headers=headers, json={
         "product_name": {"en": f"{name} Olive Oil"}, "current_price": 8.5, "currency": "JOD"})
@@ -65,3 +82,20 @@ def test_the_dashboard_and_the_alerts_bell_share_one_computation(client, monkeyp
     assert client.get("/dashboard/command-center", headers=headers).status_code == 200
     assert client.get("/alerts", headers=headers).status_code == 200
     assert len(calls) == 1
+
+
+def test_sales_cache_follows_language_and_invalidates_after_product_write(client):
+    headers, product = _company(client, "Bilingual")
+    response = client.patch(f"/products/{product}", headers=headers,
+        json={"product_name": {"en": "Olive Oil", "ar": "زيت الزيتون"}})
+    assert response.status_code == 200, response.text
+    assert client.post("/sales/quick-sale", headers=headers, json={"product_id": product, "quantity": 1}).status_code == 200
+    def name(language):
+        result = client.get("/reports/sales", headers={**headers, "X-App-Language": language})
+        assert result.status_code == 200, result.text
+        return result.json()["rows"][0]["product_name"]
+    assert name("en") == "Olive Oil"
+    assert name("ar") == "زيت الزيتون"
+    assert client.patch(f"/products/{product}", headers=headers,
+        json={"product_name": {"en": "Updated Oil", "ar": "زيت محدث"}}).status_code == 200
+    assert name("en") == "Updated Oil" and name("ar") == "زيت محدث"

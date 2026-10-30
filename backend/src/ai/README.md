@@ -1,18 +1,22 @@
-# KEEL — AI/ML Service (`src/ai/`)
+# KEEL application and AI services (`src/ai/`)
 
-Owned by the AI/ML engineering track. Scope is limited to what this team owns per
-[`src/infrastructure/DATA_OWNERSHIP_AND_CONTRACTS.md`](../infrastructure/DATA_OWNERSHIP_AND_CONTRACTS.md):
-reading business data written by other services, producing ML model outputs, and writing to the
-tables this track owns (`demand_forecasts`, `evidence_records`, `model_versions`,
-`recommendation_outcomes`, `sentiment_results`).
+This package now contains the unified FastAPI application: authentication,
+tenant-scoped business APIs, billing/entitlements/accounting and AI orchestration.
+Python is the runtime authority; it is not a separate ML service behind a Node API.
+Start at the [backend guide](../../README.md),
+[architecture](../../../docs/ARCHITECTURE.md) and
+[AI feature map](../../../docs/FEATURES.md#ai-workflows).
 
-This directory intentionally does **not** touch:
-- `docker-compose.yml` / any `Dockerfile.*` — infra owns container/deployment wiring.
-- `src/infrastructure/database/init_schema.sql` — schema changes are infra/DB's call.
-- Frontend/dashboard code — UI team's responsibility.
+`main.py` wires routers and lifecycle tasks; domain packages own business services.
+The detailed model notes below explain forecasting, pricing, sentiment and RAG.
+Their specification/phase references are historical design context, not setup steps.
+Database changes use the current forward migration runner and `Final_schema.sql`;
+do not initialize from the older `init_schema.sql`.
 
-Dependencies for this module are isolated in [`requirements.txt`](requirements.txt) so they don't
-get bundled into the backend's dependency set.
+[`requirements.txt`](requirements.txt) is one of the authoritative dependency
+manifests. Root `setup` derives constraints from it and the scraper manifest;
+`setup --models` installs optional model libraries. See
+[local setup](../../../docs/LOCAL_DEVELOPMENT.md) before installing manually.
 
 ## Modules
 

@@ -1,0 +1,17 @@
+# Dedicated disposable cluster. Never point these tests at KEEL_DEV.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: keel_billing_test
+      POSTGRES_USER: keel_billing_test_admin
+      POSTGRES_PASSWORD: ${BILLING_TEST_ADMIN_PASSWORD:?Set a password for this disposable test cluster}
+    ports:
+      - "127.0.0.1:${BILLING_TEST_DB_PORT:-55439}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keel_billing_test_admin -d keel_billing_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

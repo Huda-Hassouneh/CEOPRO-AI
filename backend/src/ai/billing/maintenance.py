@@ -22,6 +22,19 @@ _started = False
 def run_once(system_connection=None) -> dict:
     from src.ai import db
 
+    if system_connection is None and os.getenv("CREDIT_ACCOUNTING_DB_PASSWORD"):
+        conn = db.credit_accounting_connection("00000000-0000-0000-0000-000000000000")
+        try:
+            with conn.cursor() as cur:
+                timeout = credits.policy(conn)["reservation_timeout_seconds"]
+                cur.execute("SELECT public.billing_expired_credit_tenants(%s)", (timeout,))
+                tenants = [str(r[0]) for r in cur.fetchall()]
+        finally:
+            conn.close()
+        expired = 0
+        for tenant in tenants:
+            expired += run_once(lambda: db.credit_accounting_connection(tenant))["expired_reservations"]
+        return {"expired_reservations": expired}
     conn = (system_connection or db.system_connection)()
     try:
         expired = credits.expire_stale_reservations(conn)

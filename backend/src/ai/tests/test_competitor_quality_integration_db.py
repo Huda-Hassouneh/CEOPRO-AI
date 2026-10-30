@@ -164,11 +164,11 @@ def test_a_rescore_stops_tracking_a_competitor_the_system_tracked_in_a_different
 
 def test_the_flat_competitors_list_is_alphabetical_by_default_and_confidence_on_request():
     from src.ai.main import app
+    from src.ai.tests.signup_helpers import create_verified_test_account
+
     client = TestClient(app)
-    response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Order Co", "email": f"order+{uuid.uuid4().hex[:8]}@example.com",
-                                                  "country_code": "JO", "primary_currency": "JOD", "password": "Order!Test-2026"})
-    assert response.status_code == 200, response.text
-    session = response.json()
+    session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Order Co", "email": f"order+{uuid.uuid4().hex[:8]}@example.com",
+                                                     "country_code": "JO", "primary_currency": "JOD", "password": "Order!Test-2026"})
     with psycopg2.connect(DATABASE_URL) as admin, admin.cursor() as cursor:
         for name, score, label in (("Aardvark", 20.0, "Low"), ("Zebra", 90.0, "High"), ("Mid", 55.0, "Medium"), ("Unscored", None, None)):
             competitor_id = str(uuid.uuid4())

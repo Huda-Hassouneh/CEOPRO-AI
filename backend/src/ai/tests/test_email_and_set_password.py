@@ -7,6 +7,7 @@ import logging
 import os
 import uuid
 
+import psycopg2
 import pytest
 from fastapi.testclient import TestClient
 
@@ -46,20 +47,54 @@ def test_mask_address():
 
 
 @LIVE_DB
-def test_set_password_lets_the_owner_sign_in_with_the_new_password():
+def test_set_password_lets_an_existing_owner_sign_in_with_the_new_password():
     from scripts import set_password
     from src.ai.main import app
 
     client = TestClient(app)
-    email = f"owner+{uuid.uuid4().hex[:8]}@example.com"
-    assert client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Owner Co", "email": email,
-                                             "country_code": "JO", "primary_currency": "JOD",
-                                             "password": "Old!Password-2026"}).status_code in (200, 201)
+    tenant_id, user_id = str(uuid.uuid4()), str(uuid.uuid4())
+    email = f"owner+{uuid.uuid4().hex[:8]}@example.test"
+    conn = psycopg2.connect(os.environ["AI_TEST_DATABASE_URL"])
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO companies (tenant_id,business_name,country_code,primary_currency) VALUES (%s,'Owner Co','JO','JOD')",
+                (tenant_id,),
+            )
+            cursor.execute(
+                "INSERT INTO users (user_id,email,password_hash,full_name,email_verified_at) VALUES (%s,%s,'unused-test-hash','Owner',NOW())",
+                (user_id, email),
+            )
+            cursor.execute(
+                "INSERT INTO tenant_users (tenant_id,user_id,role_key) VALUES (%s,%s,'owner')",
+                (tenant_id, user_id),
+            )
+            cursor.execute(
+                "INSERT INTO tenant_plan_assignments (tenant_id,plan_key,status,source) VALUES (%s,'starter','active','manual')",
+                (tenant_id,),
+            )
+        conn.commit()
+    finally:
+        conn.close()
 
-    assert set_password.set_password(email, "New!Password-2026") is True
+    assert set_password.set_password(email, "New!Password-2026", mark_verified=True) is True
     assert client.post("/auth/login", json={"email": email, "password": "New!Password-2026"}).status_code == 200
     assert client.post("/auth/login", json={"email": email, "password": "Old!Password-2026"}).status_code == 401
     assert set_password.set_password(f"nobody+{uuid.uuid4().hex[:8]}@example.com", "New!Password-2026") is False
+
+
+@LIVE_DB
+def test_pending_signup_is_not_a_password_reset_target():
+    from scripts import set_password
+    from src.ai.main import app
+
+    email = f"pending+{uuid.uuid4().hex[:8]}@example.test"
+    response = TestClient(app).post("/auth/signup", json={
+        "full_name": "Pending", "business_name": "Pending Co", "email": email,
+        "country_code": "JO", "primary_currency": "JOD", "password": "Old!Password-2026",
+    })
+    assert response.status_code == 202
+    assert set_password.set_password(email, "New!Password-2026") is False
 
 
 def test_the_script_rejects_weak_or_mismatched_passwords_and_never_prints_them(monkeypatch, capsys):

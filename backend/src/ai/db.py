@@ -32,7 +32,7 @@ close()) exactly as before.
 
 import os
 from typing import Optional
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 from minio import Minio
 
@@ -63,7 +63,9 @@ def _app_database_url() -> str:
     # DATABASE_URL already includes ":5432" explicitly, which is why this
     # never surfaced against the local Postgres instance.
     port = parsed.port or 5432
-    netloc = f"ceopro_app:{app_password}@{parsed.hostname}:{port}"
+    # Passwords are arbitrary secrets; encode URL-reserved characters before rebuilding the DSN.
+    encoded_password = quote(app_password, safe="")
+    netloc = f"ceopro_app:{encoded_password}@{parsed.hostname}:{port}"
     return urlunparse(parsed._replace(netloc=netloc))
 
 
@@ -141,6 +143,118 @@ def system_connection():
     import psycopg2
 
     return psycopg2.connect(_admin_database_url())
+
+
+class _BillingSetupConnection(PooledTenantConnection):
+    """Context survives commits; this identity cannot confirm payments or grant paid rights."""
+    billing_setup_only = True
+
+
+def billing_setup_connection(tenant_id: str, user_id: str):
+    """Checkout coordination and one-time trials, without an administrative DSN.
+
+    Existing deployments without the separate credential retain their existing
+    trusted-connection configuration. Local dev explicitly provisions this role;
+    it never changes DATABASE_URL to the migration administrator.
+    """
+    password = os.getenv("BILLING_SETUP_DB_PASSWORD")
+    if not password:
+        return system_connection()
+    import psycopg2
+
+    parsed = urlparse(_admin_database_url())
+    netloc = f"ceopro_billing_setup:{quote(password, safe='')}@{parsed.hostname}:{parsed.port or 5432}"
+    raw = psycopg2.connect(urlunparse(parsed._replace(netloc=netloc)))
+    try:
+        with raw.cursor() as cur:
+            cur.execute("SELECT current_user,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication "
+                        "FROM pg_roles WHERE rolname=current_user")
+            if cur.fetchone() != ("ceopro_billing_setup", False, False, False, False, False, False):
+                raise RuntimeError("Billing setup requires the restricted ceopro_billing_setup role.")
+        raw.rollback()
+        return _BillingSetupConnection(_UnpooledOwner(), raw, tenant_id, user_id)
+    except Exception:
+        raw.close()
+        raise
+
+
+_ZERO_ACTOR = "00000000-0000-0000-0000-000000000000"
+
+
+def _service_socket(role: str, password: str):
+    """Fixed identity/host/database; credentials cannot redirect the connection."""
+    import psycopg2
+    parsed = urlparse(_admin_database_url())
+    netloc = f"{role}:{quote(password, safe='')}@{parsed.hostname}:{parsed.port or 5432}"
+    raw = psycopg2.connect(urlunparse(parsed._replace(netloc=netloc)))
+    try:
+        with raw.cursor() as cur:
+            cur.execute("SELECT current_user,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication "
+                        "FROM pg_roles WHERE rolname=current_user")
+            if cur.fetchone() != (role, False, False, False, False, False, False):
+                raise RuntimeError("Restricted billing identity has unexpected privileges.")
+        raw.rollback()
+        return raw
+    except Exception:
+        raw.close()
+        raise
+
+
+class _WebhookConnection(PooledTenantConnection):
+    verified_webhook_only = True
+
+    def __init__(self, raw, event_id):
+        self._event_id = event_id
+        super().__init__(_UnpooledOwner(), raw, _ZERO_ACTOR, _ZERO_ACTOR)
+
+    def _apply_tenant_context(self):
+        with self._raw.cursor() as cur:
+            cur.execute("SELECT set_config('app.billing_event_id',%s,true)", (self._event_id,))
+        super()._apply_tenant_context()
+
+    def bind_tenant(self, tenant_id):
+        tenant_id = str(tenant_id)
+        if self._tenant_id not in (_ZERO_ACTOR, tenant_id):
+            raise ValueError("A Stripe event cannot switch tenant identity.")
+        with self.cursor() as cur:
+            cur.execute("UPDATE public.billing_webhook_events SET tenant_id=%s "
+                        "WHERE stripe_event_id=%s AND processed_at IS NULL "
+                        "AND (tenant_id IS NULL OR tenant_id=%s) RETURNING tenant_id",
+                        (tenant_id, self._event_id, tenant_id))
+            if cur.fetchone() is None:
+                raise ValueError("An unprocessed Stripe receipt is required.")
+        self._tenant_id = tenant_id
+        self._apply_tenant_context()
+
+
+def billing_webhook_connection(event_id: str):
+    """Call only AFTER Stripe signature verification; never shared with Checkout."""
+    password = os.getenv("BILLING_WEBHOOK_DB_PASSWORD")
+    if not password:
+        return system_connection()  # Existing manual deployments retain their configuration.
+    raw = _service_socket("ceopro_billing_webhook", password)
+    try:
+        return _WebhookConnection(raw, event_id)
+    except Exception:
+        raw.close()
+        raise
+
+
+class _AccountingConnection(PooledTenantConnection):
+    credit_accounting_only = True
+
+
+def credit_accounting_connection(tenant_id: str, user_id: str = None):
+    """Usage settlement cannot write subscriptions, payment evidence or plan grants."""
+    password = os.getenv("CREDIT_ACCOUNTING_DB_PASSWORD")
+    if not password:
+        return system_connection()
+    raw = _service_socket("ceopro_credit_accounting", password)
+    try:
+        return _AccountingConnection(_UnpooledOwner(), raw, str(tenant_id), user_id or _ZERO_ACTOR)
+    except Exception:
+        raw.close()
+        raise
 
 
 def auth_lookup_connection():

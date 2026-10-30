@@ -1,0 +1,13 @@
+{
+  "implementation_root": "/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI",
+  "incoming_head": "1de393c77dfc6db9d8722d8a611d2384d64d12c0",
+  "implementation_branch": "keel-phase1a-20261020",
+  "baseline_files": 1461,
+  "snapshot": "/workspace/scratch/327eb0b847b6/deliverables/KEEL_Phase1A_Starting_Snapshot.zip",
+  "snapshot_sha256": "82553c872bbfee88e293d492f550becf3b8131610706650f0d72e7c222665909",
+  "python_original_files": 1283,
+  "node_original_files": 2839,
+  "original_checkout_unchanged": true,
+  "preexisting_changes_preserved": true,
+  "commits_created": false
+}

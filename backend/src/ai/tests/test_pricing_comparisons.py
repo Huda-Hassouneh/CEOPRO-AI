@@ -21,7 +21,7 @@ PRODUCT = {"product_id": PID, "current_price": 6.0, "currency": "JOD"}
 
 
 def _auth():
-    token, _ = create_access_token(tenant_id="t1", user_id="u1")
+    token, _ = create_access_token(tenant_id="t1", user_id="u1", email_verified=True)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -203,10 +203,39 @@ def test_price_comparison_report_needs_auth_and_returns_the_overview():
     assert client.get("/reports/price-comparison").status_code == 401
     entry = {"name": "Burger", **comparisons.build_ladder(PRODUCT, [_row("EXACT", "a", 5.0)], [])}
     with patch("src.ai.routers.reports.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.reports.usage.reserve_request", return_value={"amount": 1}) as reserve, \
          patch("src.ai.routers.reports.price_comparisons.ladder_overview", return_value=[entry]) as overview:
-        body = client.get("/reports/price-comparison?limit=5", headers=_auth()).json()
+        body = client.get("/reports/price-comparison?limit=5", headers={**_auth(), "Idempotency-Key": "pricing-report-01"}).json()
     assert body["count"] == 1 and body["products"][0]["name"] == "Burger"
     assert overview.call_args.args[2] == 5
+    assert reserve.call_args.args[:3] == ("t1", "monthly_reports", "client:u1:pricing-report-01")
+    assert reserve.call_args.kwargs["request_fingerprint"]
+
+
+def test_price_comparison_report_enforces_the_monthly_report_allowance():
+    from src.ai.core import usage
+
+    exhausted = usage.PlanLimitReached("QUOTA_EXHAUSTED", usage.MONTHLY_REPORTS, 5, 5, "billing_period", None)
+    with patch("src.ai.routers.reports.usage.reserve_request", side_effect=exhausted), \
+         patch("src.ai.routers.reports.db.app_role_connection") as connect, \
+         patch("src.ai.routers.reports.price_comparisons.ladder_overview") as overview:
+        response = client.get("/reports/price-comparison", headers=_auth())
+    assert response.status_code == 402
+    assert response.json()["detail"]["feature_code"] == "monthly_reports"
+    connect.assert_not_called()
+    overview.assert_not_called()
+
+
+def test_price_comparison_report_releases_usage_when_generation_fails():
+    reservation = {"tenant_id": "t1", "feature_code": "monthly_reports", "amount": 1}
+    with patch("src.ai.routers.reports.usage.reserve_request", return_value=reservation), \
+         patch("src.ai.routers.reports.usage.release_request") as release, \
+         patch("src.ai.routers.reports.db.app_role_connection", return_value=MagicMock()), \
+         patch("src.ai.routers.reports.price_comparisons.ladder_overview", side_effect=RuntimeError("failure")):
+        failing = TestClient(app, raise_server_exceptions=False)
+        response = failing.get("/reports/price-comparison", headers=_auth())
+    assert response.status_code == 500
+    release.assert_called_once_with(reservation)
 
 
 PAYLOAD = {"default_band_pct": 60.0, "categories": []}

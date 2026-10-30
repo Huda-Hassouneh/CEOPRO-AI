@@ -101,6 +101,39 @@ SALES_WINDOW_DAYS = 30
 FORECAST_LINES = 30
 
 
+def build_historical_sales_lines(conn, tenant_id: str) -> list:
+    """All stored invoice dates, tenant-scoped and separated by currency.
+
+    No recency cutoff or default summary can stand in for this scope.
+    Revenue follows the same invoice/line definition as the reports.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT currency, SUM(total_amount), COUNT(*), MIN(issue_date), MAX(issue_date)
+            FROM invoices WHERE tenant_id=%s GROUP BY currency ORDER BY currency;
+        """, (tenant_id,))
+        totals = cursor.fetchall()
+        cursor.execute("""
+            SELECT localized_text(p.product_name), i.currency, SUM(ii.quantity), SUM(ii.total_price)
+            FROM invoice_items ii
+            JOIN invoices i ON i.tenant_id=ii.tenant_id AND i.invoice_id=ii.invoice_id
+            JOIN products p ON p.tenant_id=ii.tenant_id AND p.product_id=ii.product_id
+            WHERE ii.tenant_id=%s
+            GROUP BY p.product_id,p.product_name,i.currency
+            ORDER BY SUM(ii.total_price) DESC,p.product_id LIMIT 5;
+        """, (tenant_id,))
+        products = cursor.fetchall()
+    if not totals:
+        return ["All historical sales (live invoices, every stored date): no invoices recorded."]
+    lines = ["All historical sales (live invoices, every stored date; no 30/90-day cutoff):"]
+    for currency, revenue, count, first, last in totals:
+        lines.append(f"- Revenue {format_money(revenue, currency)} {currency} from {count} invoices; recorded dates {first.date().isoformat()} to {last.date().isoformat()}.")
+    lines.append("Top products by revenue across ALL stored sales history (invoice_items joined to invoices/products; sum of recorded invoice line totals):")
+    for name, currency, units, revenue in products:
+        lines.append(f"- {name}: {format_money(revenue, currency)} {currency} from {format_quantity(units)} units.")
+    return lines
+
+
 def build_sales_lines(conn, tenant_id: str, days: int = None) -> list:
     """
     "How were sales this month / what sold best?" is the most common owner

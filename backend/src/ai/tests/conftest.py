@@ -42,6 +42,26 @@ import pytest
 from src.ai.core import auth_throttle
 
 
+@pytest.fixture(autouse=True)
+def _offline_principal_and_revocation_authorities(request, monkeypatch):
+    """Keep endpoint unit tests offline; native integration suites exercise PostgreSQL and Redis."""
+    if request.module.__name__.endswith("_integration_db"):
+        return
+
+    from src.ai.core import security
+
+    revoked = set()
+
+    def durable_revocation(token_id, expires_at=None):
+        if expires_at is not None:
+            revoked.add(token_id)
+            return True
+        return token_id in revoked
+
+    monkeypatch.setattr(security, "assert_active_principal", lambda *args: None)
+    monkeypatch.setattr(security, "_durable_revocation", durable_revocation)
+
+
 class _InMemoryRedis:
     """Just the commands auth_throttle uses, with real expiry - so tests
     never depend on (or leave counters in) a real Redis."""
@@ -116,7 +136,8 @@ def _no_plan_limits_for_mocked_connections(request, monkeypatch):
     """Router/unit tests run on MagicMock connections, which can't answer
     the usage queries; plan enforcement itself is covered against a real
     database in test_usage_integration_db.py (left unpatched)."""
-    if request.module.__name__.endswith(("test_usage_integration_db", "test_billing_integration_db",
+    if request.module.__name__.endswith("_integration_db") or request.module.__name__.endswith(
+            ("test_usage_integration_db", "test_billing_integration_db",
                                           "test_plan_catalog_integration_db", "test_credits_integration_db",
                                           "test_subscription_limits_integration_db")):
         return

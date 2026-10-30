@@ -15,6 +15,8 @@ import psycopg2
 import pytest
 from fastapi.testclient import TestClient
 
+from src.ai.tests.signup_helpers import create_verified_test_account
+
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
     not ADMIN_DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
@@ -32,10 +34,9 @@ def client():
 
 def _signup(client, business):
     email = f"data+{uuid.uuid4().hex[:8]}@example.com"
-    response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": business, "email": email,
-                                                  "country_code": "JO", "primary_currency": "JOD", "password": PASSWORD})
-    assert response.status_code == 200, response.text
-    return {**response.json(), "email": email}
+    session = create_verified_test_account(client, {"full_name": "Owner", "business_name": business, "email": email,
+                                                     "country_code": "JO", "primary_currency": "JOD", "password": PASSWORD})
+    return {**session, "email": email}
 
 
 def _auth(session):

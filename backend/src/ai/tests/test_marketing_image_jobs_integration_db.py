@@ -67,13 +67,15 @@ class _Server:
 
 @pytest.fixture
 def queue(monkeypatch):
+    from src.ai.core import notifications
     from src.ai.main import app
     from src.ai.marketing import image_generation
     from src.ai.rag import llm_client
-    from src.ai.tests.test_marketing_content_generator import _valid_response_json
+    from src.ai.tests.test_marketing_content_generator import _valid_response_json, scripted_campaign_completion
 
     monkeypatch.setattr(llm_client, "_chat_completion_with_usage",
-                        lambda messages, **kw: (_valid_response_json(image_prompt="A jar of zaatar on a stone counter"), {"total_tokens": 500}))
+                        lambda messages, **kw: scripted_campaign_completion(messages,
+                            campaign_json=_valid_response_json(image_prompt="A jar of zaatar on a stone counter"), total_tokens=500))
     server = _Server()
     monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "local")
     monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", server.url)
@@ -82,15 +84,22 @@ def queue(monkeypatch):
     monkeypatch.setattr(image_generation, "_cooling_down", lambda name: False)
     monkeypatch.setattr(image_generation, "_cool_down", lambda name, seconds: None)
     client = TestClient(app)
+    verification_codes = {}
+    monkeypatch.setattr(notifications, "send_email_verification_email",
+                        lambda address, code: verification_codes.__setitem__(address, code) or True)
 
     tenants = []
 
     def company():
         email = f"jobs+{uuid.uuid4().hex[:8]}@example.com"
-        assert client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Jobs Bakery", "email": email,
-                                                 "country_code": "JO", "primary_currency": "JOD",
-                                                 "password": "Jobs!Test-2026"}).status_code in (200, 201)
-        session = client.post("/auth/login", json={"email": email, "password": "Jobs!Test-2026"}).json()
+        signup = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Jobs Bakery", "email": email,
+                                                    "country_code": "JO", "primary_currency": "JOD",
+                                                    "password": "Jobs!Test-2026"})
+        assert signup.status_code == 202, signup.text
+        verified = client.post("/auth/email/verify", json={"email": email,
+            "registration_token": signup.json()["registration_token"], "code": verification_codes[email]})
+        assert verified.status_code == 200, verified.text
+        session = verified.json()
         tenants.append(session["tenant_id"])
         return session, {"Authorization": f"Bearer {session['access_token']}"}
 

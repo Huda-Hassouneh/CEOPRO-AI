@@ -46,9 +46,14 @@ def _gate_on(monkeypatch):
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    from src.ai.core import notifications
     from src.ai.main import app
 
+    codes = {}
+    monkeypatch.setattr(notifications, "send_email_verification_email",
+                        lambda address, code: codes.__setitem__(address, code) or True)
+    app.state.test_verification_codes = codes
     return TestClient(app)
 
 
@@ -87,15 +92,82 @@ def _company_with_one_product(client):
     email = f"router+{uuid.uuid4().hex[:8]}@example.com"
     response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": business, "email": email,
                                                   "country_code": "JO", "primary_currency": "JOD", "password": PASSWORD})
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
+    session = client.post("/auth/email/verify", json={"email": email,
+        "registration_token": response.json()["registration_token"],
+        "code": client.app.state.test_verification_codes[email]} )
+    assert session.status_code == 200, session.text
     tenant = _admin("SELECT tenant_id FROM companies WHERE business_name = %s;", (business,))[0][0]
     _admin("INSERT INTO products (tenant_id, product_name, current_price, currency) VALUES (%s, %s, 2.5, 'JOD');",
            (tenant, json.dumps({"en": "Olive Oil 1L"})))
-    return str(tenant), {"Authorization": f"Bearer {response.json()['access_token']}"}
+    return str(tenant), {"Authorization": f"Bearer {session.json()['access_token']}"}
 
 
 def _ask(client, headers):
     return client.post("/rag/query", params={"query_text": QUESTION}, headers=headers)
+
+
+@pytest.mark.parametrize("question", [QUESTION, "كم عدد المنتجات لدي؟"])
+def test_json_question_and_legacy_followup_keep_same_history(client, model, question):
+    _, headers = _company_with_one_product(client)
+    response = client.post("/rag/query", json={"query_text": question + " " * 2100}, headers=headers)
+    assert response.status_code == 200, response.text
+    identity = response.json()["session_id"]
+    followup = client.post("/rag/query", params={"query_text": QUESTION, "session_id": identity}, headers=headers)
+    assert followup.status_code == 200 and followup.json()["session_id"] == identity
+    history = client.get(f"/rag/sessions/{identity}/messages", headers=headers)
+    assert history.status_code == 200 and len(history.json()["messages"]) == 4
+    assert history.json()["messages"][0]["content"].strip() == question
+
+
+def test_consumed_positive_quota_gets_only_evidence_and_no_paid_calls(client, model):
+    from src.ai.core import usage
+
+    tenant, headers = _company_with_one_product(client)
+    with psycopg2.connect(ADMIN_DATABASE_URL) as conn:
+        plan = usage.get_plan(conn, tenant)
+    limit = plan["features"][usage.RAG_ASSISTANT]["limit"]
+    assert limit > 0
+    _admin("INSERT INTO tenant_usage_counters(tenant_id,feature_code,period_start,used) VALUES(%s,%s,%s,%s) "
+           "ON CONFLICT(tenant_id,feature_code,period_start) DO UPDATE SET used=EXCLUDED.used",
+           (tenant, usage.RAG_ASSISTANT, plan["period_start"], limit))
+    response = _ask(client, headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["answer_mode"] == "evidence"
+    assert model[1] == []
+    assert _admin("SELECT count(*) FROM usage_ledger WHERE tenant_id=%s", (tenant,))[0][0] == 0
+    assert _admin("SELECT used FROM tenant_usage_counters WHERE tenant_id=%s AND feature_code=%s",
+                  (tenant, usage.RAG_ASSISTANT)) == [(limit,)]
+
+
+def test_zero_allowance_is_not_treated_as_consumed_positive_quota(client, model):
+    tenant, headers = _company_with_one_product(client)
+    _admin("INSERT INTO tenant_entitlement_overrides(tenant_id,feature_code,limit_value,contract_ref,approved_by,reason) "
+           "VALUES(%s,'rag_assistant',0,'synthetic-test','synthetic-test','test disabled allowance')", (tenant,))
+    response = _ask(client, headers)
+    assert response.status_code == 402, response.text
+    assert model[1] == []
+
+
+@pytest.mark.parametrize("reason", ["PROVIDER_DISABLED", "PROVIDER_CAP_REACHED", "CONCURRENCY_LIMIT",
+                                    "ACCOUNTING_UNAVAILABLE", "REQUEST_TOO_LARGE", "SUBSCRIPTION_INACTIVE"])
+def test_paid_controls_never_allow_a_provider_call(client, model, monkeypatch, reason):
+    from src.ai.billing import credits
+
+    _, headers = _company_with_one_product(client)
+    def refuse(*args, **kwargs):
+        raise credits.BudgetError(reason, credits.AI)
+    monkeypatch.setattr(credits, "reserve", refuse)
+    response = _ask(client, headers)
+    if reason in ("PROVIDER_DISABLED", "PROVIDER_CAP_REACHED"):
+        # Existing advisor behavior may show already-authorized tenant facts
+        # without AI writing. It must never contact the disabled provider.
+        assert response.status_code == 200, response.text
+        assert response.json()["answer_mode"] == "evidence"
+    else:
+        assert response.status_code == credits.BudgetError(reason, credits.AI).as_http().status_code, response.text
+        assert reason in response.text
+    assert model[1] == []
 
 
 def test_a_priced_model_answers_with_references(client, model):
@@ -118,7 +190,7 @@ def test_an_unpriced_model_gives_200_evidence_not_a_503(client, model, monkeypat
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["answer_mode"] == "evidence" and body["references"] and calls == []
-    assert {"need": "answer_writing", "status": "not_configured"} in body["evidence_status"]
+    assert {"need": "answer_writing", "status": "cost_not_configured"} in body["evidence_status"]
 
 
 def test_a_rejected_key_gives_200_evidence_provider_unavailable(client, model, monkeypatch):
@@ -172,3 +244,28 @@ def test_a_company_with_no_ai_credits_left_still_gets_an_evidence_answer(client,
     body = response.json()
     assert body["answer_mode"] == "evidence" and calls == []
     assert {"need": "answer_writing", "status": "allowance_used"} in body["evidence_status"]
+
+
+def test_unpriced_greeting_reports_pricing_keeps_history_and_refunds_allowance(client, model, monkeypatch):
+    from src.ai.rag import llm_client
+    from src.ai.core import usage
+
+    _, calls = model
+    monkeypatch.setattr(llm_client, "active_provider", lambda: "unpriced_" + uuid.uuid4().hex[:8])
+    tenant, headers = _company_with_one_product(client)
+    response = client.post("/rag/query", params={"query_text": "hello"}, headers=headers)
+    assert response.status_code == 503, response.text
+    assert response.json()["detail"]["reason"] == "COST_NOT_CONFIGURED"
+    assert response.json()["detail"]["budget"] == "ai"
+    assert response.headers["x-assistant-reason"] == "cost_not_configured"
+    assert calls == [], "An unpriced provider must never be contacted"
+    assert "unpriced_" not in response.text and "input_token" not in response.text
+    identity = response.headers["x-assistant-session-id"]
+    history = client.get(f"/rag/sessions/{identity}/messages", headers=headers)
+    assert history.status_code == 200
+    assert [m["content"] for m in history.json()["messages"]] == ["hello"]
+    used = _admin("SELECT used FROM tenant_usage_counters WHERE tenant_id=%s AND feature_code=%s", (tenant, usage.RAG_ASSISTANT))
+    assert all(row[0] == 0 for row in used)
+    assert _admin("SELECT count(*) FROM usage_ledger WHERE tenant_id=%s", (tenant,))[0][0] == 0
+    _, other = _company_with_one_product(client)
+    assert client.get(f"/rag/sessions/{identity}/messages", headers=other).status_code == 404

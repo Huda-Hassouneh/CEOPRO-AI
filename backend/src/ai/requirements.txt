@@ -105,6 +105,11 @@ extruct>=0.18,<1.0
 # (and everything that transitively imports it) unable to import at all.
 # Same version pin as src/market_scraper/requirements.txt for consistency.
 Scrapy>=2.11,<3.0
+# Scrapy requires Twisted for collectors and workers. 26.4.0 has multiple
+# published security defects; 26.10.0rc1 is the first patched release.
+# Pin this RC explicitly (do not enable prereleases globally). Replace with
+# the stable 26.10 release after compatibility/audit checks. See docs/CI_REPAIR.md.
+Twisted==26.10.0rc1
 # src/market_scraper/worker.py/maintenance.py/metrics.py all import this at
 # module level - same class of gap as Scrapy above (declared only in
 # src/market_scraper/requirements.txt), caught once `pytest src/` actually

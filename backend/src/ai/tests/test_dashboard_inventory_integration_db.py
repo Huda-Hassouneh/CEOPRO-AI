@@ -82,3 +82,23 @@ def test_flags_a_real_low_stock_product(conn):
 
     result = get_inventory_status(conn, tenant_id)
     assert result["low_stock_count"] == 1
+
+
+def test_duplicate_legacy_inventory_rows_count_product_once_using_latest_row(conn):
+    """The legacy schema permits duplicate product inventory rows. Reads
+    choose the most recently updated row so duplicates cannot inflate
+    tracked-product or low-stock totals."""
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product_with_inventory(conn, tenant_id, "Repeated stock row", 40, 10)
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO inventory (tenant_id, product_id, stock_quantity, reorder_level, updated_at) "
+            "VALUES (%s, %s, 2, 10, NOW() + INTERVAL '1 second');",
+            (tenant_id, product_id),
+        )
+    conn.commit()
+
+    result = get_inventory_status(conn, tenant_id)
+    assert result["tracked_products"] == 1
+    assert result["in_stock_pct"] == 100.0
+    assert result["low_stock_count"] == 1

@@ -1,0 +1,9 @@
+{
+  "postgres": null,
+  "initdb": null,
+  "pg_ctl": null,
+  "docker": null,
+  "uid_map": "0          0          1",
+  "nonroot_namespace_exit": 1,
+  "nonroot_namespace_error": "unshare: write failed /proc/self/uid_map: Operation not permitted"
+}

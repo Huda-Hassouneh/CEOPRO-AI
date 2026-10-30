@@ -1,0 +1,18 @@
+{
+  "current_python_archive_sha256": "873cc27c3d98a9a061a843d4a63948ac7db178555c4c8757fbee31c59b2285e7",
+  "node_archive_sha256": "c8a3bf461a36e61cba9640d6c791545349db5a3abee09425056b21b02a407788",
+  "against_phase0_source_manifest": {
+    "python": {
+      "original_files": 1283,
+      "changed": [],
+      "missing": []
+    },
+    "node": {
+      "original_files": 2839,
+      "changed": [],
+      "missing": []
+    }
+  },
+  "python_head": "1de393c77dfc6db9d8722d8a611d2384d64d12c0",
+  "new_commit_created": false
+}

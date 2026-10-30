@@ -20,17 +20,23 @@ export function LoginPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const setSession = useAuthStore((state) => state.setSession);
+  const sessionExpired = useAuthStore((state) => state.sessionExpired);
   const [values, setValues] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [workspaces, setWorkspaces] = useState(null);
   const [touched, setTouched] = useState({});
   const [requestMessage, setRequestMessage] = useState(
     {
+      'logout-unconfirmed': { tone: 'error', key: 'auth.success.logoutUnconfirmed' },
       'password-reset': { tone: 'success', key: 'auth.success.passwordReset' },
       'company-deleted': { tone: 'success', key: 'auth.success.companyDeleted' },
       'email-verified': { tone: 'success', key: 'auth.success.emailVerified' },
     }[location.state?.authNotice] || null,
   );
+
+  React.useEffect(() => {
+    if (sessionExpired) setRequestMessage({ tone: 'error', key: 'auth.errors.sessionExpired' });
+  }, [sessionExpired]);
 
   const translateError = (validation) => {
     const validationError = firstValidationError(validation);

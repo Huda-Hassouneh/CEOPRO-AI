@@ -25,13 +25,15 @@ import time
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from fastapi import HTTPException
+
 from src.ai import db
 from src.ai.core import tenant_cache
-from src.ai.forecasting.pipeline import DEFAULT_HORIZON_DAYS, run_forecast
+from src.ai.forecasting.authorization import require_forecast_authorization
+from src.ai.forecasting.generation import STALE_AFTER_HOURS, generate_or_reuse_forecast
 
 logger = logging.getLogger("CEOPRO_AI_FORECAST_REFRESH")
 
-STALE_AFTER_HOURS = float(os.getenv("FORECAST_STALE_AFTER_HOURS", "12"))
 LOCK_TTL_SECONDS = int(os.getenv("FORECAST_REFRESH_LOCK_SECONDS", "1800"))
 MAX_PRODUCTS_PER_RUN = int(os.getenv("FORECAST_REFRESH_MAX_PRODUCTS", "2000"))
 
@@ -55,7 +57,7 @@ def products_needing_forecast(conn, tenant_id: str, stale_after_hours: float = S
                 SELECT ii.product_id, MAX(i.created_at) AS last_recorded
                 FROM invoice_items ii
                 JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
-                WHERE ii.tenant_id = %(tenant)s
+                WHERE ii.tenant_id = %(tenant)s AND i.payment_status <> 'CANCELLED'
                 GROUP BY ii.product_id
             ), latest AS (
                 SELECT product_id, MAX(created_at) AS forecast_at
@@ -180,6 +182,7 @@ def refresh_status(tenant_id: str) -> dict:
         "failed": _int(raw.get("failed")),
         "started_at": raw.get("started_at") or None,
         "finished_at": raw.get("finished_at") or None,
+        "error": raw.get("error") or None,
     }
 
 
@@ -199,17 +202,30 @@ def refresh_tenant_forecasts(tenant_id: str, user_id: str, product_ids: Optional
         total = len(product_ids)
         _write_status(tenant_id, state="running", done=0, failed=0, total=total,
                       started_at=datetime.now(timezone.utc).isoformat(), finished_at=None)
+        blocked = False
+        block_reason = None
         for product_id in product_ids:
             try:
-                run_forecast(conn, tenant_id, product_id, DEFAULT_HORIZON_DAYS)
+                check = lambda: require_forecast_authorization(conn, tenant_id, user_id)
+                check()
+                generate_or_reuse_forecast(conn, tenant_id, product_id, authorization_check=check)
                 done += 1
+            except HTTPException as exc:
+                if exc.status_code in (402, 403):
+                    conn.rollback()
+                    blocked = True
+                    block_reason = "authorization_changed"
+                    break
+                conn.rollback()
+                failed += 1
+                logger.exception("Forecast failed tenant=%s product=%s", tenant_id, product_id)
             except Exception:
                 conn.rollback()
                 failed += 1
                 logger.exception("Forecast failed tenant=%s product=%s", tenant_id, product_id)
             _write_status(tenant_id, done=done, failed=failed)
-        _write_status(tenant_id, state="finished", done=done, failed=failed, total=total,
-                      finished_at=datetime.now(timezone.utc).isoformat())
+        _write_status(tenant_id, state="blocked" if blocked else "finished", done=done, failed=failed, total=total,
+                      error=block_reason, finished_at=datetime.now(timezone.utc).isoformat())
         if done:
             try:
                 from src.ai.rag.structured_summaries import regenerate_all_structured_summaries

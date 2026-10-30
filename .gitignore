@@ -1,6 +1,17 @@
 dump.rdb
 # Never commit real environment files or Python bytecode (a root .env with live-looking secrets was committed by a merge on 2026-10-19).
 .env
+.env.*
 !.env.example
 __pycache__/
 *.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.private.json
+*.dump
+
+# Checkout-local developer config, credentials, dependencies, logs and process ownership.
+.dev/

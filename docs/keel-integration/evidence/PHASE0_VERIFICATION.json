@@ -1,0 +1,42 @@
+{
+  "source_integrity": {
+    "python": {
+      "original_files": 1283,
+      "modified_original_files": [],
+      "deleted_original_files": [],
+      "result": "PASS"
+    },
+    "node": {
+      "original_files": 2839,
+      "modified_original_files": [],
+      "deleted_original_files": [],
+      "result": "PASS"
+    }
+  },
+  "capabilities": 129,
+  "business_capabilities": 125,
+  "duplicate_capability_ids": 0,
+  "node_feature_codes": 21,
+  "mapped_node_codes": 21,
+  "crosswalk_missing": [],
+  "crosswalk_extra": [],
+  "missing_source_references": [],
+  "broken_relative_links": [],
+  "documentation_file_count": 66,
+  "git_documentation_paths": 66,
+  "ledger_rows": 66,
+  "ledger_missing": [],
+  "ledger_stale": [],
+  "git_path_mismatch": [],
+  "unexpected_new_non_document_files": [],
+  "operations": {
+    "ADD": 66,
+    "MODIFY": 0,
+    "DELETE": 0,
+    "RENAME": 0
+  },
+  "phase0_document_check": "PASS",
+  "full_clean_commit_gate": "BLOCKED: supplied dirty Task 6 working snapshot; no clean post-Task-6 commit supplied",
+  "native_postgresql_gate": "BLOCKED: no native PG17 test instance available",
+  "runtime_trace_gate": "OPEN TRACE-001: static unresolved/dynamic/SQL terminals require branch/runtime closure; no exhaustive runtime proof"
+}

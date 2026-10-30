@@ -1,0 +1,39 @@
+{
+  "phase": "0R",
+  "result": "PASS",
+  "source_integrity": {
+    "python": {
+      "original_files": 1283,
+      "changed_or_missing": []
+    },
+    "node": {
+      "original_files": 2839,
+      "changed_or_missing": []
+    }
+  },
+  "head": "1de393c77dfc6db9d8722d8a611d2384d64d12c0",
+  "capabilities": 129,
+  "business_capabilities": 125,
+  "atomic_repo_traces": 250,
+  "function_source_references": 7078,
+  "schema_source_records": 4241,
+  "dynamic_sql_native_obligations": 23,
+  "pending_owner_decisions": 13,
+  "document_files": 129,
+  "incremental_operations": {
+    "MODIFY": 35,
+    "ADD": 63
+  },
+  "ledger_matches": true,
+  "actual_git_document_inventory_matches": true,
+  "git_no_index_name_status_matches": true,
+  "missing_source_references": [],
+  "invalid_schema_identities": [],
+  "broken_relative_links": [],
+  "new_non_document_python_files": [],
+  "native_postgres_tests": "NOT RUN",
+  "live_provider_tests": "NOT RUN",
+  "runtime_integration_acceptance": "NOT RUN",
+  "phase1_authorized": false,
+  "errors": []
+}

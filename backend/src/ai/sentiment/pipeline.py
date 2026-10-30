@@ -62,6 +62,22 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
     if not reviews:
         return {"status": "OK", "analyzed_count": 0}
 
+    # ``remaining()`` above is only a useful batch-size hint. It is not a
+    # reservation: another request or worker can consume that allowance before
+    # this classifier finishes. Reserve the selected records atomically in the
+    # same transaction as their sentiment rows, then settle to the number that
+    # was actually persisted. This keeps the existing per-record unit and
+    # releases failed/duplicate writes without charging twice.
+    new_count = sum(not r.get("upgrade") for r in reviews)
+    reservation = None
+    try:
+        if new_count:
+            reservation = usage.reserve(conn, tenant_id, usage.SENTIMENT_ANALYSIS, new_count)
+    except usage.PlanLimitReached as exc:
+        if exc.reason == "QUOTA_EXHAUSTED":
+            return {"status": "PLAN_LIMIT", "analyzed_count": 0}
+        raise
+
     try:
         predictions = model.classify_or_unavailable([r["review_text"] for r in reviews])
         method = "model"
@@ -69,11 +85,16 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
         # The text model is unreachable: use the customer's own star rating
         # where there is one; reviews without a rating stay unanalyzed.
         logger.warning("sentiment model unavailable (%s); using star ratings where present", exc)
-        reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=batch_size, rated_only=True)
+        if not new_count:
+            return {"status": "MODEL_UNAVAILABLE", "analyzed_count": 0, "method": "star_rating"}
+        reviews = data_access.load_unanalyzed_reviews(conn, tenant_id, limit=new_count, rated_only=True)
         predictions = [model.predict_from_rating(r.get("review_rating")) for r in reviews]
         method = "star_rating"
         pairs = [(r, p) for r, p in zip(reviews, predictions) if p is not None]
         if not pairs:
+            if reservation is not None:
+                usage.settle(conn, reservation, 0)
+            conn.commit()
             return {"status": "MODEL_UNAVAILABLE", "analyzed_count": 0, "method": method}
         reviews, predictions = [r for r, _ in pairs], [p for _, p in pairs]
 
@@ -108,7 +129,8 @@ def classify_and_store_reviews(conn, tenant_id: str, batch_size: int = 100) -> d
             else:
                 analyzed_count += 1
     # Re-reading a review the plan already paid for is not counted again.
-    usage.record(conn, tenant_id, usage.SENTIMENT_ANALYSIS, analyzed_count)
+    if reservation is not None:
+        usage.settle(conn, reservation, analyzed_count)
     conn.commit()
 
     logger.info(f"Classified {analyzed_count} reviews for tenant={tenant_id} ({upgraded_count} upgraded from star ratings, {failed_count} failed)")

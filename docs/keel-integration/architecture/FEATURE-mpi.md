@@ -1,0 +1,23 @@
+> Phase 0R: read [SOURCE_TRACE_CORRECTIONS.md](../SOURCE_TRACE_CORRECTIONS.md) and [PHASE0R_README.md](../PHASE0R_README.md) before relying on original source-inference wording. Native/runtime gates remain pending.
+
+# Feature architecture — mpi
+
+Status: PROPOSED for architecture review; capability families MPI. Single Python authority is already approved by user; no conflicting policy is selected.
+
+
+Python endpoint GET `/mpi/summary?subject_type=BUSINESS|PRODUCT|COMPETITOR&subject_id=...` → main.py market_intelligence dependency → tenant connection → mpi.pipeline.get_subject_mpi → data_access.load_scored_reviews and load_country_context → usable dated review contributions → unchanged scoring.compute_mpi → evidence.insert_evidence_record → response. It writes evidence on a GET and commits inside the pipeline. Separate refresh operation/read-model is proposed additively; old GET behavior must remain compatible until approved deprecation and UI adapter exist.
+
+Python reads reviews joined to sentiment_results, lowercases sentiment label and uses positive-minus-negative probability. BUSINESS filters subject_type; PRODUCT uses product_id; COMPETITOR uses **global_competitor_id**, joined through tenant_competitors for context. Invalid subject currently raises ValueError rather than typed enum response; there is no explicit active product existence test in this path. Node validates scope, ownership and company ID, filters source_status=ALLOWED/safety_status=SAFE, allowed collection methods/nonempty/not future, deduplicates and samples newest 100 before inference.
+
+Retain Python recency/reliability/relevance weighting, volume damping toward neutral, per-review contributions and meaningful compare_subjects volume guard. Entity relevance is explicitly linked=1.0, not an invented NLP relevance. MIN_SAMPLE_SIZE env defaults 5. No usable review returns UNKNOWN with evidence ID and no numeric MPI. Nonempty low sample returns top-level OK plus sample_size.status LOW_SAMPLE_SIZE and confidence .2; Node reliable-score gating can expose UNKNOWN instead. MPI-001 decides public reliability, sample cap, eligibility/recency and minimum controls without altering mathematical scoring.
+
+Sentiment orchestration: Python sentiment.pipeline.classify_and_store_reviews and review import analyze pending rows; summary should consume persisted scores, not re-charge model inference every dashboard read. Node upstream submits sample texts and maps returned labels. Target reuse Python classification persistence, add exact model/revision provenance and request identity, process only eligible previously unscored reviews with sentiment_analysis reservation/settlement, then existing scorer. No second sentiment model service.
+
+Target subject service validates enum/required ID and tenant ownership before reading/charging, resolves API ID to canonical scope, enforces approved market_perception/module mapping, and separates refresh from repeat read/evidence history. Preserve legacy `/mpi/summary` contract through adapter, adding typed optional status/reason/sample/model fields; do not replace UNKNOWN with zero. Required per-scope UI selects BUSINESS/PRODUCT/COMPETITOR with real product/competitor IDs, insufficient/unavailable/error states, confidence/sample/provenance and last generated status. Existing market sentiment cards and competitor comments remain intact; there is no direct frontend /mpi/summary client match in this supplied frontend, so those views are not proof full three-scope MPI UX exists.
+
+Persistence: evidence_records category FACT/UNKNOWN, source ai.mpi, explanation, source_record_ids contribution data, model_version/country; Python currently passes model_version=None from this path. Node richer provenance includes sample_limit/eligible count/as_of/review IDs/model revision. Add typed provenance without a second truth table; optional indexed read snapshot can point to immutable evidence. chk_evidence_shape requires category/module/explanation, not JSON keys. Test all scopes, nonexistent/cross-tenant subjects, duplicated sentiment join rows, future/unsafe reviews, empty/low/sufficient sample, unavailable classifier, evidence native constraint and read/refresh accounting.
+
+
+## Verification and migration gate
+
+Use domain rows in CAPABILITY_TRACEABILITY.csv, exact symbols in evidence/FUNCTION_CALL_INDEX.csv, and ordered SQL_OBJECT_LINEAGE.csv. Phase-specific schema/file scopes and disable strategy are in IMPLEMENTATION_PHASES.md. All applicable AT IDs require native tenant/RLS, service, HTTP, worker and frontend proof; source-level parity is not a passing test. No destructive backfill or existing customer change is authorized by this note.

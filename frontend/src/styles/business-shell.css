@@ -134,12 +134,12 @@
 .apex-topnav__who { display: grid; gap: 3px; padding: 8px 10px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--apex-glass-border-strong); }
 .apex-topnav__who strong { color: var(--apex-text); font-size: 14px; }
 .apex-topnav__who span { overflow: hidden; color: var(--apex-text-3); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.apex-topnav__profile-menu button {
+.apex-topnav__profile-menu button, .apex-topnav__profile-menu .apex-topnav__menu-link {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; border-radius: 12px;
   background: transparent; color: var(--apex-text-2); font: 500 13px var(--apex-font); text-align: start; cursor: pointer;
   transition: background 180ms ease, color 180ms ease;
 }
-.apex-topnav__profile-menu button:hover, .apex-topnav__profile-menu button:focus-visible { background: var(--apex-accent-tint); color: var(--apex-text); outline: none; }
+.apex-topnav__profile-menu button:hover, .apex-topnav__profile-menu button:focus-visible, .apex-topnav__profile-menu .apex-topnav__menu-link:hover, .apex-topnav__profile-menu .apex-topnav__menu-link:focus-visible { background: var(--apex-accent-tint); color: var(--apex-text); outline: none; }
 .apex-topnav__profile-menu button.is-danger { color: var(--apex-danger); }
 .apex-topnav__profile-menu button.is-danger:hover { background: var(--apex-danger-bg); color: var(--apex-danger); }
 
@@ -272,12 +272,28 @@ html .apex-palette__field input:focus-visible { box-shadow: none; }
 .apex-alerts__badge { position: absolute; top: 2px; inset-inline-end: 2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--apex-danger, #dc2626); color: #fff; font: 700 10px/17px var(--apex-font); text-align: center; box-shadow: 0 0 0 2px var(--apex-bg, #fff); }
 .apex-alerts { width: min(380px, calc(100vw - 32px)); padding: 0; }
 .apex-alerts header { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px 10px; border-bottom: 1px solid var(--apex-glass-border); font-size: 13px; }
+.apex-alerts__tabs, .apex-alerts__actions { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
+.apex-alerts__tabs { border-bottom: 1px solid var(--apex-glass-border); }
+.apex-alerts__tabs button { flex: 1; border: 0; border-radius: 8px; padding: 7px 8px; background: transparent; color: var(--apex-text-2); font: 600 12px var(--apex-font); cursor: pointer; }
+.apex-alerts__tabs button[aria-pressed="true"] { background: var(--apex-glass-hover); color: var(--apex-text); }
+.apex-alerts__actions { justify-content: space-between; }
+.apex-alerts__action-error { margin: 0; padding: 0 12px 8px; color: var(--apex-danger); font-size: 12px; }
+.apex-alerts__error { display: grid; justify-items: start; gap: 2px; padding: 0 16px 16px; }
+.apex-alerts__error .apex-alerts__empty { padding: 14px 0 8px; }
 .apex-alerts ul { list-style: none; margin: 0; padding: 6px; max-height: min(420px, 60vh); overflow-y: auto; display: grid; gap: 2px; }
 .apex-alerts__item { width: 100%; display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 0; border-radius: 10px; background: transparent; color: var(--apex-text-2); font: 500 13px/1.45 var(--apex-font); text-align: start; cursor: pointer; }
 .apex-alerts__item:hover, .apex-alerts__item:focus-visible { background: var(--apex-glass-hover); color: var(--apex-text); outline: none; }
+.apex-alerts__notification-open { display: flex; flex: 1; gap: 10px; align-items: flex-start; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.apex-alerts__notification-open span { display: grid; gap: 5px; }
+.apex-alerts__notification-open time { color: var(--apex-muted); font-size: 11px; }
+.apex-alerts__dismiss { border: 0; padding: 3px 6px; background: transparent; color: var(--apex-muted); font: 500 11px var(--apex-font); cursor: pointer; }
+.apex-alerts__dismiss:hover { color: var(--apex-text); }
+.apex-alerts__item.is-dismissed { opacity: .7; }
+.apex-alerts__more { display: block; margin: 8px auto 12px; }
 .apex-alerts__item svg { flex: 0 0 auto; margin-top: 2px; }
 .apex-alerts__item.is-danger svg { color: var(--apex-danger); }
 .apex-alerts__item.is-warning svg { color: var(--apex-warning); }
 .apex-alerts__item.is-info svg { color: var(--apex-accent); }
 .apex-alerts__item.is-unread { color: var(--apex-text); font-weight: 600; }
 .apex-alerts__empty { display: flex; gap: 8px; align-items: center; margin: 0; padding: 18px 16px; color: var(--apex-text-3); font-size: 13px; }
+.apex-topnav__profile-menu .apex-topnav__menu-link { text-decoration: none; box-sizing: border-box; }

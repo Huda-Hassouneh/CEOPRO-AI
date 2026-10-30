@@ -23,11 +23,34 @@ _SECRET = os.environ["JWT_SECRET"]
 
 
 def _token(tenant_id="t1", user_id="u1"):
-    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "exp": int(time.time()) + 3600}, _SECRET, algorithm="HS256")
+    return jwt.encode({"tenant_id": tenant_id, "user_id": user_id, "ev": True,
+                       "exp": int(time.time()) + 3600}, _SECRET, algorithm="HS256")
 
 
 def _auth():
     return {"Authorization": f"Bearer {_token()}"}
+
+
+def test_report_fixture_remains_verified_when_email_enforcement_is_enabled(monkeypatch):
+    monkeypatch.setenv('REQUIRE_EMAIL_VERIFICATION', 'true')
+    with patch('src.ai.routers.reports.db.app_role_connection', return_value=MagicMock()), \
+         patch('src.ai.routers.reports.dashboard_reports.get_sales_report', return_value={'rows': []}):
+        assert client.get('/reports/sales',headers=_auth()).status_code == 200
+
+
+def test_reports_still_deny_unverified_sessions_and_staff(monkeypatch):
+    from src.ai.core import permissions
+    monkeypatch.setenv('REQUIRE_EMAIL_VERIFICATION', 'true')
+    claims=jwt.decode(_token(),_SECRET,algorithms=['HS256'])
+    claims['ev']=False
+    token=jwt.encode(claims,_SECRET,algorithm='HS256')
+    response=client.get('/reports/sales',headers={'Authorization':'Bearer '+token})
+    assert response.status_code==403
+    assert response.headers['X-Auth-Reason']=='email-verification-required'
+    monkeypatch.setattr(permissions,'_current_role',lambda ctx:'staff')
+    with patch('src.ai.routers.reports.dashboard_reports.get_sales_report') as read:
+        assert client.get('/reports/sales',headers=_auth()).status_code==403
+        read.assert_not_called()
 
 
 def test_sales_report_requires_auth():

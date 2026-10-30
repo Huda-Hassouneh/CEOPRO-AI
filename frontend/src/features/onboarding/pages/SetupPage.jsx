@@ -8,6 +8,7 @@ import { ApexButton, Panel, StateBlock } from '../../../shared/components/apex/A
 import { countryName } from '../../../shared/config/countries.js';
 import httpClient from '../../../shared/lib/httpClient.js';
 import { companyApi } from '../../settings/api/companyApi.js';
+import { ONBOARDING_RETURN_PATH_KEY } from '../../billing/utils/onboardingRouting.js';
 import { productsApi } from '../../products/api/productsApi.js';
 import { discoveryApi } from '../../market-intelligence/api/discoveryApi.js';
 import '../styles/Setup.css';
@@ -94,7 +95,10 @@ export function SetupPage() {
       try { await discoveryApi.start({ radiusKm: place.radius }); } catch { /* the scan can be started again from Competitors */ }
     }
     queryClient.clear();
-  }, () => navigate(scan ? routePaths.market : routePaths.dashboard, { replace: true }));
+  }, () => {
+    window.sessionStorage.setItem(ONBOARDING_RETURN_PATH_KEY, scan ? routePaths.market : routePaths.dashboard);
+    navigate(routePaths.onboardingPlan, { replace: true });
+  });
 
   const locate = () => {
     if (!navigator.geolocation) { setStatus((s) => ({ ...s, error: t('setup.location.unsupported') })); return; }

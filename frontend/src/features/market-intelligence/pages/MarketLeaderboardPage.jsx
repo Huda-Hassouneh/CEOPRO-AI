@@ -11,6 +11,7 @@ import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { MarketTabs } from '../components/MarketTabs.jsx';
+import { MarketPerceptionPanel } from '../components/MarketPerceptionPanel.jsx';
 import { useCompetitors } from '../hooks/useCompetitors.js';
 import '../styles/MarketIntelligence.css';
 
@@ -66,6 +67,7 @@ export function MarketLeaderboardPage() {
   return <DashboardLayout><div className="market-page leaderboard-reference-page">
     {header}
     <MarketTabs />
+    <MarketPerceptionPanel t={t} />
     <section className="reference-kpi-grid">
       <Card className="reference-kpi"><small>{t('market.reference.totalCompetitors')}</small><strong>{competitors.length}</strong></Card>
       <Card className="reference-kpi"><small>{t('marketScoped.leaderboard.compositeScore')}</small><strong>{averageRelevance != null ? `${averageRelevance.toFixed(1)} / 100` : '—'}</strong></Card>

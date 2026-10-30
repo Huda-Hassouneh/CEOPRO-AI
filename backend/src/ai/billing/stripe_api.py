@@ -5,7 +5,7 @@ one place. Uses the official stripe-python SDK.
 """
 import stripe
 
-from src.ai.billing import config
+from src.ai.billing import config, test_clock
 
 
 def _plain(obj):
@@ -21,6 +21,7 @@ class PaymentsNotConfigured(Exception):
 
 
 def _client():
+    test_clock.adapter()  # Reject accidental enabled mode before any provider operation.
     key = config.stripe_secret_key()
     if not key:
         raise PaymentsNotConfigured("STRIPE_SECRET_KEY is not set.")
@@ -30,14 +31,37 @@ def _client():
 
 
 def create_customer(email: str, company_name: str, tenant_id: str, idempotency_key: str):
-    return _plain(_client().Customer.create(
+    client = _client()
+    local = test_clock.adapter()
+    options = local.creation_options(client) if local else {}
+    customer = _plain(client.Customer.create(
         email=email, name=company_name, metadata={"tenant_id": tenant_id},
-        idempotency_key=idempotency_key,
+        idempotency_key=idempotency_key, **options,
     ))
+    if local:
+        local.validate_customer(customer, tenant_id)
+    return customer
 
 
 def create_checkout_session(params: dict, idempotency_key: str):
     return _plain(_client().checkout.Session.create(**params, idempotency_key=idempotency_key))
+
+
+def checkout_request_rejected(error: Exception) -> bool:
+    """A provider validation rejection created no session. Timeouts stay unknown."""
+    return isinstance(error, stripe.InvalidRequestError) and error.http_status == 400
+
+
+def retrieve_checkout_session(session_id: str):
+    return _plain(_client().checkout.Session.retrieve(session_id))
+
+
+def customer_subscriptions(customer_id: str):
+    return [_plain(item) for item in _client().Subscription.list(customer=customer_id, status="all", limit=100).auto_paging_iter()]
+
+
+def open_customer_checkouts(customer_id: str):
+    return [_plain(item) for item in _client().checkout.Session.list(customer=customer_id, status="open", limit=100).auto_paging_iter()]
 
 
 def create_portal_session(customer_id: str, return_url: str):
@@ -102,3 +126,41 @@ def list_prices(product_id: str, active: bool = True):
 
 def retrieve_price(price_id: str):
     return _plain(_client().Price.retrieve(price_id))
+
+
+# Managed promotion administration uses the same SDK/client authority as
+# checkout. Stable idempotency keys are supplied by the promotions service so
+# retries after a partial provider response do not create duplicate objects.
+def create_coupon(params: dict, idempotency_key: str):
+    return _plain(_client().Coupon.create(**params, idempotency_key=idempotency_key))
+
+
+def retrieve_coupon(coupon_id: str):
+    return _plain(_client().Coupon.retrieve(coupon_id))
+
+
+def create_promotion_code(params: dict, idempotency_key: str):
+    return _plain(_client().PromotionCode.create(**params, idempotency_key=idempotency_key))
+
+
+def retrieve_promotion_code(promotion_code_id: str):
+    return _plain(_client().PromotionCode.retrieve(promotion_code_id))
+
+
+def deactivate_promotion_code(promotion_code_id: str):
+    return _plain(_client().PromotionCode.modify(promotion_code_id, active=False))
+
+
+def activate_promotion_code(promotion_code_id: str):
+    return _plain(_client().PromotionCode.modify(promotion_code_id, active=True))
+
+
+def expire_checkout_session(session_id: str):
+    return _plain(_client().checkout.Session.expire(session_id))
+
+
+def customer_clock_time(customer_id, tenant_id, *, require_clock=False):
+    local = test_clock.adapter()
+    if local is None:
+        return None
+    return local.customer_time(_client(), customer_id, tenant_id, require_clock=require_clock)

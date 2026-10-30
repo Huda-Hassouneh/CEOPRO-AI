@@ -1,0 +1,15 @@
+{
+  "check": "regression",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "scripts.integration_review",
+    "--junitxml",
+    "/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/docs/keel-integration/evidence/phase1a/regression.xml"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/backend",
+  "exit_code": 0,
+  "seconds": 4.268,
+  "native_services": "NOT RUN",
+  "profile": "production metering defaults; no inherited service credentials; scratch TCP fence; explicit test doubles"
+}

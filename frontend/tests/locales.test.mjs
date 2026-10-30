@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const read = (path) => JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'));
 const bundles = {
@@ -59,7 +60,7 @@ test('every literal t("...") key used in the code exists in English', () => {
       else if (/\.(jsx?|mjs)$/.test(entry)) files.push(path);
     }
   };
-  walk(new URL('../src', import.meta.url).pathname);
+  walk(fileURLToPath(new URL('../src', import.meta.url)));
   const known = new Set([...leaves(bundles.app.en).keys(), ...[...leaves(bundles.landing.en).keys()].map((k) => `landing.${k}`)]);
   const prefixes = new Set([...known].flatMap((k) => k.split('.').map((_, i, parts) => parts.slice(0, i + 1).join('.'))));
   const missing = [];

@@ -23,8 +23,20 @@ def _admin(sql, params=()):
 
 def _signup(client):
     email = f"cmp+{uuid.uuid4().hex[:8]}@example.com"
-    return client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Burger Co", "email": email, "country_code": "JO",
-                                              "primary_currency": "JOD", "password": "Compare!Test2026"}).json()
+    from unittest.mock import patch
+
+    codes = []
+    with patch("src.ai.core.notifications.send_email_verification_email",
+               side_effect=lambda address, code: codes.append(code) or True):
+        response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": "Burger Co", "email": email,
+                                                      "country_code": "JO", "primary_currency": "JOD", "password": "Compare!Test2026"})
+        body = response.json()
+        assert response.status_code == 202 and body["delivery"] == "sent"
+        verified = client.post("/auth/email/verify", json={
+            "email": email, "registration_token": body["registration_token"], "code": codes[0],
+        })
+    assert verified.status_code == 200, verified.text
+    return verified.json()
 
 
 def test_ladder_bands_and_report_through_the_real_api():

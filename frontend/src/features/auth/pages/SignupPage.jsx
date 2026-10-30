@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { savePendingRegistration } from '../pendingRegistration.js';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Button from '../../../shared/components/ui/Button.jsx';
 import Checkbox from '../../../shared/components/ui/Checkbox.jsx';
@@ -46,9 +47,10 @@ export function SignupPage() {
   const signupMutation = useSignupMutation({
     onSuccess: (response) => {
       if (response?.session) setSession(response.session);
+      if (response?.pendingRegistration) savePendingRegistration(response.pendingRegistration);
       navigate(routePaths.verifyEmail, { state: { email: values.email } });
     },
-    onError: (error) => setRequestError(getAuthErrorTranslationKey(error)),
+    onError: (error) => setRequestError(getAuthErrorTranslationKey(error, { fallbackKey: error?.response?.status === 409 ? 'auth.errors.emailInUse' : 'auth.errors.generic' })),
   });
 
   React.useEffect(() => {
