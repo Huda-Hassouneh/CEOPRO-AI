@@ -13,8 +13,10 @@ import logging
 from datetime import date
 from typing import Optional
 
-from src.ai.mpi import cold_start, data_access, evidence
-from src.ai.mpi.ports import EvidenceWriter, ReviewReader
+from src.ai.mpi import cold_start, postgres
+# Preserve existing import seams used by callers and characterization tests.
+from src.ai.mpi import data_access, evidence
+from src.ai.mpi.ports import CountryReader, EvidenceWriter, ReviewReader, SubjectValidator
 from src.ai.mpi.scoring import (
     MPIComparison,
     ReviewContribution,
@@ -78,15 +80,20 @@ def _label_counts(reviews: list) -> dict:
 def get_subject_mpi(
     conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None, as_of: Optional[date] = None,
     *, review_reader: Optional[ReviewReader] = None, evidence_writer: Optional[EvidenceWriter] = None,
+    subject_validator: Optional[SubjectValidator] = None, country_reader: Optional[CountryReader] = None,
 ) -> dict:
     as_of = as_of or date.today()
-    data_access.validate_subject(conn, tenant_id, subject_type, subject_id)
+    if subject_validator is None:
+        subject_validator = postgres.subject_validator(conn, tenant_id)
+    subject_validator(subject_type, subject_id)
     if review_reader is None:
-        review_reader = data_access.review_reader(conn, tenant_id)
+        review_reader = postgres.review_reader(conn, tenant_id)
     reviews = review_reader(subject_type, subject_id)
-    country_context = data_access.load_country_context(conn, tenant_id, subject_type, subject_id)
+    if country_reader is None:
+        country_reader = postgres.country_reader(conn, tenant_id)
+    country_context = country_reader(subject_type, subject_id)
     if evidence_writer is None:
-        evidence_writer = evidence.evidence_writer(conn, tenant_id)
+        evidence_writer = postgres.evidence_writer(conn, tenant_id)
 
     usable_reviews = _usable_reviews(reviews)
     contributions = _build_contributions(usable_reviews, as_of)
@@ -192,6 +199,7 @@ def compare_subjects(
     as_of: Optional[date] = None,
     min_volume_for_comparison: int = 10,
     *, review_reader: Optional[ReviewReader] = None,
+    subject_validator: Optional[SubjectValidator] = None,
 ) -> MPIComparison:
     """
     subject_a/subject_b are (subject_type, subject_id) tuples. Computes each
@@ -201,11 +209,13 @@ def compare_subjects(
     comparison guard before returning a difference.
     """
     as_of = as_of or date.today()
+    if subject_validator is None:
+        subject_validator = postgres.subject_validator(conn, tenant_id)
     if review_reader is None:
-        review_reader = data_access.review_reader(conn, tenant_id)
+        review_reader = postgres.review_reader(conn, tenant_id)
 
     def _score(subject_type: str, subject_id: Optional[str]):
-        data_access.validate_subject(conn, tenant_id, subject_type, subject_id)
+        subject_validator(subject_type, subject_id)
         reviews = review_reader(subject_type, subject_id)
         usable_reviews = _usable_reviews(reviews)
         contributions = _build_contributions(usable_reviews, as_of)

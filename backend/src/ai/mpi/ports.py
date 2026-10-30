@@ -7,6 +7,18 @@ established authenticated tenant; subject validation precedes reads/writes.
 from typing import Optional, Protocol
 
 
+class SubjectValidator(Protocol):
+    """READ subject existence/ownership; return None or raise existing errors."""
+
+    def __call__(self, subject_type: str, subject_id: Optional[str] = None) -> None: ...
+
+
+class CountryReader(Protocol):
+    """READ subject country context; None means no country is available."""
+
+    def __call__(self, subject_type: str, subject_id: Optional[str] = None) -> Optional[str]: ...
+
+
 class ReviewReader(Protocol):
     """READ eligible analyzed reviews for a subject; empty list means no input."""
 
