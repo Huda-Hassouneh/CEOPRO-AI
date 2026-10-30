@@ -13,7 +13,13 @@ from src.ai.mpi.ports import HistoryReader, SubjectValidator
 def compute_summary(
     conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None,
 ) -> dict:
-    """Compute and persist a summary for the established authenticated tenant."""
+    """Compute a summary with pipeline-owned evidence durability.
+
+    Delegation includes the pipeline commit of the supplied connection. This
+    operation is not atomic with later delivery work: evidence can remain
+    durable when the request fails. The caller owns rollback and connection
+    cleanup, and the HTTP router retains its separate subsequent commit.
+    """
     return pipeline.get_subject_mpi(conn, tenant_id, subject_type, subject_id)
 
 
@@ -27,6 +33,8 @@ def get_history(
 
     Delivery validates pagination and serializes rows after its existing commit
     so conversion failures retain their original transaction ordering.
+    This operation never ends the read transaction; its caller owns commit,
+    rollback and connection cleanup.
     """
     if subject_validator is None:
         subject_validator = postgres.subject_validator(conn, tenant_id)
