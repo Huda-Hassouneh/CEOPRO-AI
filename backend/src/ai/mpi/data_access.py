@@ -30,6 +30,16 @@ class SubjectNotFoundError(LookupError):
 SUPPORTED_SUBJECT_TYPES = {"BUSINESS", "PRODUCT", "COMPETITOR"}
 
 
+def load_history(
+    conn, tenant_id: str, source_module: str, subject_type: str,
+    canonical_subject: Optional[str], limit: int, offset: int,
+) -> list:
+    """Read existing evidence rows after subject validation; do not commit."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT evidence_id,generated_at,source_record_ids,confidence_score,explanation_text FROM evidence_records WHERE tenant_id=%s AND source_module=%s AND source_record_ids->>'subject_type'=%s AND (source_record_ids->>'subject_id' IS NOT DISTINCT FROM %s OR (%s='BUSINESS' AND source_record_ids->>'subject_id'=%s)) ORDER BY generated_at DESC,evidence_id DESC LIMIT %s OFFSET %s",(tenant_id,source_module,subject_type,canonical_subject,subject_type,tenant_id,limit,offset))
+        return cursor.fetchall()
+
+
 def validate_subject(
     conn: "psycopg2.extensions.connection", tenant_id: str, subject_type: str,
     subject_id: Optional[str] = None,
