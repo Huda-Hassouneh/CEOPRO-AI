@@ -27,7 +27,8 @@ import psycopg2
 import pytest
 
 from src.ai.core.security import TenantContext
-from src.ai.rag import data_access as rag_data_access
+from src.ai.extraction.minio_persistence import EXTRACTION_RESULTS_BUCKET
+from src.ai.rag import data_access as rag_data_access, pipeline as rag_pipeline
 from src.ai.routers import extraction
 
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
@@ -95,6 +96,7 @@ class _FakeMinioClient:
 
     def __init__(self):
         self.put_calls = []
+        self.objects = set()
         self.buckets = set()  # a fresh MinIO: no buckets yet
 
     def bucket_exists(self, bucket):
@@ -103,10 +105,20 @@ class _FakeMinioClient:
     def make_bucket(self, bucket):
         self.buckets.add(bucket)
 
-    def put_object(self, bucket, object_key, data, length=None, content_type=None):
+    def put_object(self, bucket=None, object_key=None, data=None, length=None, content_type=None, **kwargs):
+        # Support both the positional calls used by PDF registration and
+        # the keyword-compatible MinIO SDK contract used by ingestion results.
+        bucket = kwargs.pop("bucket_name", bucket)
+        object_key = kwargs.pop("object_name", object_key)
+        if kwargs:
+            raise TypeError(f"Unexpected MinIO put_object arguments: {sorted(kwargs)}")
         if bucket not in self.buckets:
             raise RuntimeError(f"NoSuchBucket: {bucket}")  # what real MinIO does
-        self.put_calls.append({"bucket": bucket, "object_key": object_key, "content_type": content_type})
+        self.put_calls.append({"bucket": bucket, "object_key": object_key, "content_type": content_type, "length": length})
+        self.objects.add((bucket, object_key))
+
+    def remove_object(self, bucket, object_key):
+        self.objects.discard((bucket, object_key))
 
 
 @pytest.fixture
@@ -168,19 +180,30 @@ def test_pdf_upload_registers_and_ingests_a_real_rag_document(tenant, monkeypatc
     response = extraction.extraction_upload(file=file, ctx=ctx)
 
     assert response["rag_document_status"] == "Processed"
-    assert len(fake_minio.put_calls) == 1
-    assert fake_minio.put_calls[0]["bucket"] == extraction.rag_pipeline.DEFAULT_BUCKET
+    # The pipeline stores its extraction-result JSON separately from the
+    # optional RAG PDF; both paths share the tenant storage ledger except
+    # that RAG bytes are counted by rag_documents_metadata.
+    result_puts = [p for p in fake_minio.put_calls if p["bucket"] == EXTRACTION_RESULTS_BUCKET]
+    rag_puts = [p for p in fake_minio.put_calls if p["bucket"] == extraction.rag_pipeline.DEFAULT_BUCKET]
+    assert len(result_puts) == len(rag_puts) == 1
     # Created on first use - it used to be assumed to exist (NoSuchBucket on a fresh deployment).
     assert extraction.rag_pipeline.DEFAULT_BUCKET in fake_minio.buckets
-    assert fake_minio.put_calls[0]["object_key"].startswith(f"uploads/{response['job_id']}")
+    assert result_puts[0]["object_key"].startswith(f"{tenant_id}/")
+    assert rag_puts[0]["object_key"].startswith(f"uploads/{response['job_id']}")
 
     rows = _rag_documents_for(tenant_id)
     assert len(rows) == 1
     file_name, storage_bucket_path, content_type, processed_status = rows[0]
     assert file_name == "company_overview.pdf"
-    assert storage_bucket_path == fake_minio.put_calls[0]["object_key"]
+    assert storage_bucket_path == rag_puts[0]["object_key"]
     assert content_type == "application/pdf"
     assert processed_status == "Processed"
+    with psycopg2.connect(ADMIN_DATABASE_URL) as admin, admin.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM tenant_storage_objects WHERE tenant_id = %s AND bucket = %s AND object_key = %s;",
+            (tenant_id, rag_pipeline.DEFAULT_BUCKET, storage_bucket_path),
+        )
+        assert cursor.fetchone()[0] == 0  # RAG metadata is the one authoritative byte counter.
 
 
 def test_pdf_upload_still_succeeds_when_rag_ingestion_fails(tenant, monkeypatch):
@@ -207,6 +230,34 @@ def test_pdf_upload_still_succeeds_when_rag_ingestion_fails(tenant, monkeypatch)
     assert rows[0][3] in ("Pending", "Failed")  # row survives; never silently dropped (spec S12)
 
 
+def test_pdf_object_is_removed_when_registration_transaction_fails(tenant):
+    from src.ai import db
+
+    tenant_id, user_id = tenant
+    fake_minio = _FakeMinioClient()
+    conn = db.app_role_connection(tenant_id, user_id)
+    try:
+        # A non-existent uploader violates the existing FK after MinIO has
+        # accepted the object, exercising the compensation path.
+        result = extraction._register_pdf_as_rag_document(
+            conn, fake_minio, tenant_id, str(uuid.uuid4()), str(uuid.uuid4()),
+            "company_overview.pdf", _make_pdf_bytes("Company profile"),
+        )
+    finally:
+        conn.close()
+
+    assert result is None
+    assert len(fake_minio.put_calls) == 1
+    uploaded = fake_minio.put_calls[0]
+    assert (uploaded["bucket"], uploaded["object_key"]) not in fake_minio.objects
+    with psycopg2.connect(ADMIN_DATABASE_URL) as admin, admin.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM tenant_storage_objects WHERE tenant_id = %s AND bucket = %s AND object_key = %s;",
+            (tenant_id, uploaded["bucket"], uploaded["object_key"]),
+        )
+        assert cursor.fetchone()[0] == 0
+
+
 def test_csv_upload_does_not_touch_rag_documents_at_all(tenant, monkeypatch):
     """Only PDF is wired into RAG registration - a CSV sales-history
     import must behave exactly as before this change."""
@@ -226,5 +277,7 @@ def test_csv_upload_does_not_touch_rag_documents_at_all(tenant, monkeypatch):
 
     assert response["rag_document_status"] is None
     assert called == []
-    assert fake_minio.put_calls == []
+    # Tabular input may persist the separate extraction-result JSON, but it
+    # must not be registered as a RAG document.
+    assert all(p["bucket"] == EXTRACTION_RESULTS_BUCKET for p in fake_minio.put_calls)
     assert _rag_documents_for(tenant_id) == []

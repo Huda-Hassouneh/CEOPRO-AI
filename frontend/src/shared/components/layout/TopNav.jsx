@@ -10,6 +10,7 @@ import Avatar from '../ui/Avatar.jsx';
 import KeelMark from '../brand/KeelMark.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 import { signOut } from './signOut.js';
+import { PlatformAccessLink } from '../../../features/platform/PlatformAccessLink.jsx';
 import { AlertsBell } from '../../../features/alerts/AlertsBell.jsx';
 import { WorkspaceSwitcher } from '../../../features/workspaces/components/WorkspaceSwitcher.jsx';
 
@@ -225,7 +226,8 @@ export default function TopNav() {
             </div>
           </div>
         </div>
-      </header>
+      <PlatformAccessLink />
+</header>
 
       {menuOpen && (
         <div className="apex-sheet" role="dialog" aria-modal="true" aria-label={t('businessShell.navigation.label')} dir={dir}>

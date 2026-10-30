@@ -3,6 +3,8 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { MoreHorizontal, Plus, Search, ShoppingCart, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
+import { useAuthStore } from '../../auth/store/authStore.js';
+import { hasAnyRole } from '../../auth/permissions/rolePermissions.js';
 import { DashboardLayout } from '../../../app/layouts/DashboardLayout.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
@@ -24,6 +26,8 @@ const ACTION_TONE = { restock: 'warning', reduce: 'violet', monitor: 'success' }
 
 export function ProductsListPage() {
   const { t, locale, dir } = useI18n();
+  const roles = useAuthStore((state) => state.roles);
+  const canManageCatalog = hasAnyRole(roles, ['owner', 'admin']);
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -77,9 +81,10 @@ export function ProductsListPage() {
           subtitle={t('productsApex.subtitle')}
           actions={(
             <>
+              <ApexButton variant="secondary" onClick={() => navigate('/catalog')}>{t('catalog.title')}</ApexButton>
               <ApexButton variant="secondary" icon={ShoppingCart} onClick={() => setPickingSaleProduct(true)}>{t('productsApex.recordSale')}</ApexButton>
               <ApexButton variant="secondary" icon={Upload} onClick={() => navigate(routePaths.connectData)}>{t('productsApex.importSales')}</ApexButton>
-              <ApexButton icon={Plus} onClick={() => setAddingProduct(true)}>{t('products.list.addProduct')}</ApexButton>
+              {canManageCatalog && <ApexButton icon={Plus} onClick={() => setAddingProduct(true)}>{t('products.list.addProduct')}</ApexButton>}
             </>
           )}
         />
@@ -100,7 +105,7 @@ export function ProductsListPage() {
             <StateBlock
               title={t(term ? 'products.list.noResultsTitle' : 'products.list.emptyTitle')}
               description={t(term ? 'products.list.noResultsDescription' : 'products.list.emptyDescription')}
-              action={!term && <><ApexButton icon={Plus} onClick={() => setAddingProduct(true)}>{t('products.list.addProduct')}</ApexButton><ApexButton variant="secondary" icon={Upload} onClick={() => navigate(routePaths.connectData)}>{t('productsApex.importProducts')}</ApexButton></>}
+              action={!term && <>{canManageCatalog && <ApexButton icon={Plus} onClick={() => setAddingProduct(true)}>{t('products.list.addProduct')}</ApexButton>}<ApexButton variant="secondary" icon={Upload} onClick={() => navigate(routePaths.connectData)}>{t('productsApex.importProducts')}</ApexButton></>}
             />
           )}
           {query.isSuccess && products.length > 0 && (
@@ -141,8 +146,8 @@ export function ProductsListPage() {
                             {menuFor === product.product_id && (
                               <div className="apex-menu__list" role="menu" onMouseLeave={() => setMenuFor(null)}>
                                 <button type="button" role="menuitem" onClick={() => { setMenuFor(null); openProduct(product); }}>{t('productsApex.open')}</button>
-                                <button type="button" role="menuitem" onClick={() => { setMenuFor(null); navigate(routePaths.productEdit.replace(':productId', product.product_id)); }}>{t('products.common.edit')}</button>
-                                <button type="button" role="menuitem" className="is-danger" onClick={() => { setMenuFor(null); setDeleteTarget(product); }}>{t('products.common.delete')}</button>
+                                {canManageCatalog && <button type="button" role="menuitem" onClick={() => { setMenuFor(null); navigate(routePaths.productEdit.replace(':productId', product.product_id)); }}>{t('products.common.edit')}</button>}
+                                {canManageCatalog && <button type="button" role="menuitem" className="is-danger" onClick={() => { setMenuFor(null); setDeleteTarget(product); }}>{t('products.common.delete')}</button>}
                               </div>
                             )}
                           </div>
@@ -159,13 +164,13 @@ export function ProductsListPage() {
 
         <SaleProductPicker open={pickingSaleProduct} onClose={() => setPickingSaleProduct(false)} onPick={(product) => { setPickingSaleProduct(false); setQuickSaleProduct(product); }} t={t} currencyFormatter={currencyFormatter} />
         <QuickSaleModal open={Boolean(quickSaleProduct)} product={quickSaleProduct} onClose={() => setQuickSaleProduct(null)} currencyFormatter={currencyFormatter} t={t} onNotice={showNotice} />
-        <QuickAddProductModal open={addingProduct} onClose={() => setAddingProduct(false)} onCreated={() => showNotice('success', t('products.list.added'))} t={t} />
-        <Modal isOpen={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} title={t('products.deleteConfirm.title')} closeLabel={t('common.close')} maxWidth="420px" footer={<>
+        {canManageCatalog && <QuickAddProductModal open={addingProduct} onClose={() => setAddingProduct(false)} onCreated={() => showNotice('success', t('products.list.added'))} t={t} />}
+        {canManageCatalog && <Modal isOpen={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} title={t('products.deleteConfirm.title')} closeLabel={t('common.close')} maxWidth="420px" footer={<>
           <Button variant="outline" onClick={() => setDeleteTarget(null)}>{t('products.common.cancel')}</Button>
           <Button className="products-danger-button" onClick={confirmDelete} loading={deleteMutation.isPending} loadingLabel={t('products.common.saving')}>{t('products.deleteConfirm.confirm')}</Button>
         </>}>
           <p>{t('products.deleteConfirm.message', { name: deleteTarget?.product_name })}</p>
-        </Modal>
+        </Modal>}
         {notice && <div className="products-toast"><Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} /></div>}
       </div>
     </DashboardLayout>

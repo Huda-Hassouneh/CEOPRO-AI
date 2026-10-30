@@ -1,0 +1,22 @@
+{
+  "target": "auth",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-ra",
+    "-p",
+    "no:cacheprovider",
+    "src/ai/tests/test_auth.py",
+    "src/ai/tests/test_auth_completeness.py",
+    "--junitxml",
+    "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/docs/keel-integration/evidence/phase0v/auth-offline.xml"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/backend",
+  "exit_code": 2,
+  "seconds": 2.183,
+  "environment": "allowlist PATH/LANG/LC_ALL/TMPDIR; no DB/Stripe/provider settings inherited; Python socket TCP fence; production metering defaults; offline background/model flags",
+  "network": "No live providers or databases authorized; no Docker/server available",
+  "log": "auth.log"
+}

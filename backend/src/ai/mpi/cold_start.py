@@ -31,10 +31,14 @@ class SampleSizeAssessment:
 
 
 def assess(analyzed_count: int) -> SampleSizeAssessment:
-    sufficient = analyzed_count >= MIN_SAMPLE_SIZE
+    return _assess_sample_size(analyzed_count, MIN_SAMPLE_SIZE)
+
+
+def _assess_sample_size(analyzed_count: int, minimum_required: int) -> SampleSizeAssessment:
+    sufficient = analyzed_count >= minimum_required
     return SampleSizeAssessment(
         sufficient=sufficient,
         analyzed_count=analyzed_count,
-        minimum_required=MIN_SAMPLE_SIZE,
+        minimum_required=minimum_required,
         status="OK" if sufficient else "LOW_SAMPLE_SIZE",
     )

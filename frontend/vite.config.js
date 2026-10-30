@@ -9,6 +9,8 @@ const codespacesDomain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN ||
 
 export default defineConfig({
   plugins: [react()],
+  // The checkout-local launcher supplies explicit environment; ignore legacy .env files there.
+  envDir: process.env.KEEL_DEV_ISOLATED === '1' ? false : undefined,
   server: {
     allowedHosts: [`.${codespacesDomain}`],
     // VITE_API_BASE_URL=/api (set by .devcontainer/start-services.sh in a

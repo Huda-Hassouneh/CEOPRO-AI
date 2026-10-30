@@ -1,0 +1,5 @@
+# Owner-approved 2026-10-27: synthetic, non-issued unit-test placeholder.
+# Tests only local configuration parsing with no Stripe client/network call.
+# Current fixture now uses a prefix-only invalid sentinel. This exception covers
+# only the immutable historical finding, not any rule, path or future credential.
+571d8070b35531bc9c5bd1e63110c3255e4a4599:tools/dev/tests/test_recovery.py:stripe-access-token:116

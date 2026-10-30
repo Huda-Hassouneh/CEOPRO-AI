@@ -33,3 +33,50 @@ regexes = ['''^\s*secret_key:''']
 description = "Docstring text in the embeddings module"
 targetRules = ["generic-api-key"]
 paths = ['''backend/src/ai/rag/embeddings\.py$''']
+
+# SHA-256/SHA-1 file fingerprints in these reviewed acceptance evidence files.
+# Each exception is restricted to an exact path and a JSON string containing
+# exactly 40 or 64 hexadecimal characters. Generic API-key detection remains
+# enabled elsewhere in the repository and on non-digest lines here.
+[[allowlists]]
+description = "File fingerprints in reviewed acceptance evidence JSON"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = [
+  '''docs/keel-integration/evidence/owner-decisions/DOCUMENT_BASELINE_OWNER_RECONCILIATION\.json$''',
+  '''docs/keel-integration/evidence/phase0r/DOCUMENT_BASELINE_PHASE0R\.json$''',
+  '''docs/keel-integration/evidence/phase1a/POST_STABILIZATION_SOURCE_HASHES\.json$''',
+  '''docs/keel-integration/evidence/phase0v/DOCUMENT_BASELINE_PHASE0V\.json$''',
+  '''docs/keel-integration/evidence/phase1a/FINAL_SOURCE_HASHES\.json$''',
+  '''docs/keel-integration/evidence/phase1a/PHASE1A_STARTING_HASHES\.json$''',
+  '''docs/keel-integration/evidence/SUPPLIED_CONTENT_HASHES\.json$''',
+]
+regexTarget = "line"
+regexes = [
+  '''"[^"\r\n]+"\s*:\s*"[0-9a-fA-F]{40}"\s*,?\s*$''',
+  '''"[^"\r\n]+"\s*:\s*"[0-9a-fA-F]{64}"\s*,?\s*$''',
+]
+
+# The default is a Redis stream resource identifier, not a credential. Match
+# only its exact constant assignment in these two reviewed modules.
+[[allowlists]]
+description = "Exact non-secret scraper receipt stream constant assignments"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = [
+  '''backend/src/market_scraper/enqueue\.py$''',
+  '''backend/src/market_scraper/worker\.py$''',
+]
+regexTarget = "line"
+regexes = ['''^\s*(?:RECEIPT_STREAM|STREAM)\s*=\s*os\.getenv\("SCRAPER_RECEIPT_STREAM_KEY",\s*"market\.scrape\.receipt\.v1"\)\s*$''']
+
+# This fixed replay identifier deduplicates the Phase 2 pricing request; it
+# grants no access. Limit the exception to the exact reviewed request lines,
+# not other keys or credentials in this acceptance script or its history.
+[[allowlists]]
+description = "Exact non-secret Phase 2 pricing idempotency request identifier"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^tools/dev/accept_meeting_phase2\.py$''']
+regexTarget = "line"
+regexes = ['''^\s*(?:r|retry) = request\('POST','/pricing/recommend',params=\{'product_id':pid\},headers=\{'Idempotency-Key':'meeting-phase2-pricing-v1'\}\)\s*$''']

@@ -3,7 +3,7 @@
 End-to-end retrieval-augmented generation: document ingestion → persisted hybrid (BM25 + FAISS)
 retrieval → Cross-Encoder re-ranking → context assembly → LLM reasoning (Groq-hosted by default, or
 a local zero-cost `llama.cpp` server - see below). See
-[`../README.md`](../README.md#rag--phase-3-groundwork-retrieval-only-spec-4-6-21) for the
+[`../README.md`](../README.md#modules) for the
 module-by-module breakdown of how each stage works; this file is the practical "how do I actually
 run this" guide.
 
@@ -296,4 +296,3 @@ The check is `advisor._flag_foreign_summary`, by script (`product_guide.question
 
 **Observability.** One log line per answer (`assistant_answer mode=... summary=model|extractive|fallback|none`,
 logger `KEEL_ADVISOR`) is the source for the post-deploy numbers (PENDING_ACTIONS #151).
-

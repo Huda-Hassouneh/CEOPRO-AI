@@ -380,6 +380,13 @@ def _period_days(text: str) -> Optional[int]:
     return None
 
 
+def _all_history(text: str) -> bool:
+    return bool(re.search(
+        r"\b(?:all[- ]time|lifetime|all (?:of )?(?:our |the )?(?:sales )?history|all historical sales|"
+        r"entire (?:sales )?history|since (?:the )?beginning)\b|"
+        r"(?:كامل|كل|جميع) (?:سجل |تاريخ |تاريخية )?(?:المبيعات|الفترات)|منذ البداية|على مر التاريخ", text))
+
+
 def _products(text: str, catalog: List[dict]) -> List[dict]:
     """Catalog products named in the question (whole names, either language)."""
     matched = []
@@ -407,7 +414,9 @@ def extract_slots(question: str, catalog: Optional[List[dict]] = None, company_c
     if destination:
         slots["destination_country"] = destination
     period = _period_days(text)
-    if period:
+    if _all_history(text):
+        slots["all_history"] = True
+    elif period:
         slots["period_days"] = period
     quantity = _QUANTITY.search(text)
     if quantity and _decimal(quantity.group(1)):
@@ -474,6 +483,14 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
                              public_scope=is_public_scope(question, intents, slots))
 
     merged = dict(previous.get("slots") or {})
+    if (slots.get('all_history') or slots.get('period_days')) and merged.get('top_product') and not slots.get('products'):
+        # A product resolved as "top" in the previous window must be ranked
+        # again when the user changes the period, rather than becoming a name filter.
+        merged.pop('products', None)
+    if slots.get("all_history"):
+        merged.pop("period_days", None)
+    elif slots.get("period_days"):
+        merged.pop("all_history", None)
     if any(key in slots for key in ("origin_country", "destination_country", "countries")):
         for key in ("origin_country", "destination_country", "countries"):
             merged.pop(key, None)

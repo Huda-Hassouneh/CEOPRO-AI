@@ -1,0 +1,58 @@
+COMMAND: ["/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python", "-m", "pytest", "-q", "-ra", "-p", "no:cacheprovider", "--continue-on-collection-errors", "src/market_scraper/tests/test_worker.py", "src/market_scraper/tests/test_analysis_worker.py", "src/market_scraper/tests/test_discovery_worker.py", "src/market_scraper/tests/test_connector_sync.py", "src/market_scraper/tests/test_api_connector_sync.py", "src/market_scraper/tests/test_network_security.py", "--junitxml", "/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/docs/keel-integration/evidence/phase0v/workers-offline.xml"]
+CWD: /workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/backend
+PROFILE: clean allowlisted environment; no inherited DB/provider secrets; Python TCP fence; metering enabled/unassigned none
+........................                                                 [100%]
+==================================== ERRORS ====================================
+___________ ERROR collecting src/market_scraper/tests/test_worker.py ___________
+ImportError while importing test module '/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/backend/src/market_scraper/tests/test_worker.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/market_scraper/tests/test_worker.py:5: in <module>
+    from src.market_scraper import worker
+src/market_scraper/worker.py:11: in <module>
+    from prometheus_client import start_http_server
+E   ModuleNotFoundError: No module named 'prometheus_client'
+______ ERROR collecting src/market_scraper/tests/test_analysis_worker.py _______
+ImportError while importing test module '/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/backend/src/market_scraper/tests/test_analysis_worker.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/market_scraper/tests/test_analysis_worker.py:10: in <module>
+    from src.market_scraper import analysis_worker
+src/market_scraper/analysis_worker.py:9: in <module>
+    from src.ai.rag.structured_summaries import regenerate_all_structured_summaries
+src/ai/rag/structured_summaries.py:45: in <module>
+    from src.ai.rag.pipeline import DEFAULT_BUCKET, ingest_pending_documents
+src/ai/rag/pipeline.py:50: in <module>
+    from src.ai.rag.bm25_index import BM25Index
+src/ai/rag/bm25_index.py:12: in <module>
+    from rank_bm25 import BM25Plus
+E   ModuleNotFoundError: No module named 'rank_bm25'
+______ ERROR collecting src/market_scraper/tests/test_discovery_worker.py ______
+ImportError while importing test module '/workspace/scratch/327eb0b847b6/repos/main-repo/main-repo/CEOPRO-AI/backend/src/market_scraper/tests/test_discovery_worker.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/market_scraper/tests/test_discovery_worker.py:10: in <module>
+    from src.market_scraper import discovery_worker
+src/market_scraper/discovery_worker.py:43: in <module>
+    from src.market_scraper.enqueue import enqueue_collection
+src/market_scraper/enqueue.py:10: in <module>
+    from src.market_scraper.collectors import resolve_collector
+src/market_scraper/collectors.py:5: in <module>
+    from src.market_scraper.spiders.amazon_paapi import AmazonPricingSpider
+src/market_scraper/spiders/amazon_paapi.py:8: in <module>
+    import scrapy
+E   ModuleNotFoundError: No module named 'scrapy'
+=========================== short test summary info ============================
+ERROR src/market_scraper/tests/test_worker.py
+ERROR src/market_scraper/tests/test_analysis_worker.py
+ERROR src/market_scraper/tests/test_discovery_worker.py
+24 passed, 3 errors in 0.86s

@@ -1,0 +1,32 @@
+{
+  "counts": {
+    "focused": {
+      "tests": 72,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 16,
+      "passed": 56
+    },
+    "regression": {
+      "tests": 150,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 94,
+      "passed": 56
+    }
+  },
+  "frontend": {
+    "passed": 94,
+    "failed": 0,
+    "skipped": 0
+  },
+  "build": "PASS",
+  "targeted_eslint": "PASS",
+  "ruff": "BLOCKED: module unavailable",
+  "legacy_auth_collection": "FAILED collection (exit 2), suite BLOCKED by missing application import dependencies; no tests executed",
+  "native_postgresql_17": "NOT RUN / INTEGRATION BLOCKED",
+  "real_redis": "NOT RUN / INTEGRATION BLOCKED",
+  "real_smtp": "NOT RUN / INTEGRATION BLOCKED",
+  "browser_e2e": "NOT RUN / INTEGRATION BLOCKED",
+  "stripe_and_providers": "NOT RUN; no integration or release claim"
+}

@@ -105,4 +105,3 @@ Gate test in CI; dev ≥ 85 % with no precision regression; holdout re-run once 
   * Closed: product names on the Pricing list are bidi-isolated (`dir="auto"`); the report has Retry on error and render tests for its four states; the band editor is a real form (Enter saves, invalid values disabled) and no longer sits inside a paragraph; a private helper (`_category_key`) used from another module is now public (`category_key`); an unused import removed.
   * Tests: backend 3,414 passed on a fresh database with every migration; frontend 110 passed, lint clean, build ok.
   * Still needing a person, and only that: real-data labelling (#109) and applying the migrations (#105, #108, #112, #120).
-

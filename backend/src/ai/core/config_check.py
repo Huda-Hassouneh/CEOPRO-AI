@@ -156,16 +156,26 @@ def check_environment() -> List[Finding]:
     # --- addresses and CORS ---------------------------------------------------------
     frontend = _env("FRONTEND_BASE_URL")
     app_base = _env("APP_BASE_URL")
-    for name, value in (("FRONTEND_BASE_URL", frontend), ("APP_BASE_URL", app_base)):
+    public_origin = _env("PUBLIC_FRONTEND_ORIGIN")
+    addresses = (("PUBLIC_FRONTEND_ORIGIN", public_origin),) if public_origin else (("FRONTEND_BASE_URL", frontend), ("APP_BASE_URL", app_base))
+    if public_origin:
+        frontend = app_base = public_origin
+    for name, value in addresses:
         if not value:
             if is_deployed:
-                add(ERROR, name, "is not set - links in emails and Stripe's return pages would point at localhost")
+                add(ERROR, name, "is not set - configure PUBLIC_FRONTEND_ORIGIN for email links and payment returns")
             continue
         problem = _url_problem(value, is_deployed)
         if problem:
             add(ERROR if is_deployed else WARNING, name, problem)
     if frontend and app_base and frontend != app_base:
         add(WARNING, "APP_BASE_URL", "differs from FRONTEND_BASE_URL - both should be the frontend's public address")
+    if public_origin or frontend or app_base or _env("FRONTEND_URL") or _env("STRIPE_SECRET_KEY"):
+        from src.infrastructure.public_urls import frontend_origin
+        try:
+            frontend_origin()
+        except ValueError:
+            add(ERROR, "PUBLIC_FRONTEND_ORIGIN", "must specify one trusted bare HTTPS origin (HTTP loopback is allowed locally); legacy origins must agree when it is absent")
     origins = [o.strip() for o in (_env("CORS_ALLOWED_ORIGINS") or "").split(",") if o.strip()]
     if not origins:
         if is_deployed:

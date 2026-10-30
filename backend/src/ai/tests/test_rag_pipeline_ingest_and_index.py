@@ -57,7 +57,7 @@ def test_ingest_failure_rolls_back_marks_failed_and_continues(monkeypatch):
     # rollback must precede the Failed update, which needs a usable transaction
     assert events.index(("rollback",)) < events.index(("mark", "bad", "Failed"))
     # each document is committed individually
-    assert events.count(("commit",)) == 2
+    assert events.count(("commit",)) == 3
     assert events[-1] == ("commit",)
 
 
@@ -70,6 +70,7 @@ def test_ingest_commits_each_successful_document_right_after_marking(monkeypatch
     assert events == [
         ("replace", "a"), ("mark", "a", "Processed"), ("commit",),
         ("replace", "b"), ("mark", "b", "Processed"), ("commit",),
+        ("commit",),  # release the tenant ingestion session lock
     ]
     conn.rollback.assert_not_called()
 

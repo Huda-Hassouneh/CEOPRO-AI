@@ -142,10 +142,8 @@ def test_rollback_reapplies_context_for_the_next_transaction():
     assert [name for name, _ in _settings(raw.calls)].count("app.current_tenant_id") == 2
 
 
-def test_the_context_is_applied_before_the_next_statement_not_at_commit():
-    """Most connections are closed right after their last commit: applying the
-    context at once cost a round trip, and the transaction it opened a
-    rollback in close()."""
+def test_context_is_restored_even_without_opening_another_cursor():
+    """An existing cursor may be reused, so commit must restore context."""
     raw = FakeRawConnection()
     pool = FakePool()
     conn = PooledTenantConnection(pool, raw, "tenant-1", "user-1")
@@ -154,7 +152,9 @@ def test_the_context_is_applied_before_the_next_statement_not_at_commit():
     conn.commit()
     conn.close()
 
-    assert len(raw.calls) == applied_at_checkout  # nothing more was sent
+    assert dict(_settings(raw.calls[applied_at_checkout:])) == {
+        "app.current_tenant_id": "tenant-1", "app.current_user_id": "user-1",
+        "app.lang": "en", "TimeZone": "UTC"}
     assert raw.rollback_count == 0 and pool.putconn_calls == [(raw, False)]
 
 

@@ -56,7 +56,7 @@ def _sale_at(admin, tenant_id, product_id, at, quantity=1):
     invoice_id = str(uuid.uuid4())
     with admin.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO invoices (invoice_id, tenant_id, invoice_number, issue_date, subtotal, total_amount, currency) VALUES (%s, %s, %s, %s, %s, %s, 'JOD');",
+            "INSERT INTO invoices (invoice_id, tenant_id, invoice_number, issue_date, subtotal, total_amount, currency, payment_status) VALUES (%s, %s, %s, %s, %s, %s, 'JOD', 'PAID');",
             (invoice_id, tenant_id, f"INV-{invoice_id[:8]}", at, 2 * quantity, 2 * quantity),
         )
         cursor.execute(

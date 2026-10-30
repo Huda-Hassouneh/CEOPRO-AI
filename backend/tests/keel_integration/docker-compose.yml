@@ -1,0 +1,9 @@
+# Use together with ../billing/docker-compose.yml; never reuse customer services.
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--requirepass", "${PHASE1A_REDIS_TEST_PASSWORD:?Set a disposable Redis password}"]
+    ports:
+      - "127.0.0.1:${PHASE1A_REDIS_TEST_PORT:-56379}:6379"
+    tmpfs:
+      - /data

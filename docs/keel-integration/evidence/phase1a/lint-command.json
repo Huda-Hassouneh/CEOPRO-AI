@@ -1,0 +1,20 @@
+{
+  "check": "lint",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "ruff",
+    "check",
+    "src/ai/core/pending_registration.py",
+    "src/ai/core/authorization.py",
+    "src/ai/platform",
+    "src/ai/routers/platform.py",
+    "scripts/bootstrap_platform_owner.py",
+    "tests/keel_integration"
+  ],
+  "cwd": "/workspace/scratch/327eb0b847b6/phase1a/CEOPRO-AI/backend",
+  "exit_code": 1,
+  "seconds": 0.032,
+  "native_services": "NOT RUN",
+  "profile": "production metering defaults; no inherited service credentials; scratch TCP fence; explicit test doubles"
+}

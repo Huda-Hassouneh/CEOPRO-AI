@@ -28,6 +28,15 @@ export const productsApi = {
     return { ok: true, product: response.data };
   },
 
+  // Manual canonical stock entry. Provider inventory observations remain
+  // source-owned evidence and are never written through this operation.
+  updateInventory: async ({ id, stock_quantity, reorder_level, safety_stock }) => {
+    const response = await httpClient.patch(`/products/${encodeURIComponent(id)}/inventory`, {
+      stock_quantity, reorder_level, safety_stock,
+    });
+    return response.data;
+  },
+
   // Soft-delete server-side (products.py::delete_product) - the row stops
   // appearing in list/getById immediately, never a real DELETE FROM.
   remove: async (id) => {

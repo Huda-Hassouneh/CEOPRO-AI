@@ -138,7 +138,6 @@ class PooledTenantConnection:
         self._user_id = str(user_id)
         self._language = get_request_language()
         self._closed = False
-        self._context_pending = False
         self._raw.autocommit = False
         self._apply_tenant_context()
 
@@ -148,8 +147,8 @@ class PooledTenantConnection:
         own docstring for why LOCAL (transaction-scoped, not session-
         scoped) is the actual safety mechanism pooling depends on here.
         Issued as the first statements of a fresh transaction (right
-        after checkout, and again before the first statement after every
-        commit/rollback - see cursor()) so it's always in effect for
+        after checkout, and again immediately after every
+        commit/rollback) so it's always in effect for
         whatever the caller does next on this connection.
         """
         # One round trip in the usual case (this runs at every checkout and
@@ -173,24 +172,19 @@ class PooledTenantConnection:
     def cursor(self, *args, **kwargs):
         if self._closed:
             raise psycopg2.InterfaceError("PooledTenantConnection already closed/returned to the pool")
-        if self._context_pending:
-            # Every statement goes through a cursor from here, so the next
-            # transaction always has the context before its first statement.
-            self._context_pending = False
-            self._apply_tenant_context()
         return self._raw.cursor(*args, **kwargs)
 
     # A commit/rollback ends the transaction and with it the SET LOCAL context.
-    # It is re-applied when the next cursor is opened, not at once: most
-    # connections are closed right after their last commit, and applying it
-    # eagerly cost a round trip plus a rollback in close() for nothing.
+    # Existing cursors can be reused after that boundary, so waiting until
+    # cursor creation is unsafe. Retain batched settings and socket reuse,
+    # but restore the context eagerly (including subclass billing context).
     def commit(self) -> None:
         self._raw.commit()
-        self._context_pending = True
+        self._apply_tenant_context()
 
     def rollback(self) -> None:
         self._raw.rollback()
-        self._context_pending = True
+        self._apply_tenant_context()
 
     def close(self) -> None:
         """
