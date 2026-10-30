@@ -79,6 +79,17 @@ or simulated.
   with and without a model (including the free local Qwen3-4B fallback), 11 defects fixed with regression
   tests. Results, remaining gaps and the measured cost of the local model: `docs/QA_AUDIT_2026-10-28.md`.
 
+- **Assistant answers company, sales and market questions (2026-10-29):**
+  - The assistant now reads calendar periods in English and Arabic ("last month", "آذار",
+    "Q2 2025 vs Q2 2026", date ranges, "the month before") and partial product names
+    ("زيت الزيتون").
+  - It answers them from exact SQL for those dates and products: revenue, rankings by units
+    and revenue, stock, forecasts, review counts.
+  - "customers" is no longer read as customs.
+  - Live regression suite against the API with independent SQL ground truth: 4/31 before,
+    31/31 after.
+  - Details and limits: `docs/ASSISTANT_ANSWERING_FIX_2026-10-29.md`.
+
 ## Verification (latest run)
 
 | Check | Result |

@@ -22,23 +22,27 @@ inferred that the text does not say.
 """
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional, Tuple
 
 from src.ai.extraction.numerals import to_ascii_digits
+from src.ai.rag import periods as _periods
 
 # --- intents -----------------------------------------------------------------
 
 SALES, FINANCIALS, PRODUCTS, PRICING, INVENTORY, FORECAST = "sales", "financials", "products", "pricing", "inventory", "forecast"
 MARKETING, COMPETITORS, REVIEWS, DOCUMENTS = "marketing", "competitors", "reviews", "documents"
+COMPANY = "company"
 CUSTOMER_PREFERENCE, PRODUCT_RESEARCH, MARKET_RESEARCH = "customer_preference", "product_research", "market_research"
 REGULATION, TRADE, LANDED_COST, ADVICE = "regulation", "trade", "landed_cost", "advice"
 
 EXTERNAL_INTENTS = frozenset({CUSTOMER_PREFERENCE, PRODUCT_RESEARCH, MARKET_RESEARCH, REGULATION, TRADE, LANDED_COST})
 
 _KEYWORDS: Dict[str, Tuple[str, ...]] = {
-    SALES: ("sale", "sold", "revenue", "income", "turnover", "invoice", "orders", "selling",
-            "مبيع", "بعت", "بعنا", "ايراد", "إيراد", "دخل", "فاتور", "فواتير", "طلبات"),
+    SALES: ("sale", "sold", "sell", "revenue", "income", "turnover", "invoice", "orders", "selling",
+            "earned", "earnings", "takings", "how much did we make", "how much did i make",
+            "مبيع", "بعت", "بعنا", "بيعنا", "باع", "بيع", "ايراد", "إيراد", "دخل", "فاتور", "فواتير", "طلبات"),
     FINANCIALS: ("profit", "margin", "cost", "loss", "gross", "expensive to make", "break even", "break-even",
                  "ربح", "أرباح", "ارباح", "هامش", "تكلف", "تكاليف", "خسار", "كلفة"),
     PRODUCTS: ("product", "item", "catalog", "catalogue", "sku", "منتج", "صنف", "اصناف", "أصناف", "سلعة", "سلع"),
@@ -50,8 +54,10 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
     MARKETING: ("campaign", "marketing", "advert", " ad ", "ads", "promotion", "promo",
                 "حملة", "حملات", "تسويق", "اعلان", "إعلان", "ترويج"),
     COMPETITORS: ("competitor", "competition", "rival", "منافس", "المنافسة"),
-    REVIEWS: ("review", "rating", "feedback", "complain", "sentiment", "customers say", "satisf",
-              "تقييم", "مراجع", "آراء", "اراء", "شكاو", "شكوى", "رضا", "رأي الزبائن", "راي الزبائن"),
+    REVIEWS: ("review", "rating", "feedback", "complain", "sentiment", "customers say", "customers think",
+              "customer opinion", "satisf", "opinion of us", "think of us", "say about us",
+              "تقييم", "مراجع", "آراء", "اراء", "شكاو", "شكوى", "رضا", "رأي الزبائن", "راي الزبائن", "رأي العملاء",
+              "راي العملاء", "رايهم", "رأيهم", "انطباع"),
     DOCUMENTS: ("document", "file", "contract", "agreement", "policy", "uploaded", "pdf",
                 "مستند", "ملف", "عقد", "اتفاقي", "سياسة"),
     CUSTOMER_PREFERENCE: ("why do customers", "why customers", "why people", "prefer", "choose", "rather buy",
@@ -71,11 +77,18 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
                  "label", "standard", "certif", "registration", "requirement", "compliance", "allowed to",
                  "ترخيص", "رخصة", "تصريح", "قانون", "نظام", "ضريبة", "ضريبه", "القيمة المضافة", "ملصق", "بطاقة البيان",
                  "مواصفة", "مواصفات قياسية", "شهادة", "تسجيل", "متطلبات", "اشتراطات", "مسموح"),
-    TRADE: ("import", "export", "custom", "tariff", "duty", "duties", "hs code", "hs-code", "origin", "shipping",
+    # "customs", never "custom": every question about customers would otherwise be a customs question.
+    TRADE: ("import", "export", "customs", "tariff", "duty", "duties", "hs code", "hs-code", "country of origin", "of origin", "origin country", "shipping",
             "freight", "incoterm", "clearance", "ship it", "shipment", "border crossing", "port of entry",
             "via jaber", "jaber crossing", "jaber border",
             "استيراد", "استورد", "تصدير", "صدر", "جمارك", "جمرك", "تعرفة", "تعرفه", "رسوم جمركية", "شحن", "منشأ",
             "بند جمركي", "تخليص", "معبر", "عبر جابر", "ميناء"),
+    # The business itself: its profile, what it sells, where it is, who runs it.
+    COMPANY: ("my company", "our company", "the company", "my business", "our business", "tell me about us", "who we are", "about my shop",
+              "about my store", "company profile", "business profile", "who are we", "what do we sell",
+              "what does my company", "what does our company", "opening hours", "our stores", "our branches",
+              "شركتي", "شركتنا", "عن الشركه", "عن شركتي", "مشروعي", "متجري", "نبذه عن", "ملف الشركه",
+              "ساعات العمل", "مواعيد العمل", "فروعنا", "فروعي"),
     ADVICE: ("should i", "should we", "recommend", "advice", "what can i do", "what should", "how can i improve",
              "how do i increase", "how to increase", "how to grow",
              "شو لازم", "شو بنصح", "انصح", "أنصح", "تنصح", "نصيحة", "توصية", "ماذا أفعل", "كيف ازيد", "كيف أزيد",
@@ -110,8 +123,14 @@ _FOLLOW_UP_CUES = ("and ", "what about", "how about", "and what", "same for", "a
 _REFERS_BACK = re.compile(
     r"(?<![\w])(it|its|it's|that|this|those|these|them|their)(?![\w])|"
     r"(?<![\w])(that|this|the same)\s+(product|item|one)(?![\w])|"
-    r"(?<![\w])(سعره|سعرها|سعرهم|كميته|مخزونه|مبيعاته|مبيعاتها|هذا المنتج|هاد المنتج|نفس المنتج|هذه|هاي|هاد|هذا)(?![\w])")
+    r"(?<![\w])(سعره|سعرها|سعرهم|كميته|مخزونه|مبيعاته|مبيعاتها|هذا المنتج|هاد المنتج|نفس المنتج|هذه|هاي|هاد|هذا|منه|منها)(?![\w])|"
+    # "How many did we sell?" names no product: it is the one just discussed.
+    r"(?<![\w])how (many|much) (did|do|have|were|was|are|is)(?![\w])|(?<![\w])(كم بعنا|كم بعت|قديش بعنا|قديش بعت)(?![\w])")
 _REFERS_BACK_MAX_WORDS = 8
+# A question that points back at the period just discussed ("which product sold the most then?").
+_REFERS_BACK_TIME = re.compile(
+    r"(?<![\w])(then|that period|that month|that quarter|that year|that time|same period|during that|in that period)"
+    r"(?![\w])|وقتها|بهاي الفتره|بهذه الفتره|بنفس الفتره|في نفس الفتره|خلال هذه الفتره|بهديك الفتره|بذلك الشهر|بهذاك الشهر")
 
 
 def _norm(text: str) -> str:
@@ -120,8 +139,22 @@ def _norm(text: str) -> str:
     return text.translate(str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي", "ة": "ه"}))
 
 
+_KEYWORD_PATTERNS: Dict[str, "re.Pattern"] = {}
+
+
+def _keyword_pattern(keyword: str) -> "re.Pattern":
+    """A Latin-script keyword matches at the start of a word ("review" in "reviews", never "tax" in "syntax" or
+    "sale" in "wholesale"); Arabic ones anywhere, since Arabic attaches prefixes ("بمبيعات")."""
+    pattern = _KEYWORD_PATTERNS.get(keyword)
+    if pattern is None:
+        normalized = _norm(keyword)
+        lead = "(?<![a-z])" if re.match(r"[a-z]", normalized) else ""
+        pattern = _KEYWORD_PATTERNS[keyword] = re.compile(lead + re.escape(normalized))
+    return pattern
+
+
 def _has(text: str, keywords) -> bool:
-    return any(_norm(keyword) in text for keyword in keywords)
+    return any(_keyword_pattern(keyword).search(text) for keyword in keywords)
 
 
 def detect_intents(text: str) -> List[str]:
@@ -139,7 +172,10 @@ def is_public_scope(text: str, intents: List[str], slots: dict) -> bool:
     cue ("average", "official", "how can I check", a named country with no
     product of theirs) and no word pointing at the business itself."""
     lowered = f" {_norm(text)} "
-    if _SELF_REFERENCE.search(lowered) or slots.get("products") or slots.get("top_product"):
+    # A product named only in part ("olive oil") may be the world's product, not theirs: "the average retail
+    # price of olive oil in Jordan" is still a public question.
+    named = [p for p in slots.get("products") or [] if not p.get("partial")]
+    if _SELF_REFERENCE.search(lowered) or named or slots.get("top_product"):
         return False
     if _has(lowered, _PUBLIC_CUES):
         return True
@@ -245,17 +281,16 @@ _HS_CODE = re.compile(r"(?:hs(?:\s*code)?|البند(?:\s*الجمركي)?|رم�
 _URL = re.compile(r"https?://[^\s<>\"'()]+")
 _FX_RATE = re.compile(r"(?:exchange rate|fx rate|conversion rate|سعر الصرف|سعر التحويل)\s*(?:is|of|at|=|:|هو|بـ|ب)?\s*"
                       r"(\d+(?:\.\d+)?)")
-_PERIOD_PATTERNS = (
-    (re.compile(r"(?:last|past|previous)\s+(\d+)\s+days?|(?:اخر|آخر)\s+(\d+)\s+(?:يوم|ايام)"), 1),
-    (re.compile(r"(?:last|past|previous)\s+(\d+)\s+weeks?|(?:اخر|آخر)\s+(\d+)\s+(?:اسبوع|اسابيع)"), 7),
-    (re.compile(r"(?:last|past|previous)\s+(\d+)\s+months?|(?:اخر|آخر)\s+(\d+)\s+(?:شهر|اشهر|شهور)"), 30),
-)
-_NAMED_PERIODS = (
-    (("last week", "past week", "this week", "الاسبوع الماضي", "هالاسبوع", "هذا الاسبوع"), 7),
-    (("last month", "past month", "this month", "الشهر الماضي", "الشهر اللي فات", "هالشهر", "هذا الشهر"), 30),
-    (("last quarter", "past quarter", "this quarter", "last 3 months", "الربع الماضي", "اخر ثلاث اشهر", "اخر 3 اشهر"), 90),
-    (("last year", "past year", "this year", "السنه الماضيه", "العام الماضي", "هالسنه", "هذه السنه"), 365),
-)
+# Ranking customers ("my best customers", "أكبر زبائني") needs the per-customer sales breakdown.
+_CUSTOMER_RANKING = re.compile(r"(?<![a-z])(top|best|biggest|largest|main|most valuable|key|loyal)\s+(\w+\s+)?"
+                               r"(customers?|clients?|buyers?|accounts?)|"
+                               r"(افضل|اكبر|اهم|اكثر)\s+(ال)?(زبائن|زبون|عملاء|عميل|الزبائن|العملاء)|"
+                               r"(زبائني|عملائي)\s+(ال)?(اكبر|اهم|افضل)")
+# Asking for the change over time: a month-by-month series for the period.
+_SERIES_CUES = ("by month", "per month", "each month", "every month", "monthly", "month by month", "month-by-month",
+                "over time", "trend", "شهريا", "كل شهر", "حسب الشهر", "بالشهر", "على مدار", "تطور")
+_COMPARE_CUES = ("compare", "compared", "comparison", " vs", "versus", "against", "than", "difference between",
+                 "قارن", "مقارنه", "مقابل", "بالمقارنه", "الفرق بين")
 
 
 @dataclass
@@ -369,19 +404,42 @@ def _money(text: str, company_currency: Optional[str]) -> List[Money]:
 
 
 def _period_days(text: str) -> Optional[int]:
-    for pattern, unit in _PERIOD_PATTERNS:
-        match = pattern.search(text)
-        if match:
-            number = next(group for group in match.groups() if group)
-            return max(1, min(int(number) * unit, 730))
-    for phrases, days in _NAMED_PERIODS:
-        if _has(text, phrases):
-            return days
-    return None
+    """A rolling window ("the last 90 days", "past 3 months"); calendar periods are `periods`."""
+    return _periods.rolling_days(text)
+
+
+# Size and packaging words, and words that describe rather than name a product: a question that shares only
+# one of these with a product name ("the 1kg pack", "premium") is not about that product.
+_GENERIC_NAME_WORDS = {
+    "pack", "packs", "box", "jar", "tin", "bottle", "bag", "set", "kit", "mix", "blend", "gift", "premium", "extra",
+    "fresh", "loose", "per", "medium", "large", "small", "mini", "new", "classic", "original", "special", "drink",
+    "with", "and", "the", "for", "item", "product", "case", "cover", "service", "repair", "plus", "pro", "max",
+    "علبه", "عبوه", "كيس", "مرطبان", "تنكه", "هديه", "ممتاز", "فاخر", "طازج", "صغير", "كبير", "وسط", "خلطه", "منتج",
+    "غرام", "لتر", "مل", "كيلو", "قطعه", "حبه",
+}
+_ARTICLE = re.compile(r"(?<![\w])(?:وال|بال|لل|فال|كال|ال)(?=[\u0621-\u064a]{2,})")
+_SIZE_TOKEN = re.compile(r"^\d+(?:[.,]\d+)?(?:[a-z]+)?$|^(?:ml|l|g|kg|gm|gb|tb|mm|cm|m|pcs|x)$")
+
+
+def _name_tokens(text: str) -> List[str]:
+    """Words of a product name or question, the Arabic article removed ("زيت الزيتون" -> "زيت زيتون"),
+    a plural -s folded ("olives" -> "olive")."""
+    words = re.findall(r"[a-z0-9]+(?:[.,][0-9]+)?[a-z]*|[\u0621-\u064a]+", _ARTICLE.sub("", text))
+    return [w[:-1] if len(w) > 4 and w.endswith("s") and re.match("[a-z]", w) else w for w in words]
+
+
+def _core(tokens: List[str]) -> List[str]:
+    return [t for t in tokens if not _SIZE_TOKEN.match(t) and t not in _GENERIC_NAME_WORDS and len(t) > 1]
+
+
+def _contains_run(haystack: List[str], needle: List[str]) -> bool:
+    return any(haystack[i:i + len(needle)] == needle for i in range(len(haystack) - len(needle) + 1))
 
 
 def _products(text: str, catalog: List[dict]) -> List[dict]:
-    """Catalog products named in the question (whole names, either language)."""
+    """Catalog products named in the question: whole names first (either language); when none is named in
+    full, the products a partial name points at ("olive oil", "the honey", "زيت الزيتون", "التمر"): two
+    consecutive words of a product's name, or one distinctive word of it (not a size or packaging word)."""
     matched = []
     for product in catalog:
         for name in filter(None, (product.get("name"), product.get("name_alt"))):
@@ -391,10 +449,32 @@ def _products(text: str, catalog: List[dict]) -> List[dict]:
             if re.search(r"(?<![\w])" + re.escape(normalized) + r"(?![\w])", text):
                 matched.append({"product_id": product["product_id"], "name": product.get("name") or name})
                 break
-    return matched[:5]
+    if matched:
+        return matched[:5]
+    question = _name_tokens(text)
+    if not question:
+        return []
+    partial = []
+    for product in catalog:
+        best = 0
+        for name in filter(None, (product.get("name"), product.get("name_alt"))):
+            core = _core(_name_tokens(_norm(name)))
+            if len(core) >= 2 and any(_contains_run(question, core[i:i + 2]) for i in range(len(core) - 1)):
+                best = max(best, 2)
+            elif any(len(word) >= 4 and word in question for word in core):
+                best = max(best, 1)
+        if best:
+            partial.append((best, product))
+    if not partial:
+        return []
+    strongest = max(score for score, _ in partial)
+    # "Olive oil" names five products; "extra virgin olive oil" fewer - keep the closest matches only.
+    return [{"product_id": p["product_id"], "name": p.get("name") or p.get("name_alt"), "partial": True}
+            for score, p in partial if score == strongest][:8]
 
 
-def extract_slots(question: str, catalog: Optional[List[dict]] = None, company_currency: Optional[str] = None) -> dict:
+def extract_slots(question: str, catalog: Optional[List[dict]] = None, company_currency: Optional[str] = None,
+                  today: Optional[date] = None) -> dict:
     raw = to_ascii_digits(question or "")
     text = _norm(question)
     mentions = _countries(text)
@@ -409,6 +489,15 @@ def extract_slots(question: str, catalog: Optional[List[dict]] = None, company_c
     period = _period_days(text)
     if period:
         slots["period_days"] = period
+    calendar_periods = _periods.resolve_periods(text, today or date.today())
+    if calendar_periods:
+        slots["periods"] = calendar_periods
+    if _has(f" {text} ", _SERIES_CUES):
+        slots["series"] = True
+    if _has(f" {text} ", _COMPARE_CUES):
+        slots["compare"] = True
+    if _CUSTOMER_RANKING.search(text):
+        slots["customer_ranking"] = True
     quantity = _QUANTITY.search(text)
     if quantity and _decimal(quantity.group(1)):
         slots["quantity"] = {"value": _decimal(quantity.group(1)), "unit": quantity.group(2)}
@@ -453,11 +542,15 @@ _SLOT_KEYS_REPLACED_TOGETHER = {("origin_country", "destination_country", "count
 
 
 def understand(question: str, previous: Optional[dict] = None, catalog: Optional[List[dict]] = None,
-               company_currency: Optional[str] = None) -> Understanding:
+               company_currency: Optional[str] = None, today: Optional[date] = None) -> Understanding:
     """The intents and slots of `question`, carrying over the previous
-    turn's (`previous`, the stored state) when this is a follow-up."""
+    turn's (`previous`, the stored state) when this is a follow-up.
+    `today` is the company's own date (business_time.business_today), which
+    "last month" and "this year" are counted from."""
     intents = detect_intents(question)
-    slots = extract_slots(question, catalog, company_currency)
+    slots = extract_slots(question, catalog, company_currency, today)
+    if slots.get("customer_ranking") and SALES not in intents:
+        intents.append(SALES)
     previous = previous or {}
     text = _norm(question).strip()
     words = text.split()
@@ -467,9 +560,21 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
     # or is a short message about the same things as before.
     refers_back = (len(words) <= _REFERS_BACK_MAX_WORDS and not slots.get("products")
                    and bool((previous.get("slots") or {}).get("products")) and bool(_REFERS_BACK.search(text)))
+    earlier_periods = (previous.get("slots") or {}).get("periods") or []
+    # "and the month before?", "same period last year?": relative to the period just discussed - which wins
+    # over reading "previous month" / "last year" from today.
+    relative = _periods.relative_to(text, earlier_periods)
+    if relative:
+        slots["periods"] = relative
+    refers_to_period = bool(relative) or (bool(earlier_periods) and "periods" not in slots
+                                          and bool(_REFERS_BACK_TIME.search(text)))
     follow_up = bool(previous.get("question")) and (
-        cue or refers_back or not intents or (len(words) <= 5 and set(intents) <= set(previous_intents)))
+        cue or refers_back or refers_to_period or not intents
+        or (len(words) <= 5 and set(intents) <= set(previous_intents)))
     if not follow_up:
+        if slots.get("periods") and not intents:
+            # "Compare March with February", "how was Q3?": a period with no other topic is about sales.
+            intents.append(SALES)
         return Understanding(question, intents, slots, False, question,
                              public_scope=is_public_scope(question, intents, slots))
 
@@ -477,6 +582,16 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
     if any(key in slots for key in ("origin_country", "destination_country", "countries")):
         for key in ("origin_country", "destination_country", "countries"):
             merged.pop(key, None)
+    # A new period replaces the earlier one ("and in August?") - or joins it when the follow-up compares
+    # ("how does that compare with August?"). A rolling window and a calendar period never both stand.
+    if "periods" in slots or "period_days" in slots:
+        earlier = merged.pop("periods", None) or []
+        merged.pop("period_days", None)
+        if slots.get("compare") and "periods" in slots and earlier:
+            combined = {(p["start"], p["end"]): p for p in earlier + slots["periods"]}
+            slots["periods"] = list(combined.values())[-4:]
+    if slots.get("products"):
+        merged.pop("products", None)
     merged.update(slots)
     combined = list(dict.fromkeys(previous_intents + intents)) if intents else previous_intents
     effective = f"{previous.get('question', '')} {question}".strip()

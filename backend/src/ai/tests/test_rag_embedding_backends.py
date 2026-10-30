@@ -253,7 +253,9 @@ def test_evidence_mode_leads_with_the_one_sentence_that_answers_the_question():
     assert [c.text for c in draft.summary] == ["Every employee receives 21 days of paid annual leave each year."]
     assert draft.summary[0].evidence == [leave.id]
     shown = [claim[0].evidence[0] for claim in draft.blocks[1]["items"]]
-    assert shown == [leave.id, supplier.id]  # the relevant item first, not retrieval order
+    # The supplier agreement shares only "days" with the question - a period word, not a topic - so it is
+    # left out rather than shown under the leave policy.
+    assert shown == [leave.id] and supplier.id not in shown
 
 
 def test_evidence_mode_drops_items_that_share_nothing_with_the_question_when_others_do():
