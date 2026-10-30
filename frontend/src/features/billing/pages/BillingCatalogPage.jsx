@@ -17,6 +17,7 @@ import Table from "../../../shared/components/ui/Table.jsx";
 import Toast from "../../../shared/components/ui/Toast.jsx";
 import CustomPlanQuoteManager from "../components/CustomPlanQuoteManager.jsx";
 import BillingOptionsEditor from "../components/BillingOptionsEditor.jsx";
+import { ProviderAccounting } from "../../platform/ProviderAccounting.jsx";
 import { billingApi } from "../api/billingApi.js";
 import { getApiError, isForbiddenBillingError } from "../api/catalogPresentationErrors.js";
 import "../styles/BillingCatalogOriginal.css";
@@ -2148,7 +2149,8 @@ export function BillingCatalogPage({
                   content: subscriptionsContent
                 }
               ]
-            : [])
+            : []),
+          ...(platformMode ? [{ id: "provider-accounting", label: t("billing.providerAccounting.title"), content: <ProviderAccounting canManage={canManagePricing} /> }] : [])
         ]}
       />
 

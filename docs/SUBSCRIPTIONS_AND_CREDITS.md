@@ -34,6 +34,29 @@ display what `/billing/*` returns.
 
 ## 2. Data Credits and AI Credits
 
+Platform Owners manage accounting schedules at
+`/admin/billing?tab=provider-accounting`. The owner-only
+`GET` / `PUT /platform/billing/provider-accounting` API delegates saves to
+`billing.admin.set_price`, the same authority as `scripts.billing_admin set-price`.
+Migration `20261117000000_owner_provider_accounting.sql` supplies its narrow,
+owner-checked database persistence; runtime roles receive no table-write grant.
+Apply it only through the documented backed-up migration procedure before rollout.
+
+These schedules are `provider_cost_schedules`, separate from Custom Plan
+`billing_custom_cost_rates`. Missing prices remain unavailable; intentional zero
+prices stay visible. The form preserves decimal strings, requires provenance,
+verification date and justification, and confirms changes before saving. A blank
+safety margin retains the existing default-policy behavior. Updates retain the
+existing mutable current-schedule semantics with full before/after audit records;
+they do not rewrite historical usage, balances or Custom Plan rate versions.
+
+Focused verification:
+`dev.ps1 test --suite backend --pytest-args tests/billing/test_provider_accounting_db.py -q`.
+For disposable browser plus synthetic Data-accounting acceptance, run
+`.dev/venv/Scripts/python.exe tools/dev/provider_accounting_browser.py`.
+This reuses the isolated runner, preserves application services, excludes paid
+provider credentials, and retains test databases/evidence under `.dev/evidence/tests/`.
+
 Two separate monthly budgets. They are never interchangeable (no conversion
 policy exists).
 
