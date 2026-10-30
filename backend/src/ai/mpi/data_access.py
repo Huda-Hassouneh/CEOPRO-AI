@@ -10,9 +10,12 @@ recency/reliability weights (spec S17).
 
 import math
 import uuid
+from functools import partial
 from typing import Optional
 
 import psycopg2
+
+from src.ai.mpi.ports import HistoryReader, ReviewReader
 
 
 class InvalidSubjectType(ValueError):
@@ -28,6 +31,16 @@ class SubjectNotFoundError(LookupError):
 
 
 SUPPORTED_SUBJECT_TYPES = {"BUSINESS", "PRODUCT", "COMPETITOR"}
+
+
+def review_reader(conn, tenant_id: str) -> ReviewReader:
+    """Bind eligible-review reads to the existing transaction and tenant."""
+    return partial(load_scored_reviews, conn, tenant_id)
+
+
+def history_reader(conn, tenant_id: str, source_module: str) -> HistoryReader:
+    """Bind history reads without taking connection or transaction ownership."""
+    return partial(load_history, conn, tenant_id, source_module)
 
 
 def load_history(

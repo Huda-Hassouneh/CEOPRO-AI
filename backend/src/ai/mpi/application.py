@@ -7,6 +7,7 @@ import uuid
 from typing import Optional
 
 from src.ai.mpi import data_access, pipeline
+from src.ai.mpi.ports import HistoryReader
 
 
 def compute_summary(
@@ -19,6 +20,7 @@ def compute_summary(
 def get_history(
     conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None,
     limit: int = 20, offset: int = 0,
+    *, history_reader: Optional[HistoryReader] = None,
 ) -> list:
     """Return validated history rows, including one lookahead row for pagination.
 
@@ -27,6 +29,6 @@ def get_history(
     """
     data_access.validate_subject(conn, tenant_id, subject_type, subject_id)
     canonical_subject = None if subject_type == 'BUSINESS' else str(uuid.UUID(subject_id))
-    return data_access.load_history(
-        conn, tenant_id, pipeline.SOURCE_MODULE, subject_type, canonical_subject, limit + 1, offset,
-    )
+    if history_reader is None:
+        history_reader = data_access.history_reader(conn, tenant_id, pipeline.SOURCE_MODULE)
+    return history_reader(subject_type, canonical_subject, limit + 1, offset)
