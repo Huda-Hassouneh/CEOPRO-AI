@@ -12,8 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.ai import db
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.mpi import application
-# Retain the existing internal import seam for callers and characterization.
-from src.ai.mpi import pipeline as mpi_pipeline
+from src.ai.mpi.errors import InvalidSubjectIdentifier, InvalidSubjectType, SubjectNotFoundError
 
 router = APIRouter(prefix="/mpi", tags=["mpi"])
 
@@ -30,13 +29,13 @@ def mpi_summary(
         # Ends the restored-context transaction, not the evidence transaction.
         conn.commit()
         return result
-    except mpi_pipeline.data_access.InvalidSubjectType as exc:
+    except InvalidSubjectType as exc:
         conn.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except mpi_pipeline.data_access.InvalidSubjectIdentifier as exc:
+    except InvalidSubjectIdentifier as exc:
         conn.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except mpi_pipeline.data_access.SubjectNotFoundError:
+    except SubjectNotFoundError:
         conn.rollback()
         raise HTTPException(status_code=404, detail="MPI subject not found.") from None
     except Exception:
@@ -55,11 +54,11 @@ def mpi_history(subject_type:str,subject_id:Optional[str]=None,limit:int=Query(2
         # Preserve read-transaction completion before response construction.
         conn.commit()
         return {'items':[{'evidence_id':str(r[0]),'generated_at':r[1].isoformat(),'result':r[2],'confidence_score':float(r[3]) if r[3] is not None else None,'explanation':r[4]} for r in rows[:limit]],'has_more':len(rows)>limit,'limit':limit,'offset':offset}
-    except mpi_pipeline.data_access.InvalidSubjectType as exc:
+    except InvalidSubjectType as exc:
         conn.rollback();raise HTTPException(422,str(exc)) from None
-    except mpi_pipeline.data_access.InvalidSubjectIdentifier as exc:
+    except InvalidSubjectIdentifier as exc:
         conn.rollback();raise HTTPException(422,str(exc)) from None
-    except mpi_pipeline.data_access.SubjectNotFoundError:
+    except SubjectNotFoundError:
         conn.rollback();raise HTTPException(404,'MPI subject not found.') from None
     except Exception:
         conn.rollback();raise

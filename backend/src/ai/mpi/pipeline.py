@@ -14,11 +14,10 @@ from datetime import date
 from typing import Optional
 
 from src.ai.mpi import cold_start, postgres
-# Preserve existing import seams used by callers and characterization tests.
-from src.ai.mpi import data_access, evidence
 from src.ai.mpi.ports import CountryReader, EvidenceWriter, ReviewReader, SubjectValidator
 from src.ai.mpi.scoring import (
     MPIComparison,
+    MPIResult,
     ReviewContribution,
     compare_mpi_results,
     compute_mpi,
@@ -77,6 +76,11 @@ def _label_counts(reviews: list) -> dict:
     return counts
 
 
+def _score_reviews(reviews: list, as_of: date) -> tuple[list, Optional[MPIResult]]:
+    usable_reviews = _usable_reviews(reviews)
+    return usable_reviews, compute_mpi(_build_contributions(usable_reviews, as_of), _label_counts(usable_reviews))
+
+
 def get_subject_mpi(
     conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None, as_of: Optional[date] = None,
     *, review_reader: Optional[ReviewReader] = None, evidence_writer: Optional[EvidenceWriter] = None,
@@ -104,10 +108,7 @@ def get_subject_mpi(
     if evidence_writer is None:
         evidence_writer = postgres.evidence_writer(conn, tenant_id)
 
-    usable_reviews = _usable_reviews(reviews)
-    contributions = _build_contributions(usable_reviews, as_of)
-    label_counts = _label_counts(usable_reviews)
-    result = compute_mpi(contributions, label_counts)
+    usable_reviews, result = _score_reviews(reviews, as_of)
 
     if result is None:
         # Either no reviews at all, or every review had no effective_date and
@@ -133,6 +134,7 @@ def get_subject_mpi(
         logger.info(f"No usable reviews for MPI tenant={tenant_id} subject={subject_type}/{subject_id}")
         return {"status": "UNKNOWN", "evidence_id": evidence_id}
 
+    label_counts = result.label_counts
     sample_assessment = cold_start.assess(result.review_count)
 
     if sample_assessment.sufficient:
@@ -226,9 +228,8 @@ def compare_subjects(
     def _score(subject_type: str, subject_id: Optional[str]):
         subject_validator(subject_type, subject_id)
         reviews = review_reader(subject_type, subject_id)
-        usable_reviews = _usable_reviews(reviews)
-        contributions = _build_contributions(usable_reviews, as_of)
-        return compute_mpi(contributions, _label_counts(usable_reviews))
+        _, result = _score_reviews(reviews, as_of)
+        return result
 
     result_a = _score(*subject_a)
     result_b = _score(*subject_b)
