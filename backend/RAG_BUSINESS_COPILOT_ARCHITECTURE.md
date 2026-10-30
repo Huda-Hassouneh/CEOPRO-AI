@@ -604,7 +604,10 @@ question goes through these steps:
    maps to capabilities. Staff never receive revenue, cost or document
    evidence; anything withheld is reported as `not_permitted` rather than
    silently omitted. Row-level security still isolates companies.
-3. **Gather company evidence**: fact sections from
+3. **Gather company evidence**: first the exact records for the periods
+   and products the question names (`rag/business_records.py`: sales,
+   rankings, a product's stock and forecast, review counts, the company
+   profile; periods from `rag/periods.py`), then fact sections from
    `structured_context.build_fact_sections()`, the business-analysis,
    orchestrator and financial blocks, uploaded documents (with page
    numbers, `rag_document_chunks.page_number`), products, reviews and the

@@ -30,18 +30,20 @@ import logging
 import os
 import re
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Callable, Dict, List, Optional
 
 from src.ai.billing import credits
 from src.ai.rag import access as acl
 from src.ai.rag import business_analysis, citations, conversation_memory, evidence as ev, llm_client, product_guide
-from src.ai.rag import understanding, untrusted
+from src.ai.rag import business_records, understanding, untrusted
+from src.ai.rag.periods import MONTH_NAMES, label_dates as periods_label
+from src.ai.core.business_time import business_today
 from src.ai.rag.business_tools import build_financial_facts_block
 from src.ai.rag.orchestrator import build_tool_facts_blocks
 from src.ai.rag.pipeline import DEFAULT_RERANK_CANDIDATES, run_retrieval
-from src.ai.rag.structured_context import build_fact_sections, build_sales_lines
+from src.ai.rag.structured_context import build_fact_sections
 from src.ai.research import research as public_research
 from src.ai.trade import landed_cost
 from src.ai.trade import messages as trade_messages
@@ -67,7 +69,7 @@ _SECTIONS_FOR_INTENT = {
     U.ADVICE: ("sales", "insights", "price_gaps", "price_ladder", "forecasts", "sentiment"),
 }
 _PRIVATE_ONLY = frozenset({U.SALES, U.FINANCIALS, U.INVENTORY, U.FORECAST, U.MARKETING, U.DOCUMENTS, U.PRODUCTS,
-                           U.PRICING})
+                           U.PRICING, U.COMPANY})
 # Why public research did not run, in words the model can pass on.
 _RESEARCH_FAILED = {
     public_research.NOT_CONFIGURED: "web search is not set up on this server - an administrator needs to add a "
@@ -182,7 +184,16 @@ _STOP_WORDS = {"the", "and", "for", "with", "what", "how", "why", "are", "is", "
                "been", "will", "would", "could", "you", "they", "their", "them", "its", "from", "there", "than",
                "then", "متى", "أين", "وين", "مين", "ايش", "هذا", "هذه", "كان", "كانت",
                "ما", "ماذا", "كيف", "لماذا", "هل", "في", "من", "على", "عن", "الى", "إلى", "شو", "ليش", "قديش",
-               "انا", "أنا"}
+               "انا", "أنا",
+               # Request verbs: "tell me about my company" is about the company, not about telling.
+               "tell", "show", "give", "explain", "describe", "summarise", "summarize", "know", "please", "want",
+               "need", "like", "find", "list", "see", "get", "let", "اعطني", "عطيني", "خبرني", "قلي", "قل", "اشرح",
+               "وضح", "لخص", "اعرض", "اريد", "بدي", "ابغى", "عايز",
+               # Period words say when, not what: "the last 3 months" matched "Last reviewed September".
+               "last", "next", "past", "previous", "current", "month", "months", "year", "years", "week", "weeks",
+               "days", "today", "much", "many", "اخر", "الماضي", "القادم", "الشهر", "شهر", "السنه", "سنه", "الاسبوع",
+               # Ranking words say how to order, not what about: "top 5 customers" is about customers.
+               "top", "best", "most", "highest", "biggest", "largest", "lowest", "افضل", "اكثر", "اعلى", "اكبر"}
 # Compared after the same normalisation as the text (أ -> ا, ى -> ي), or the Arabic ones never match.
 _STOP = {understanding._norm(w) for w in _STOP_WORDS}
 
@@ -261,10 +272,16 @@ def _top_product(conn, tenant_id: str, catalog: List[dict], access: acl.Access) 
 _ARABIC_PUNCTUATION = re.compile("[\u060c\u061b\u061f\u066a-\u066d\u06d4]")
 
 
+# Month names and years say when, not what: every document footer "Last reviewed September 2026" would
+# otherwise match every question about September's sales.
+_DATE_WORDS = {understanding._norm(name) for names in MONTH_NAMES.values() for name in names if " " not in name}
+
+
 def _content_words(text: str) -> set:
     # Arabic punctuation sits inside the Arabic letter range: "طلب؟" must still be the word "طلب".
     words = re.findall(r"[\w؀-ۿ]{3,}", _ARABIC_PUNCTUATION.sub(" ", understanding._norm(text)))
-    return {w[2:] if w.startswith("ال") and len(w) > 4 else w for w in words if w not in _STOP}
+    return {w[2:] if w.startswith("ال") and len(w) > 4 else w for w in words
+            if w not in _STOP and w not in _DATE_WORDS and not w.isdigit()}
 
 
 def _relevant(question: str, text: str) -> bool:
@@ -360,8 +377,37 @@ def _recall(registry: ev.EvidenceRegistry, question: str, full_question: str, ol
     return len(passages)
 
 
+# The intents each generated data summary (structured_summaries.py) speaks to. One about another topic only
+# shares incidental words with the question ("as more sales come in" in the forecast summary) and takes the
+# place of evidence that answers it; the live records are the exact figures anyway.
+_SUMMARY_TOPICS = {
+    "sales_history": {U.SALES, U.FINANCIALS, U.PRODUCTS, U.ADVICE},
+    "demand_forecast": {U.FORECAST, U.INVENTORY, U.ADVICE},
+    "market_pricing": {U.PRICING, U.COMPETITORS, U.MARKET_RESEARCH, U.ADVICE},
+    "competitor_landscape": {U.COMPETITORS, U.MARKET_RESEARCH, U.CUSTOMER_PREFERENCE},
+    "sentiment_trends": {U.REVIEWS, U.CUSTOMER_PREFERENCE},
+    "strategic_insights": {U.ADVICE, U.PRICING, U.FINANCIALS},
+}
+
+
+def _summary_off_topic(path: Optional[str], intents) -> bool:
+    if not intents or not (path or "").startswith("_generated/"):
+        return False
+    topics = _SUMMARY_TOPICS.get(path[len("_generated/"):].rsplit(".", 1)[0])
+    return topics is not None and not topics & set(intents)
+
+
+# Generated summaries that exact records for the question replace (fact-section key -> summary slot).
+_SUPERSEDED_SUMMARIES = {"sales": "sales_history", "forecasts": "demand_forecast"}
+
+
+def _summary_superseded(path: Optional[str], superseded) -> bool:
+    slot = (path or "")[len("_generated/"):].rsplit(".", 1)[0] if (path or "").startswith("_generated/") else None
+    return slot is not None and slot in {_SUPERSEDED_SUMMARIES.get(key) for key in superseded}
+
+
 def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry: ev.EvidenceRegistry,
-               top_k: int, statuses: List[dict], language: str = "en") -> int:
+               top_k: int, statuses: List[dict], language: str = "en", intents=(), superseded=frozenset()) -> int:
     if conn is None:
         return 0
     try:
@@ -399,7 +445,7 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
             continue
         if added >= top_k:
             continue
-        if not admits(text):
+        if _summary_off_topic(path, intents) or _summary_superseded(path, superseded) or not admits(text):
             continue
         summary = (path or "").startswith("_generated/")
         title = (_w("summary_title", language, name=file_name.rsplit('.', 1)[0].replace('_', ' ')) if summary
@@ -416,7 +462,9 @@ def _documents(conn, tenant_id: str, question: str, access: acl.Access, registry
 
 
 def _fact_sections(conn, tenant_id: str, u: understanding.Understanding, access: acl.Access,
-                   registry: ev.EvidenceRegistry, statuses: List[dict]) -> int:
+                   registry: ev.EvidenceRegistry, statuses: List[dict], skip: frozenset = frozenset()) -> int:
+    """The live snapshot sections the question's intents need; `skip` names the
+    ones _records() already answered exactly for the asked period."""
     if conn is None:
         return 0
     wanted = set()
@@ -427,14 +475,8 @@ def _fact_sections(conn, tenant_id: str, u: understanding.Understanding, access:
         return 0
     sections = build_fact_sections(conn, tenant_id, allowed=access.allows)
     added = 0
-    period = u.slots.get("period_days")
-    if period and period != 30 and access.allows(acl.SALES) and (
-            {U.SALES, U.FINANCIALS, U.PRODUCTS, U.ADVICE} & set(u.intents) or general):
-        added += len(registry.add_fact_lines(build_sales_lines(conn, tenant_id, days=period), route="/sales",
-                                             capabilities=frozenset({acl.SALES}),
-                                             observed_at=datetime.now(timezone.utc)))
     for section in sections:
-        if not general and section.key not in wanted:
+        if section.key in skip or (not general and section.key not in wanted):
             continue
         added += len(registry.add_fact_lines(section.lines, route=section.route, capabilities=section.capabilities,
                                              observed_at=datetime.now(timezone.utc)))
@@ -442,7 +484,7 @@ def _fact_sections(conn, tenant_id: str, u: understanding.Understanding, access:
 
 
 def _analysis(conn, tenant_id: str, u: understanding.Understanding, access: acl.Access,
-              registry: ev.EvidenceRegistry) -> int:
+              registry: ev.EvidenceRegistry, exact_sales: bool = False) -> int:
     if conn is None:
         return 0
     question = u.effective_question
@@ -450,7 +492,10 @@ def _analysis(conn, tenant_id: str, u: understanding.Understanding, access: acl.
     superseded = business_analysis.superseded_prefixes(blocks)
     blocks += [(label, text) for label, text in build_tool_facts_blocks(conn, tenant_id, question)
                if label != "CEOPRO_APPLICATION_KNOWLEDGE" and not text.startswith(superseded)]
-    if access.allows(acl.SALES, acl.COSTS) and (U.FINANCIALS in u.intents or U.SALES in u.intents):
+    # The trailing-window margin block would contradict the asked calendar period; _records() gives its
+    # gross profit instead.
+    if access.allows(acl.SALES, acl.COSTS) and (U.FINANCIALS in u.intents or U.SALES in u.intents) and not (
+            exact_sales and u.slots.get("periods")):
         financial = build_financial_facts_block(conn, tenant_id, question, window_days=u.slots.get("period_days"))
         if financial:
             blocks.append(("TENANT_BUSINESS_DATA", financial))
@@ -463,6 +508,116 @@ def _analysis(conn, tenant_id: str, u: understanding.Understanding, access: acl.
         added += len(registry.add_fact_lines(text.splitlines(), route=route, capabilities=capabilities,
                                              observed_at=datetime.now(timezone.utc)))
     return added
+
+
+def _sales_periods(u: understanding.Understanding, today) -> List[dict]:
+    """The periods to report sales for: those the question names, else its rolling window, else the last 30 days."""
+    if u.slots.get("periods"):
+        return list(u.slots["periods"])
+    days = int(u.slots.get("period_days") or 30)
+    start = today - timedelta(days=days - 1)
+    return [{"start": start.isoformat(), "end": (today + timedelta(days=1)).isoformat(),
+             "label": f"the last {days} days", "kind": "days"}]
+
+
+_NAMED_RECORD_TITLES = ("Stock of ", "Demand forecast for ", "Sales of the products asked about")
+_HEADLINE_TITLES = ("Sales for ",)
+_RANKING = re.compile(r"(?<![a-z])(top|best|worst|most|least|rank|ranking|which products?|what sold|bestsell)|"
+                      r"اكثر|افضل|اقل|اسوا|ترتيب|اي منتج|شو المنتج")  # a period's own total, the first thing an answer about it says
+
+
+def _records(conn, tenant_id: str, u: understanding.Understanding, access: acl.Access,
+             registry: ev.EvidenceRegistry, statuses: List[dict], language: str = "en", today=None) -> tuple:
+    """Exact records for the periods and products the question names (business_records.py).
+    Returns (items added, fact-section keys these records replace)."""
+    if conn is None:
+        return 0, frozenset()
+    intents = set(u.intents)
+    slots = u.slots
+    product_ids = [p["product_id"] for p in slots.get("products") or []]
+    now = datetime.now(timezone.utc)
+    added, replaced = 0, set()
+
+    def add(lines: List[str], route: str, *capabilities: str) -> None:
+        nonlocal added
+        if not lines:
+            return
+        items = registry.add_fact_lines(lines, route=route, capabilities=frozenset(capabilities), observed_at=now)
+        for item in items:
+            # Computed for exactly this question; the named products' own lines most of all (_evidence_mode).
+            # A word, not a number: numbers in `data` count as evidence for the citation check.
+            named = item.title.startswith(_NAMED_RECORD_TITLES) or " asked about" in item.title
+            headline = item.title.startswith(_HEADLINE_TITLES) and item.excerpt.startswith(("Revenue ", "- Revenue"))
+            item.data = {**(item.data or {}), "exact": "named" if named else "headline" if headline or
+                         item.title.startswith("Comparison of the periods") else "record"}
+        added += len(items)
+
+    def guarded(need: str, detail: str, build: Callable[[], None]) -> bool:
+        """A failed query is reported as failed (never as "no data") and the rest still answers."""
+        try:
+            build()
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s failed (tenant=%s): %s", need, tenant_id, exc)
+            rollback = getattr(conn, "rollback", None)
+            if rollback:
+                rollback()
+            _status(statuses, need, "failed", detail)
+            return False
+
+    day = today or business_today(conn)
+    # A ranking question ("top 10", "which sold least") gets the longer lists; any other gets the top 5.
+    ranking = bool(slots.get("top_product")) or bool(_RANKING.search(understanding._norm(u.effective_question)))
+    asks_sales = bool(intents & {U.SALES, U.FINANCIALS}) or slots.get("customer_ranking") or slots.get("top_product") \
+        or (bool(slots.get("periods")) and bool(intents & {U.PRODUCTS, U.ADVICE, U.PRICING}) and not intents & {
+            U.REVIEWS, U.FORECAST, U.INVENTORY, U.MARKET_RESEARCH, U.COMPETITORS, U.PRODUCT_RESEARCH})
+    if asks_sales and access.allows(acl.SALES):
+        def sales() -> None:
+            coverage = business_records.sales_coverage(conn, tenant_id)
+            periods = _sales_periods(u, day)
+            several = len(periods) > 1
+            for period in periods:
+                add(business_records.sales_lines(
+                    conn, tenant_id, period, product_ids=product_ids, language=language,
+                    with_costs=access.allows(acl.COSTS) and (U.FINANCIALS in intents or not several),
+                    series=bool(slots.get("series")), customers=bool(slots.get("customer_ranking")),
+                    coverage=coverage, compare_previous=not several,
+                    top=business_records.TOP_PRODUCTS if ranking and not several else 5), "/sales", acl.SALES)
+            add(business_records.comparison_lines(conn, tenant_id, periods), "/sales", acl.SALES)
+
+        if guarded("sales_records", "the sales figures for this period could not be read", sales):
+            replaced.add("sales")
+
+    if product_ids and intents & {U.INVENTORY, U.FORECAST, U.PRODUCTS}:
+        stock = access.allows(acl.INVENTORY) and (U.INVENTORY in intents or U.PRODUCTS in intents)
+        forecast = access.allows(acl.FORECASTS) and (U.FORECAST in intents or U.INVENTORY in intents)
+        if stock:
+            guarded("stock_records", "the stock levels could not be read", lambda: add(
+                business_records.product_status_lines(conn, tenant_id, product_ids, language, with_stock=True,
+                                                      with_forecast=False, with_sales=access.allows(acl.SALES)),
+                "/demand/inventory", acl.INVENTORY))
+        if forecast:
+            both = access.allows(acl.INVENTORY)
+            if guarded("forecast_records", "the demand forecasts could not be read", lambda: add(
+                    business_records.product_status_lines(conn, tenant_id, product_ids, language, with_stock=False,
+                                                          with_forecast=True, compare_stock=both), "/demand",
+                    *((acl.FORECASTS, acl.INVENTORY) if both else (acl.FORECASTS,)))):
+                replaced.add("forecasts")  # the named products' own forecasts, not every product's
+    elif U.INVENTORY in intents and access.allows(acl.INVENTORY):
+        guarded("stock_records", "the stock levels could not be read", lambda: add(
+            business_records.stock_list_lines(conn, tenant_id, language, with_sales=access.allows(acl.SALES)),
+            "/demand/inventory", acl.INVENTORY))
+
+    if intents & {U.REVIEWS, U.CUSTOMER_PREFERENCE} and access.allows(acl.REVIEWS):
+        asked = _sales_periods(u, day) if (slots.get("periods") or slots.get("period_days")) else []
+        guarded("review_records", "the review counts could not be read", lambda: add(
+            business_records.review_trend_lines(conn, tenant_id, asked, product_ids), "/market", acl.REVIEWS))
+
+    if U.COMPANY in intents:
+        guarded("company_profile", "the company profile could not be read", lambda: add(
+            business_records.company_profile_lines(conn, tenant_id, with_competitors=access.allows(acl.COMPETITORS)),
+            "/settings/company"))
+    return added, frozenset(replaced)
 
 
 CATALOGUE_NAMES = 40
@@ -478,10 +633,11 @@ def _catalogue_record(u: understanding.Understanding, catalog: List[dict], acces
     items = "; ".join(
         p["name"] + (f" {p['price']} {p['currency']}" if p["price"] is not None else "") for p in shown)
     more = _w("catalogue_more", language, rest=len(catalog) - len(shown)) if len(catalog) > len(shown) else ""
-    registry.add(ev.COMPANY_RECORD, _w("catalogue_title", language),
-                 _w("catalogue_line", language, count=len(catalog), items=items, more=more),
-                 ev.COMPANY, ev.OBSERVED, route="/products", capabilities=frozenset({acl.CATALOG}),
-                 observed_at=datetime.now(timezone.utc))
+    record = registry.add(ev.COMPANY_RECORD, _w("catalogue_title", language),
+                          _w("catalogue_line", language, count=len(catalog), items=items, more=more),
+                          ev.COMPANY, ev.OBSERVED, route="/products", capabilities=frozenset({acl.CATALOG}),
+                          observed_at=datetime.now(timezone.utc))
+    record.data = {**(record.data or {}), "exact": "headline"}
     return 1
 
 
@@ -491,6 +647,8 @@ def _product_records(u: understanding.Understanding, catalog: List[dict], access
     out = {}
     by_id = {p["product_id"]: p for p in catalog}
     for named in u.slots.get("products") or []:
+        if u.public_scope and named.get("partial"):
+            continue  # "the average price of olive oil in Jordan" is not about their olive oil's records
         product = by_id.get(named["product_id"])
         if not product:
             continue
@@ -543,8 +701,18 @@ def _reviews(conn, tenant_id: str, u: understanding.Understanding, access: acl.A
                  ev.OBSERVED, route="/market", capabilities=frozenset({acl.REVIEWS}))
     from src.ai.rag.bm25_index import BM25Index
 
-    index = BM25Index([(str(i), row[0]) for i, row in enumerate(rows)])
-    picked = [int(chunk.chunk_id) for chunk in index.query(u.effective_question, top_k=6)] or list(range(min(4, len(rows))))
+    # One example per distinct wording (customers repeat themselves; four copies of "fast delivery" say no more
+    # than one), the closest matches to the question first, then the newest positive and negative ones so both
+    # sides of opinion are shown.
+    distinct = {}
+    for i, row in enumerate(rows):
+        distinct.setdefault(" ".join((row[0] or "").lower().split()), i)
+    keep = sorted(distinct.values())
+    index = BM25Index([(str(i), rows[i][0]) for i in keep])
+    picked = [int(chunk.chunk_id) for chunk in index.query(u.effective_question, top_k=4)]
+    for wanted in (lambda r: r is not None and float(r) >= 4, lambda r: r is not None and float(r) <= 2):
+        picked += [i for i in keep if wanted(rows[i][1]) and i not in picked][:3]
+    picked = picked or keep[:4]
     for i in picked:
         text, rating, date, platform, _subject, product = rows[i]
         title = _w("review_about", language, product=product) if product else _w("review_title", language)
@@ -782,6 +950,11 @@ def _prompt(question: str, u: understanding.Understanding, company: dict, access
     details = {k: v for k, v in u.slots.items() if k not in ("amounts", "percentages")}
     lines.append(f"Understood: needs {', '.join(u.intents) or 'general'}; details {json.dumps(details, ensure_ascii=False)}"
                  + ("; this is a follow-up to the previous question" if u.follow_up else ""))
+    if u.slots.get("periods"):
+        asked = "; ".join(f"{p['label']} = {periods_label(p)}" for p in u.slots["periods"])
+        lines.append(f"Periods asked about: {asked}. Answer with the records for exactly these dates. Never give a "
+                     "figure from another period (the last 30 days, a generated summary) as if it were one of these; "
+                     "if a period has no records, say so and give the dates the records do cover.")
     items = registry.items()
     if compact:
         order = {ev.CALCULATION: 0, ev.USER_INPUT: 1, ev.PRODUCT_GUIDE: 2, ev.COMPANY_RECORD: 3, ev.WEB_PAGE: 4,
@@ -912,15 +1085,33 @@ def _best_sentence(question: str, text: str) -> str:
     return _shorten(best if wanted & _stems(best) else text)
 
 
+# The screens whose records answer each need: a question with several needs ("how did it sell, and how does my
+# price compare?") shows the best item for each need first.
+_ROUTES_FOR_INTENT = {
+    U.SALES: ("/sales",), U.FINANCIALS: ("/sales",), U.PRICING: ("/pricing",),
+    U.COMPETITORS: ("/market/competitors", "/pricing"), U.INVENTORY: ("/demand/inventory",), U.FORECAST: ("/demand",),
+    U.REVIEWS: ("/market",), U.CUSTOMER_PREFERENCE: ("/market",), U.DOCUMENTS: ("/ai-advisor",),
+    U.COMPANY: ("/settings/company", "/ai-advisor"),
+}
+
+
 def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "evidence_mode",
-                   question: str = "") -> citations.Draft:
+                   question: str = "", intents=()) -> citations.Draft:
     """No model wrote this answer: the best-matching evidence is the summary (one sentence), and the
     evidence behind it follows, most relevant first."""
     priority = {ev.PRODUCT_GUIDE: 0, ev.CALCULATION: 1, ev.COMPANY_RECORD: 2, ev.COMPANY_DOCUMENT: 3, ev.WEB_PAGE: 4,
                 ev.COMPANY_SUMMARY: 5, ev.USER_INPUT: 9}
     rank = lambda i: -1 if (i.data or {}).get("summary") else priority.get(i.kind, 6)  # noqa: E731
+    # Records computed for exactly this question come before anything that merely shares its words (a generated
+    # 90-day summary must not lead an answer about last month).
+    # named product > the period's headline total > the other records for the question > everything else.
+    exact = lambda i: {"named": 0, "headline": 1, "record": 2}.get((i.data or {}).get("exact"), 3)  # noqa: E731
     wanted = _stems(question)
     overlap = lambda i: len(wanted & _stems(f"{i.title} {i.excerpt}"))  # noqa: E731
+    # Within the same kind of record, the one whose heading is the question's ("top products by units sold" for
+    # "...by units?") comes first.
+    titled = lambda i: len(wanted & _stems(i.title))  # noqa: E731
+    order = lambda i: (exact(i), -titled(i), -overlap(i), rank(i))  # noqa: E731
     ranked = sorted((i for i in registry.items() if i.kind != ev.USER_INPUT), key=rank)
     # Passages already matched to this question keep room among the 8: a
     # question matching no topic brings every record section, which would
@@ -929,14 +1120,30 @@ def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "ev
     # Records are cut to size by how well they match, not by kind alone: the
     # named product's own price record must not lose its place to five
     # "top products" lines that merely come first.
-    others = sorted((i for i in ranked if i.kind != ev.COMPANY_DOCUMENT), key=lambda i: (-overlap(i), rank(i)))
-    others = others[:8 - len(documents)]
-    items = sorted(documents + others, key=lambda i: (-overlap(i), rank(i)))
+    others = sorted((i for i in ranked if i.kind != ev.COMPANY_DOCUMENT), key=order)
+    needs = [_ROUTES_FOR_INTENT[intent] for intent in intents if intent in _ROUTES_FOR_INTENT]
+    if len(needs) > 1:
+        # One item per need first, so the second half of a combined question isn't cut off by the first.
+        lead_items = []
+        for routes in needs:
+            best = next((i for i in others if i.route in routes and i not in lead_items), None)
+            if best is not None:
+                lead_items.append(best)
+        others = lead_items + [i for i in others if i not in lead_items]
+        cap = 8 - len(documents)
+        items = documents + others[:cap]
+        items = sorted(items, key=lambda i: (i not in lead_items, lead_items.index(i) if i in lead_items else 0,
+                                             *order(i)))
+    else:
+        others = others[:8 - len(documents)]
+        items = sorted(documents + others, key=order)
     shares = any(overlap(i) for i in items)
     if shares:
         # Items that share nothing with the question only bury the one that answers it (a supplier agreement
         # under a leave question).
-        items = [i for i in items if overlap(i)][:EVIDENCE_MODE_MAX_RELEVANT]
+        # Records computed for exactly this question stay even when they share no word with it ("how many did
+        # we sell last month?" about the product of the turn before).
+        items = [i for i in items if overlap(i) or exact(i) <= 1][:EVIDENCE_MODE_MAX_RELEVANT + max(0, len(needs) - 1)]
     elif wanted:
         # No item shares a word (an Arabic question about English records), so words cannot rank them. A
         # document was matched to the question by meaning before it got here; the record sections were not, so
@@ -955,6 +1162,59 @@ def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "ev
                                                          evidence=[])]},
         *([{"type": "list", "ordered": False, "items": claims}] if claims else []),
     ], summary=summary)
+
+
+_RESEARCH_FAILED_AR = {
+    public_research.NOT_CONFIGURED: "البحث على الإنترنت غير مُعدّ على هذا الخادم - يحتاج المسؤول إلى إضافة مفتاح مزوّد بحث",
+    public_research.SEARCH_FAILED: "فشلت خدمة البحث على الإنترنت",
+    public_research.BUDGET_EXHAUSTED: "تم استهلاك حصة البحث على الإنترنت لليوم",
+}
+
+
+def _research_note(statuses: List[dict], language: str) -> Optional[dict]:
+    """Evidence mode has no model to explain why the public part is unanswered: say it here."""
+    failed = next((s for s in statuses if s["need"] == "public_research" and s["status"] in _RESEARCH_FAILED), None)
+    if failed is None:
+        return None
+    if language == "ar":
+        text = f"لم يتمكن KEEL من البحث في المصادر العامة لهذا السؤال: {_RESEARCH_FAILED_AR[failed['status']]}."
+    else:
+        text = f"KEEL could not research public sources for this question: {_RESEARCH_FAILED[failed['status']]}."
+    return {"type": "paragraph", "claims": [citations.Claim(text=text, kind=citations.UNKNOWN, evidence=[])]}
+
+
+_STATUS_WORDS = {  # the detail already says what is missing; this only names the kind of gap
+    "not_permitted": ("{detail} (ask the company owner if you need it).", "{detail} (اطلب ذلك من مالك الشركة إن احتجته)."),
+    "none_found": ("Nothing in your records answers this.", "لا يوجد في سجلاتك ما يجيب عن هذا."),
+    "none_recorded": ("{detail}.", "{detail}."),
+    "failed": ("{detail}.", "{detail}."),
+}
+_STATUS_DETAIL_AR = {
+    "your role can't see": "دورك لا يسمح برؤية",
+    "matching documents exist but your role can't open them": "توجد مستندات مطابقة لكن دورك لا يسمح بفتحها",
+}
+
+
+def _status_draft(statuses: List[dict], language: str) -> Optional[citations.Draft]:
+    """With no evidence at all, what the statuses establish - a role that may not see the records, records
+    that don't exist - said plainly instead of an error. None when they establish nothing."""
+    blocked = any(s["status"] == "not_permitted" for s in statuses)
+    claims = []
+    for status in statuses:
+        words = _STATUS_WORDS.get(status["status"])
+        if not words or not status.get("detail") or (blocked and status["status"] == "none_found"):
+            continue  # "nothing answers this" adds nothing once the role is the reason
+        detail = status["detail"]
+        if language == "ar":
+            for english, arabic in _STATUS_DETAIL_AR.items():
+                detail = detail.replace(english, arabic)
+        text = (words[1] if language == "ar" else words[0]).format(detail=detail[:1].upper() + detail[1:])
+        if all(c.text != text for c in claims):
+            claims.append(citations.Claim(text=text, kind=citations.UNKNOWN, evidence=[]))
+    note = _research_note(statuses, language)
+    if note:
+        claims += note["claims"]
+    return citations.Draft(blocks=[{"type": "paragraph", "claims": claims}]) if claims else None
 
 
 def _legacy_sources(references: List[dict]) -> List[dict]:
@@ -998,7 +1258,8 @@ def _draft(question: str, u: understanding.Understanding, company: dict, access:
             logger.info("format retry failed: %s", type(err).__name__)
     if draft is None and raw.lstrip().startswith("{"):
         # JSON that carries no claim (a heading only): showing it as text would print the JSON itself.
-        return _evidence_mode(registry, language, lead="unverifiable", question=question), "unverifiable", 0, False
+        return (_evidence_mode(registry, language, lead="unverifiable", question=u.effective_question,
+                               intents=u.intents), "unverifiable", 0, False)
     if draft is None:
         return _fallback_draft(raw, registry, language), "unlinked", 0, False
     draft, issues = citations.validate(draft, registry, user_text=question, regulatory=regulatory)
@@ -1037,10 +1298,16 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     language = _language(question)
     company = _company(conn, tenant_id)
     catalog = _catalog(conn, tenant_id, access) if include_structured_facts else []
-    u = understanding.understand(question, previous=state, catalog=catalog, company_currency=company.get("currency"))
+    today = business_today(conn) if conn is not None else datetime.now(timezone.utc).date()
+    u = understanding.understand(question, previous=state, catalog=catalog, company_currency=company.get("currency"),
+                                 today=today)
     registry = ev.EvidenceRegistry()
     statuses: List[dict] = []
-    if u.slots.get("top_product") and not u.slots.get("products"):
+    # "My top product" names a product for another question ("would importing my top product be cheaper?").
+    # "What was my top selling product this year by units?" IS the ranking: the sales records answer it, and
+    # naming the 90-day revenue leader as "the product asked about" would answer a different question.
+    ranking = U.SALES in u.intents or bool(u.slots.get("periods") or u.slots.get("period_days"))
+    if u.slots.get("top_product") and not u.slots.get("products") and not ranking:
         top = _top_product(conn, tenant_id, catalog, access)
         if top:
             # Only the product's name goes on to research queries - never its figures.
@@ -1067,10 +1334,19 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
             missing = access.missing(*_CAPABILITY_FOR_INTENT.get(intent, ()))
             if missing:
                 _status(statuses, intent, "not_permitted", f"your role can't see {', '.join(sorted(missing))}")
-        company_found += _documents(conn, tenant_id, u.effective_question, access, registry, top_k, statuses, language)
+        search = u.effective_question
+        if U.COMPANY in u.intents:
+            # The company's own profile document answers "tell me about my company" in any wording or language.
+            search += " company profile"
+        exact, replaced = (0, frozenset())
         if not u.public_scope:  # "the average water price" needs no sales or price-gap records
-            company_found += _fact_sections(conn, tenant_id, u, access, registry, statuses)
-            company_found += _analysis(conn, tenant_id, u, access, registry)
+            exact, replaced = _records(conn, tenant_id, u, access, registry, statuses, language, today)
+            company_found += exact
+        company_found += _documents(conn, tenant_id, search, access, registry, top_k, statuses, language,
+                                    intents=u.intents, superseded=replaced)
+        if not u.public_scope:
+            company_found += _fact_sections(conn, tenant_id, u, access, registry, statuses, skip=replaced)
+            company_found += _analysis(conn, tenant_id, u, access, registry, exact_sales="sales" in replaced)
         company_found += _catalogue_record(u, catalog, access, registry, language)
         products = _product_records(u, catalog, access, registry, language)
         company_found += len(products)
@@ -1106,7 +1382,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     regulatory = bool({U.REGULATION, U.TRADE, U.LANDED_COST} & set(u.intents))
     mode, repaired, issue_count = "ai", False, 0
     if not use_ai:
-        draft, mode = _evidence_mode(registry, language, lead="allowance_used", question=question), "evidence"
+        draft, mode = _evidence_mode(registry, language, lead="allowance_used", question=u.effective_question, intents=u.intents), "evidence"
         _status(statuses, "answer_writing", "allowance_used")
     else:
         try:
@@ -1114,10 +1390,10 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
                 draft, mode, issue_count, repaired = _draft(question, u, company, access, registry, statuses,
                                                             history, usage, regulatory, language)
         except llm_client.LLMError as err:
-            if not len(registry):
+            if not len(registry) and _status_draft(statuses, language) is None:
                 raise
             logger.warning("Assistant answered in evidence mode (tenant=%s): %s", tenant_id, err)
-            draft, mode = _evidence_mode(registry, language, question=question), "evidence"
+            draft, mode = _evidence_mode(registry, language, question=u.effective_question, intents=u.intents), "evidence"
             reason = ("not_configured" if isinstance(err, llm_client.LLMNotConfiguredError)
                       else "provider_busy" if isinstance(err, (llm_client.LLMRateLimitError,
                                                                llm_client.LLMRequestTooLargeError))
@@ -1125,9 +1401,14 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
             _status(statuses, "answer_writing", reason)
 
     registry.localize_titles(language)
+    if not len(registry) and mode in ("evidence", "unverifiable"):
+        draft = _status_draft(statuses, language) or draft
+    note = _research_note(statuses, language) if mode in ("evidence", "unverifiable") and len(registry) else None
+    if note:
+        draft.blocks.insert(1 if draft.blocks and draft.blocks[0]["type"] == "paragraph" else 0, note)
     if not any(block["type"] != "heading" for block in draft.blocks):
         # Every claim failed its check: show what was found instead of an empty reply.
-        draft, mode = _evidence_mode(registry, language, lead="unverifiable", question=question), "unverifiable"
+        draft, mode = _evidence_mode(registry, language, lead="unverifiable", question=u.effective_question, intents=u.intents), "unverifiable"
     rendered = citations.render(draft, registry, always=[calculation["evidence_id"]] if calculation else [])
     if calculation:
         calculation["ref"] = rendered["numbering"].get(calculation["evidence_id"])
