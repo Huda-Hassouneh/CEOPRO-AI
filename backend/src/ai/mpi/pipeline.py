@@ -14,6 +14,7 @@ from datetime import date
 from typing import Optional
 
 from src.ai.mpi import cold_start, data_access, evidence
+from src.ai.mpi.ports import EvidenceWriter, ReviewReader
 from src.ai.mpi.scoring import (
     MPIComparison,
     ReviewContribution,
@@ -75,12 +76,17 @@ def _label_counts(reviews: list) -> dict:
 
 
 def get_subject_mpi(
-    conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None, as_of: Optional[date] = None
+    conn, tenant_id: str, subject_type: str, subject_id: Optional[str] = None, as_of: Optional[date] = None,
+    *, review_reader: Optional[ReviewReader] = None, evidence_writer: Optional[EvidenceWriter] = None,
 ) -> dict:
     as_of = as_of or date.today()
     data_access.validate_subject(conn, tenant_id, subject_type, subject_id)
-    reviews = data_access.load_scored_reviews(conn, tenant_id, subject_type, subject_id)
+    if review_reader is None:
+        review_reader = data_access.review_reader(conn, tenant_id)
+    reviews = review_reader(subject_type, subject_id)
     country_context = data_access.load_country_context(conn, tenant_id, subject_type, subject_id)
+    if evidence_writer is None:
+        evidence_writer = evidence.evidence_writer(conn, tenant_id)
 
     usable_reviews = _usable_reviews(reviews)
     contributions = _build_contributions(usable_reviews, as_of)
@@ -92,9 +98,7 @@ def get_subject_mpi(
         # got filtered out - same UNKNOWN outcome either way: nothing usable
         # to score.
         explanation = f"No analyzed reviews are available yet for this {subject_type.lower()}."
-        evidence_id = evidence.insert_evidence_record(
-            conn,
-            tenant_id,
+        evidence_id = evidence_writer(
             "UNKNOWN",
             SOURCE_MODULE,
             {
@@ -142,9 +146,7 @@ def get_subject_mpi(
         }
         for review in usable_reviews
     ]
-    evidence_id = evidence.insert_evidence_record(
-        conn,
-        tenant_id,
+    evidence_id = evidence_writer(
         "FACT",
         SOURCE_MODULE,
         {
@@ -189,6 +191,7 @@ def compare_subjects(
     subject_b: tuple,
     as_of: Optional[date] = None,
     min_volume_for_comparison: int = 10,
+    *, review_reader: Optional[ReviewReader] = None,
 ) -> MPIComparison:
     """
     subject_a/subject_b are (subject_type, subject_id) tuples. Computes each
@@ -198,10 +201,12 @@ def compare_subjects(
     comparison guard before returning a difference.
     """
     as_of = as_of or date.today()
+    if review_reader is None:
+        review_reader = data_access.review_reader(conn, tenant_id)
 
     def _score(subject_type: str, subject_id: Optional[str]):
         data_access.validate_subject(conn, tenant_id, subject_type, subject_id)
-        reviews = data_access.load_scored_reviews(conn, tenant_id, subject_type, subject_id)
+        reviews = review_reader(subject_type, subject_id)
         usable_reviews = _usable_reviews(reviews)
         contributions = _build_contributions(usable_reviews, as_of)
         return compute_mpi(contributions, _label_counts(usable_reviews))
