@@ -16,7 +16,7 @@ import psycopg2
 import pytest
 
 from src.ai import db
-from src.ai.mpi import data_access, pipeline
+from src.ai.mpi import data_access, pipeline, scoring
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 
@@ -391,3 +391,56 @@ def test_compare_subjects_against_real_db_refuses_below_volume_floor(conn, seede
 
     assert comparison.comparable is False
     assert comparison.difference is None
+
+
+@pytest.mark.parametrize('excluded', ['blocked', 'quarantined', 'blank', 'future', 'missing_sentiment', 'malformed'])
+def test_only_ineligible_reviews_persist_unknown_current_behavior(conn, seeded_tenant_product_and_competitor, excluded):
+    tenant, product, _ = seeded_tenant_product_and_competitor
+    review = _insert_scored_review(conn, tenant, 'PRODUCT', 'positive', .9, .05, product_id=product)
+    statements = {
+        'blocked': "UPDATE reviews SET source_status='BLOCKED' WHERE review_id=%s",
+        'quarantined': "UPDATE reviews SET safety_status='QUARANTINED' WHERE review_id=%s",
+        'blank': "UPDATE reviews SET review_text='   ' WHERE review_id=%s",
+        'future': "UPDATE reviews SET review_date=CURRENT_TIMESTAMP + INTERVAL '1 day' WHERE review_id=%s",
+        'missing_sentiment': 'DELETE FROM sentiment_results WHERE review_id=%s',
+        'malformed': 'UPDATE sentiment_results SET positive_probability=-.1 WHERE review_id=%s',
+    }
+    with conn.cursor() as q:
+        q.execute(statements[excluded], (review,))
+        # A rating is not a fallback for absent/malformed analyzed sentiment.
+        q.execute('UPDATE reviews SET review_rating=5 WHERE review_id=%s', (review,))
+    conn.commit()
+    result = pipeline.get_subject_mpi(conn, tenant, 'PRODUCT', product, as_of=date(2020, 1, 1))
+    assert result['status'] == 'UNKNOWN'
+    with conn.cursor() as q:
+        q.execute('SELECT category,source_record_ids,confidence_score FROM evidence_records WHERE evidence_id=%s', (result['evidence_id'],))
+        category, payload, confidence = q.fetchone()
+    assert category == 'UNKNOWN' and confidence is None
+    assert payload == dict(subject_type='PRODUCT', subject_id=product, status='UNKNOWN', review_ids=[], eligible_review_count=0)
+
+
+def test_database_timezone_day_and_python_as_of_are_separate_current_behavior(conn, seeded_tenant_product_and_competitor):
+    """Fixed boundary instant: SQL timezone determines the date sent to Python.
+
+    Eligibility remains SQL CURRENT_TIMESTAMP even when as_of is far ahead.
+    No assertion depends on the host's calendar date.
+    """
+    tenant, product, _ = seeded_tenant_product_and_competitor
+    old = _insert_scored_review(conn, tenant, 'PRODUCT', 'positive', .9, .05, product_id=product)
+    future = _insert_scored_review(conn, tenant, 'PRODUCT', 'negative', .05, .9, product_id=product)
+    with conn.cursor() as q:
+        q.execute("UPDATE reviews SET review_date='2020-01-01 23:30:00+00' WHERE review_id=%s", (old,))
+        q.execute("UPDATE reviews SET review_date=CURRENT_TIMESTAMP + INTERVAL '1 day' WHERE review_id=%s", (future,))
+    conn.commit()
+    weights = []
+    for zone, expected_date in [('Pacific/Kiritimati', date(2020, 1, 2)), ('Pacific/Honolulu', date(2020, 1, 1))]:
+        with conn.cursor() as q:
+            q.execute("SELECT set_config('TimeZone', %s, true)", (zone,))
+        reviews = data_access.load_scored_reviews(conn, tenant, 'PRODUCT', product)
+        assert [r['review_id'] for r in reviews] == [old]
+        assert reviews[0]['effective_date'] == expected_date
+        result = pipeline.get_subject_mpi(conn, tenant, 'PRODUCT', product, as_of=date(2020, 1, 2))
+        weights.append(result['avg_recency_weight'])
+    assert weights == [1., round(.5 ** (1 / scoring.RECENCY_HALF_LIFE_DAYS), 4)]
+    result = pipeline.get_subject_mpi(conn, tenant, 'PRODUCT', product, as_of=date(9999, 1, 1))
+    assert result['review_count'] == 1
