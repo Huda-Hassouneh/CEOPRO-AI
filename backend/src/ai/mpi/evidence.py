@@ -7,7 +7,15 @@ architecture exists for, not a new bespoke table.
 """
 
 import json
+from functools import partial
 from typing import Optional
+
+from src.ai.mpi.ports import EvidenceWriter
+
+
+def evidence_writer(conn, tenant_id: str) -> EvidenceWriter:
+    """Bind writes to the caller's tenant transaction; the pipeline commits."""
+    return partial(insert_evidence_record, conn, tenant_id)
 
 
 def insert_evidence_record(
