@@ -82,6 +82,15 @@ def get_subject_mpi(
     *, review_reader: Optional[ReviewReader] = None, evidence_writer: Optional[EvidenceWriter] = None,
     subject_validator: Optional[SubjectValidator] = None, country_reader: Optional[CountryReader] = None,
 ) -> dict:
+    """Own the evidence commit for both FACT and UNKNOWN summaries.
+
+    The commit covers all pending work on the supplied connection. Callers
+    must supply the intended feature transaction and own rollback/cleanup on
+    failure. A later failure (including context restoration after raw COMMIT,
+    logging or delivery) cannot undo evidence already committed in PostgreSQL.
+    Adapters only write; moving this boundary to request completion would
+    change the characterized durability contract.
+    """
     as_of = as_of or date.today()
     if subject_validator is None:
         subject_validator = postgres.subject_validator(conn, tenant_id)
