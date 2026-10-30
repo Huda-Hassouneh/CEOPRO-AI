@@ -2058,7 +2058,7 @@
       "offerExpired": "This offer has expired.",
       "validUntil": "Offer valid until {{date}}",
       "offerTerms": "Offer terms",
-      "approvedPrice": "Approved monthly price",
+      "approvedPrice": "Approved price",
       "priceIsApprovedOffer": "This amount comes from the approved offer returned by KEEL.",
       "acceptOffer": "Accept offer",
       "rejectOffer": "Reject offer",
@@ -2113,7 +2113,23 @@
         "competitor_management": "Competitor monitoring access"
       },
       "paymentConfirmed": "Payment was verified for this offer. See Billing for the current subscription status.",
-      "manageSubscription": "Manage subscription"
+      "manageSubscription": "Manage subscription",
+      "automaticNotice": "Select your features to see server-calculated pricing and review eligibility.",
+      "periodLabel": "Billing period",
+      "period": {
+        "monthly": "Monthly",
+        "three-months": "3 months (10% off)",
+        "six-months": "6 months (20% off)"
+      },
+      "usdPayment": "Stripe payment: USD {{amount}}, using the frozen quote exchange rate.",
+      "reviewRequired": "Manual review required",
+      "existingSubscription": "Your current subscription or contract must be resolved before another purchase.",
+      "reviewReasons": {
+        "QUOTA_ABOVE_AUTOMATIC_LIMIT": "Quantity exceeds the automatic limit",
+        "PRICE_ABOVE_AUTOMATIC_LIMIT": "Monthly price exceeds the automatic limit",
+        "UNVERIFIED_VENDOR_RATE": "Cost rate requires verification",
+        "COST_MAPPING_MISSING": "Pricing configuration is required"
+      }
     },
     "management": {
       "plansTitle": "Choose your plan",

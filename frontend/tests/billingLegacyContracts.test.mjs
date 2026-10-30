@@ -18,6 +18,11 @@ test('subscription display preserves trial and dates rather than inventing a new
  const s=subscriptionForLegacy({subscription_id:'s',tenant_id:'t',business_name:'Synthetic',plan_key:'growth',status:'trialing',trial_end:'2026-11-01',current_period_end:'2026-11-01',scheduled_plan_key:'starter',cancel_at_period_end:false},[{id:'growth',name:'Growth'},{id:'starter',name:'Starter'}]);
  assert.equal(s.status,'trialing');assert.equal(s.plan.name,'Growth');assert.equal(s.tenant.businessName,'Synthetic');assert.equal(s.currentPeriodEnd,'2026-11-01');assert.equal(s.scheduledPlan.name,'Starter');assert.equal(s.scheduledEffectiveAt,undefined);
 });
+
+test('approved JOD review quote displays frozen commercial monthly price and cadence',()=>{
+ const q=quoteForLegacy({state:'approved',current_revision:{configuration:{enabledFeatures:['competitor_management'],refreshFrequency:'every_6_hours'},commercial_terms:{currency:'JOD',monthlyPrice:'36.00',amount:'97.20',paymentAmountUsd:'137.09'},pricing_snapshot:{version:2,calculationHash:'hash',calculation:{recommendedPrice:'36.00'}}}});
+ assert.equal(q.currency,'JOD');assert.equal(q.finalPrice,'36.00');assert.equal(q.recommendedPrice,'36.00');assert.equal(q.quoteFeatures[0].configuration.monitoringFrequencyMinutes,360);
+});
 test('original save creates a draft only, activation is a distinct explicit operation',async()=>{
  const calls=[];const api=createPlatformBillingCatalogApi({billing:{createPolicy:async b=>{calls.push(['draft',b]);return {status:'draft'};},activatePolicy:async(id,b)=>calls.push(['activate',id,b])}});
  assert.equal((await api.updateCustomPlanPricingPolicy(policy)).status,'draft');assert.equal(calls.length,1);await api.activateCustomPlanPricingPolicy('p','SYNTHETIC approval');assert.equal(calls[1][2].approval_evidence,'SYNTHETIC approval');

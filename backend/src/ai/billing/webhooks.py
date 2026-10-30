@@ -19,7 +19,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.ai.billing import promotions, store, stripe_api
+from src.ai.billing import promotions, store, stripe_api, self_service
 from src.ai.core import entitlements
 
 logger = logging.getLogger("APEX_BILLING_WEBHOOKS")
@@ -177,7 +177,7 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
                 sys_conn, tenant_id=tenant_id, contract_ref=f"custom-quote:{quote_id}:{revision_id}",
                 selected=row[6] or {}, approved_by=str(row[10]),
                 reason=f"Verified paid quote reconciliation; webhook {provider_event_id}")
-        store.apply_subscription(sys_conn, tenant_id, stripe_sub, "custom", "monthly", event_created)
+        store.apply_subscription(sys_conn, tenant_id, stripe_sub, "custom", "monthly" if (row[8] or {}).get("currency") == "USD" else row[8]["periodCode"], event_created)
         entitlements.forget(tenant_id)
         return tenant_id
     if not payment_verified or not invoice_id or not provider_event_id:
@@ -200,7 +200,8 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
     invoice = stripe_api.retrieve_invoice(invoice_id)
     terms = row[8] or {}
     try:
-        expected_minor = int(Decimal(str(terms["monthlyPriceUsd"])) * 100)
+        payment_amount, months, period = self_service.checkout_terms(terms)
+        expected_minor = int(payment_amount * 100)
     except Exception as exc:
         raise WebhookRetry("Approved Custom quote has invalid commercial terms") from exc
     if (invoice.get("id") != invoice_id or invoice.get("currency", "").lower() != "usd"
@@ -216,12 +217,12 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
         sys_conn, tenant_id=tenant_id, contract_ref=reference,
         approved_by=str(row[10]), reason=f"Verified Stripe invoice {invoice_id}; webhook {provider_event_id}",
         limits=admin.closed_quote_limits(limits),
-        monthly_price=Decimal(str(terms["monthlyPriceUsd"])), currency="USD", trial_days=0,
+        monthly_price=Decimal(str(terms.get("monthlyPrice", terms.get("monthlyPriceUsd")))), currency=terms["currency"], trial_days=0,
         data_sources=(row[7] or {}).get("dataSources", []),
         included_features=(row[7] or {}).get("enabledFeatures", []),
-        refresh_frequency=(row[7] or {}).get("refreshFrequency"), period_months=1,
+        refresh_frequency=(row[7] or {}).get("refreshFrequency"), period_months=months,
     )
-    store.apply_subscription(sys_conn, tenant_id, stripe_sub, "custom", "monthly", event_created)
+    store.apply_subscription(sys_conn, tenant_id, stripe_sub, "custom", "monthly" if (row[8] or {}).get("currency") == "USD" else row[8]["periodCode"], event_created)
     with sys_conn.cursor() as cursor:
         cursor.execute("""INSERT INTO public.billing_custom_contract_activations
           (tenant_id,quote_id,revision_id,attempt_id,stripe_subscription_id,stripe_invoice_id,provider_event_id,invoice_paid_at)

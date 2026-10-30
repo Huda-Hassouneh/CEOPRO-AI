@@ -1153,10 +1153,23 @@ def calculate_custom_quote(quote_id: UUID, ctx: TenantContext = Depends(get_tena
         revision = quote.get("currentRevision") or {}
         quantities = revision.get("featureQuantities") or {}
         configuration = revision.get("configuration") or {}
-        preview = custom_plan_pricing_service.calculate_preview(
-            conn, limits=quantities,
-            enabled_features=configuration.get("enabledFeatures") or [],
-            refresh_frequency=configuration.get("refreshFrequency") or configuration.get("refresh_frequency"))
+        frozen = revision.get("pricingSnapshot") or {}
+        if frozen.get("version") == 2:
+            conn.commit()
+            return {"pricingAvailable": True, "currency": "JOD", "monthlyPrice": frozen["commercial"]["monthlyAmount"],
+                    "reviewRequired": True, "quote": {"quote_id": str(quote_id), "pricing_status": "calculated"}}
+        if configuration.get("selfService"):
+            from src.ai.billing import self_service
+            setup = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
+            try:
+                preview = self_service.calculate({**configuration, "limits": quantities}, self_service.command(setup, "inputs"))
+            finally:
+                setup.close()
+        else:
+            preview = custom_plan_pricing_service.calculate_preview(
+                conn, limits=quantities,
+                enabled_features=configuration.get("enabledFeatures") or [],
+                refresh_frequency=configuration.get("refreshFrequency") or configuration.get("refresh_frequency"))
         if not preview.get("pricingAvailable") or not preview.get("pricingSnapshot"):
             conn.commit()
             return preview

@@ -2058,7 +2058,7 @@
       "offerExpired": "انتهت صلاحية هذا العرض.",
       "validUntil": "العرض صالح حتى {{date}}",
       "offerTerms": "شروط العرض",
-      "approvedPrice": "السعر الشهري المعتمد",
+      "approvedPrice": "السعر المعتمد",
       "priceIsApprovedOffer": "هذا المبلغ من العرض المعتمد الذي أعادته KEEL.",
       "acceptOffer": "قبول العرض",
       "rejectOffer": "رفض العرض",
@@ -2113,6 +2113,22 @@
         "market_intelligence": "الوصول إلى معلومات السوق",
         "demand_prediction": "الوصول إلى توقع الطلب",
         "competitor_management": "الوصول إلى مراقبة المنافسين"
+      },
+      "automaticNotice": "اختر الميزات لعرض السعر المحسوب وحالة المراجعة.",
+      "periodLabel": "فترة الفوترة",
+      "period": {
+        "monthly": "شهري",
+        "three-months": "٣ أشهر — خصم ١٠٪",
+        "six-months": "٦ أشهر — خصم ٢٠٪"
+      },
+      "usdPayment": "الدفع عبر Stripe: {{amount}} دولار وفق سعر الصرف المثبت للعرض.",
+      "reviewRequired": "تتطلب مراجعة",
+      "existingSubscription": "يجب تسوية الاشتراك أو العقد الحالي قبل شراء اشتراك آخر.",
+      "reviewReasons": {
+        "QUOTA_ABOVE_AUTOMATIC_LIMIT": "الكمية تتجاوز حد الموافقة التلقائية",
+        "PRICE_ABOVE_AUTOMATIC_LIMIT": "السعر الشهري يتجاوز الحد التلقائي",
+        "UNVERIFIED_VENDOR_RATE": "تتطلب التكلفة التحقق",
+        "COST_MAPPING_MISSING": "يلزم إعداد التسعير"
       }
     },
     "management": {

@@ -41,7 +41,7 @@ export function quoteForLegacy(q) {
   const snapshot = rev.pricingSnapshot || rev.pricing_snapshot || {};
   const calculation = snapshot.calculation || {};
   const enabled = config.enabledFeatures || [];
-  const cadence = { hourly: 60, daily: 1440, weekly: 10080 }[config.refreshFrequency];
+  const cadence = { hourly: 60, every_6_hours: 360, every_12_hours: 720, daily: 1440, weekly: 10080 }[config.refreshFrequency];
   return { ...q, ...calculation, id: q.quoteId || q.quote_id || q.id,
     tenantId: q.tenantId || q.tenant_id, tenant: { businessName: q.businessName || q.business_name || q.tenant?.businessName },
     name: config.requestLabel || q.customerName || q.customer_name || q.businessName || q.business_name || q.quoteId || q.quote_id,
@@ -50,7 +50,7 @@ export function quoteForLegacy(q) {
     configuration: config, quantities, currency: terms.currency || snapshot.currency || 'USD',
     updatedAt: q.updatedAt || q.updated_at, currentRevision: rev,
     pricingAvailable: Boolean(snapshot.calculationHash), pricingSnapshot: snapshot,
-    finalPrice: ['approved','accepted'].includes(q.state) ? terms.monthlyPriceUsd || terms.monthly_price_usd : undefined,
+    finalPrice: ['approved','accepted'].includes(q.state) ? terms.monthlyPrice ?? terms.monthlyPriceUsd ?? terms.monthly_price_usd : undefined,
     quoteFeatures: [...Object.entries(quantities).map(([featureId, limitValue]) => ({featureId, limitValue, estimatedUsage: limitValue})),
       ...enabled.map(featureId => ({featureId, estimatedUsage: 1, ...(featureId === 'competitor_management' && cadence ? {configuration:{monitoringFrequencyMinutes:cadence}} : {})}))],
     validUntil: rev.validUntil || rev.valid_until,

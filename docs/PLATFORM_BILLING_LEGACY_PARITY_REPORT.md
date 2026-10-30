@@ -1,5 +1,168 @@
 # Platform Billing: original UI and Python pricing parity
 
+## Customer self-service Custom plans — 2026-10-31
+
+The customer currency decision now authorizes JOD commercial quotes with USD
+Stripe settlement. This supersedes the earlier USD-commercial-only limitation
+for new self-service quotes; existing USD offers retain their original terms.
+Standard plan prices and actual provider/Credit accounting are unchanged.
+
+### Source-to-source behavior map
+
+Legacy source root: `D:\freeup space\New folder\Keel\root` (read-only).
+`custom-plan-configurator.service.ts` supplies validation, the three review
+rules, price-visible review responses and automatic checkout intent.
+`custom-plan-policy.service.ts` supplies fallback/override precedence.
+`custom-plan-payment-currency.service.ts` converts frozen quote currency to USD.
+`BillingCustomPlanPage.jsx` supplies the 350 ms preview refresh and CTA behavior.
+
+| Concern | Previous Python behavior | New Python/React behavior |
+|---|---|---|
+| Selection | Canonical feature quantities and three premium modules | Same enforceable rights; legacy aliases and baseline features classified below |
+| Quantities | Nonnegative integer, step 1 | Versioned minimum/step and per-feature automatic maximum |
+| Calculation | Owner-only USD preview | Existing Decimal calculator, JOD commercial calculation, frozen USD conversion |
+| Review | Every request required review | Strict `>` quota/price thresholds; unverified rate warnings require review |
+| Preview | No customer price | Price stays visible for calculable review cases; private economics omitted |
+| Checkout | Owner approval then customer acceptance | Eligible frozen preview can be confirmed directly; existing durable Checkout machinery reused |
+| Reviewed requests | Owner calculation/revision/approval/acceptance | Preserved, including rate evidence checks and immutable revisions |
+| Existing subscription | Current/recoverable subscriptions block new Checkout | Preserved; legacy automatic replacement is deliberately not copied |
+| Provider truth | Signed webhook reconciliation | Preserved; no redirect/session-only activation |
+
+### Commercial policy and evidence
+
+`billing_custom_pricing_policies.self_service_policy` is an additive versioned
+JSON configuration. Stored commercial values override fallback values. Old
+explicit USD fee/rounding amounts are converted to JOD when no new commercial
+override is supplied; they are never relabeled JOD. The existing margin and
+shared-infrastructure allocation remain policy inputs. No production policy or
+provider rate is seeded or activated by the migration.
+
+Supported commercial keys are `targetGrossMargin`, `fixedPlatformFee`,
+`roundingIncrement`, `maxAutomaticMonthlyPrice`, `maxAutomaticQuotaPerFeature`,
+`featureLimits`, `fxRate`, `fxSourceCurrency`, `fxTargetCurrency`, `fxSource`,
+`fxVersion`, and `estimatedOtherCost`. Currency is JOD; the FX pair is USD/JOD.
+A non-fallback FX rate requires explicit provenance/version. The approved legacy
+fallback is margin .35, fee JOD25, increment JOD1, monthly automatic maximum
+JOD2500, feature maximum 500000, USD/JOD .709. Production cost mappings still
+fail closed when missing, including an explicit mapping for zero-cost features.
+
+Each version-2 quote revision freezes configuration, policy identity, cost-rate
+identity/provenance, calculation, ordered review reasons, commercial JOD total,
+monthly JOD amount, period/discount, USD payment total, and FX provenance/version.
+Only the restricted billing-setup capability can freeze/confirm an automatic
+preview. It cannot write paid subscriptions, payments, entitlements or Credits.
+The app role receives only public quantity constraints through a separate read
+function. Public endpoints never return the private pricing snapshot.
+
+Review conditions match the original function: quantity greater than the
+resolved maximum (`QUOTA_ABOVE_AUTOMATIC_LIMIT:<code>`), monthly JOD price
+greater than its maximum (`PRICE_ABOVE_AUTOMATIC_LIMIT`), or calculator warnings
+(`UNVERIFIED_VENDOR_RATE`, including infrastructure warnings). Equality passes.
+Minimum/step/dependency errors are validation failures, not approval rules.
+
+The existing 14-day quote window is retained rather than copying Node's 30-day
+automatic quote expiry. Confirmation never reprices a preview or extends its
+window. Current rate-verification guards may require refresh/review when a
+referenced rate ceases to be eligible. USD invoice verification uses the frozen
+USD amount; the contract retains its JOD commercial price. Paid custom price
+presentation reads the settled quote attempt, not the generic catalog template.
+
+### Builder capability classification
+
+| Legacy capability | Classification / current representation |
+|---|---|
+| market_intelligence, demand_prediction, competitor_management | ALREADY_SUPPORTED premium modules |
+| sentiment_analysis, rag_assistant, document_extraction, marketing_image_generation | ALREADY_SUPPORTED quantity allowances |
+| tracked_competitors, tracked_products, connected_data_sources, document_storage_mb | ALREADY_SUPPORTED capacity allowances |
+| report_generation | RENAMED_CURRENT_EQUIVALENT: monthly_reports |
+| team_members | RENAMED_CURRENT_EQUIVALENT: team_seats |
+| market_perception | RENAMED_CURRENT_EQUIVALENT: bundled under market_intelligence; no new independent grant |
+| dashboard_analytics, product_management, data_integration | NO_LONGER_VALID_IN_CURRENT_PRODUCT as independently purchasable toggles; baseline platform capabilities |
+| inventory_intelligence, business_recommendations, system_alerts | LEGACY_BEHAVIOR_NOT_PORTABLE as independent billing rights; no established Python purchasable contract |
+| ai_pricing recommendation quota | LEGACY_BEHAVIOR_NOT_PORTABLE; no equivalent independently enforced recommendation allowance |
+
+No alias is silently promoted into a new entitlement. Python-only AI Credits,
+Data Credits and web-search allowances remain selectable and separately enforced.
+All five legacy monitoring cadences are represented; configured monthly runs
+use the original 30/60/120/720/4 values. This is pricing/contract evidence, not a
+claim of external monitoring acceptance.
+
+### Verification and rollout boundary
+
+The existing pure calculator comparison passed 42/42 original Node vectors.
+`tools/dev/verify_custom_self_service.py` additionally executes the original Node
+decision and payment-conversion functions in memory: 10/10 vectors passed for
+validation, money, strict boundaries, overrides, ordered reasons and eligibility.
+No legacy files, dependencies, caches, databases or services are modified.
+
+The new native tests exercise automatic confirmation, no session-only rights,
+signed paid activation, mismatched payment rejection, separate zero Credit
+allowances, restricted capabilities and durable Checkout conflicts. Browser
+acceptance uses the production builder and real disposable API/database with
+an explicitly injected synthetic identity; it is not a real payment acceptance.
+
+The final retry check exposed an uncommitted quote-specific attempt alongside a
+durable shared reservation. The Custom checkout use case now commits that
+identity before provider work. A native restricted-socket test injects an
+uncertain provider response and verifies the same shared/quote attempt IDs,
+frozen parameters and provider idempotency key on retry. The builder retains its
+request key for the same preview. Its quantity field no longer re-emits an
+unchanged value on blur, which previously cleared the preview during a click.
+
+Human approval and customer acceptance preserve the complete version-2 pricing
+snapshot, JOD commercial amount, USD payment amount and FX evidence byte-for-byte
+as JSON values. Tests explicitly check that creation, approval, acceptance and
+Checkout completion without verified payment create no paid plan assignment.
+Only a verified, correctly correlated USD invoice activates the selected rights.
+
+Browser checks cover automatic eligibility in English and Arabic/RTL, quota
+review, price review, unverified-rate review, and existing-subscription blocking.
+Both automatic cases also verify the three-month JOD97.20/USD137.09 totals and
+retry blocker presentation with an unchanged confirmation payload. Browser
+Checkout refusals are labeled transport doubles; actual durable retry behavior
+is tested separately through the production API and restricted database roles.
+
+Migration added: `20261115000000_custom_plan_self_service.sql`. A read-only
+normal-database check confirms both its new capability and policy column are
+absent (`.dev/evidence/custom-self-service/normal-schema-check.json`). No normal
+database rollout, customer financial record edit, real Stripe request, purchase,
+service restart, push or merge was performed by this task.
+
+Final backend command:
+`dev.ps1 test --suite backend --pytest-args tests/billing src/ai/tests/test_credits_integration_db.py src/ai/tests/test_usage_integration_db.py -q`
+passed **396 tests, zero skips**, with the existing Starlette/httpx deprecation
+warning. Evidence: `.dev/evidence/tests/d470a88fda17/backend.log` and `run.json`.
+The runner verified 152 migrations, restricted password login and 120 FORCE RLS
+tables. The focused retry/review/browser run passed 26 tests; evidence:
+`.dev/evidence/tests/d22f8259767a/backend.log`. All six browser cases are also
+included in the final 396-test run.
+
+Frontend command `dev.ps1 test --suite frontend` passed **237 tests, zero skips**,
+ESLint and the production Vite build. Evidence:
+`.dev/evidence/custom-self-service/frontend-final.log`. Existing font-resolution
+and mixed static/dynamic import build warnings remain. Calculator and decision
+parity evidence is under `.dev/evidence/custom-self-service/calculator-parity/`
+and `decision-parity/` respectively. `git diff --check` passed.
+
+### Changed-file inventory
+
+- Backend pricing/checkout: `backend/src/ai/billing/{self_service.py,custom_offers.py,custom_plan_pricing_service.py,service.py,store.py,webhooks.py}`.
+- HTTP boundaries: `backend/src/ai/routers/{billing.py,platform.py}`.
+- Forward migration: `backend/src/infrastructure/database/migrations/20261115000000_custom_plan_self_service.sql`.
+- Backend tests: `backend/tests/billing/{test_custom_self_service.py,test_custom_self_service_browser.py,test_custom_checkout_contract.py,test_custom_offers.py}`.
+- Customer UI: `frontend/src/features/billing/{api/customOffersApi.js,components/CustomPlanQuantityField.jsx,pages/CustomPlanBuilderPage.jsx,pages/CustomPlanQuotePage.jsx}`.
+- Owner presentation: `frontend/src/features/platform/{billingLegacyContracts.js,PlatformBillingAdminPython.jsx}`.
+- Translations: `frontend/src/assets/locales/{en.json,ar.json}`.
+- Frontend tests: `frontend/tests/{billingLegacyContracts.test.mjs,customOffersApi.test.mjs,browser/custom-self-service.html,browser/custom-self-service.jsx,browser/custom-self-service.mjs}`.
+- Read-only legacy comparison tools: `tools/dev/{verify_custom_self_service.py,legacy_custom_self_service_reference.mjs}`.
+- Documentation: this existing report.
+
+Run `dev.ps1 test --suite backend --pytest-args tests/billing -q` and
+`dev.ps1 test --suite frontend`. The browser acceptance file requires Chrome.
+Normal/customer databases are not migrated by these tests. Applying the new
+forward migration to a populated runtime requires the normal verified backup
+and rollout procedure; no such rollout or Stripe purchase is part of this work.
+
 ## Delivery boundary
 
 Date: 2026-10-28. Implementation checkout: `E:\KEEL START\CEOPRO-AI`.

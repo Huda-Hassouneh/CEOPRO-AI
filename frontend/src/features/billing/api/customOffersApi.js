@@ -9,6 +9,7 @@ export function createCustomOffersApi(client) {
   return Object.freeze({
     getConfigurator: () => unwrap(client.get(ROOT + '/configurator')),
     validateConfiguration: (payload) => unwrap(client.post(ROOT + '/configuration/validate', payload)),
+    automaticCheckout: ({ preview_id, idempotency_key }) => unwrap(client.post(ROOT + '/checkout', { preview_id, idempotency_key })),
     previewPricing: (payload) => unwrap(client.post(ROOT + '/pricing-preview', payload)),
     requestQuote: (payload) => unwrap(client.post(ROOT + '/quotes', payload)),
     listQuotes: (limit = 50) => unwrap(client.get(ROOT + '/quotes', { params: { limit } })),

@@ -10,7 +10,7 @@ class CustomOfferError(ValueError):
         self.message = message
 
 
-_CADENCES = ("hourly", "daily", "weekly")
+_CADENCES = ("daily", "every_12_hours", "every_6_hours", "hourly", "weekly")
 _MODULE_FEATURES = (
     admin.usage.MARKET_INTELLIGENCE,
     admin.usage.DEMAND_PREDICTION,
@@ -168,6 +168,12 @@ def quote_command(conn, action: str, payload: dict) -> dict:
 def pricing_admin_command(conn, action: str, payload: dict) -> dict:
     """Owner-only, database-authorized pricing administration operation."""
     import psycopg2
+    if action == "policy_create" and "self_service_policy" in payload:
+        from src.ai.billing import self_service
+        try:
+            self_service.policy_values(payload)
+        except (ValueError, TypeError, ArithmeticError) as exc:
+            raise CustomOfferError(422, "pricing_configuration_invalid", str(exc)) from None
     from psycopg2.extras import Json
     try:
         with conn.cursor() as cursor:
@@ -391,8 +397,10 @@ def quote_list(conn, tenant_id: str, *, limit: int = 50) -> list[dict]:
         raise CustomOfferError(422, "invalid_limit", "Quote list limit must be between 1 and 100.")
     with conn.cursor() as cursor:
         cursor.execute(
-            "SELECT quote_id FROM public.billing_custom_quotes WHERE tenant_id=%s "
-            "ORDER BY updated_at DESC, quote_id DESC LIMIT %s;", (tenant_id, limit),
+            "SELECT q.quote_id FROM public.billing_custom_quotes q WHERE q.tenant_id=%s "
+            "AND NOT(q.state='draft' AND EXISTS(SELECT 1 FROM public.billing_custom_quote_revisions r "
+            "WHERE r.tenant_id=q.tenant_id AND r.revision_id=q.current_revision_id AND r.pricing_snapshot->>'version'='2')) "
+            "ORDER BY q.updated_at DESC, q.quote_id DESC LIMIT %s;", (tenant_id, limit),
         )
         quote_ids = [row[0] for row in cursor.fetchall()]
     return [detail for quote_id in quote_ids

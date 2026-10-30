@@ -560,8 +560,16 @@ def finish_event(sys_conn, event_id: str, tenant_id: Optional[str], error: Optio
 
 def subscription_price_snapshot(conn, tenant_id: str) -> dict:
     with conn.cursor() as cur:
-        cur.execute("""SELECT p.amount,p.currency,p.interval_months FROM billing_subscriptions s
+        cur.execute("""SELECT COALESCE(p.amount,(r.commercial_terms->>'paymentAmountUsd')::numeric,
+                       (r.commercial_terms->>'monthlyPriceUsd')::numeric),
+                       COALESCE(p.currency,CASE WHEN r.revision_id IS NOT NULL THEN 'USD' END),
+                       COALESCE(p.interval_months,(r.commercial_terms->>'billingPeriodMonths')::integer)
+          FROM billing_subscriptions s
           LEFT JOIN billing_plan_prices p ON p.stripe_price_id=s.stripe_price_id
+          LEFT JOIN billing_custom_quote_checkout_attempts a
+            ON a.tenant_id=s.tenant_id AND a.stripe_subscription_id=s.stripe_subscription_id AND a.state='settled'
+          LEFT JOIN billing_custom_quote_revisions r
+            ON (r.tenant_id,r.quote_id,r.revision_id)=(a.tenant_id,a.quote_id,a.revision_id)
           WHERE s.tenant_id=%s AND s.status=ANY(%s) ORDER BY s.updated_at DESC LIMIT 1""",
           (tenant_id,list(config.CURRENT_STATUSES)))
         row=cur.fetchone()

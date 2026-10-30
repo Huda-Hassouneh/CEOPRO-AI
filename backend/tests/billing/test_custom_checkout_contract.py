@@ -1,4 +1,5 @@
 from src.ai.billing import custom_offers, service, store, stripe_api
+from unittest.mock import MagicMock
 
 
 def test_custom_quote_checkout_uses_database_terms_and_stable_provider_identity(monkeypatch, memory_checkout_reservations):
@@ -20,7 +21,7 @@ def test_custom_quote_checkout_uses_database_terms_and_stable_provider_identity(
 
     monkeypatch.setattr(stripe_api, "create_checkout_session", create)
     monkeypatch.setattr(custom_offers, "record_custom_checkout_session", lambda *_, **__: {"state": "session_created"})
-    result = service.create_custom_quote_checkout(object(), object(), "tenant", "owner@example.test", "Test Co",
+    result = service.create_custom_quote_checkout(MagicMock(), object(), "tenant", "owner@example.test", "Test Co",
                                                   "quote", "client-retry-key")
     assert captured["params"]["line_items"][0]["price_data"]["unit_amount"] == 5725
     assert captured["params"]["line_items"][0]["price_data"]["currency"] == "usd"

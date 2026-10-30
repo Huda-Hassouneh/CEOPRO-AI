@@ -22,7 +22,8 @@ export function CustomPlanQuantityField({
 
   const commit = () => {
     if (draft !== null && draft !== "") {
-      onChange(snapToStep(Number(draft), min, max, step));
+      const committed = snapToStep(Number(draft), min, max, step);
+      if (committed !== value) onChange(committed);
     }
     setDraft(null);
   };

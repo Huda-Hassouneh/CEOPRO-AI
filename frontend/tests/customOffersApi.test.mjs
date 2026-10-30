@@ -57,3 +57,10 @@ test('offer transitions require expected revision and idempotency; checkout requ
   assert.deepEqual(client.calls[0].body, transition);
   assert.equal(client.calls.some((call) => call.url.endsWith('/checkout-attempts')), false);
 });
+
+test('automatic checkout confirms a frozen preview without transmitting a browser price or FX', async () => {
+  const client = clientWith(); const api = createCustomOffersApi(client);
+  await api.automaticCheckout({ preview_id: 'frozen-preview', idempotency_key: 'retry-key', amount: '1', fxRate: '1' });
+  assert.deepEqual(client.calls, [{ method: 'POST', url: '/billing/custom-offers/checkout',
+    body: { preview_id: 'frozen-preview', idempotency_key: 'retry-key' } }]);
+});
