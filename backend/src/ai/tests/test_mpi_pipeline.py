@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.ai.mpi import pipeline
+from src.ai.mpi import data_access, evidence, pipeline
 
 PRODUCT_ID = str(uuid.uuid4())
 COMPETITOR_ID = str(uuid.uuid4())
@@ -27,9 +27,9 @@ def _review(review_id: str, label: str, pos: float, neg: float, days_ago: int = 
 
 
 def test_no_reviews_records_unknown_evidence(fake_conn):
-    with patch.object(pipeline.data_access, "load_scored_reviews", return_value=[]), \
-         patch.object(pipeline.data_access, "load_country_context", return_value="JO"), \
-         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
+    with patch.object(data_access, "load_scored_reviews", return_value=[]), \
+         patch.object(data_access, "load_country_context", return_value="JO"), \
+         patch.object(evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
         result = pipeline.get_subject_mpi(fake_conn, "tenant-1", "PRODUCT", PRODUCT_ID, as_of=date(2026, 8, 8))
 
     assert result == {"status": "UNKNOWN", "evidence_id": "evidence-1"}
@@ -42,9 +42,9 @@ def test_no_reviews_records_unknown_evidence(fake_conn):
 def test_below_min_sample_size_flags_low_sample_size(fake_conn):
     reviews = [_review("r1", "positive", 0.8, 0.1)]
 
-    with patch.object(pipeline.data_access, "load_scored_reviews", return_value=reviews), \
-         patch.object(pipeline.data_access, "load_country_context", return_value=None), \
-         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
+    with patch.object(data_access, "load_scored_reviews", return_value=reviews), \
+         patch.object(data_access, "load_country_context", return_value=None), \
+         patch.object(evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
         result = pipeline.get_subject_mpi(fake_conn, "tenant-1", "PRODUCT", PRODUCT_ID, as_of=date(2026, 8, 8))
 
     assert result["status"] == "OK"
@@ -58,9 +58,9 @@ def test_sufficient_sample_reports_fact_with_full_breakdown(fake_conn):
     n = pipeline.cold_start.MIN_SAMPLE_SIZE
     reviews = [_review(f"r{i}", "positive", 0.9, 0.05) for i in range(n)]
 
-    with patch.object(pipeline.data_access, "load_scored_reviews", return_value=reviews), \
-         patch.object(pipeline.data_access, "load_country_context", return_value="SA"), \
-         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
+    with patch.object(data_access, "load_scored_reviews", return_value=reviews), \
+         patch.object(data_access, "load_country_context", return_value="SA"), \
+         patch.object(evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
         result = pipeline.get_subject_mpi(fake_conn, "tenant-1", "COMPETITOR", COMPETITOR_ID, as_of=date(2026, 8, 8))
 
     assert result["status"] == "OK"
@@ -82,9 +82,9 @@ def test_reviews_missing_effective_date_are_excluded(fake_conn):
     reviews = [_review("r1", "positive", 0.9, 0.05)]
     reviews[0]["effective_date"] = None
 
-    with patch.object(pipeline.data_access, "load_scored_reviews", return_value=reviews), \
-         patch.object(pipeline.data_access, "load_country_context", return_value=None), \
-         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
+    with patch.object(data_access, "load_scored_reviews", return_value=reviews), \
+         patch.object(data_access, "load_country_context", return_value=None), \
+         patch.object(evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
         result = pipeline.get_subject_mpi(fake_conn, "tenant-1", "BUSINESS", as_of=date(2026, 8, 8))
 
     # load_scored_reviews returned one row, but it contributes nothing -
@@ -107,9 +107,9 @@ def test_label_counts_and_review_count_agree_when_some_reviews_lack_a_date(fake_
     excluded["effective_date"] = None
     reviews.append(excluded)
 
-    with patch.object(pipeline.data_access, "load_scored_reviews", return_value=reviews), \
-         patch.object(pipeline.data_access, "load_country_context", return_value=None), \
-         patch.object(pipeline.evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
+    with patch.object(data_access, "load_scored_reviews", return_value=reviews), \
+         patch.object(data_access, "load_country_context", return_value=None), \
+         patch.object(evidence, "insert_evidence_record", return_value="evidence-1") as mock_evidence:
         result = pipeline.get_subject_mpi(fake_conn, "tenant-1", "BUSINESS", as_of=date(2026, 8, 8))
 
     assert result["review_count"] == n  # the undated review must not count
@@ -123,7 +123,7 @@ def test_compare_subjects_refuses_when_one_side_has_no_data(fake_conn):
     def fake_load(conn, tenant_id, subject_type, subject_id=None, as_of=None):
         return [] if subject_type == "COMPETITOR" else [_review("r1", "positive", 0.9, 0.05)]
 
-    with patch.object(pipeline.data_access, "load_scored_reviews", side_effect=fake_load):
+    with patch.object(data_access, "load_scored_reviews", side_effect=fake_load):
         comparison = pipeline.compare_subjects(
             fake_conn, "tenant-1", ("BUSINESS", None), ("COMPETITOR", COMPETITOR_ID), as_of=date(2026, 8, 8)
         )
@@ -140,7 +140,7 @@ def test_compare_subjects_returns_difference_when_both_sides_sufficient(fake_con
             return [_review(f"a{i}", "positive", 0.9, 0.05) for i in range(n)]
         return [_review(f"b{i}", "negative", 0.05, 0.9) for i in range(n)]
 
-    with patch.object(pipeline.data_access, "load_scored_reviews", side_effect=fake_load):
+    with patch.object(data_access, "load_scored_reviews", side_effect=fake_load):
         comparison = pipeline.compare_subjects(
             fake_conn, "tenant-1", ("BUSINESS", None), ("COMPETITOR", COMPETITOR_ID),
             as_of=date(2026, 8, 8), min_volume_for_comparison=10,

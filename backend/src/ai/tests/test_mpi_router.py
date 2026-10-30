@@ -5,6 +5,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from src.ai.core.security import TenantContext
+from src.ai.mpi import application
+from src.ai.mpi.errors import InvalidSubjectIdentifier, InvalidSubjectType, SubjectNotFoundError
 from src.ai.routers import mpi
 
 
@@ -24,12 +26,12 @@ def test_mpi_subject_errors_are_non_disclosing_and_rollback(
 
     def fail(*args, **kwargs):
         if expected_status == 422 and subject_type == "STORE":
-            raise mpi.mpi_pipeline.data_access.InvalidSubjectType("Unsupported MPI subject type.")
+            raise InvalidSubjectType("Unsupported MPI subject type.")
         if expected_status == 422:
-            raise mpi.mpi_pipeline.data_access.InvalidSubjectIdentifier("A valid subject identifier is required.")
-        raise mpi.mpi_pipeline.data_access.SubjectNotFoundError("MPI subject not found.")
+            raise InvalidSubjectIdentifier("A valid subject identifier is required.")
+        raise SubjectNotFoundError("MPI subject not found.")
 
-    monkeypatch.setattr(mpi.mpi_pipeline, "get_subject_mpi", fail)
+    monkeypatch.setattr(application, "compute_summary", fail)
     with pytest.raises(HTTPException) as raised:
         mpi.mpi_summary(subject_type, subject_id, TenantContext("tenant-a", "user-a"))
 
