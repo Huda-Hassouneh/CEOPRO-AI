@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import psycopg2
 import pytest
 
-from src.ai.mpi import application, data_access, evidence, pipeline
+from src.ai.mpi import application, data_access, evidence, pipeline, postgres
 from src.ai.mpi.ports import EvidenceWriter, HistoryReader, ReviewReader
 
 
@@ -81,10 +81,10 @@ def test_comparison_uses_review_port_for_both_subjects(monkeypatch):
 
 def _adapter_call(kind, conn):
     if kind == 'review':
-        return data_access.review_reader(conn, 'tenant')('PRODUCT', 'product')
+        return postgres.review_reader(conn, 'tenant')('PRODUCT', 'product')
     if kind == 'history':
-        return data_access.history_reader(conn, 'tenant', 'ai.mpi')('PRODUCT', 'product', 3, 4)
-    return evidence.evidence_writer(conn, 'tenant')(
+        return postgres.history_reader(conn, 'tenant', 'ai.mpi')('PRODUCT', 'product', 3, 4)
+    return postgres.evidence_writer(conn, 'tenant')(
         'UNKNOWN', 'ai.mpi', {'status': 'UNKNOWN'}, None, 'text', None, 'JO')
 
 

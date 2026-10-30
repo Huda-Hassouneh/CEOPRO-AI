@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from src.ai.core import entitlements, usage
 from src.ai.core.exceptions import register_exception_handlers
 from src.ai.core.security import TenantContext, get_tenant_context
-from src.ai.mpi import pipeline, scoring
+from src.ai.mpi import data_access, evidence, pipeline, scoring
 from src.ai.routers import mpi
 
 
@@ -27,9 +27,9 @@ def harness(monkeypatch):
     monkeypatch.setattr(pipeline, 'date', Clock)
     conn = MagicMock()
     monkeypatch.setattr(mpi.db, 'app_role_connection', lambda *a: conn)
-    monkeypatch.setattr(pipeline.data_access, 'validate_subject', lambda *a: None)
-    monkeypatch.setattr(pipeline.data_access, 'load_scored_reviews', lambda *a: [])
-    monkeypatch.setattr(pipeline.data_access, 'load_country_context', lambda *a: 'JO')
+    monkeypatch.setattr(data_access, 'validate_subject', lambda *a: None)
+    monkeypatch.setattr(data_access, 'load_scored_reviews', lambda *a: [])
+    monkeypatch.setattr(data_access, 'load_country_context', lambda *a: 'JO')
     app = FastAPI()
     app.include_router(mpi.router, dependencies=[entitlements.requires(usage.MARKET_INTELLIGENCE)])
     app.dependency_overrides[get_tenant_context] = lambda: TenantContext('tenant-a', 'user-a')
@@ -46,9 +46,9 @@ def test_summary_exact_contract_and_evidence_current_behavior(harness, monkeypat
     reviews = [dict(review_id=str(i), label='positive', positive_probability=.9,
                     negative_probability=.1, effective_date=date(2020, 1, 1),
                     collection_method='PUBLIC_API') for i in range(count)]
-    monkeypatch.setattr(pipeline.data_access, 'load_scored_reviews', lambda *a: reviews)
+    monkeypatch.setattr(data_access, 'load_scored_reviews', lambda *a: reviews)
     writer = MagicMock(return_value='evidence-1')
-    monkeypatch.setattr(pipeline.evidence, 'insert_evidence_record', writer)
+    monkeypatch.setattr(evidence, 'insert_evidence_record', writer)
     response = client.get('/mpi/summary', params={'subject_type': scope, 'subject_id': 'subject-a'},
                           headers={'Accept-Language': 'ar'})
     assert response.status_code == 200
@@ -98,7 +98,7 @@ def test_summary_failure_windows_current_behavior(harness, monkeypatch, failure)
         events.append('commit')
         if events.count('commit') == (2 if failure == 'router_commit' else 1):
             raise psycopg2.OperationalError('synthetic commit failure')
-    monkeypatch.setattr(pipeline.evidence, 'insert_evidence_record', insert)
+    monkeypatch.setattr(evidence, 'insert_evidence_record', insert)
     conn.commit.side_effect = commit
     conn.rollback.side_effect = lambda: events.append('rollback')
     conn.close.side_effect = lambda: events.append('close')
@@ -137,10 +137,10 @@ def test_pipeline_default_python_day_controls_decay_current_behavior(harness, mo
         def today(cls):
             return cls(2020, 1, 2)
     monkeypatch.setattr(pipeline, 'date', Clock)
-    monkeypatch.setattr(pipeline.data_access, 'load_scored_reviews', lambda *a: [dict(
+    monkeypatch.setattr(data_access, 'load_scored_reviews', lambda *a: [dict(
         review_id='r', label='positive', positive_probability=1., negative_probability=0.,
         effective_date=date(2020, 1, 1), collection_method='PUBLIC_API')])
-    monkeypatch.setattr(pipeline.evidence, 'insert_evidence_record', lambda *a: 'e')
+    monkeypatch.setattr(evidence, 'insert_evidence_record', lambda *a: 'e')
     result = pipeline.get_subject_mpi(harness[1], 'tenant-a', 'BUSINESS')
     assert result['avg_recency_weight'] == round(.5 ** (1 / scoring.RECENCY_HALF_LIFE_DAYS), 4)
     # An explicit earlier as_of clamps future dates to full recency, independently of SQL eligibility.
@@ -174,7 +174,7 @@ def test_exact_mixed_scoring_vector_current_behavior(monkeypatch):
 def test_access_granting_entitlement_summary_current_behavior(harness, monkeypatch, status):
     client, conn = harness
     monkeypatch.setattr(entitlements, '_plan', lambda *a: dict(status=status, entitlements={usage.MARKET_INTELLIGENCE}))
-    monkeypatch.setattr(pipeline.evidence, 'insert_evidence_record', lambda *a: 'e')
+    monkeypatch.setattr(evidence, 'insert_evidence_record', lambda *a: 'e')
     assert client.get('/mpi/summary', params={'subject_type': 'BUSINESS'}).status_code == 200
 
 
@@ -190,7 +190,7 @@ def test_history_contract_and_cleanup_current_behavior(harness, monkeypatch, fai
     if failure:
         cursor.execute.side_effect = psycopg2.OperationalError('synthetic read failure')
     writer = MagicMock()
-    monkeypatch.setattr(pipeline.evidence, 'insert_evidence_record', writer)
+    monkeypatch.setattr(evidence, 'insert_evidence_record', writer)
     response = client.get('/mpi/history', params={'subject_type': 'BUSINESS', 'limit': 1})
     if failure:
         assert response.status_code == 500
