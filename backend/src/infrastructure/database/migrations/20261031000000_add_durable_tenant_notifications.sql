@@ -12,8 +12,30 @@ BEGIN
 END
 $roles$;
 
-ALTER ROLE keel_notification_fn_owner
-    WITH NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+-- Verified instead of re-applied with ALTER ROLE: changing the SUPERUSER or
+-- BYPASSRLS attribute (even to NOSUPERUSER/NOBYPASSRLS) needs a real
+-- superuser, which managed Postgres (Neon) does not give the migration role.
+-- A pre-existing role with any elevated attribute stops the migration.
+DO $verify_role$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_roles
+        WHERE rolname = 'keel_notification_fn_owner'
+          AND (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole
+               OR rolcanlogin OR rolinherit OR rolreplication)
+    ) THEN
+        RAISE EXCEPTION 'keel_notification_fn_owner has elevated attributes; it must be NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS NOREPLICATION';
+    END IF;
+END
+$verify_role$;
+
+-- ALTER FUNCTION ... OWNER TO below needs the migration role to be able to SET
+-- ROLE to the new owner. A non-superuser (Neon's database owner) that created
+-- the role only holds ADMIN OPTION on it (PostgreSQL 16+), so it takes a
+-- temporary membership here and drops it again after the ownership transfers.
+-- The new owner has fewer privileges than the migration role, so this grants
+-- nothing beyond what that role already had.
+GRANT keel_notification_fn_owner TO CURRENT_USER;
 
 GRANT USAGE ON SCHEMA public TO keel_notification_fn_owner;
 GRANT CREATE ON SCHEMA public TO keel_notification_fn_owner;
@@ -376,6 +398,8 @@ GRANT EXECUTE ON FUNCTION public.mark_tenant_notification_read(uuid,uuid) TO ceo
 GRANT EXECUTE ON FUNCTION public.mark_all_tenant_notifications_read(uuid) TO ceopro_app;
 GRANT EXECUTE ON FUNCTION public.dismiss_tenant_notification(uuid,uuid) TO ceopro_app;
 GRANT EXECUTE ON FUNCTION public.notification_existing_event_keys(uuid,text[]) TO ceopro_app;
+-- Function grants above are made as the owner, so the temporary membership ends only here.
+REVOKE keel_notification_fn_owner FROM CURRENT_USER;
 
 COMMENT ON TABLE public.notification_outbox IS
     'Durable tenant in-app inbox. Rows are inserted transactionally and visible immediately; no async delivery worker or automatic purge.';

@@ -56,26 +56,50 @@ BEGIN
  END IF;
  RAISE EXCEPTION 'Unsupported provider routing capability' USING ERRCODE='42501';
 END $$;
+-- Neon/managed Postgres: a non-superuser migration role may transfer ownership only to a role it can
+-- SET ROLE to and that has CREATE on the schema, and only the owner can grant on the function, so
+-- the membership lasts only through the grants below (CREATE only through the transfer). The owner has fewer privileges than the migration role,
+-- and the DDL check at the end still applies.
+GRANT ceopro_billing_lookup TO CURRENT_USER;
+GRANT CREATE ON SCHEMA public TO ceopro_billing_lookup;
 ALTER FUNCTION public.billing_provider_tenant(text,text) OWNER TO ceopro_billing_lookup;
+REVOKE CREATE ON SCHEMA public FROM ceopro_billing_lookup;
 REVOKE ALL ON FUNCTION public.billing_provider_tenant(text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_provider_tenant(text,text) TO ceopro_billing_webhook;
+REVOKE ceopro_billing_lookup FROM CURRENT_USER;
 CREATE FUNCTION public.billing_provider_month_spend(p_provider text,p_model text,p_since timestamptz) RETURNS numeric
  LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
  SELECT coalesce(sum(coalesce(actual_cost_usd,estimated_cost_usd)),0) FROM public.usage_ledger
  WHERE (p_provider IS NULL OR provider=p_provider) AND (p_model IS NULL OR provider_operation=p_model)
  AND created_at>=p_since AND status<>'released'
 $$;
+-- Neon/managed Postgres: a non-superuser migration role may transfer ownership only to a role it can
+-- SET ROLE to and that has CREATE on the schema, and only the owner can grant on the function, so
+-- the membership lasts only through the grants below (CREATE only through the transfer). The owner has fewer privileges than the migration role,
+-- and the DDL check at the end still applies.
+GRANT ceopro_billing_lookup TO CURRENT_USER;
+GRANT CREATE ON SCHEMA public TO ceopro_billing_lookup;
 ALTER FUNCTION public.billing_provider_month_spend(text,text,timestamptz) OWNER TO ceopro_billing_lookup;
+REVOKE CREATE ON SCHEMA public FROM ceopro_billing_lookup;
 REVOKE ALL ON FUNCTION public.billing_provider_month_spend(text,text,timestamptz) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_provider_month_spend(text,text,timestamptz) TO ceopro_credit_accounting;
+REVOKE ceopro_billing_lookup FROM CURRENT_USER;
 CREATE FUNCTION public.billing_expired_credit_tenants(p_seconds integer) RETURNS SETOF uuid
  LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
  SELECT DISTINCT tenant_id FROM public.usage_ledger WHERE status='reserved'
  AND p_seconds>0 AND created_at<now()-make_interval(secs=>p_seconds)
 $$;
+-- Neon/managed Postgres: a non-superuser migration role may transfer ownership only to a role it can
+-- SET ROLE to and that has CREATE on the schema, and only the owner can grant on the function, so
+-- the membership lasts only through the grants below (CREATE only through the transfer). The owner has fewer privileges than the migration role,
+-- and the DDL check at the end still applies.
+GRANT ceopro_billing_lookup TO CURRENT_USER;
+GRANT CREATE ON SCHEMA public TO ceopro_billing_lookup;
 ALTER FUNCTION public.billing_expired_credit_tenants(integer) OWNER TO ceopro_billing_lookup;
+REVOKE CREATE ON SCHEMA public FROM ceopro_billing_lookup;
 REVOKE ALL ON FUNCTION public.billing_expired_credit_tenants(integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_expired_credit_tenants(integer) TO ceopro_credit_accounting;
+REVOKE ceopro_billing_lookup FROM CURRENT_USER;
 GRANT SELECT ON public.billing_customers TO ceopro_billing_webhook;
 GRANT INSERT(tenant_id,stripe_customer_id) ON public.billing_customers TO ceopro_billing_webhook;
 GRANT UPDATE(stripe_customer_id) ON public.billing_customers TO ceopro_billing_webhook;
@@ -206,9 +230,17 @@ BEGIN
  UPDATE public.billing_subscriptions SET scheduled_plan_key=p_plan,scheduled_period_code=p_period,updated_at=now()
  WHERE tenant_id=t AND stripe_subscription_id=p_subscription;
 END $$;
+-- Neon/managed Postgres: a non-superuser migration role may transfer ownership only to a role it can
+-- SET ROLE to and that has CREATE on the schema, and only the owner can grant on the function, so
+-- the membership lasts only through the grants below (CREATE only through the transfer). The owner has fewer privileges than the migration role,
+-- and the DDL check at the end still applies.
+GRANT ceopro_schedule_writer TO CURRENT_USER;
+GRANT CREATE ON SCHEMA public TO ceopro_schedule_writer;
 ALTER FUNCTION public.billing_setup_schedule(text,text,text) OWNER TO ceopro_schedule_writer;
+REVOKE CREATE ON SCHEMA public FROM ceopro_schedule_writer;
 REVOKE ALL ON FUNCTION public.billing_setup_schedule(text,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_setup_schedule(text,text,text) TO ceopro_billing_setup;
+REVOKE ceopro_schedule_writer FROM CURRENT_USER;
 
 DO $$ DECLARE r text; BEGIN
  FOREACH r IN ARRAY ARRAY['ceopro_billing_webhook','ceopro_credit_accounting','ceopro_billing_lookup','ceopro_schedule_writer'] LOOP
