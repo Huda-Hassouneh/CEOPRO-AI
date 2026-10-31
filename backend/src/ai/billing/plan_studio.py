@@ -9,7 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 from psycopg2.extras import Json
 
-from src.ai.billing import plan_analysis
+from src.ai.billing import plan_analysis, economic_catalog
 
 
 class Assumptions(BaseModel):
@@ -32,7 +32,7 @@ class Assumptions(BaseModel):
     fx_version: str = Field(min_length=1, max_length=200)
     max_rate_age_days: StrictInt = Field(ge=1, le=36500)
     cost_binding_policy_id: UUID | None = None
-    feature_treatments: dict[str, Literal['ai_credits', 'data_credits', 'internal_allocation', 'additional_external']]
+    feature_treatments: dict[str, Literal['ai_credits', 'data_credits', 'ai_and_data_credits', 'internal_allocation', 'additional_external']]
     unlimited_monthly_usage: dict[str, StrictInt] = Field(default_factory=dict)
     refresh_frequency: Literal['hourly', 'every_6_hours', 'every_12_hours', 'daily', 'weekly'] | None = None
     ladder_min_price_gap: Decimal | None = Field(default=None, ge=0, allow_inf_nan=False)
@@ -91,6 +91,9 @@ def command(conn, action, payload=None):
 
 def bootstrap(conn):
     sources = command(conn, 'inputs')
+    sources['feature_economics'] = economic_catalog.coverage()
+    sources['provider_readiness'] = economic_catalog.readiness(sources['provider_rates'], as_of=sources['as_of'][:10],
+        max_rate_age_days=(sources.get('selected_policy') or {}).get('assumptions', {}).get('max_rate_age_days'))
     # Private evidence is owner-only; no customer endpoint imports this use case.
     return plan_analysis.serial(sources)
 
@@ -106,6 +109,7 @@ def create_policy(conn, body):
 
 def run_analysis(conn, body):
     sources = command(conn, 'inputs', {'policy_id': str(body.policy_id)} if body.policy_id else {})
+    sources['feature_economics'] = economic_catalog.coverage()
     plan = next((p for p in sources['plans'] if p['plan_key'] == body.plan_key), None)
     if plan is None:
         raise ValueError('Select a current Standard Plan')
@@ -126,7 +130,10 @@ def run_analysis(conn, body):
     result['ladderWarnings'] = plan_analysis.ladder(neighbors, policy)
     result['asOf'] = sources['as_of']
     result['evidence'] = {'providerSchedules': sources['provider_rates'], 'observations': sources['observations'],
-                          'creditPolicy': sources['credit_policy'], 'window': sources['observation_window']}
+                          'creditPolicy': sources['credit_policy'], 'window': sources['observation_window'],
+                          'featureEconomics': sources['feature_economics'],
+                          'providerReadiness': economic_catalog.readiness(sources['provider_rates'], as_of=sources['as_of'][:10],
+                              max_rate_age_days=policy['assumptions']['max_rate_age_days'] if policy else None)}
     for row in result['evidence']['providerSchedules']:
         verified = row.get('verified_at')
         status = 'VERIFIED'

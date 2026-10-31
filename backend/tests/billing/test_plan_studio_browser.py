@@ -34,7 +34,9 @@ def test_browser_pricing_studio(role,locale,scenario,platform_owner_context,tena
         sources=plan_studio.bootstrap(conn)
         body=policy_body(sources)
         if scenario=='missing':
-            body['assumptions']['feature_treatments'].pop('monthly_reports',None)
+            # Explicit separate external cost with no binding remains missing;
+            # known local feature coverage no longer needs manual discovery.
+            body['assumptions']['feature_treatments']['monthly_reports']='additional_external'
         plan_studio.create_policy(conn,plan_studio.PolicyCreate.model_validate(body))
         conn.commit()
     api_port,ui_port=port(),port()

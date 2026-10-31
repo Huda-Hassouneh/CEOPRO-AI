@@ -164,6 +164,13 @@ def run(conn=None) -> list:
                 logger.error(f"Failed to apply {path.name}: {err}")
                 raise
 
+        # Setup authority only. Repeated setup creates no versions or owner edits.
+        # Earlier-schema installation tests intentionally may not have this function.
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT to_regprocedure('public.billing_catalog_reconcile()') IS NOT NULL")
+            if cursor.fetchone()[0]:
+                cursor.execute('SELECT public.billing_catalog_reconcile()')
+
         _sync_app_role_password(conn)
         _sync_billing_setup_password(conn)
 

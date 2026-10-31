@@ -21,13 +21,19 @@ try{
   await row.getByRole('button',{name:t.analyzePricing,exact:true}).click();
   await page.getByLabel(t.plan,{exact:true}).waitFor();
   await page.getByLabel(t.plan,{exact:true}).selectOption('starter');
+  await page.getByRole('button',{name:t.newPolicy,exact:true}).click();
+  assert.ok(await page.getByRole('option',{name:t.catalog.defaultCoverage+' · '+t.treatments.internal_allocation,exact:true}).count());
+  await page.getByRole('button',{name:t.cancel,exact:true}).click();
+  await page.getByTestId('economic-readiness').locator('summary').click();
+  await page.getByText(t.catalog.providers,{exact:true}).waitFor();
+  assert.ok(await page.getByTestId('economic-readiness').getByText('groq / openai/gpt-oss-20b',{exact:true}).count());
   const request=()=>page.waitForResponse(r=>r.url()===API_URL+'/platform/billing/pricing-studio/analyze');
   let response=request();await page.getByRole('button',{name:t.run,exact:true}).click();
   const original=await(await response).json();
   if(STUDIO_SCENARIO==='missing'){
     assert.equal(original.pricing,null);assert.equal(original.status,'INCOMPLETE_DATA');
     await page.getByText(t.statuses.INCOMPLETE_DATA,{exact:true}).waitFor();
-    await page.getByRole('alert').filter({hasText:t.warnings.COST_COVERAGE_MISSING}).waitFor();
+    await page.getByRole('alert').filter({hasText:t.warnings.RATE_MISSING}).waitFor();
   }else{
   assert.ok(original.pricing,JSON.stringify(original.warnings));
   await page.getByTestId('price-recommended').waitFor();assert.ok(await page.getByTestId('price-recommended').textContent());

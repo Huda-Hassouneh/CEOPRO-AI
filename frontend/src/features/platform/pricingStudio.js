@@ -2,7 +2,7 @@
 export const ASSUMPTION_FIELDS = ['target_margin','minimum_margin','risk_buffer','expected_utilization','stress_utilization',
   'infrastructure_jod','support_jod','operations_jod','processing_ratio','processing_fixed_jod','annual_discount',
   'annual_allowance_cycles','rounding_jod','usd_to_jod','fx_source','fx_version','max_rate_age_days','ladder_min_price_gap'];
-export const COVERAGE = ['ai_credits','data_credits','internal_allocation','additional_external'];
+export const COVERAGE = ['ai_credits','data_credits','ai_and_data_credits','internal_allocation','additional_external'];
 export function newPolicy(existing) {
   const a = existing?.assumptions || {};
   return { ...Object.fromEntries(ASSUMPTION_FIELDS.map(k => [k, a[k] ?? ''])),

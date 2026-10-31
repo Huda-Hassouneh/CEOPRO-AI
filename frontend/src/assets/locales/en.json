@@ -1956,6 +1956,22 @@
   },
   "billing": {
     "pricingStudio": {
+      "catalog": {
+        "title": "Economic catalog and setup completeness",
+        "explanation": "Runtime-backed coverage fills unmapped features; explicit owner policy wins. Credit-funded calls are counted once. Provider alternatives below are not all required for every plan.",
+        "coverage": "Feature cost coverage",
+        "defaultCoverage": "Use runtime catalog",
+        "providers": "Optional provider paths and accounting evidence",
+        "credentials": "Runtime configuration",
+        "provenance": "Configuration origin",
+        "origins": {"catalog/bootstrap": "Catalog/bootstrap", "owner/operator": "Owner/operator", "unknown": "Unknown"},
+        "requirements": "Missing settings / conditional approvals",
+        "approvals": "Content-storage approvals",
+        "operational": "No provider health, credential validity, account free-tier eligibility, legal sufficiency or availability was tested. Public data, local ML/OCR/storage and hosting still need operational capacity and internal allocations.",
+        "MISSING": "Missing",
+        "PRESENT_UNTESTED": "Present; untested",
+        "NOT_REQUIRED": "No credential required"
+      },
       "title": "Pricing Studio",
       "subtitle": "Standard Plan economics from existing accounting evidence and explicit owner assumptions.",
       "analyzePricing": "Analyze Pricing",
@@ -1978,7 +1994,7 @@
       "notConfigured": "Not configured",
       "refresh": "Monitoring assumption",
       "coverage": "Cost coverage",
-      "coverageHelp": "Classify every included feature. Credit-funded costs are counted through the corresponding Credit allocation once. Additional external costs require existing verified bindings.",
+      "coverageHelp": "Known features use the cited runtime catalog unless you specify owner coverage. Unknown features need an explicit mapping. Credit-funded costs are counted once. Additional external costs require verified bindings.",
       "unlimitedUsage": "Assumed monthly quantities for unbounded external features (JSON)",
       "actualConfiguration": "Actual catalog configuration",
       "unbounded": "Unbounded / budget limited",
@@ -2066,6 +2082,7 @@
         "weekly": "Weekly"
       },
       "treatments": {
+        "ai_and_data_credits": "Covered by AI and Data Credit pools",
         "ai_credits": "Covered by AI Credits",
         "data_credits": "Covered by Data Credits",
         "internal_allocation": "Covered by internal allocations",
@@ -2087,6 +2104,7 @@
         "configured_usage_verified_rate": "Verified rate × assumed usage"
       },
       "warnings": {
+        "CREDIT_COVERAGE_CONFLICT": "Credit-funded provider costs cannot also be added as external costs.",
         "POLICY_MISSING": "No effective owner-configured policy.",
         "CREDIT_BUDGET_UNAVAILABLE": "Credit value or finite allowance unavailable",
         "COST_COVERAGE_MISSING": "Cost coverage not configured",

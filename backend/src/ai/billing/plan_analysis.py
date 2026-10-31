@@ -78,12 +78,19 @@ def analyze(plan, policy, sources, simulation=None):
                           'classification': 'configured_credit_exposure', **costs})
 
     for code in sorted(selected - {'ai_credits', 'data_credits'}):
-        coverage = treatments.get(code)
+        canonical = sources.get('feature_economics', {}).get(code)
+        coverage = treatments.get(code) or (canonical['treatment'] if canonical else None)
+        # Provider calls in these capabilities already settle against Credit
+        # pools. An additional copy of that spend would inflate plan economics.
+        if canonical and canonical['treatment'] in ('ai_credits', 'data_credits', 'ai_and_data_credits') and coverage == 'additional_external':
+            warn('CREDIT_COVERAGE_CONFLICT', code)
+            continue
         if coverage is None:
             warn('COST_COVERAGE_MISSING', code)
             continue
-        if coverage in ('ai_credits', 'data_credits', 'internal_allocation'):
+        if coverage in ('ai_credits', 'data_credits', 'ai_and_data_credits', 'internal_allocation'):
             breakdown.append({'feature': code, 'category': coverage, 'classification': 'configured_coverage',
+                              'coverageSource': 'owner_policy' if code in treatments else canonical,
                               'expected': ZERO, 'stress': ZERO})
             continue
         rates = [b for b in bindings if b['feature_code'] == code]

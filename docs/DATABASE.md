@@ -76,6 +76,27 @@ Ledger costs, custom pricing rate versions, subscription prices, customer
 allowances, credit conversion policy and spending controls are untouched.
 Unknown or deliberately unpriced units still fail with `COST_NOT_CONFIGURED`.
 
+### Repeated billing setup reconciliation
+
+`20261119000000_billing_catalog_reconciliation.sql` adds an installation-only
+reconciler invoked by the existing migration runner after ordered migrations.
+It runs on explicit repeat setup, never in API request/lifespan code. Container
+entrypoints that already invoke the migration runner also perform this setup
+step; ordinary API-process restarts without that runner perform no seeding.
+It preserves every existing schedule, including deliberate NULLs and owner zero
+rates. Prior bootstrap or owner-price audit receipts prevent deleted entries
+from being resurrected. Repeated reconciliation adds no duplicate versions.
+Missing approved Groq entries use the same owner accounting command; missing
+SerpAPI search and Gemini discovery-vision entries are NULL inventory records,
+not invented prices. New inserts have `billing_catalog_bootstrap` provenance and
+full row evidence. Runtime roles have no execute privilege on the reconciler.
+
+Feature coverage in `billing/economic_catalog.py` is a separately versioned
+runtime map, not a monetary authority. Pricing Studio freezes it with analysis
+evidence and still requires an explicit owner assumptions policy. See the
+[coverage inventory](BILLING_ECONOMIC_COVERAGE.md) and
+[owner manual](PLATFORM_BILLING_OWNER_MANUAL.md).
+
 ### Adding a future approved model rate
 
 1. Obtain explicit approval for provider/model identifiers, billable units,

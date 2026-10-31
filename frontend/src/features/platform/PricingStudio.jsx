@@ -10,6 +10,7 @@ import Table from '../../shared/components/ui/Table.jsx';
 import Skeleton from '../../shared/components/ui/Skeleton.jsx';
 import EmptyState from '../../shared/components/ui/EmptyState.jsx';
 import { platformBillingApi } from './platformBillingApi.js';
+import { EconomicReadiness } from './EconomicReadiness.jsx';
 import { ASSUMPTION_FIELDS, COVERAGE, newPolicy, policyPayload, analysisPayload } from './pricingStudio.js';
 import './pricingStudio.css';
 
@@ -43,7 +44,7 @@ function PolicyEditor({ data, api, saved, cancel, text }) {
     <h4>{text('coverage')}</h4><p>{text('coverageHelp')}</p>
     <div className="pricing-studio-fields">{codes.filter(code => !['ai_credits','data_credits'].includes(code)).map(code => <label key={code}>{code}<select
       value={form.feature_treatments[code] || ''} onChange={event => set('feature_treatments',{...form.feature_treatments,[code]:event.target.value})}>
-      <option value="">{text('notConfigured')}</option>{COVERAGE.map(c => <option key={c} value={c}>{text('treatments.'+c)}</option>)}
+      <option value="">{data.feature_economics?.[code] ? text('catalog.defaultCoverage')+' · '+text('treatments.'+data.feature_economics[code].treatment) : text('notConfigured')}</option>{COVERAGE.map(c => <option key={c} value={c}>{text('treatments.'+c)}</option>)}
     </select></label>)}</div>
     <label>{text('unlimitedUsage')}<textarea rows={4} value={form.unlimited_monthly_usage} onChange={event => set('unlimited_monthly_usage',event.target.value)}/></label>
     <div className="pricing-studio-actions"><Button type="submit" loading={mutation.isPending}>{text('savePolicy')}</Button><Button variant="outline" disabled={mutation.isPending} onClick={cancel}>{text('cancel')}</Button></div>
@@ -98,6 +99,7 @@ export function PricingStudio({ api = platformBillingApi }) {
       </div><div className="pricing-studio-modules">{data.entitlement_catalog.map(code=><label key={code}><input type="checkbox" checked={(entitlements??plan.entitlements).includes(code)} onChange={event=>{const old=entitlements??plan.entitlements;setEntitlements(event.target.checked?[...old,code]:old.filter(c=>c!==code));analysis.reset();}} />{code}</label>)}</div>
     </Card>}
     {analysis.error && <p role="alert">{typeof problem(analysis.error)==='string'?problem(analysis.error):text('analysisError')}</p>}
+    <EconomicReadiness data={data} text={text}/>
     {result && <>
       <div className="pricing-studio-result-heading"><h3>{text('result')}</h3><strong className={'pricing-studio-status status-'+result.status}>{text('statuses.'+result.status)}</strong><span>{text('policy')}: {result.policyVersion??'—'}</span></div>
       {result.warnings.length>0 && <ul role="alert" className="pricing-studio-warnings">{result.warnings.map((w,i)=><li key={i}>{text('warnings.'+w.split(':')[0])}{w.includes(':')?' · '+w.split(':').slice(1).join(':'):''}</li>)}</ul>}

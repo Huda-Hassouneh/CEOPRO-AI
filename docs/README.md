@@ -25,6 +25,8 @@ is no competing setup guide to keep synchronized.
 
 ## Maintainer and operator references
 
+- [Platform Billing Owner Manual](PLATFORM_BILLING_OWNER_MANUAL.md): every Billing tab and safe cross-tab workflows.
+- [Billing economic coverage](BILLING_ECONOMIC_COVERAGE.md): runtime feature/provider inventory, setup provenance and pre-PAYG gaps.
 - [Subscriptions, Credits and payment rules](SUBSCRIPTIONS_AND_CREDITS.md)
 - [Provider keys/accounts](../backend/KEYS_AND_ACCOUNTS_NEEDED.md) and
   [source-linked environment inventory](reference/ENVIRONMENT_INVENTORY.md)
