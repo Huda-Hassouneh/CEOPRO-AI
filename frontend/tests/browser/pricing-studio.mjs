@@ -14,7 +14,7 @@ try{
  page.on('request',request=>{if(request.url().startsWith(API_URL+'/platform/billing') && request.method()!=='GET')navigationWrites.push(request.method()+' '+request.url());});
  await page.addInitScript(locale=>localStorage.setItem('ceopro_locale',locale),E2E_LOCALE);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(APP_URL+'/tests/browser/pricing-studio.html');
+ await page.goto(APP_URL+'/tests/browser/pricing-studio.html'+(STUDIO_ROLE==='owner'?'?owner_quote_fixture=1':''));
  if(STUDIO_ROLE==='tenant'){
   // Existing Billing authorization may deny the entire page before its tabs.
   // Independently verify the Studio capability from this same browser identity.
@@ -39,6 +39,12 @@ try{
   assert.ok((await allowance.getAttribute('aria-label'))?.includes(':'));
   await nav.getByRole('link',{name:billing.catalog.tabs.plans,exact:true}).click();
   assert.deepEqual(navigationWrites,[], 'Billing navigation must not write financial records');
+  await page.getByTestId('synthetic-review').click();
+  const quoteDialog=page.getByRole('dialog');
+  await quoteDialog.getByText(billing.customPlan.reviewReasons.QUOTA_ABOVE_AUTOMATIC_LIMIT,{exact:false}).waitFor();
+  await quoteDialog.getByText(/300\.00 JOD/).waitFor();
+  await quoteDialog.getByText(/423\.13 USD/).waitFor();
+  await quoteDialog.getByRole('button',{name:JSON.parse(readFileSync(`src/assets/locales/${E2E_LOCALE}.json`,'utf8')).common.close,exact:true}).click();
   const row=page.getByRole('row').filter({has:page.getByRole('button',{name:t.analyzePricing,exact:true})}).first();
   await row.getByRole('button',{name:t.analyzePricing,exact:true}).click();
   await page.getByLabel(t.plan,{exact:true}).waitFor();
