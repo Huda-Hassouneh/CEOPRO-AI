@@ -279,10 +279,21 @@ def auth_lookup_connection():
     Login is low-volume relative to every other endpoint here, so a fresh
     connection per attempt (rather than its own dedicated pool) is a
     reasonable, simple choice - not a corner cut, a right-sized one.
+
+    app.auth_lookup = 'on' (this session only) is what lets the sign-in
+    flows reach auth_tokens before there is a company: request connections
+    see only their own company's invitations and their own codes there
+    (migration 20261101000000_harden_cross_tenant_isolation.sql). Set by a
+    statement, not a startup option (connection poolers refuse those), and
+    committed at once so a later rollback in the flow can't undo it.
     """
     import psycopg2
 
-    return psycopg2.connect(_app_database_url())
+    conn = psycopg2.connect(_app_database_url())
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT set_config('app.auth_lookup', 'on', false);")
+    conn.commit()
+    return conn
 
 
 def minio_client() -> Minio:
