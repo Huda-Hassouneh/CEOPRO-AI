@@ -6,6 +6,14 @@ const list = (response, key) => Array.isArray(response?.[key]) ? response[key] :
 const wrap = (data) => ({ data });
 const idempotencyKey = () => globalThis.crypto?.randomUUID?.() ?? `keel-owner-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const MODULE_CODES = new Set(['market_intelligence', 'demand_prediction', 'competitor_management']);
+const standardPlanBody = (payload) => ({
+  plan_key: payload.plan_key, display_name: payload.display_name, display_name_ar: payload.display_name_ar,
+  description: payload.description || '', description_ar: payload.description_ar || '',
+  tier_level: Number(payload.tier_level), currency: 'USD', monthly_price: String(payload.monthly_price),
+  trial_days: Number(payload.trial_days), billing_periods: payload.billing_periods || [],
+  ...(payload.template_key ? { template_key: payload.template_key, template_catalog_version: payload.template_catalog_version } : {}),
+  reason: payload.reason,
+});
 function customQuoteBody(payload, key) {
   const selected = payload.features || [];
   const enabledFeatures = selected.map((feature) => String(feature.featureId || feature.code || feature.id))
@@ -130,8 +138,18 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
     });
   };
   const featureRows = async () => {
-    const [catalog, canonical] = await Promise.all([offers.getConfigurator(),
-      typeof billing.featureCatalog === 'function' ? billing.featureCatalog() : Promise.resolve({ features: [] })]);
+    const canonical = typeof billing.featureCatalog === 'function' ? await billing.featureCatalog() : { features: [] };
+    // Standard authoring uses its installed catalog, independently of the
+    // narrower Custom contract controls. Older API doubles retain their path.
+    if (canonical.categories) return list(canonical, 'features').map((f) => ({
+      id: f.feature_code, code: f.feature_code, name: f.display_name, name_ar: f.display_name_ar,
+      description: f.description, description_ar: f.description_ar,
+      type: f.entitlement_type === 'boolean' ? 'boolean' : 'limit', unit: f.entitlement_type === 'boolean' ? '' : f.unit || '',
+      category: f.category, display_order: f.display_order, metadataEditable: f.metadata_editable,
+      customPlanSupported: f.custom_plan_supported,
+      aggregationType: f.aggregation_type, resetCycle: f.reset_cycle,
+    }));
+    const catalog = await offers.getConfigurator();
     const metadata = new Map(list(canonical, 'features').map((feature) => [feature.feature_code, feature]));
     const numeric = (catalog.features || []).map((f) => {
       const row = metadata.get(f.featureCode) || {};
@@ -152,6 +170,7 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
   return Object.freeze({
     capabilities: Object.freeze({ planTerms: false, planCreate: true, featureDefinitions: false, customContractToggle: false }),
     getPlans: async () => wrap(await plans()),
+    getPlanTemplates: () => billing.planTemplates(),
     getFeatures: async () => wrap(await featureRows()),
     getFeature: async (featureId) => {
       const data = await featureRows();
@@ -168,7 +187,8 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
         const item = labels.get(code) || {};
         return { id: code, code, name: item.name || code, name_ar: item.name_ar || code,
           description: item.description || '', description_ar: item.description_ar || '',
-          type, unit: unit ?? item.unit };
+          type, unit: unit ?? item.unit, category: item.category, display_order: item.display_order,
+          aggregationType: item.aggregationType, resetCycle: item.resetCycle };
       };
       const numeric = (plan?.feature_limits || []).map((item) => ({ id: `${planId}:${item.feature_code}`, feature_id: item.feature_code, planId, featureId: item.feature_code, limit_value: item.limit_value, limitValue: item.limit_value, feature: featureLabel(item.feature_code, item.unit, 'limit') }));
       const modules = (plan?.entitlements || []).map((code) => ({ id: `${planId}:${code}`, feature_id: code, planId, featureId: code, limit_value: null, limitValue: null, feature: featureLabel(code, '', 'boolean') }));
@@ -234,19 +254,8 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
     createInfrastructureRate: (payload) => saveInfrastructureRate(payload),
     updateInfrastructureRate: (rateId, payload) => saveInfrastructureRate({ ...payload, supersedesRateId: rateId }),
     getTenants: async () => wrap(list(await billing.companies(100, 0), 'items').map((tenant) => ({ ...tenant, id: tenant.tenant_id, businessName: tenant.business_name }))),
-    createPlan: (payload) => billing.createStandardPlan({
-      plan_key: payload.plan_key,
-      display_name: payload.display_name,
-      display_name_ar: payload.display_name_ar,
-      description: payload.description || '',
-      description_ar: payload.description_ar || '',
-      tier_level: Number(payload.tier_level),
-      currency: 'USD',
-      monthly_price: String(payload.monthly_price),
-      trial_days: Number(payload.trial_days),
-      billing_periods: payload.billing_periods || [],
-      reason: payload.reason,
-    }),
+    createPlan: (payload) => billing.createStandardPlan(standardPlanBody(payload)),
+    updateDraftPlan: (key, payload) => billing.updateStandardPlanDraft(key, standardPlanBody(payload)),
     updatePlan: (planKey, payload = {}) => {
       if (Object.keys(payload).length === 1 && typeof payload.isActive === 'boolean')
         return billing.updatePlanStatus(planKey, { active: payload.isActive, reason: 'Owner changed plan availability for new purchases.' });

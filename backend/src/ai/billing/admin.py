@@ -15,11 +15,7 @@ from src.ai.billing import credits
 from src.ai.core import usage
 
 PER_MILLION_UNITS = ("input_token", "output_token", "cache_read_token", "cache_write_token")
-_NUMERIC_CONTRACT_FEATURES = (
-    usage.TRACKED_PRODUCTS, usage.MONTHLY_REPORTS, usage.TEAM_SEATS, usage.DATA_CREDITS, usage.AI_CREDITS,
-    usage.DOCUMENT_STORAGE_MB, usage.CONNECTED_DATA_SOURCES, usage.IMAGE_GENERATION, usage.SENTIMENT_ANALYSIS,
-    usage.DOCUMENT_EXTRACTION, usage.RAG_ASSISTANT, usage.WEB_SEARCHES, usage.TRACKED_COMPETITORS,
-)
+_NUMERIC_CONTRACT_FEATURES = usage.QUANTITATIVE_FEATURES
 _CUSTOM_CONTRACT_ENTITLEMENTS = (
     usage.MARKET_INTELLIGENCE, usage.DEMAND_PREDICTION, usage.COMPETITOR_MANAGEMENT,
 )
@@ -364,10 +360,10 @@ def owner_catalog_command(conn, *, plan_key, reason, active=None, feature_code=N
         if not isinstance(active,bool):raise AdminError("active must be boolean")
         payload.update(action="status",active=active)
     else:
-        if feature_code not in set(_NUMERIC_CONTRACT_FEATURES)|set(_CUSTOM_CONTRACT_ENTITLEMENTS):raise AdminError("feature is not supported by the Python plan entitlement catalog")
+        if feature_code not in set(_NUMERIC_CONTRACT_FEATURES)|set(_CUSTOM_CONTRACT_ENTITLEMENTS)|set(usage.BASELINE_ENTITLEMENTS):raise AdminError("feature is not supported by the Python plan entitlement catalog")
         if not isinstance(included,bool):raise AdminError("included must be boolean")
         if limit_value is not None and (isinstance(limit_value,bool) or not isinstance(limit_value,int) or limit_value<0):raise AdminError("limit_value must be a nonnegative integer or null")
-        if feature_code in _CUSTOM_CONTRACT_ENTITLEMENTS and limit_value is not None:raise AdminError("module entitlements do not accept a numeric limit")
+        if feature_code in _CUSTOM_CONTRACT_ENTITLEMENTS + usage.BASELINE_ENTITLEMENTS and limit_value is not None:raise AdminError("module entitlements do not accept a numeric limit")
         payload.update(action="feature",feature_code=feature_code,included=included,limit_value=limit_value)
     try:
         with conn.cursor() as cur:

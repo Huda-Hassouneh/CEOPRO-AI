@@ -33,7 +33,11 @@ try{
   await nav.getByRole('link',{name:billing.catalog.tabs.features,exact:true}).click();
   await page.locator('.billing-feature-group').first().waitFor();
   await nav.getByRole('link',{name:billing.catalog.tabs.planFeatures,exact:true}).click();
-  await page.getByRole('columnheader',{name:guided.allowance}).waitFor();
+  const allowanceHeaders=page.getByRole('columnheader',{name:guided.allowance});
+  await allowanceHeaders.first().waitFor();
+  const featureCatalog=await page.evaluate(url=>fetch(url).then(r=>r.json()),API_URL+'/platform/billing/feature-catalog');
+  assert.equal(await allowanceHeaders.count(),featureCatalog.categories.length,'Each canonical category has its own allowance table');
+  for(const c of featureCatalog.categories)await page.getByRole('heading',{name:E2E_LOCALE==='ar'?c.label_ar:c.label_en,exact:true}).waitFor();
   const allowance=page.locator('.billing-catalog-limit-label input').first();
   await allowance.waitFor();
   assert.ok((await allowance.getAttribute('aria-label'))?.includes(':'));

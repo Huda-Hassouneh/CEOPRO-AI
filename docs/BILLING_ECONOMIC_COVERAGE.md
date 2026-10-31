@@ -1,5 +1,168 @@
 # Billing economic coverage and pre-PAYG inventory
 
+## Canonical Standard Plan bootstrap and template catalog
+
+The versioned source is `backend/config/billing/standard_plan_catalog.json`
+(`schema_version: 1`, initial `catalog_version: standard-plans-v1`). It contains
+display categories, the existing executable identifiers and approved bootstrap
+terms. It contains **no provider price, Credit conversion rate or cost binding**.
+`core/feature_contracts.py` is the dependency-free extraction of existing runtime
+identities, re-exported unchanged by `core/usage.py`. Validation checks JSON
+identities/types and the database's actual units/aggregation/reset contracts.
+
+### Exact identity / presentation / enforcement map
+
+| Category | Canonical key | Type / existing unit | Economic treatment |
+|---|---|---|---|
+| Business Operations | product_management | Baseline Boolean | Internal allocation |
+| Business Operations | tracked_products | Live MAX / products | Internal allocation |
+| Business Operations | team_seats | Live MAX / seats | Internal allocation |
+| Data & Integrations | data_integration | Baseline Boolean | Internal allocation |
+| Data & Integrations | connected_data_sources | Live MAX / sources | Internal allocation |
+| Data & Integrations | document_extraction | Consumable / KB per period | Internal allocation |
+| Data & Integrations | document_storage_mb | Live storage / MB | Internal allocation |
+| Data & Integrations | data_credits | Consumable / Credits per period | Data pool |
+| Business Intelligence | dashboard_analytics | Baseline Boolean | Internal allocation |
+| Business Intelligence | demand_prediction | Boolean / enabled | Internal allocation |
+| Market & Competitor Intelligence | market_intelligence | Boolean / enabled | AI + Data pools |
+| Market & Competitor Intelligence | competitor_management | Boolean / enabled | AI + Data pools |
+| Market & Competitor Intelligence | tracked_competitors | Live MAX / competitors | Data pool downstream |
+| Market & Competitor Intelligence | sentiment_analysis | Consumable / records per period | Internal allocation |
+| Market & Competitor Intelligence | web_searches | Consumable / searches per period | Data pool |
+| AI & Automation | rag_assistant | Consumable / tokens per period | AI + Data pools |
+| AI & Automation | marketing_image_generation | Consumable / images per period | AI pool |
+| AI & Automation | ai_credits | Consumable / Credits per period | AI pool |
+| Reports & Exports | monthly_reports | Consumable / reports per period | Internal allocation |
+
+There are 16 `usage_features` rows: the 13 quantities plus the three module
+Booleans. The other three baseline identifiers exist in
+`usage_plan_entitlements`, not as artificial usage units. Inventory, pricing
+recommendations and smart alerts have no independent plan feature IDs in current
+Python enforcement. They remain baseline tenant workflows; no new IDs, usage
+charges or toggles are invented for them. Shopify/WooCommerce are authorized
+connection capabilities under existing integration/capacity contracts. Monitoring
+cadence is currently Custom-contract `refresh_frequency`, not a Standard Plan
+allowance; there is no approved Standard cadence value to copy. Operational
+limits, provider readiness, legal approvals and credential checks remain separate.
+
+Standard authoring shows all 19 entries. Owner Custom quotation controls retain
+their existing 13 numeric fields and three module switches; the three baseline
+entries are explicitly excluded from private quotation/rate configuration.
+
+Platform administration, global Billing/subscriptions, Provider Accounting,
+Pricing Studio and security configuration are excluded. Categories never select
+a provider, a rate, an entitlement evaluator or a ledger identity.
+
+### Approved default quantities (all three include the six Booleans)
+
+| Allowance | Standard (`starter`) | Plus (`growth`) | Pro (`enterprise`) |
+|---|---:|---:|---:|
+| Products | 100 | 250 | 500 |
+| Reports per period | 5 | 20 | 60 |
+| Seats | 5 | 20 | 50 |
+| AI Credits per period | 436 | 1111 | 2780 |
+| Data Credits per period | 436 | 1111 | 2780 |
+| Trial AI / Data Credits, each | 43 | 111 | 278 |
+| Storage MB | 1024 | 10240 | 51200 |
+| Connected sources | 1 | 5 | 20 |
+| Marketing images per period | 20 | 100 | 150 |
+| Sentiment records per period | 5000 | 25000 | 100000 |
+| Extraction KB per period | 51200 | 512000 | 2097152 |
+| Assistant tokens per period | 100000 | 500000 | 2000000 |
+| Web searches per period | 100 | 500 | 500 |
+| Tracked competitors | Explicit unlimited | Explicit unlimited | Explicit unlimited |
+| Trial days | 14 | 14 | 7 |
+| Bootstrap monthly USD price only | 55 | 140 | 350 |
+
+Sources: migrations `20261013000000`, `20261020000000`, `20261021000000`.
+Existing bootstrap three/six-month discounts remain 10%/20%; no annual discount
+is invented. JSON state `owner_required` is distinct from `unlimited`: it creates
+no allowance, is shown as requiring configuration and blocks template activation
+until the owner saves that allowance. Current approved templates have no missing
+numeric defaults. The file explicitly records the unsupported Standard cadence.
+
+### Setup, owner edits and financial boundaries
+
+Forward migration `20261121000000_canonical_standard_plan_catalog.sql` installs
+the restricted authoring support and immutable installed catalog versions.
+The existing migration runner validates JSON **before writes**, verifies actual
+DB usage definitions and installs the version during setup only. Its minimal
+Python migration-container path requires no FastAPI imports. A reused version
+with different content fails instead of changing frozen template evidence.
+
+On genuinely fresh setup, the three current historical seed rows are finalized
+from JSON after historical migrations. Those migrations remain immutable; Custom
+and the two inactive legacy identities remain for compatibility. Thus there are
+exactly **three active self-serve Standard tiers**, not only three total plan
+rows. On existing setup, any existing plan wins in its entirety, even when
+inactive or missing an allowance. Only absent canonical plans without prior plan
+audit evidence may be initialized. No per-request/startup reconciliation occurs.
+Template selection is bound to an installed version and audited with its digest
+and full copied allowances. New plans remain inactive and have no Stripe IDs.
+The monthly price remains an explicit owner input. Existing commercial-term
+editing guards remain in force for published/historical plans. A template-created
+inactive plan can edit names, descriptions, trial, tier and explicit supported
+commercial terms **before first activation**, only while it has no Stripe
+mapping, subscription/scheduled-change/assignment/trial/redemption references.
+The command retains previous price rows, audits before/after evidence, preserves
+the stable key and does not reapply allowances. First activation permanently
+closes this draft editing path, even if the owner later deactivates the plan.
+Missing owner-required template quantities are exposed in readiness and block
+activation. No historical subscriber price/snapshot is recalculated.
+
+### Read-only local plan inventory and cleanup decision (2026-10-31)
+
+| Plan key | Classification | Subscriptions / assignments / trials | Other evidence / action |
+|---|---|---|---|
+| starter | Desired Standard | 1 / 1 / 0 | 3 price rows; preserve |
+| growth | Desired Plus, currently owner-inactive | 3 / 9 / 12 | 8 analyses, 3 prices, 3 audits; preserve inactive state |
+| enterprise | Desired Pro | 2 / 2 / 0 | 3 prices, promotion association; preserve |
+| standard | Inactive historical identity | 0 / 0 / 0 | 3 retired prices, 1 analysis; preserve |
+| pro | Inactive historical identity | 0 / 0 / 0 | 3 retired prices; preserve |
+| custom | Required Custom-contract identity | 0 / 0 / 0 | Runtime contract/snapshot identity; preserve |
+| basic | Owner-created inactive plan | 0 / 0 / 0 | 4 prices, creation audit; not proven synthetic; preserve |
+
+No plan is proven to be disposable synthetic data. **Safe hard deletions: none.**
+Legacy plans are already inactive; no new retirement is needed. No normal DB
+cleanup is applied. `backend/scripts/standard_plan_inventory.py` runs read-only,
+enumerates all foreign keys to `usage_plans`, counts audit/price/Stripe evidence
+and fingerprints protected records. It deliberately has no delete operation:
+zero current subscribers is not proof of zero historical value. Existing
+subscriptions, assignment snapshots and frozen commercial history are retained.
+
+The current economic coverage remains the 19 source-backed mappings below.
+No Provider Accounting rate, economic binding, Credit policy/ledger, Custom
+pricing formula, subscription lifecycle or provider readiness rule changes.
+This work does not certify missing Studio assumptions or introduce PAYG.
+
+### Canonical catalog verification
+
+* Full billing/Custom/Studio/provider/Credits/allowances/catalog regression:
+  **536 passed**, no skips; `.dev/evidence/tests/e35c19114d73/backend.log`.
+* Final Standard-versus-Custom boundary, catalog/draft commands and real
+  EN/AR template/Studio browser rerun: **66 passed**, no skips;
+  `.dev/evidence/tests/51165c633389/backend.log`.
+* Native RLS: **18 passed** in a separate fresh process. The existing creation
+  test globally registers a UUID decoder; combining it with string-based RLS
+  comparisons creates test-type interference, not an isolation failure. Neither
+  assertion was weakened. Evidence: `.dev/evidence/tests/8624455ab82a/backend.log`.
+* Fresh/repeat **156 migrations**, restricted password login and **123 FORCE
+  RLS tables** passed. Catalog validation also passed with Python `-S`, without
+  FastAPI/site-package imports, matching the minimal migration container.
+* Frontend **253 passed**, lint and production build PASS. Existing missing-font,
+  chunk-size and auth dynamic-import build warnings remain.
+* Four real production-component/API template browsers covered EN/AR at
+  1440/390px, copied allowances, grouped units, explicit draft-term edits and
+  inactive/Stripe readiness. Identity injection and disposable DB use are
+  explicit; this is not live authentication or Stripe acceptance.
+* Manual creation UI/accessibility: **12** language/width combinations passed
+  (1440, 1280, 1024, 768, 430, 390px), with no console/page errors or unexpected
+  fixture requests. Evidence: `.dev/evidence/standard-plan-creation-review/`.
+* Normal DB before/after fingerprints for **16 protected tables** and the plan
+  inventory were identical. The new migration is **not** applied there.
+  `.dev/evidence/canonical-plan-catalog/normal-comparison.json` records this.
+  No real Stripe/provider operation, customer repricing or plan deletion occurred.
+
 Source review: integrated baseline `0bfd1bd55d2b92186addbaf264143042c8e8b3dd`.
 Read-only local inspection: 2026-10-31. This report distinguishes source facts,
 local configuration, and unavailable economic evidence. No provider was called.

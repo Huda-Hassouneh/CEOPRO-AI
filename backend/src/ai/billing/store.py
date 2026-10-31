@@ -53,6 +53,9 @@ def catalog(conn) -> list:
     with conn.cursor() as cursor:
         cursor.execute("SELECT feature_code,unit,aggregation_type,reset_cycle,display_name,display_name_ar,description,description_ar FROM usage_features")
         feature_catalog = {row[0]: dict(zip(('unit','aggregation_type','reset_cycle','name','name_ar','description','description_ar'),row[1:])) for row in cursor.fetchall()}
+    from src.ai.billing.standard_plan_catalog import installed_catalog, presentation
+    for code, defaults in presentation(installed_catalog(conn)).items():
+        feature_catalog[code] = defaults | {k: v for k, v in feature_catalog.get(code, {}).items() if v is not None}
     out = []
     for key, name, name_ar, monthly, currency, trial_days, tier, self_serve in plans:
         out.append({

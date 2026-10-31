@@ -45,25 +45,12 @@ UNASSIGNED_ACCESS_DEFAULT = "none"
 AI_REQUESTS_PER_MINUTE = int(os.getenv("AI_REQUESTS_PER_MINUTE_PER_COMPANY", "8"))
 ACCESS_GRANTING_STATUSES = ("active", "trialing")
 
-RAG_ASSISTANT = "rag_assistant"
-WEB_SEARCHES = "web_searches"
-IMAGE_GENERATION = "marketing_image_generation"
-TRACKED_PRODUCTS = "tracked_products"
-TRACKED_COMPETITORS = "tracked_competitors"
-DOCUMENT_STORAGE_MB = "document_storage_mb"
-DOCUMENT_EXTRACTION = "document_extraction"   # KB processed per billing period
-SENTIMENT_ANALYSIS = "sentiment_analysis"     # records analysed per billing period
-CONNECTED_DATA_SOURCES = "connected_data_sources"
-MONTHLY_REPORTS = "monthly_reports"           # report exports per billing period
-TEAM_SEATS = "team_seats"                     # active members of the company
-DATA_CREDITS = "data_credits"                 # billing/credits.py meters these two
-AI_CREDITS = "ai_credits"
-CREDIT_FEATURES = (DATA_CREDITS, AI_CREDITS)
-
-# Included modules (usage_plan_entitlements), as in the plan catalog.
-MARKET_INTELLIGENCE = "market_intelligence"
-DEMAND_PREDICTION = "demand_prediction"
-COMPETITOR_MANAGEMENT = "competitor_management"
+# Re-export existing public usage identities for all runtime callers.
+from src.ai.core.feature_contracts import (
+    RAG_ASSISTANT, WEB_SEARCHES, IMAGE_GENERATION, TRACKED_PRODUCTS, TRACKED_COMPETITORS, DOCUMENT_STORAGE_MB, DOCUMENT_EXTRACTION, SENTIMENT_ANALYSIS,
+    CONNECTED_DATA_SOURCES, MONTHLY_REPORTS, TEAM_SEATS, DATA_CREDITS, AI_CREDITS, CREDIT_FEATURES, MARKET_INTELLIGENCE, DEMAND_PREDICTION,
+    COMPETITOR_MANAGEMENT, QUANTITATIVE_FEATURES, MODULE_FEATURES, BASELINE_ENTITLEMENTS,
+)
 
 # The assistant allowance is counted in tokens (as in the plan catalog). This
 # much is reserved before a question is answered, then settled to the real

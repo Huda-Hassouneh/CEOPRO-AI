@@ -31,7 +31,9 @@ import psycopg2
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("CEOPRO_MIGRATION_RUNNER")
 
-REPO_ROOT = Path(__file__).parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
+# Direct script invocation (the minimal migration container) needs no API dependencies.
+sys.path.insert(0, str(REPO_ROOT))
 SCHEMA_DIR = REPO_ROOT / "src" / "infrastructure" / "database"
 FINAL_SCHEMA_FILE = SCHEMA_DIR / "Final_schema.sql"
 MIGRATIONS_DIR = SCHEMA_DIR / "migrations"
@@ -135,6 +137,9 @@ def run(conn=None) -> list:
     applied_this_run = []
 
     try:
+        from src.ai.billing.standard_plan_catalog import load_catalog
+        load_catalog()  # Fail before any schema/data write for malformed source.
+        fresh_plan_catalog = not _table_exists(conn, "usage_plans")
         if _table_exists(conn, BASE_SCHEMA_MARKER_TABLE):
             logger.info(f"Base schema already present (table '{BASE_SCHEMA_MARKER_TABLE}' exists) - skipping Final_schema.sql.")
         else:
@@ -163,6 +168,15 @@ def run(conn=None) -> list:
                 conn.rollback()
                 logger.error(f"Failed to apply {path.name}: {err}")
                 raise
+
+        # Validate/install the JSON only at setup, never API startup or requests.
+        # Partial-history migration tests may not have the catalog table yet.
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT to_regclass('public.billing_standard_catalog_versions') IS NOT NULL")
+            has_standard_catalog = cursor.fetchone()[0]
+        if has_standard_catalog:
+            from src.ai.billing.standard_plan_catalog import install_catalog
+            install_catalog(conn, fresh=fresh_plan_catalog)
 
         # Setup authority only. Repeated setup creates no versions or owner edits.
         # Earlier-schema installation tests intentionally may not have this function.

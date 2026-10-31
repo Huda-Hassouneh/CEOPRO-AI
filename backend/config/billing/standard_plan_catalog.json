@@ -1,0 +1,695 @@
+{
+  "schema_version": 1,
+  "catalog_version": "standard-plans-v1",
+  "purpose": "Bootstrap/templates only. Persisted owner catalog, billing_plan_prices and Stripe remain commercial authorities. Categories are presentation only.",
+  "categories": [
+    {
+      "key": "operations",
+      "label_en": "Business Operations",
+      "label_ar": "عمليات الأعمال",
+      "display_order": 1
+    },
+    {
+      "key": "data",
+      "label_en": "Data & Integrations",
+      "label_ar": "البيانات والتكاملات",
+      "display_order": 2
+    },
+    {
+      "key": "intelligence",
+      "label_en": "Business Intelligence",
+      "label_ar": "ذكاء الأعمال",
+      "display_order": 3
+    },
+    {
+      "key": "market",
+      "label_en": "Market & Competitor Intelligence",
+      "label_ar": "ذكاء السوق والمنافسين",
+      "display_order": 4
+    },
+    {
+      "key": "automation",
+      "label_en": "AI & Automation",
+      "label_ar": "الذكاء الاصطناعي والأتمتة",
+      "display_order": 5
+    },
+    {
+      "key": "reporting",
+      "label_en": "Reports & Exports",
+      "label_ar": "التقارير والتصدير",
+      "display_order": 6
+    }
+  ],
+  "features": [
+    {
+      "key": "product_management",
+      "category": "operations",
+      "label_en": "Product & Inventory Management",
+      "label_ar": "إدارة المنتجات والمخزون",
+      "description_en": "Manage products and inventory.",
+      "description_ar": "إدارة المنتجات والمخزون.",
+      "display_order": 1,
+      "entitlement_type": "boolean",
+      "usage_feature": null,
+      "unit": null,
+      "aggregation_type": null,
+      "reset_cycle": null
+    },
+    {
+      "key": "tracked_products",
+      "category": "operations",
+      "label_en": "Product Capacity",
+      "label_ar": "سعة المنتجات",
+      "description_en": "Maximum live products.",
+      "description_ar": "الحد الأقصى للمنتجات الحالية.",
+      "display_order": 2,
+      "entitlement_type": "max",
+      "usage_feature": "tracked_products",
+      "unit": "products",
+      "aggregation_type": "max",
+      "reset_cycle": "lifetime"
+    },
+    {
+      "key": "team_seats",
+      "category": "operations",
+      "label_en": "Team Seats",
+      "label_ar": "مقاعد الفريق",
+      "description_en": "Active tenant members.",
+      "description_ar": "أعضاء المنشأة النشطون.",
+      "display_order": 3,
+      "entitlement_type": "max",
+      "usage_feature": "team_seats",
+      "unit": "seats",
+      "aggregation_type": "max",
+      "reset_cycle": "lifetime"
+    },
+    {
+      "key": "data_integration",
+      "category": "data",
+      "label_en": "Data Connections & Imports",
+      "label_ar": "ربط البيانات واستيرادها",
+      "description_en": "Business imports and authorized Shopify/WooCommerce connections.",
+      "description_ar": "استيراد بيانات الأعمال وربط متاجر شوبيفاي وووكومرس المصرح بها.",
+      "display_order": 4,
+      "entitlement_type": "boolean",
+      "usage_feature": null,
+      "unit": null,
+      "aggregation_type": null,
+      "reset_cycle": null
+    },
+    {
+      "key": "connected_data_sources",
+      "category": "data",
+      "label_en": "Connected Sources",
+      "label_ar": "مصادر البيانات المتصلة",
+      "description_en": "Maximum active business connections.",
+      "description_ar": "الحد الأقصى لاتصالات الأعمال النشطة.",
+      "display_order": 5,
+      "entitlement_type": "max",
+      "usage_feature": "connected_data_sources",
+      "unit": "sources",
+      "aggregation_type": "max",
+      "reset_cycle": "lifetime"
+    },
+    {
+      "key": "document_extraction",
+      "category": "data",
+      "label_en": "Document Extraction",
+      "label_ar": "استخراج المستندات",
+      "description_en": "Document processing per billing period in KB.",
+      "description_ar": "معالجة المستندات بالكيلوبايت لكل فترة فوترة.",
+      "display_order": 6,
+      "entitlement_type": "consumable",
+      "usage_feature": "document_extraction",
+      "unit": "KB",
+      "aggregation_type": "sum",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "document_storage_mb",
+      "category": "data",
+      "label_en": "Document & Knowledge Storage",
+      "label_ar": "تخزين المستندات والمعرفة",
+      "description_en": "Live document capacity in MB.",
+      "description_ar": "سعة المستندات الحالية بالميغابايت.",
+      "display_order": 7,
+      "entitlement_type": "storage",
+      "usage_feature": "document_storage_mb",
+      "unit": "MB",
+      "aggregation_type": "max",
+      "reset_cycle": "lifetime"
+    },
+    {
+      "key": "data_credits",
+      "category": "data",
+      "label_en": "Data Credits",
+      "label_ar": "أرصدة البيانات",
+      "description_en": "Customer allowance for metered external data services.",
+      "description_ar": "رصيد العميل لخدمات البيانات الخارجية المقاسة.",
+      "display_order": 8,
+      "entitlement_type": "credits",
+      "usage_feature": "data_credits",
+      "unit": "credits",
+      "aggregation_type": "sum",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "dashboard_analytics",
+      "category": "intelligence",
+      "label_en": "Dashboard Analytics",
+      "label_ar": "تحليلات لوحة المعلومات",
+      "description_en": "Business analytics from tenant data.",
+      "description_ar": "تحليلات الأعمال من بيانات المنشأة.",
+      "display_order": 9,
+      "entitlement_type": "boolean",
+      "usage_feature": null,
+      "unit": null,
+      "aggregation_type": null,
+      "reset_cycle": null
+    },
+    {
+      "key": "demand_prediction",
+      "category": "intelligence",
+      "label_en": "Demand Prediction",
+      "label_ar": "توقع الطلب",
+      "description_en": "Forecasting from supported business data.",
+      "description_ar": "التنبؤ من بيانات الأعمال المدعومة.",
+      "display_order": 10,
+      "entitlement_type": "boolean",
+      "usage_feature": "demand_prediction",
+      "unit": "enabled",
+      "aggregation_type": "max",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "market_intelligence",
+      "category": "market",
+      "label_en": "Market Intelligence & Perception",
+      "label_ar": "ذكاء السوق وانطباع العملاء",
+      "description_en": "Market evidence, MPI and sentiment insights.",
+      "description_ar": "أدلة السوق ومؤشر انطباع السوق وتحليل المشاعر.",
+      "display_order": 11,
+      "entitlement_type": "boolean",
+      "usage_feature": "market_intelligence",
+      "unit": "enabled",
+      "aggregation_type": "max",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "competitor_management",
+      "category": "market",
+      "label_en": "Competitor Management",
+      "label_ar": "إدارة المنافسين",
+      "description_en": "Competitor monitoring and pricing evidence.",
+      "description_ar": "مراقبة المنافسين وأدلة التسعير.",
+      "display_order": 12,
+      "entitlement_type": "boolean",
+      "usage_feature": "competitor_management",
+      "unit": "enabled",
+      "aggregation_type": "max",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "tracked_competitors",
+      "category": "market",
+      "label_en": "Tracked Competitors",
+      "label_ar": "المنافسون المتتبعون",
+      "description_en": "Live capacity; current tiers use Data Credits rather than a fixed count.",
+      "description_ar": "السعة الحالية؛ تعتمد الباقات الحالية على أرصدة البيانات بدلاً من عدد ثابت.",
+      "display_order": 13,
+      "entitlement_type": "max",
+      "usage_feature": "tracked_competitors",
+      "unit": "competitors",
+      "aggregation_type": "max",
+      "reset_cycle": "lifetime"
+    },
+    {
+      "key": "sentiment_analysis",
+      "category": "market",
+      "label_en": "Sentiment Analysis",
+      "label_ar": "تحليل المشاعر",
+      "description_en": "Review records analyzed per billing period.",
+      "description_ar": "سجلات التقييم المحللة لكل فترة فوترة.",
+      "display_order": 14,
+      "entitlement_type": "consumable",
+      "usage_feature": "sentiment_analysis",
+      "unit": "records",
+      "aggregation_type": "sum",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "web_searches",
+      "category": "market",
+      "label_en": "Web Searches",
+      "label_ar": "البحث عبر الويب",
+      "description_en": "Metered searches per billing period; Data Credits also apply.",
+      "description_ar": "عمليات البحث المقاسة لكل فترة فوترة؛ تطبق أرصدة البيانات أيضاً.",
+      "display_order": 15,
+      "entitlement_type": "consumable",
+      "usage_feature": "web_searches",
+      "unit": "searches",
+      "aggregation_type": "sum",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "rag_assistant",
+      "category": "automation",
+      "label_en": "RAG Assistant",
+      "label_ar": "المساعد المعرفي",
+      "description_en": "Assistant token allowance; provider readiness and Credits remain separate.",
+      "description_ar": "حصة رموز المساعد؛ تبقى جاهزية المزود والأرصدة مستقلة.",
+      "display_order": 16,
+      "entitlement_type": "consumable",
+      "usage_feature": "rag_assistant",
+      "unit": "tokens",
+      "aggregation_type": "sum",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "marketing_image_generation",
+      "category": "automation",
+      "label_en": "Marketing Images",
+      "label_ar": "صور التسويق",
+      "description_en": "Generated images per billing period; AI Credits also apply.",
+      "description_ar": "الصور المنشأة لكل فترة فوترة؛ تطبق أرصدة الذكاء الاصطناعي أيضاً.",
+      "display_order": 17,
+      "entitlement_type": "consumable",
+      "usage_feature": "marketing_image_generation",
+      "unit": "images",
+      "aggregation_type": "sum",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "ai_credits",
+      "category": "automation",
+      "label_en": "AI Credits",
+      "label_ar": "أرصدة الذكاء الاصطناعي",
+      "description_en": "Customer allowance for metered AI services.",
+      "description_ar": "رصيد العميل لخدمات الذكاء الاصطناعي المقاسة.",
+      "display_order": 18,
+      "entitlement_type": "credits",
+      "usage_feature": "ai_credits",
+      "unit": "credits",
+      "aggregation_type": "sum",
+      "reset_cycle": "billing_period"
+    },
+    {
+      "key": "monthly_reports",
+      "category": "reporting",
+      "label_en": "Reports & Exports",
+      "label_ar": "التقارير والتصدير",
+      "description_en": "Report export allowance per billing period.",
+      "description_ar": "حصة تصدير التقارير لكل فترة فوترة.",
+      "display_order": 19,
+      "entitlement_type": "consumable",
+      "usage_feature": "monthly_reports",
+      "unit": "reports",
+      "aggregation_type": "sum",
+      "reset_cycle": "billing_period"
+    }
+  ],
+  "plans": [
+    {
+      "plan_key": "starter",
+      "display_name": "Standard",
+      "display_name_ar": "القياسية",
+      "tier_level": 1,
+      "trial_days": 14,
+      "bootstrap_active": true,
+      "features": [
+        "product_management",
+        "tracked_products",
+        "team_seats",
+        "data_integration",
+        "connected_data_sources",
+        "document_extraction",
+        "document_storage_mb",
+        "data_credits",
+        "dashboard_analytics",
+        "demand_prediction",
+        "market_intelligence",
+        "competitor_management",
+        "tracked_competitors",
+        "sentiment_analysis",
+        "web_searches",
+        "rag_assistant",
+        "marketing_image_generation",
+        "ai_credits",
+        "monthly_reports"
+      ],
+      "allowances": [
+        {
+          "feature_key": "tracked_products",
+          "state": "limited",
+          "value": 100,
+          "trial_value": null
+        },
+        {
+          "feature_key": "team_seats",
+          "state": "limited",
+          "value": 5,
+          "trial_value": null
+        },
+        {
+          "feature_key": "connected_data_sources",
+          "state": "limited",
+          "value": 1,
+          "trial_value": null
+        },
+        {
+          "feature_key": "document_extraction",
+          "state": "limited",
+          "value": 51200,
+          "trial_value": null
+        },
+        {
+          "feature_key": "document_storage_mb",
+          "state": "limited",
+          "value": 1024,
+          "trial_value": null
+        },
+        {
+          "feature_key": "data_credits",
+          "state": "limited",
+          "value": 436,
+          "trial_value": 43
+        },
+        {
+          "feature_key": "tracked_competitors",
+          "state": "unlimited",
+          "value": null,
+          "trial_value": null
+        },
+        {
+          "feature_key": "sentiment_analysis",
+          "state": "limited",
+          "value": 5000,
+          "trial_value": null
+        },
+        {
+          "feature_key": "web_searches",
+          "state": "limited",
+          "value": 100,
+          "trial_value": null
+        },
+        {
+          "feature_key": "rag_assistant",
+          "state": "limited",
+          "value": 100000,
+          "trial_value": null
+        },
+        {
+          "feature_key": "marketing_image_generation",
+          "state": "limited",
+          "value": 20,
+          "trial_value": null
+        },
+        {
+          "feature_key": "ai_credits",
+          "state": "limited",
+          "value": 436,
+          "trial_value": 43
+        },
+        {
+          "feature_key": "monthly_reports",
+          "state": "limited",
+          "value": 5,
+          "trial_value": null
+        }
+      ],
+      "bootstrap_commercial_defaults": {
+        "source": "20261020000000_keel_subscriptions_and_credits.sql; existing billing_plan_prices",
+        "currency": "USD",
+        "monthly_price": "55.00",
+        "billing_periods": [
+          {
+            "period_code": "three-months",
+            "discount_percent": "10.00"
+          },
+          {
+            "period_code": "six-months",
+            "discount_percent": "20.00"
+          }
+        ]
+      },
+      "allowance_source": "20261013000000_agreed_plan_limits.sql; 20261020000000_keel_subscriptions_and_credits.sql; 20261021000000_pro_plan_limits_500_products_50_seats.sql"
+    },
+    {
+      "plan_key": "growth",
+      "display_name": "Plus",
+      "display_name_ar": "بلس",
+      "tier_level": 2,
+      "trial_days": 14,
+      "bootstrap_active": true,
+      "features": [
+        "product_management",
+        "tracked_products",
+        "team_seats",
+        "data_integration",
+        "connected_data_sources",
+        "document_extraction",
+        "document_storage_mb",
+        "data_credits",
+        "dashboard_analytics",
+        "demand_prediction",
+        "market_intelligence",
+        "competitor_management",
+        "tracked_competitors",
+        "sentiment_analysis",
+        "web_searches",
+        "rag_assistant",
+        "marketing_image_generation",
+        "ai_credits",
+        "monthly_reports"
+      ],
+      "allowances": [
+        {
+          "feature_key": "tracked_products",
+          "state": "limited",
+          "value": 250,
+          "trial_value": null
+        },
+        {
+          "feature_key": "team_seats",
+          "state": "limited",
+          "value": 20,
+          "trial_value": null
+        },
+        {
+          "feature_key": "connected_data_sources",
+          "state": "limited",
+          "value": 5,
+          "trial_value": null
+        },
+        {
+          "feature_key": "document_extraction",
+          "state": "limited",
+          "value": 512000,
+          "trial_value": null
+        },
+        {
+          "feature_key": "document_storage_mb",
+          "state": "limited",
+          "value": 10240,
+          "trial_value": null
+        },
+        {
+          "feature_key": "data_credits",
+          "state": "limited",
+          "value": 1111,
+          "trial_value": 111
+        },
+        {
+          "feature_key": "tracked_competitors",
+          "state": "unlimited",
+          "value": null,
+          "trial_value": null
+        },
+        {
+          "feature_key": "sentiment_analysis",
+          "state": "limited",
+          "value": 25000,
+          "trial_value": null
+        },
+        {
+          "feature_key": "web_searches",
+          "state": "limited",
+          "value": 500,
+          "trial_value": null
+        },
+        {
+          "feature_key": "rag_assistant",
+          "state": "limited",
+          "value": 500000,
+          "trial_value": null
+        },
+        {
+          "feature_key": "marketing_image_generation",
+          "state": "limited",
+          "value": 100,
+          "trial_value": null
+        },
+        {
+          "feature_key": "ai_credits",
+          "state": "limited",
+          "value": 1111,
+          "trial_value": 111
+        },
+        {
+          "feature_key": "monthly_reports",
+          "state": "limited",
+          "value": 20,
+          "trial_value": null
+        }
+      ],
+      "bootstrap_commercial_defaults": {
+        "source": "20261020000000_keel_subscriptions_and_credits.sql; existing billing_plan_prices",
+        "currency": "USD",
+        "monthly_price": "140.00",
+        "billing_periods": [
+          {
+            "period_code": "three-months",
+            "discount_percent": "10.00"
+          },
+          {
+            "period_code": "six-months",
+            "discount_percent": "20.00"
+          }
+        ]
+      },
+      "allowance_source": "20261013000000_agreed_plan_limits.sql; 20261020000000_keel_subscriptions_and_credits.sql; 20261021000000_pro_plan_limits_500_products_50_seats.sql"
+    },
+    {
+      "plan_key": "enterprise",
+      "display_name": "Pro",
+      "display_name_ar": "برو",
+      "tier_level": 3,
+      "trial_days": 7,
+      "bootstrap_active": true,
+      "features": [
+        "product_management",
+        "tracked_products",
+        "team_seats",
+        "data_integration",
+        "connected_data_sources",
+        "document_extraction",
+        "document_storage_mb",
+        "data_credits",
+        "dashboard_analytics",
+        "demand_prediction",
+        "market_intelligence",
+        "competitor_management",
+        "tracked_competitors",
+        "sentiment_analysis",
+        "web_searches",
+        "rag_assistant",
+        "marketing_image_generation",
+        "ai_credits",
+        "monthly_reports"
+      ],
+      "allowances": [
+        {
+          "feature_key": "tracked_products",
+          "state": "limited",
+          "value": 500,
+          "trial_value": null
+        },
+        {
+          "feature_key": "team_seats",
+          "state": "limited",
+          "value": 50,
+          "trial_value": null
+        },
+        {
+          "feature_key": "connected_data_sources",
+          "state": "limited",
+          "value": 20,
+          "trial_value": null
+        },
+        {
+          "feature_key": "document_extraction",
+          "state": "limited",
+          "value": 2097152,
+          "trial_value": null
+        },
+        {
+          "feature_key": "document_storage_mb",
+          "state": "limited",
+          "value": 51200,
+          "trial_value": null
+        },
+        {
+          "feature_key": "data_credits",
+          "state": "limited",
+          "value": 2780,
+          "trial_value": 278
+        },
+        {
+          "feature_key": "tracked_competitors",
+          "state": "unlimited",
+          "value": null,
+          "trial_value": null
+        },
+        {
+          "feature_key": "sentiment_analysis",
+          "state": "limited",
+          "value": 100000,
+          "trial_value": null
+        },
+        {
+          "feature_key": "web_searches",
+          "state": "limited",
+          "value": 500,
+          "trial_value": null
+        },
+        {
+          "feature_key": "rag_assistant",
+          "state": "limited",
+          "value": 2000000,
+          "trial_value": null
+        },
+        {
+          "feature_key": "marketing_image_generation",
+          "state": "limited",
+          "value": 150,
+          "trial_value": null
+        },
+        {
+          "feature_key": "ai_credits",
+          "state": "limited",
+          "value": 2780,
+          "trial_value": 278
+        },
+        {
+          "feature_key": "monthly_reports",
+          "state": "limited",
+          "value": 60,
+          "trial_value": null
+        }
+      ],
+      "bootstrap_commercial_defaults": {
+        "source": "20261020000000_keel_subscriptions_and_credits.sql; existing billing_plan_prices",
+        "currency": "USD",
+        "monthly_price": "350.00",
+        "billing_periods": [
+          {
+            "period_code": "three-months",
+            "discount_percent": "10.00"
+          },
+          {
+            "period_code": "six-months",
+            "discount_percent": "20.00"
+          }
+        ]
+      },
+      "allowance_source": "20261013000000_agreed_plan_limits.sql; 20261020000000_keel_subscriptions_and_credits.sql; 20261021000000_pro_plan_limits_500_products_50_seats.sql"
+    }
+  ],
+  "unsupported_quantitative_configuration": [
+    {
+      "capability": "Standard Plan monitoring cadence",
+      "status": "owner_policy_required",
+      "reason": "No Standard Plan cadence entitlement exists. Custom contract refresh_frequency is not a Standard allowance."
+    }
+  ]
+}

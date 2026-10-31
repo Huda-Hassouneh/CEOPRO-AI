@@ -2739,7 +2739,7 @@
         "noPromos":"No promotions are configured. A draft is not a usable checkout discount.", "planAnalysisNote":"Use Analyze Pricing for a fresh economic check. Catalog availability does not mean economics are complete, and analysis never changes existing subscribers.",
         "frozenTerms":"Frozen offer: {{commercial}} commercial; {{payment}} payment. The exchange-rate evidence is in Pricing evidence below.",
         "groups":{"operations":"Business operations","data":"Data and integrations","market":"Market intelligence","intelligence":"AI and intelligence","reporting":"Reporting","other":"Other catalog features"},
-        "usage":{"boolean":"Enabled module","credits":"Credit allowance","storage":"Storage allowance","cadence":"Cadence allowance","max":"Maximum allowance"},
+        "usage":{"boolean":"Enabled module","credits":"Credit allowance","storage":"Storage allowance","cadence":"Cadence allowance","max":"Maximum allowance","consumable":"Usage allowance per billing period"},
         "status": {"READY":"READY","INFO":"INFO","WARNING":"WARNING","INCOMPLETE":"INCOMPLETE","BLOCKED":"BLOCKED"},
         "labels": {"purpose":"Controls","when":"Use it when","depends":"Depends on","affects":"Saving affects","doesNot":"Does not change"},
         "steps": {"provider":"Verify provider costs","features":"Review feature catalog","planFeatures":"Review plan allowances","policy":"Configure analysis policy","analysis":"Analyze Standard Plans","plans":"Review published plans","custom":"Review Custom quote setup","promos":"Configure promotions if needed","subscriptions":"Monitor subscriptions"},
@@ -2877,7 +2877,18 @@
         "removed": "Feature removed successfully.",
         "unitHint": "Use the business unit shown to customers, such as token, KB, MB, or competitor."
       },
+      "templates": {
+        "editHelp": "Edit this inactive template draft before its first activation or Stripe setup. Earlier price rows are retained. Its identity, allowances and existing customer terms are unchanged.",
+        "select": "Create from catalog template (optional)",
+        "help": "Templates include every customer capability and approved allowances. Enter your own new identity and commercial price. New plans stay inactive and require normal Stripe setup.",
+        "manual": "Configure manually",
+        "included": "Included features and default allowances",
+        "ownerRequired": "Owner configuration required",
+        "unavailable": "Templates are unavailable. Run the supported catalog setup before using a template."
+      },
       "planFeatures": {
+        "emptyTitle": "No features assigned to this plan",
+        "emptyDescription": "Select a canonical feature and configure its allowance above. Creating from a catalog template fills the approved defaults automatically.",
         "title": "Plan Feature Limits",
         "subtitle": "Link existing features to plans and maintain the configured quota for each link.",
         "link": "Link Feature",

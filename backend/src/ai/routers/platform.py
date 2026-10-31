@@ -253,6 +253,8 @@ class StandardPlanCreate(BaseModel):
     monthly_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2, allow_inf_nan=False)
     trial_days: StrictInt = Field(ge=0, le=365)
     billing_periods: list[StandardPlanBillingPeriod] = Field(default_factory=list, max_length=3)
+    template_key: Literal["starter", "growth", "enterprise"] | None = None
+    template_catalog_version: str | None = Field(default=None, min_length=1, max_length=30)
     reason: str = Field(min_length=1, max_length=2000)
 
     @field_validator("plan_key")
@@ -1123,12 +1125,25 @@ def platform_billing_admin_view(view: Literal["quotes", "plans", "subscriptions"
 @router.post("/billing/plans", status_code=201)
 def create_platform_standard_plan(body: StandardPlanCreate, ctx: Ctx):
     """Create a new inactive Standard Plan; Stripe reconciliation remains a separate operator action."""
+    return _write_standard_plan(body, ctx)
+
+
+@router.patch("/billing/plans/{plan_key}/draft-terms")
+def update_platform_standard_plan_draft(plan_key: str, body: StandardPlanCreate, ctx: Ctx):
+    if body.plan_key != plan_key or body.template_key is not None or body.template_catalog_version is not None:
+        raise HTTPException(422, "A draft edit cannot change its stable identity or reapply a template.")
+    return _write_standard_plan(body, ctx, draft=True)
+
+
+def _write_standard_plan(body, ctx, *, draft=False):
     _custom_quote_operator(ctx)
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         from psycopg2.extras import Json
         with conn.cursor() as cursor:
-            cursor.execute("SELECT public.billing_owner_standard_plan_create(%s::jsonb);", (Json(body.model_dump(mode="json")),))
+            statement = ("SELECT public.billing_owner_standard_plan_update_draft(%s::jsonb);" if draft
+                         else "SELECT public.billing_owner_standard_plan_create(%s::jsonb);")
+            cursor.execute(statement, (Json(body.model_dump(mode="json")),))
             result = cursor.fetchone()[0]
         conn.commit()
         return result
@@ -1140,7 +1155,8 @@ def create_platform_standard_plan(body: StandardPlanCreate, ctx: Ctx):
         if code == "23505":
             raise HTTPException(409, "That plan key or name is already in use; historical plan keys cannot be reused.") from None
         if code in ("22023", "23514"):
-            raise HTTPException(422, "The plan details or billing periods are invalid.") from None
+            raise HTTPException(422, "Only an inactive unused template draft can change terms; check the details and billing periods."
+                                if draft else "The plan details or billing periods are invalid.") from None
         raise
     finally:
         conn.close()
@@ -1161,6 +1177,17 @@ def read_platform_standard_plans(ctx: Ctx, limit: int = Query(100, ge=1, le=200)
         if getattr(exc, "pgcode", None) == "42501":
             raise HTTPException(403, "Only the Platform Owner can view Standard Plan setup.") from None
         raise
+    finally:
+        conn.close()
+
+
+@router.get("/billing/plan-templates")
+def read_platform_plan_templates(ctx: Ctx):
+    _custom_quote_operator(ctx)
+    from src.ai.billing.standard_plan_catalog import installed_catalog
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        return installed_catalog(conn)
     finally:
         conn.close()
 
@@ -1216,6 +1243,27 @@ def platform_feature_catalog(ctx: Ctx):
         with conn.cursor() as cursor:
             cursor.execute("SELECT public.billing_platform_feature_catalog_command('list','{}'::jsonb);")
             result = cursor.fetchone()[0]
+        from src.ai.billing.standard_plan_catalog import installed_catalog, presentation
+        from src.ai.core import feature_contracts
+        catalog = installed_catalog(conn)
+        labels = presentation(catalog)
+        existing = {f['feature_code']: f for f in result['features']}
+        custom_supported = set(feature_contracts.QUANTITATIVE_FEATURES + feature_contracts.MODULE_FEATURES)
+        def stored_or_default(code, field, default):
+            value = existing.get(code, {}).get(field)
+            return default if value is None else value
+        result['features'] = [dict(existing.get(f['key'], {}), feature_code=f['key'],
+            display_name=stored_or_default(f['key'], 'display_name', labels[f['key']]['name']),
+            display_name_ar=stored_or_default(f['key'], 'display_name_ar', labels[f['key']]['name_ar']),
+            category=labels[f['key']]['category'], display_order=f['display_order'],
+            entitlement_type=f['entitlement_type'], unit=f['unit'],
+            aggregation_type=f['aggregation_type'], reset_cycle=f['reset_cycle'],
+            description=stored_or_default(f['key'], 'description', f['description_en']),
+            description_ar=stored_or_default(f['key'], 'description_ar', f['description_ar']),
+            metadata_editable=f['usage_feature'] is not None,
+            custom_plan_supported=f['key'] in custom_supported)
+            for f in catalog['features']]
+        result['categories'] = catalog['categories']
         conn.commit()
         return result
     except Exception:

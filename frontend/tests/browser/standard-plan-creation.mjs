@@ -59,6 +59,7 @@ try {
       if (method === 'OPTIONS') return reply({});
       if (method !== 'GET') writes.push({ path, method, body: request.postDataJSON() });
       if (path === '/platform/billing/standard-plans') return reply({ plans });
+      if (path === '/platform/billing/plan-templates') return reply(JSON.parse(readFileSync(resolve('../backend/config/billing/standard_plan_catalog.json'), 'utf8')));
       if (path === '/platform/billing/feature-catalog') return reply({ features: metadata });
       if (path === '/billing/custom-offers/configurator') return reply({
         features: metadata.filter(f => numeric.includes(f.feature_code)).map(f => ({ featureCode: f.feature_code, unit: f.unit, aggregationType: 'sum', resetCycle: 'billing_period' })),

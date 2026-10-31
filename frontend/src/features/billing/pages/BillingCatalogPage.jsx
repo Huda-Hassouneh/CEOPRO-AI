@@ -20,7 +20,7 @@ import BillingOptionsEditor from "../components/BillingOptionsEditor.jsx";
 import { ProviderAccounting } from "../../platform/ProviderAccounting.jsx";
 import { PricingStudio } from "../../platform/PricingStudio.jsx";
 import { BillingSetupGuide, BillingTabGuide } from "../components/BillingGuidance.jsx";
-import { featureUsageType, groupedFeatures } from "../components/billingFeaturePresentation.js";
+import { categoryLabel, displayUnit, featureUsageType, groupedFeatures } from "../components/billingFeaturePresentation.js";
 import { billingApi } from "../api/billingApi.js";
 import { getApiError, isForbiddenBillingError } from "../api/catalogPresentationErrors.js";
 import "../styles/BillingCatalogOriginal.css";
@@ -55,24 +55,40 @@ function SectionError({ error }) {
   return <p className="billing-inline-error">{getApiError(error).message}</p>;
 }
 
-function CreatePlanModal({ isOpen, onClose, api, t, onSaved }) {
+function CreatePlanModal({ isOpen, onClose, api, t, locale, onSaved, plan }) {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const errorRef = useRef(null);
+  const { data: catalog, error: templateError } = useSWR(
+    isOpen && !plan && api.getPlanTemplates ? 'billing-plan-templates' : null,
+    () => api.getPlanTemplates(), swrOptions);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
   useEffect(() => {
     if (!isOpen) return;
     setError("");
-    setForm({ plan_key: "", display_name: "", display_name_ar: "", description: "", description_ar: "",
-      tier_level: "1", trial_days: "0", monthly_price: "", reason: "", billing_periods: {} });
-  }, [isOpen]);
+    setForm({ plan_key: plan?.id || "", display_name: plan?.display_name || "", display_name_ar: plan?.display_name_ar || "",
+      description: plan?.description || "", description_ar: plan?.description_ar || "",
+      tier_level: String(plan?.tier_level || 1), trial_days: String(plan?.trial_days || 0),
+      monthly_price: plan ? String(plan.monthly_price) : "", reason: "",
+      billing_periods: Object.fromEntries((plan?.prices || []).filter(p => p.period_code !== 'monthly')
+        .map(p => [p.period_code, { enabled: true, discount_percent: String(p.discount_percent) }])) });
+  }, [isOpen, plan]);
   if (!form) return null;
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const setPeriod = (period, key, value) => setForm((current) => ({
     ...current, billing_periods: { ...current.billing_periods,
       [period]: { ...current.billing_periods[period], [key]: value } }
   }));
+  const template = catalog?.plans?.find((p) => p.plan_key === form.template_key);
+  const selectTemplate = (key) => {
+    const selected = catalog?.plans?.find((p) => p.plan_key === key);
+    setForm((current) => ({ ...current, template_key: key || undefined,
+      template_catalog_version: selected ? catalog.catalog_version : undefined,
+      ...(selected ? { tier_level: String(selected.tier_level), trial_days: String(selected.trial_days),
+        billing_periods: Object.fromEntries(selected.bootstrap_commercial_defaults.billing_periods.map((p) =>
+          [p.period_code, { enabled: true, discount_percent: p.discount_percent }])) } : {}) }));
+  };
   const submit = async (event) => {
     event.preventDefault();
     if (!/^[a-z][a-z0-9_]{0,49}$/.test(form.plan_key) || form.plan_key === "custom") {
@@ -86,8 +102,10 @@ function CreatePlanModal({ isOpen, onClose, api, t, onSaved }) {
     }
     setSaving(true); setError("");
     try {
-      await api.createPlan({ ...form, tier_level: Number(form.tier_level), trial_days: Number(form.trial_days),
-        monthly_price: form.monthly_price, billing_periods });
+      const payload = { ...form, tier_level: Number(form.tier_level), trial_days: Number(form.trial_days),
+        monthly_price: form.monthly_price, billing_periods };
+      if (plan) await api.updateDraftPlan(plan.id, payload);
+      else await api.createPlan(payload);
       await onSaved(); onClose();
     } catch (requestError) {
       const status = requestError?.response?.status;
@@ -102,13 +120,35 @@ function CreatePlanModal({ isOpen, onClose, api, t, onSaved }) {
     ["six-months", t("billing.catalog.plans.periods.sixMonths")],
     ["yearly", t("billing.catalog.plans.periods.yearly")],
   ];
-  return <Modal isOpen={isOpen} onClose={saving ? undefined : onClose} title={t("billing.catalog.plans.createTitle")} closeLabel={t("common.close")} maxWidth="760px"
+  return <Modal isOpen={isOpen} onClose={saving ? undefined : onClose} title={t(plan ? "billing.catalog.plans.editTitle" : "billing.catalog.plans.createTitle")} closeLabel={t("common.close")} maxWidth="760px"
     footer={<><Button variant="outline" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
-      <Button type="submit" form="billing-create-plan-form" loading={saving} loadingLabel={t("common.loading")}>{t("billing.catalog.plans.saveDraft")}</Button></>}>
+      <Button type="submit" form="billing-create-plan-form" loading={saving} loadingLabel={t("common.loading")}>{t(plan ? "common.save" : "billing.catalog.plans.saveDraft")}</Button></>}>
     <form id="billing-create-plan-form" className="billing-catalog-form billing-create-plan-form" onSubmit={submit} aria-describedby={error ? "billing-create-plan-error" : undefined}>
-      <p role="note" className="billing-catalog-permission-note">{t("billing.catalog.plans.draftHelp")}</p>
+      <p role="note" className="billing-catalog-permission-note">{t(plan ? "billing.catalog.templates.editHelp" : "billing.catalog.plans.draftHelp")}</p>
+      {!plan && api.getPlanTemplates && <>
+        <Select label={t('billing.catalog.templates.select')} value={form.template_key || ''}
+          onChange={(e) => selectTemplate(e.target.value)} aria-describedby="billing-template-help"
+          options={[{ value: '', label: t('billing.catalog.templates.manual') }, ...(catalog?.plans || []).map((p) => ({
+            value: p.plan_key, label: locale === 'ar' ? p.display_name_ar : p.display_name }))]} />
+        <p id="billing-template-help" className="billing-catalog-permission-note">{t('billing.catalog.templates.help')}</p>
+        {templateError && <p role="status">{t('billing.catalog.templates.unavailable')}</p>}
+        {template && <details className="billing-catalog-subsection">
+          <summary>{t('billing.catalog.templates.included')}</summary>
+          {catalog.categories.map((category) => <section key={category.key}>
+            <h3>{locale === 'ar' ? category.label_ar : category.label_en}</h3>
+            <ul>{catalog.features.filter((f) => f.category === category.key).map((f) => {
+              const a = template.allowances.find((item) => item.feature_key === f.key);
+              return <li key={f.key}>{locale === 'ar' ? f.label_ar : f.label_en}: {' '}
+                {f.entitlement_type === 'boolean' ? t('billing.catalog.guided.enabled')
+                  : a?.state === 'limited' ? <><bdi dir="ltr">{a.value}</bdi> {displayUnit(f.unit, t)}</>
+                  : t(a?.state === 'unlimited' ? 'common.unlimited' : 'billing.catalog.templates.ownerRequired')}
+              </li>;
+            })}</ul>
+          </section>)}
+        </details>}
+      </>}
       <div className="billing-catalog-form-grid">
-        <Input label={t("billing.catalog.plans.planKey")} value={form.plan_key} onChange={(e) => set("plan_key", e.target.value)} dir="ltr" autoCapitalize="none" spellCheck={false} maxLength={50} pattern="[a-z][a-z0-9_]{0,49}" required hint={t("billing.catalog.plans.planKeyHelp")} />
+        <Input label={t("billing.catalog.plans.planKey")} value={form.plan_key} readOnly={Boolean(plan)} onChange={(e) => set("plan_key", e.target.value)} dir="ltr" autoCapitalize="none" spellCheck={false} maxLength={50} pattern="[a-z][a-z0-9_]{0,49}" required hint={t("billing.catalog.plans.planKeyHelp")} />
         <Input label={t("billing.catalog.fields.tier")} type="number" dir="ltr" min="1" step="1" value={form.tier_level} onChange={(e) => set("tier_level", e.target.value)} required />
         <Input label={t("billing.catalog.fields.name")} value={form.display_name} dir="ltr" onChange={(e) => set("display_name", e.target.value)} maxLength={100} required />
         <Input label={t("billing.catalog.fields.nameAr")} value={form.display_name_ar} onChange={(e) => set("display_name_ar", e.target.value)} maxLength={100} dir="rtl" required />
@@ -1211,7 +1251,7 @@ function PlanFeatureManager({
               disabled={!available.length}
             />
             <Input
-              label={`${t(`billing.catalog.guided.usage.${featureUsageType(selectedFeature)}`)}${selectedFeature?.unit ? ` (${selectedFeature.unit})` : ''}`}
+              label={`${t(`billing.catalog.guided.usage.${featureUsageType(selectedFeature)}`)}${selectedFeature?.unit ? ` (${displayUnit(selectedFeature.unit, t)})` : ''}`}
               type="number"
               min="0"
               step="1"
@@ -1245,10 +1285,14 @@ function PlanFeatureManager({
         <Skeleton height="180px" variant="rectangular" />
       ) : error ? (
         <SectionError error={error} />
+      ) : !links.length ? (
+        <EmptyState title={t('billing.catalog.planFeatures.emptyTitle')} description={t('billing.catalog.planFeatures.emptyDescription')} />
       ) : (
+        groupedFeatures(links.map((link) => ({ ...link, ...link.feature }))).map(([group, rows]) => <section key={group}>
+        <h3>{categoryLabel(rows[0], locale, t)}</h3>
         <Table
-          ariaLabel={t("billing.catalog.planFeatures.title")}
-          data={links}
+          ariaLabel={`${t("billing.catalog.planFeatures.title")}: ${categoryLabel(rows[0], locale, t)}`}
+          data={rows}
           columns={[
             {
               header: t("billing.catalog.fields.feature"),
@@ -1286,7 +1330,7 @@ function PlanFeatureManager({
                         [link.feature_id]: event.target.value
                       }))
                     }
-                  /><span>{link.feature?.unit || ''}</span></label>
+                  /><span>{displayUnit(link.feature?.unit, t)}</span></label>
                 )
             },
             {
@@ -1321,7 +1365,7 @@ function PlanFeatureManager({
                 )
             }
           ]}
-        />
+        /></section>)
       )}
       <Modal
         isOpen={Boolean(unlinkTarget)}
@@ -1733,6 +1777,7 @@ export function BillingCatalogPage({
   const navigate = useNavigate();
   const [planModal, setPlanModal] = useState({ open: false, plan: null });
   const [createPlanOpen, setCreatePlanOpen] = useState(false);
+  const [draftToEdit, setDraftToEdit] = useState(null);
   const [promoModal, setPromoModal] = useState({ open: false, promo: null });
   const [promoLinkModal, setPromoLinkModal] = useState({
     open: false,
@@ -1861,6 +1906,8 @@ export function BillingCatalogPage({
         canManageAll || (platformMode && plan.self_serve) ? (
           <div className="billing-catalog-row-actions">
             {platformMode && plan.self_serve && <Button variant="outline" size="sm" onClick={() => navigate(`?tab=pricing-studio&plan=${encodeURIComponent(plan.id)}`)}>{t('billing.pricingStudio.analyzePricing')}</Button>}
+            {canManageAll && platformMode && plan.editable_draft_terms && <Button variant="ghost" size="sm"
+              onClick={() => { setDraftToEdit(plan); setCreatePlanOpen(true); }} leadingIcon={<Pencil size={13} />}>{t('common.edit')}</Button>}
             {canManageAll && api.capabilities?.planTerms !== false && (
               <Button
                 variant="ghost"
@@ -1969,7 +2016,7 @@ export function BillingCatalogPage({
     },
     {
       header: t("billing.catalog.fields.unit"),
-      render: (feature) => feature.unit || "—"
+      render: (feature) => displayUnit(feature.unit, t) || "—"
     },
     {
       header: t("billing.catalog.fields.resetCycle"),
@@ -1981,7 +2028,7 @@ export function BillingCatalogPage({
     {
       header: t("billing.catalog.actions"),
       render: (feature) =>
-        canManageCatalog ? (
+        canManageCatalog && feature.metadataEditable !== false ? (
           <div className="billing-catalog-row-actions">
             <Button
               variant="ghost"
@@ -2115,8 +2162,8 @@ export function BillingCatalogPage({
         <SectionError error={featuresError} />
       ) : platformMode ? (
         features.length ? groupedFeatures(features).map(([group, rows]) => <div key={group} className="billing-feature-group">
-          <h3>{t(`billing.catalog.guided.groups.${group}`)}</h3>
-          <Table data={rows} columns={featureColumns} ariaLabel={t(`billing.catalog.guided.groups.${group}`)} />
+          <h3>{categoryLabel(rows[0], locale, t)}</h3>
+          <Table data={rows} columns={featureColumns} ariaLabel={categoryLabel(rows[0], locale, t)} />
         </div>) : <EmptyState title={t('billing.catalog.guided.noFeatures')} description={t('billing.catalog.guided.noFeaturesHelp')} />
       ) : (
         <Table data={features} columns={featureColumns} ariaLabel={t("billing.catalog.features.title")} />
@@ -2160,7 +2207,7 @@ export function BillingCatalogPage({
     />
   ) : (
     <CustomPlanQuoteManager
-      features={features}
+      features={platformMode ? features.filter(feature => feature.customPlanSupported !== false) : features}
       t={t}
       locale={locale}
       api={api}
@@ -2293,8 +2340,10 @@ export function BillingCatalogPage({
       />
 
       <CreatePlanModal
+        plan={draftToEdit}
+        locale={locale}
         isOpen={createPlanOpen}
-        onClose={() => setCreatePlanOpen(false)}
+        onClose={() => { setCreatePlanOpen(false); setDraftToEdit(null); }}
         api={api}
         t={t}
         onSaved={async () => { await mutatePlans(); showNotice(t("billing.catalog.plans.created")); }}

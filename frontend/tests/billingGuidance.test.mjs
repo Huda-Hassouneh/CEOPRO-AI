@@ -1,17 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { featureGroup, featureUsageType, groupedFeatures } from '../src/features/billing/components/billingFeaturePresentation.js';
+import { displayUnit, featureGroup, featureUsageType, groupedFeatures } from '../src/features/billing/components/billingFeaturePresentation.js';
 import { warningAction } from '../src/features/platform/pricingStudio.js';
 
-test('feature grouping only classifies known executable codes; unknown catalog rows remain visible', () => {
-  const rows = [{code:'ai_credits',unit:'credits'}, {code:'document_storage_mb',unit:'MB'}, {code:'new_supported_code',unit:'request'}];
-  assert.equal(featureGroup('ai_credits'),'intelligence');
-  assert.equal(featureGroup('new_supported_code'),'other');
+test('feature grouping consumes canonical display metadata without changing identities; unknown rows remain visible', () => {
+  const catalog = JSON.parse(readFileSync(new URL('../../backend/config/billing/standard_plan_catalog.json', import.meta.url)));
+  const categories = new Map(catalog.categories.map(c => [c.key,c]));
+  const rows = catalog.features.map(f => ({code:f.key,unit:f.unit,category:categories.get(f.category),display_order:f.display_order}));
+  rows.push({code:'new_supported_code',unit:'request'});
+  assert.equal(featureGroup(rows.find(f=>f.code==='ai_credits')),'automation');
+  assert.equal(featureGroup(rows.at(-1)),'other');
   assert.equal(groupedFeatures(rows).flatMap(([, group])=>group).length,rows.length);
-  assert.equal(featureUsageType(rows[0]),'credits');
-  assert.equal(featureUsageType(rows[1]),'storage');
+  assert.equal(featureUsageType(rows.find(f=>f.code==='ai_credits')),'credits');
+  assert.equal(featureUsageType(rows.find(f=>f.code==='document_storage_mb')),'storage');
   assert.equal(featureUsageType({code:'market_intelligence',type:'boolean'}),'boolean');
+  assert.equal(featureUsageType({code:'monthly_reports',aggregationType:'sum'}),'consumable');
+});
+
+test('canonical units have localized presentation without changing their technical units',()=>{
+  const ar=JSON.parse(readFileSync(new URL('../src/assets/locales/ar.json',import.meta.url),'utf8'));
+  const t=key=>key.split('.').reduce((v,k)=>v?.[k],ar);
+  assert.equal(displayUnit('credits',t),ar.billing.customPlan.unitNames.credit);
+  assert.equal(displayUnit('KB',t),ar.common.units.kilobytes);
+  assert.equal(displayUnit('unknown_runtime_unit',t),'unknown_runtime_unit');
 });
 
 test('incomplete Studio evidence points to the responsible owner configuration area', () => {

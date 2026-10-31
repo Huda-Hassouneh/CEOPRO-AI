@@ -1181,6 +1181,7 @@ fieldset.billing-create-plan-periods {
   display: grid;
   gap: 14px;
 }
+.billing-catalog-plan-features > section { min-width: 0; }
 .billing-catalog-toolbar {
   display: grid;
   grid-template-columns:

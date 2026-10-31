@@ -1,6 +1,40 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createPlatformBillingCatalogApi } from '../src/features/platform/platformBillingCatalogApi.js';
+
+test('catalog templates bind creation to the installed version without overriding commercial price', async () => {
+  const catalog=JSON.parse(readFileSync(new URL('../../backend/config/billing/standard_plan_catalog.json',import.meta.url),'utf8'));
+  let captured;
+  const categories=new Map(catalog.categories.map(c=>[c.key,c]));
+  const api=createPlatformBillingCatalogApi({billing:{planTemplates:async()=>catalog,
+    createStandardPlan:async body=>{captured=body;return {is_active:false};},
+    featureCatalog:async()=>({categories:catalog.categories,features:catalog.features.map(f=>({
+      feature_code:f.key,display_name:f.label_en,display_name_ar:f.label_ar,entitlement_type:f.entitlement_type,
+      unit:f.unit,category:categories.get(f.category),display_order:f.display_order,custom_plan_supported:f.usage_feature!==null}))})},
+    offers:{getConfigurator:async()=>({features:[],modules:[]})}});
+  assert.equal((await api.getPlanTemplates()).catalog_version,catalog.catalog_version);
+  const features=(await api.getFeatures()).data;
+  assert.equal(features.length,19);
+  assert.equal(features.find(f=>f.code==='dashboard_analytics').type,'boolean');
+  assert.equal(features.filter(f=>f.customPlanSupported).length,16);
+  assert.equal(features.find(f=>f.code==='dashboard_analytics').customPlanSupported,false);
+  assert.equal(features.find(f=>f.code==='ai_credits').category.key,'automation');
+  await api.createPlan({plan_key:'new_identity',display_name:'New',display_name_ar:'جديد',tier_level:4,trial_days:1,
+    monthly_price:'87.21',reason:'Explicit owner decision',template_key:'growth',template_catalog_version:catalog.catalog_version});
+  assert.equal(captured.monthly_price,'87.21');assert.equal(captured.template_key,'growth');
+  assert.equal(captured.template_catalog_version,catalog.catalog_version);
+  assert.equal(captured.plan_key,'new_identity');
+});
+
+test('template draft editing uses its separate guarded endpoint and preserves explicit price precision', async () => {
+  let captured;
+  const api=createPlatformBillingCatalogApi({billing:{updateStandardPlanDraft:async (key,body)=>{captured={key,body};}}});
+  await api.updateDraftPlan('new_identity',{plan_key:'new_identity',display_name:'New name',display_name_ar:'اسم جديد',
+    tier_level:'5',trial_days:'3',monthly_price:'80.00',billing_periods:[{period_code:'yearly',discount_percent:'7.00'}],reason:'Owner draft decision'});
+  assert.equal(captured.key,'new_identity');assert.equal(captured.body.monthly_price,'80.00');
+  assert.equal(captured.body.trial_days,3);assert.equal(captured.body.template_key,undefined);
+});
 
 test('original billing presentation maps Python plan and feature contracts without changing plan authority', async () => {
   const api = createPlatformBillingCatalogApi({

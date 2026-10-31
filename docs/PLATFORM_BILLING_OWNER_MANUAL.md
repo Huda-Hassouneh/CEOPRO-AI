@@ -77,9 +77,35 @@ Standard purchase.
 
 **Save/change effect.** Supported availability changes are audited and change
 new-purchase visibility. **Analyze Pricing** opens Studio with the plan selected.
-Creating/deleting packages or changing commercial prices/billing options is
-currently policy-gated where the interface disables Save. A visible form is not
-proof that arbitrary publication is supported.
+**Create Plan** creates a new stable identity with explicit English/Arabic names,
+trial days and a monthly USD commercial price. Optional periods use the discounts
+you enter. The plan starts inactive. You may select **Create from catalog
+template**: Standard, Plus or Pro. Expand the template to inspect its grouped
+features and approved default allowances before saving. A template copies all
+customer capabilities and quantitative allowances, including bounded trial
+Credits; it never copies a live customer's contract or Stripe mapping. Enter a
+new key and names: retired identities cannot be reused. Your explicit price is
+not replaced with a template price or Studio recommendation.
+
+After template creation, **Edit** can change its names, descriptions, trial,
+tier and explicit commercial terms while it remains inactive and has never been
+activated, mapped to Stripe or referenced by customer records. Its stable key
+cannot change. Earlier price rows are retired and retained, and the edit is
+audited; copied allowances are not reset. After that draft stage, the existing
+commercial publication guards apply. Use **Plan Features** to edit allowances
+and supported Boolean entitlements, then review readiness and explicitly activate. Blank saved numeric
+limits mean explicitly unlimited under the existing editor contract; do not use
+blank to mean "not yet decided." Templates distinguish missing owner decisions
+from unlimited. Stripe setup is still required before checkout. Activation does
+not itself create Stripe objects. Existing commercial-term editing/deletion
+guards remain for commercially used plans: use the approved versioned publication process if such a control
+is unavailable; a template does not bypass it.
+
+The default Standard/Plus/Pro templates include every canonical customer feature.
+They differ through approved limits, Credits and capacities. Platform Billing,
+Provider Accounting, Pricing Studio and platform/security administration are
+never customer feature entitlements. Categories organize the display only.
+Setup does not overwrite edited plans or restore an owner-removed allowance.
 
 **Does not happen.** An analysis does not save a plan. Taking a plan off sale
 does not cancel customers, rewrite their saved allowances or change their Stripe
