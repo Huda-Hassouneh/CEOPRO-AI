@@ -130,3 +130,42 @@ def test_quiet_last_fortnight_does_not_collapse_the_range_of_an_irregular_seller
     expected, lower, upper = mock_forecast.call_args.args[3:6]
     assert lower <= expected <= upper
     assert upper - lower > 0
+
+
+# --- isolated extreme days (decision-safety test, docs/SECURITY_MULTI_TENANT_TEST.md) -------------------
+
+def test_one_mistyped_day_is_capped_and_named_in_the_explanation(fake_conn):
+    daily = _daily(120)
+    with patch.object(pipeline.data_access, "load_daily_demand", return_value=daily.copy()), \
+         patch.object(pipeline.data_access, "load_product_context", return_value=PRODUCT_CONTEXT), \
+         patch.object(pipeline.evidence, "insert_demand_forecast", return_value="f-0"), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="e-0"), \
+         patch.object(pipeline.evidence, "insert_model_version"):
+        clean = pipeline.run_forecast(fake_conn, "tenant-1", "product-1")
+    typo = daily.copy()
+    typo.loc[typo.index[-2], "quantity"] = 50_000.0
+    with patch.object(pipeline.data_access, "load_daily_demand", return_value=typo), \
+         patch.object(pipeline.data_access, "load_product_context", return_value=PRODUCT_CONTEXT), \
+         patch.object(pipeline.evidence, "insert_demand_forecast", return_value="f-1"), \
+         patch.object(pipeline.evidence, "insert_evidence_record", return_value="e-1") as mock_evidence, \
+         patch.object(pipeline.evidence, "insert_model_version"):
+        result = pipeline.run_forecast(fake_conn, "tenant-1", "product-1")
+
+    assert [d["quantity"] for d in result["capped_outlier_days"]] == [50_000.0]
+    # Without the cap this forecast was over 40,000 units; with it, it stays near the clean one.
+    assert result["expected_demand"] < clean["expected_demand"] * 2
+    explanation = mock_evidence.call_args.args[6]
+    assert "50000" in explanation and "typing error" in explanation
+
+
+def test_a_real_surge_over_many_days_is_not_capped():
+    daily = _daily(120)
+    daily.loc[daily.index[-10:], "quantity"] = 400.0  # ten days of a genuine new demand level
+    capped, days = pipeline.cap_isolated_outliers(daily)
+    assert days == [] and capped["quantity"].iloc[-1] == 400.0
+
+
+def test_too_little_history_is_never_capped():
+    daily = _daily(10)
+    daily.loc[daily.index[-1], "quantity"] = 5_000.0
+    assert pipeline.cap_isolated_outliers(daily)[1] == []
