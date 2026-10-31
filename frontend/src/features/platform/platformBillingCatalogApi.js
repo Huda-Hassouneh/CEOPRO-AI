@@ -60,7 +60,7 @@ const promoPayload = (p, planKeys = []) => ({
   }
 });
 export function createPlatformBillingCatalogApi({ billing = platformBillingApi, offers = customOffersApi } = {}) {
-  const plans = async () => list(await billing.view('plans'), 'plans').map((p) => ({ ...p, id: p.plan_key, name: p.display_name, name_ar: p.display_name_ar, tier_level: p.tier_level, basePrice: p.monthly_price, currency: p.currency || 'USD', trialPeriodValue: p.trial_days, isActive: p.is_active, pricingOptions: (p.prices || []).map((price) => ({ period: price.period_code, intervalCount: price.interval_months, price: price.amount, totalPrice: price.amount, discountPercent: price.discount_percent, intervalUnit: 'month', currency: price.currency })) }));
+  const plans = async () => list(await (billing.standardPlans ? billing.standardPlans() : billing.view('plans')), 'plans').map((p) => ({ ...p, id: p.plan_key, name: p.display_name, name_ar: p.display_name_ar, tier_level: p.tier_level, basePrice: p.monthly_price, currency: p.currency || 'USD', trialPeriodValue: p.trial_days, isActive: p.is_active, pricingOptions: (p.prices || []).map((price) => ({ period: price.period_code, intervalCount: price.interval_months, price: price.amount, totalPrice: price.amount, discountPercent: price.discount_percent, intervalUnit: 'month', currency: price.currency })) }));
   const rates = async () => {
     const rows = list(await billing.rates(), 'cost_rates');
     const { policies = [] } = await billing.policies();
@@ -150,7 +150,7 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
     return [...numeric, ...modules];
   };
   return Object.freeze({
-    capabilities: Object.freeze({ planTerms: false, featureDefinitions: false, customContractToggle: false }),
+    capabilities: Object.freeze({ planTerms: false, planCreate: true, featureDefinitions: false, customContractToggle: false }),
     getPlans: async () => wrap(await plans()),
     getFeatures: async () => wrap(await featureRows()),
     getFeature: async (featureId) => {
@@ -234,7 +234,19 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
     createInfrastructureRate: (payload) => saveInfrastructureRate(payload),
     updateInfrastructureRate: (rateId, payload) => saveInfrastructureRate({ ...payload, supersedesRateId: rateId }),
     getTenants: async () => wrap(list(await billing.companies(100, 0), 'items').map((tenant) => ({ ...tenant, id: tenant.tenant_id, businessName: tenant.business_name }))),
-    createPlan: () => unavailable('plan creation'),
+    createPlan: (payload) => billing.createStandardPlan({
+      plan_key: payload.plan_key,
+      display_name: payload.display_name,
+      display_name_ar: payload.display_name_ar,
+      description: payload.description || '',
+      description_ar: payload.description_ar || '',
+      tier_level: Number(payload.tier_level),
+      currency: 'USD',
+      monthly_price: String(payload.monthly_price),
+      trial_days: Number(payload.trial_days),
+      billing_periods: payload.billing_periods || [],
+      reason: payload.reason,
+    }),
     updatePlan: (planKey, payload = {}) => {
       if (Object.keys(payload).length === 1 && typeof payload.isActive === 'boolean')
         return billing.updatePlanStatus(planKey, { active: payload.isActive, reason: 'Owner changed plan availability for new purchases.' });

@@ -15,6 +15,32 @@ test('original billing presentation maps Python plan and feature contracts witho
   assert.equal((await api.getPlanFeatures('growth')).data[0].limitValue, 5);
 });
 
+test('new Standard Plan creation sends explicit USD terms to the owner command', async () => {
+  let captured;
+  const api = createPlatformBillingCatalogApi({ billing: {
+    createStandardPlan: async (body) => { captured = body; return { is_active: false, stripe_setup_required: true }; },
+  } });
+  const result = await api.createPlan({ plan_key: 'regional_plus', display_name: 'Regional Plus', display_name_ar: 'الإقليمي بلس',
+    description: 'Regional teams', description_ar: 'للأعمال الإقليمية', tier_level: '5', trial_days: '7', monthly_price: '82.50',
+    billing_periods: [{ period_code: 'yearly', discount_percent: 12.5 }], reason: 'Approved offer' });
+  assert.equal(result.is_active, false);
+  assert.deepEqual(captured, { plan_key: 'regional_plus', display_name: 'Regional Plus', display_name_ar: 'الإقليمي بلس',
+    description: 'Regional teams', description_ar: 'للأعمال الإقليمية', tier_level: 5, currency: 'USD', monthly_price: '82.50',
+    trial_days: 7, billing_periods: [{ period_code: 'yearly', discount_percent: 12.5 }], reason: 'Approved offer' });
+});
+
+test('owner Plans view surfaces draft completeness and Stripe reconciliation status', async () => {
+  const api = createPlatformBillingCatalogApi({ billing: { standardPlans: async () => ({ plans: [{
+    plan_key: 'regional_plus', display_name: 'Regional Plus', description: 'Regional teams', is_active: false,
+    configuration_status: 'READY_TO_ACTIVATE', stripe_setup_required: true,
+  }] }) } });
+  const [plan] = (await api.getPlans()).data;
+  assert.equal(plan.id, 'regional_plus');
+  assert.equal(plan.description, 'Regional teams');
+  assert.equal(plan.configuration_status, 'READY_TO_ACTIVATE');
+  assert.equal(plan.stripe_setup_required, true);
+});
+
 test('plan quota controls map numeric and module terms to the versioned Python endpoint', async () => {
   const calls = [];
   const api = createPlatformBillingCatalogApi({

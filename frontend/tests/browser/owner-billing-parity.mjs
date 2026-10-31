@@ -32,7 +32,7 @@ try{
  const quote={id:'q-synthetic',name:'Synthetic quote',nameAr:'عرض تجريبي',tenantId:'t-synthetic',tenant:{businessName:'SYNTHETIC tenant'},status:'calculated',currency:'USD',estimatedTotalCost:'10',minimumSafePrice:'13.33',recommendedPrice:'13.34',pricingAvailable:true,quoteFeatures:[{featureId:'connected_data_sources',limitValue:10,estimatedUsage:10}],pricingInputs:{monthlyInfrastructureCost:0,activePayingTenants:1},targetGrossMargin:.25,maxVendorCostRevenueRatio:.2};
  const policy={currency:'USD',targetGrossMargin:.25,fixedPlatformFee:0,monthlyInfrastructureCost:0,activePayingTenants:1,estimatedOtherCost:0,roundingIncrement:.01,maxAutomaticMonthlyPrice:2500,maxAutomaticQuotaPerFeature:500000,enforceVendorCostRatioFloor:false,maxVendorCostRevenueRatio:.2,featureLimits:{},monitoringCadences:[{minutes:1440,code:'daily'}]};
  const empty=p.get('state')==='empty',wrap=data=>p.get('state')==='loading'?new Promise(()=>{}):p.get('state')==='error'?Promise.reject(new Error('SYNTHETIC presentation failure')):Promise.resolve({data});
- const api={capabilities:reference?undefined:{planTerms:false,featureDefinitions:false,customContractToggle:false},getPlans:()=>wrap(empty?[]:[plan]),getFeatures:()=>wrap(empty?[]:features),getPromoCodes:()=>wrap(empty?[]:[{id:'promo-fixture',code:'SYNTHETIC',discountType:'percentage',discountValue:10,maxUses:3,maxUsesPerUser:1,usedCount:0,isActive:false,status:'draft'}]),getCustomPlanQuotes:()=>wrap(empty?[]:[quote]),getVendorRates:()=>wrap([]),getInfrastructureRates:()=>wrap([]),getCustomPlans:()=>wrap([]),getSubscriptions:()=>wrap([]),getTenants:()=>wrap([{id:'t-synthetic',businessName:'SYNTHETIC tenant'}]),getPlanFeatures:()=>wrap([{feature_id:'connected_data_sources',limit_value:10,feature:features[0]}]),getCustomPlanPricingPolicy:()=>wrap(reference?policy:{...policy,versioned:true,policies:[]})};
+ const api={capabilities:reference?undefined:{planTerms:false,planCreate:true,featureDefinitions:false,customContractToggle:false},getPlans:()=>wrap(empty?[]:[plan]),createPlan:async()=>({is_active:false}),getFeatures:()=>wrap(empty?[]:features),getPromoCodes:()=>wrap(empty?[]:[{id:'promo-fixture',code:'SYNTHETIC',discountType:'percentage',discountValue:10,maxUses:3,maxUsesPerUser:1,usedCount:0,isActive:false,status:'draft'}]),getCustomPlanQuotes:()=>wrap(empty?[]:[quote]),getVendorRates:()=>wrap([]),getInfrastructureRates:()=>wrap([]),getCustomPlans:()=>wrap([]),getSubscriptions:()=>wrap([]),getTenants:()=>wrap([{id:'t-synthetic',businessName:'SYNTHETIC tenant'}]),getPlanFeatures:()=>wrap([{feature_id:'connected_data_sources',limit_value:10,feature:features[0]}]),getCustomPlanPricingPolicy:()=>wrap(reference?policy:{...policy,versioned:true,policies:[]})};
  const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity}}});
  createRoot(document.getElementById('root')).render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/admin/billing?tab='+tab]}><I18nProvider><main className="pa-shell" style={{padding:'24px'}}><BillingCatalogPage api={api} platformMode canManage canManagePricing/></main></I18nProvider></MemoryRouter></QueryClientProvider>);`);
  server=await createServer({cacheDir:join(out,'vite-cache'),server:{host:'127.0.0.1',port:0},plugins:[{name:'owner-parity',configureServer(s){s.middlewares.use((req,res,next)=>{if(!req.url.startsWith('/__owner_parity'))return next();res.setHeader('Content-Type','text/html');res.end('<!doctype html><html><head><meta charset="utf-8"><script type="module">import RefreshRuntime from "/@react-refresh";RefreshRuntime.injectIntoGlobalHook(window);window.$RefreshReg$=()=>{};window.$RefreshSig$=()=>t=>t;window.__vite_plugin_react_preamble_installed__=true;</script><style>*,*::before,*::after{animation:none!important;transition:none!important}body{margin:0}</style></head><body><div id="root"></div><script type="module" src="/src/.owner-billing-parity.jsx"></script></body></html>');});}}]});
@@ -40,6 +40,8 @@ try{
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,headless:true,chromiumSandbox:true});
  for(const locale of ['en','ar'])for(const width of [1440,390])for(const theme of ['light','dark']){
   const context=await browser.newContext({viewport:{width,height:1000},deviceScaleFactor:1});await context.addInitScript(({locale,theme})=>{localStorage.setItem('ceopro_locale',locale);document.addEventListener('DOMContentLoaded',()=>{if(theme==='dark')document.documentElement.dataset.theme='dark';});},{locale,theme});const page=await context.newPage();let activeCase={};page.on('console',m=>{if(m.type()==='error')consoleIssues.push({...activeCase,message:m.text()});});
+  await page.route('http://localhost:8000/platform/billing/pricing-studio',route=>route.fulfill({status:200,headers:{'access-control-allow-origin':route.request().headers().origin||'*','access-control-allow-methods':'GET, OPTIONS','access-control-allow-headers':route.request().headers()['access-control-request-headers']||'authorization,content-type','access-control-allow-credentials':'true','content-type':'application/json'},body:JSON.stringify({provider_readiness:{providers:[]},selected_policy:null})}));
+  await page.route('**/favicon.ico',route=>route.fulfill({status:204,body:''}));
   const cases=['plans','custom-plans','custom-quotes','promos','features','plan-features','subscriptions'].map(tab=>({tab,state:'page'}));
   if(theme==='light')cases.push({tab:'plans',state:'empty'},{tab:'plans',state:'loading'},{tab:'plans',state:'error'},
     {tab:'plans',state:'create-plan'},{tab:'promos',state:'create-promotion'},{tab:'features',state:'edit-feature'},
@@ -49,9 +51,11 @@ try{
   const selected=process.env.KEEL_PARITY_STATE?cases.filter(c=>c.state===process.env.KEEL_PARITY_STATE):cases;
   for(const {tab,state} of selected){
    const pair=[],measure=[];
-   for(const variant of ['reference','current']){
+   const variants=state==='create-plan'?['current']:['reference','current'];
+   for(const variant of variants){
     activeCase={variant,tab,state,locale,width,theme};await page.mouse.move(0,0);
     await page.goto(base+'/__owner_parity?variant='+variant+'&tab='+tab+'&state='+state);await page.locator('.billing-catalog-page').waitFor();await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(200);
+    if(state==='create-plan'&&variant==='current')await page.getByRole('button',{name:t('common.deactivate'),exact:true}).first().waitFor();
     const actions={'create-plan':'billing.catalog.plans.create','create-promotion':'billing.catalog.promos.create','edit-feature':'common.edit','create-quote':'billing.catalog.customPlans.create','create-vendor':'billing.catalog.customPlans.vendorRates.create'};
     if(actions[state]){await page.getByRole('button',{name:t(actions[state]),exact:true}).first().click();await page.getByRole('dialog').waitFor();await page.waitForTimeout(150);}
     if(state==='create-promotion'){
@@ -60,12 +64,29 @@ try{
       await dialog.getByLabel(t('billing.catalog.fields.startsAt'),{exact:true}).fill('2026-10-28T09:00');
       await dialog.getByLabel(t('billing.catalog.fields.expiresAt'),{exact:true}).fill('2026-11-28T09:00');
     }
+    if(state==='create-plan'&&variant==='current'){
+      const dialog=page.getByRole('dialog');
+      await dialog.getByLabel(t('billing.catalog.plans.planKey'),{exact:true}).fill('browser_plan');
+      await dialog.getByLabel(t('billing.catalog.fields.tier'),{exact:true}).fill('4');
+      await dialog.getByLabel(t('billing.catalog.fields.name'),{exact:true}).fill('Browser Plan');
+      await dialog.getByLabel(t('billing.catalog.fields.nameAr'),{exact:true}).fill('خطة المتصفح');
+      await dialog.getByLabel(t('billing.catalog.fields.trialDays'),{exact:true}).fill('0');
+      await dialog.getByLabel(t('billing.catalog.plans.monthlyPriceUsd'),{exact:true}).fill('82.50');
+      await dialog.getByLabel(t('billing.catalog.fields.description'),{exact:true}).fill('Synthetic browser acceptance plan');
+      await dialog.getByLabel(t('billing.catalog.fields.descriptionAr'),{exact:true}).fill('خطة اختبارية');
+      await dialog.getByLabel(t('billing.catalog.plans.auditReason'),{exact:true}).fill('Synthetic browser acceptance');
+    }
     pair.push(await page.screenshot({path:join(out,[tab,state,locale,width,theme,variant].join('-')+'.png'),fullPage:true}));
     measure.push(await page.locator('.billing-catalog-page').evaluate(e=>({width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height,font:getComputedStyle(e).fontFamily,color:getComputedStyle(e).color,buttons:[...e.querySelectorAll('button')].slice(0,3).map(b=>({radius:getComputedStyle(b).borderRadius,background:getComputedStyle(b).backgroundColor,font:getComputedStyle(b).fontFamily}))})));
+    if(state==='create-plan'&&variant==='current'){
+      await page.getByRole('button',{name:t('billing.catalog.plans.saveDraft'),exact:true}).click();
+      await page.getByRole('dialog').waitFor({state:'hidden'});
+    }
    }
-   results.push({tab,state,locale,width,theme,exactScreenshotMatch:pair[0].equals(pair[1]),measurements:{reference:measure[0],current:measure[1]},fixture:'SYNTHETIC PRESENTATION ONLY'});
+   results.push({tab,state,locale,width,theme,exactScreenshotMatch:pair.length===2?pair[0].equals(pair[1]):null,
+    measurements:pair.length===2?{reference:measure[0],current:measure[1]}:{current:measure[0]},fixture:'SYNTHETIC PRESENTATION ONLY'});
   }await context.close();
  }
  if(!results.length)throw new Error('No visual case matched the requested state');
 }catch(e){writeFileSync(join(out,'failure.txt'),e.stack);throw e;}finally{if(browser)await browser.close();if(server)await server.close();for(const f of files)unlinkSync(f);writeFileSync(join(out,'visual-results.json'),JSON.stringify(results,null,2));writeFileSync(join(out,'visual-console.json'),JSON.stringify(consoleIssues,null,2));}
-console.log('Compared '+results.length+' matched states; exact screenshot matches='+results.filter(r=>r.exactScreenshotMatch).length+'. Review differences before claiming visual parity.');
+console.log('Captured '+results.length+' matched states; exact screenshot matches='+results.filter(r=>r.exactScreenshotMatch).length+'. Review differences before claiming visual parity.');

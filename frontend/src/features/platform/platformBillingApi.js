@@ -11,6 +11,8 @@ export function createPlatformBillingApi(client) {
     providerAccounting: () => unwrap(client.get(`${root}/provider-accounting`)),
     saveProviderAccounting: (body) => unwrap(client.put(`${root}/provider-accounting`, body)),
     view: (name, limit = 100, offset = 0) => unwrap(client.get(`${root}/admin-views/${enc(name)}`, { params: { limit, offset } })),
+    standardPlans: (limit = 100, offset = 0) => unwrap(client.get(`${root}/standard-plans`, { params: { limit, offset } })),
+    createStandardPlan: (body) => unwrap(client.post(`${root}/plans`, body)),
     updatePlanStatus: (planKey, body) => unwrap(client.patch(`${root}/plans/${enc(planKey)}/status`, body)),
     updatePlanFeature: (planKey, body) => unwrap(client.patch(`${root}/plans/${enc(planKey)}/features`, body)),
     featureCatalog: () => unwrap(client.get(`${root}/feature-catalog`)),

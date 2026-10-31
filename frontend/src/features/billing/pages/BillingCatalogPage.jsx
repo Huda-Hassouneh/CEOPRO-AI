@@ -55,6 +55,78 @@ function SectionError({ error }) {
   return <p className="billing-inline-error">{getApiError(error).message}</p>;
 }
 
+function CreatePlanModal({ isOpen, onClose, api, t, onSaved }) {
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!isOpen) return;
+    setError("");
+    setForm({ plan_key: "", display_name: "", display_name_ar: "", description: "", description_ar: "",
+      tier_level: "1", trial_days: "0", monthly_price: "", reason: "", billing_periods: {} });
+  }, [isOpen]);
+  if (!form) return null;
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const setPeriod = (period, key, value) => setForm((current) => ({
+    ...current, billing_periods: { ...current.billing_periods,
+      [period]: { ...current.billing_periods[period], [key]: value } }
+  }));
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!/^[a-z][a-z0-9_]{0,49}$/.test(form.plan_key) || form.plan_key === "custom") {
+      setError(t("billing.catalog.plans.invalidKey")); return;
+    }
+    const billing_periods = Object.entries(form.billing_periods)
+      .filter(([, value]) => value?.enabled)
+      .map(([period_code, value]) => ({ period_code, discount_percent: Number(value.discount_percent) }));
+    if (billing_periods.some((value) => !Number.isFinite(value.discount_percent) || value.discount_percent < 0 || value.discount_percent >= 100)) {
+      setError(t("billing.catalog.plans.invalidDiscount")); return;
+    }
+    setSaving(true); setError("");
+    try {
+      await api.createPlan({ ...form, tier_level: Number(form.tier_level), trial_days: Number(form.trial_days),
+        monthly_price: form.monthly_price, billing_periods });
+      await onSaved(); onClose();
+    } catch (requestError) { setError(getApiError(requestError).message); }
+    finally { setSaving(false); }
+  };
+  const periods = [
+    ["three-months", t("billing.catalog.periods.threeMonths")],
+    ["six-months", t("billing.catalog.periods.sixMonths")],
+    ["yearly", t("billing.catalog.periods.yearly")],
+  ];
+  return <Modal isOpen={isOpen} onClose={saving ? undefined : onClose} title={t("billing.catalog.plans.createTitle")} maxWidth="760px"
+    footer={<><Button variant="outline" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
+      <Button type="submit" form="billing-create-plan-form" loading={saving}>{t("billing.catalog.plans.saveDraft")}</Button></>}>
+    <form id="billing-create-plan-form" className="billing-catalog-form" onSubmit={submit}>
+      <p role="note">{t("billing.catalog.plans.draftHelp")}</p>
+      <div className="billing-catalog-form-grid">
+        <Input label={t("billing.catalog.plans.planKey")} value={form.plan_key} onChange={(e) => set("plan_key", e.target.value)} maxLength={50} pattern="[a-z][a-z0-9_]{0,49}" required hint={t("billing.catalog.plans.planKeyHelp")} />
+        <Input label={t("billing.catalog.fields.tier")} type="number" min="1" step="1" value={form.tier_level} onChange={(e) => set("tier_level", e.target.value)} required />
+        <Input label={t("billing.catalog.fields.name")} value={form.display_name} onChange={(e) => set("display_name", e.target.value)} maxLength={100} required />
+        <Input label={t("billing.catalog.fields.nameAr")} value={form.display_name_ar} onChange={(e) => set("display_name_ar", e.target.value)} maxLength={100} dir="rtl" required />
+        <Input label={t("billing.catalog.fields.trialDays")} type="number" min="0" max="365" step="1" value={form.trial_days} onChange={(e) => set("trial_days", e.target.value)} required />
+        <Input label={t("billing.catalog.plans.monthlyPriceUsd")} type="number" min="0" step="0.01" value={form.monthly_price} onChange={(e) => set("monthly_price", e.target.value)} required />
+      </div>
+      <div className="billing-catalog-textarea-grid">
+        <label className="billing-catalog-textarea-field"><span className="ceopro-label">{t("billing.catalog.fields.description")}</span>
+          <textarea value={form.description} maxLength={2000} rows="3" onChange={(e) => set("description", e.target.value)} /></label>
+        <label className="billing-catalog-textarea-field" dir="rtl"><span className="ceopro-label">{t("billing.catalog.fields.descriptionAr")}</span>
+          <textarea value={form.description_ar} maxLength={2000} rows="3" onChange={(e) => set("description_ar", e.target.value)} /></label>
+      </div>
+      <fieldset className="billing-catalog-form-periods"><legend>{t("billing.catalog.plans.optionalPeriods")}</legend>
+        <p>{t("billing.catalog.plans.periodPriceHelp")}</p>
+        {periods.map(([code, label]) => <div key={code} className="billing-catalog-form-period-row">
+          <label><input type="checkbox" checked={Boolean(form.billing_periods[code]?.enabled)} onChange={(e) => setPeriod(code, "enabled", e.target.checked)} /> {label}</label>
+          {form.billing_periods[code]?.enabled && <Input label={t("billing.catalog.plans.discountPercent")} type="number" min="0" max="99.99" step="0.01" value={form.billing_periods[code]?.discount_percent ?? ""} onChange={(e) => setPeriod(code, "discount_percent", e.target.value)} required />}
+        </div>)}
+      </fieldset>
+      <Input label={t("billing.catalog.plans.auditReason")} value={form.reason} onChange={(e) => set("reason", e.target.value)} maxLength={2000} required />
+      {error && <p role="alert" className="billing-inline-error">{error}</p>}
+    </form>
+  </Modal>;
+}
+
 function CatalogTabs({ ariaLabel, tabs, platformMode = false }) {
   const location = useLocation();
   const requestedTab = new URLSearchParams(location.search).get("tab");
@@ -1649,6 +1721,7 @@ export function BillingCatalogPage({
   const { t, locale, dir } = useI18n();
   const navigate = useNavigate();
   const [planModal, setPlanModal] = useState({ open: false, plan: null });
+  const [createPlanOpen, setCreatePlanOpen] = useState(false);
   const [promoModal, setPromoModal] = useState({ open: false, promo: null });
   const [promoLinkModal, setPromoLinkModal] = useState({
     open: false,
@@ -1730,6 +1803,10 @@ export function BillingCatalogPage({
       render: (plan) =>
         locale === "ar" && plan.name_ar ? plan.name_ar : plan.name
     },
+    {
+      header: t("billing.catalog.fields.description"),
+      render: (plan) => (locale === "ar" ? plan.description_ar : plan.description) || "—"
+    },
     { header: t("billing.catalog.fields.tier"), accessor: "tier_level" },
     {
       header: t("billing.catalog.fields.price"),
@@ -1757,21 +1834,30 @@ export function BillingCatalogPage({
       )
     },
     {
+      header: t("billing.catalog.plans.configuration"),
+      render: (plan) => <div className="billing-catalog-row-actions">
+        <Badge variant={plan.configuration_status === "READY" ? "success" : "neutral"}
+          value={t(`billing.catalog.plans.configurationStates.${plan.configuration_status || "MISSING_PRICE"}`)} />
+        {plan.stripe_setup_required && <Badge variant="neutral" value={t("billing.catalog.plans.stripeSetupRequired")} />}
+      </div>
+    },
+    {
       header: t("billing.catalog.actions"),
       render: (plan) =>
         canManageAll || (platformMode && plan.self_serve) ? (
           <div className="billing-catalog-row-actions">
             {platformMode && plan.self_serve && <Button variant="outline" size="sm" onClick={() => navigate(`?tab=pricing-studio&plan=${encodeURIComponent(plan.id)}`)}>{t('billing.pricingStudio.analyzePricing')}</Button>}
-            {canManageAll && <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPlanModal({ open: true, plan })}
-              leadingIcon={<Pencil size={13} />}
-            >
-              {t("common.edit")}
-            </Button>
-            {platformMode && (
+            {canManageAll && api.capabilities?.planTerms !== false && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPlanModal({ open: true, plan })}
+                leadingIcon={<Pencil size={13} />}
+              >
+                {t("common.edit")}
+              </Button>
+            )}
+            {canManageAll && platformMode && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1780,7 +1866,6 @@ export function BillingCatalogPage({
                 {t(plan.isActive ? "common.deactivate" : "common.activate")}
               </Button>
             )}
-            </>}
           </div>
         ) : (
           <span className="billing-catalog-read-only">
@@ -1920,11 +2005,11 @@ export function BillingCatalogPage({
           <h2>{t("billing.catalog.plans.title")}</h2>
           <p>{t("billing.catalog.plans.subtitle")}</p>
         </div>
-        {canManageAll && (
+        {canManageAll && api.capabilities?.planCreate === true && (
           <Button
             size="sm"
             leadingIcon={<Plus size={14} />}
-            onClick={() => setPlanModal({ open: true, plan: null })}
+            onClick={() => setCreatePlanOpen(true)}
           >
             {t("billing.catalog.plans.create")}
           </Button>
@@ -2190,6 +2275,14 @@ export function BillingCatalogPage({
               : t("billing.catalog.plans.created")
           );
         }}
+      />
+
+      <CreatePlanModal
+        isOpen={createPlanOpen}
+        onClose={() => setCreatePlanOpen(false)}
+        api={api}
+        t={t}
+        onSaved={async () => { await mutatePlans(); showNotice(t("billing.catalog.plans.created")); }}
       />
 
       <PromoFormModal

@@ -235,6 +235,42 @@ class PlanFeatureMutation(BaseModel):
     reason: str = Field(default="Owner plan feature update through Platform Billing Portal.", min_length=1, max_length=2000)
 
 
+class StandardPlanBillingPeriod(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    period_code: Literal["three-months", "six-months", "yearly"]
+    discount_percent: Decimal = Field(ge=0, lt=100, max_digits=5, decimal_places=2, allow_inf_nan=False)
+
+
+class StandardPlanCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    plan_key: str = Field(min_length=1, max_length=50, pattern=r"^[a-z][a-z0-9_]{0,49}$")
+    display_name: str = Field(min_length=1, max_length=100)
+    display_name_ar: str = Field(min_length=1, max_length=100)
+    description: str = Field(default="", max_length=2000)
+    description_ar: str = Field(default="", max_length=2000)
+    tier_level: StrictInt = Field(ge=1)
+    currency: Literal["USD"] = "USD"
+    monthly_price: Decimal = Field(ge=0, max_digits=10, decimal_places=2, allow_inf_nan=False)
+    trial_days: StrictInt = Field(ge=0, le=365)
+    billing_periods: list[StandardPlanBillingPeriod] = Field(default_factory=list, max_length=3)
+    reason: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("plan_key")
+    @classmethod
+    def not_reserved(cls, value):
+        if value == "custom":
+            raise ValueError("The key 'custom' is reserved.")
+        return value
+
+    @field_validator("billing_periods")
+    @classmethod
+    def unique_periods(cls, value):
+        codes = [row.period_code for row in value]
+        if len(codes) != len(set(codes)):
+            raise ValueError("Billing periods must be unique.")
+        return value
+
+
 class PlanStatusMutation(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     active: StrictBool
@@ -1082,6 +1118,51 @@ def platform_billing_admin_view(view: Literal["quotes", "plans", "subscriptions"
         conn.close()
 
 
+
+
+@router.post("/billing/plans", status_code=201)
+def create_platform_standard_plan(body: StandardPlanCreate, ctx: Ctx):
+    """Create a new inactive Standard Plan; Stripe reconciliation remains a separate operator action."""
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        from psycopg2.extras import Json
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_owner_standard_plan_create(%s::jsonb);", (Json(body.model_dump(mode="json")),))
+            result = cursor.fetchone()[0]
+        conn.commit()
+        return result
+    except Exception as exc:
+        conn.rollback()
+        code = getattr(exc, "pgcode", None)
+        if code == "42501":
+            raise HTTPException(403, "Only the Platform Owner can create Standard Plans.") from None
+        if code == "23505":
+            raise HTTPException(409, "That plan key or name is already in use; historical plan keys cannot be reused.") from None
+        if code in ("22023", "23514"):
+            raise HTTPException(422, "The plan details or billing periods are invalid.") from None
+        raise
+    finally:
+        conn.close()
+
+
+@router.get("/billing/standard-plans")
+def read_platform_standard_plans(ctx: Ctx, limit: int = Query(100, ge=1, le=200), offset: int = Query(0, ge=0, le=1000000)):
+    _custom_quote_operator(ctx)
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT public.billing_platform_standard_plans_read(%s,%s);", (limit, offset))
+            result = cursor.fetchone()[0]
+        conn.commit()
+        return result
+    except Exception as exc:
+        conn.rollback()
+        if getattr(exc, "pgcode", None) == "42501":
+            raise HTTPException(403, "Only the Platform Owner can view Standard Plan setup.") from None
+        raise
+    finally:
+        conn.close()
 
 
 @router.patch("/billing/plans/{plan_key}/features")
