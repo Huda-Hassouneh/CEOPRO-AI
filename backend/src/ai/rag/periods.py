@@ -136,19 +136,20 @@ def label_dates(period: dict) -> str:
 # --- relative periods ----------------------------------------------------------
 
 _RELATIVE = (
-    (("today", "اليوم", "هاليوم"), "today"),
-    (("yesterday", "امس", "مبارح", "البارحه"), "yesterday"),
-    (("this week", "هالاسبوع", "هذا الاسبوع", "الاسبوع الحالي"), "this_week"),
+    (("today", "اليوم", "هاليوم", "النهارده", "النهاردة"), "today"),
+    (("yesterday", "امس", "مبارح", "امبارح", "البارحه"), "yesterday"),
+    (("this week", "هالاسبوع", "هذا الاسبوع", "الاسبوع الحالي", "الاسبوع ده", "هالجمعه"), "this_week"),
     (("last week", "previous week", "الاسبوع الماضي", "الاسبوع اللي فات", "الاسبوع السابق"), "last_week"),
-    (("this month", "current month", "month to date", "month-to-date", "mtd", "هالشهر", "هذا الشهر", "الشهر الحالي"),
+    (("this month", "current month", "month to date", "month-to-date", "mtd", "هالشهر", "هذا الشهر", "الشهر الحالي",
+      "الشهر ده", "هاد الشهر", "هذا الشهر الحالي"),
      "this_month"),
     (("last month", "previous month", "الشهر الماضي", "الشهر اللي فات", "الشهر السابق", "الشهر المنصرم"), "last_month"),
     (("this quarter", "current quarter", "الربع الحالي", "هذا الربع"), "this_quarter"),
     (("last quarter", "previous quarter", "الربع الماضي", "الربع السابق"), "last_quarter"),
     (("this year", "current year", "year to date", "year-to-date", "ytd", "هالسنه", "هذه السنه", "هذا العام",
-      "السنه الحاليه", "العام الحالي"), "this_year"),
+      "السنه الحاليه", "العام الحالي", "السنه دي", "هاي السنه", "هالعام"), "this_year"),
     (("last year", "previous year", "السنه الماضيه", "العام الماضي", "السنه اللي فاتت", "السنه السابقه",
-      "العام السابق"), "last_year"),
+      "العام السابق", "العام اللي فات", "السنه اللي فاتت دي"), "last_year"),
 )
 
 
@@ -324,7 +325,8 @@ def resolve_periods(text: str, today: date) -> List[dict]:
     covered: List[Tuple[int, int]] = []
     for phrases, key in _RELATIVE:
         for phrase in phrases:
-            for match in re.finditer(_word(phrase), text):
+            # "والسنة الماضية", "بالشهر الماضي": an attached conjunction or preposition is still the period.
+            for match in re.finditer(_word(phrase, prefixed=True), text):
                 if all(match.end() <= s or match.start() >= e for s, e in covered):
                     periods.append((match.start(), _relative(key, today)))
                     covered.append((match.start(), match.end()))

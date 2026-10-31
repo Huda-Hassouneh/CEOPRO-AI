@@ -36,7 +36,11 @@ from src.ai.rag import evidence as ev
 
 FACT, CALCULATION, ESTIMATE, INFERENCE = "fact", "calculation", "estimate", "inference"
 RECOMMENDATION, ASSUMPTION, UNKNOWN, GENERAL = "recommendation", "assumption", "unknown", "general"
-KINDS = (FACT, CALCULATION, ESTIMATE, INFERENCE, RECOMMENDATION, ASSUMPTION, UNKNOWN, GENERAL)
+# General business knowledge (what a term means, a common practice) - never a statement about the company. Only
+# the general-knowledge answer (advisor._concept_answer) may use it; anywhere else it is read as "general", so a
+# figure in it is still checked against the evidence.
+GUIDANCE = "guidance"
+KINDS = (FACT, CALCULATION, ESTIMATE, INFERENCE, RECOMMENDATION, ASSUMPTION, UNKNOWN, GENERAL, GUIDANCE)
 NEEDS_EVIDENCE = frozenset({FACT, CALCULATION, ESTIMATE, INFERENCE, RECOMMENDATION})
 
 DRAFT_CONTRACT = """\
@@ -253,13 +257,23 @@ def _normalise_text(text: str) -> str:
 
 
 def validate(draft: Draft, registry: ev.EvidenceRegistry, user_text: str = "",
-             regulatory: bool = False) -> Tuple[Draft, List[Issue]]:
+             regulatory: bool = False, allow_guidance: bool = False) -> Tuple[Draft, List[Issue]]:
     """The draft with every claim checked against its evidence (see the
-    module docstring); returns the cleaned draft and what was wrong."""
+    module docstring); returns the cleaned draft and what was wrong.
+    `allow_guidance`: the answer is general business knowledge with no
+    company evidence at all, so "guidance" claims keep their kind (worked
+    examples may use numbers); otherwise they are checked as "general"."""
     issues: List[Issue] = []
     user_numbers = [value for value, _ in numbers_in(user_text)]
 
     def check(claim: Claim) -> Optional[Claim]:
+        if claim.kind == GUIDANCE:
+            if allow_guidance:
+                claim.evidence = []
+                for url in _URL.findall(claim.text):  # no source was read, so no link can be cited
+                    claim.text = claim.text.replace(url, "").strip()
+                return claim if claim.text else None
+            claim.kind = GENERAL
         valid_ids = []
         for evidence_id in claim.evidence:
             if registry.get(evidence_id):
@@ -309,7 +323,8 @@ def validate(draft: Draft, registry: ev.EvidenceRegistry, user_text: str = "",
     # A summary that fails its checks is dropped rather than repaired: the render falls back to the answer's
     # own first claims, so it never costs a repair round.
     checked = len(issues)
-    summary = [c for c in (check(claim) for claim in draft.summary) if c and (c.evidence or c.kind in (GENERAL, UNKNOWN))]
+    summary = [c for c in (check(claim) for claim in draft.summary)
+               if c and (c.evidence or c.kind in (GENERAL, UNKNOWN, GUIDANCE))]
     del issues[checked:]
 
     blocks: List[dict] = []
@@ -355,7 +370,7 @@ def repair_prompt(issues: List[Issue]) -> str:
 
 USED_AS = {FACT: "supports_fact", CALCULATION: "calculation", ESTIMATE: "supports_estimate",
            INFERENCE: "supports_analysis", RECOMMENDATION: "supports_recommendation",
-           ASSUMPTION: "supports_assumption", UNKNOWN: "context", GENERAL: "context",
+           ASSUMPTION: "supports_assumption", UNKNOWN: "context", GENERAL: "context", GUIDANCE: "context",
            "calculation_input": "calculation_input"}
 
 

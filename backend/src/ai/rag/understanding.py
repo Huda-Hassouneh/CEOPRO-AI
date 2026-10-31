@@ -42,18 +42,21 @@ EXTERNAL_INTENTS = frozenset({CUSTOMER_PREFERENCE, PRODUCT_RESEARCH, MARKET_RESE
 _KEYWORDS: Dict[str, Tuple[str, ...]] = {
     SALES: ("sale", "sold", "sell", "revenue", "income", "turnover", "invoice", "orders", "selling",
             "earned", "earnings", "takings", "how much did we make", "how much did i make",
-            "مبيع", "بعت", "بعنا", "بيعنا", "باع", "بيع", "ايراد", "إيراد", "دخل", "فاتور", "فواتير", "طلبات"),
+            "مبيع", "بعت", "بعنا", "بيعنا", "باع", "بيع", "ايراد", "إيراد", "دخل", "فاتور", "فواتير", "طلبات",
+            # dialect: Egyptian "اتباع"/"بعنا كام", Levantine "الغلة"/"المدخول", Gulf "الدخل"
+            "اتباع", "اتباعت", "الغله", "غلتنا", "المدخول", "مدخول", "مبعيات", "مبيعت"),
     FINANCIALS: ("profit", "margin", "cost", "loss", "gross", "expensive to make", "break even", "break-even",
-                 "ربح", "أرباح", "ارباح", "هامش", "تكلف", "تكاليف", "خسار", "كلفة"),
-    PRODUCTS: ("product", "item", "catalog", "catalogue", "sku", "منتج", "صنف", "اصناف", "أصناف", "سلعة", "سلع"),
+                 "ربح", "أرباح", "ارباح", "هامش", "تكلف", "تكاليف", "خسار", "كلفة", "كسبنا", "مكسب", "مربح"),
+    PRODUCTS: ("product", "item", "catalog", "catalogue", "sku", "منتج", "صنف", "اصناف", "أصناف", "سلعة", "سلع",
+               "بضاعه", "بضايع", "بضائع", "برودكت"),
     PRICING: ("price", "pricing", "charge", "expensive", "cheap", "سعر", "أسعار", "اسعار", "تسعير", "غالي", "رخيص"),
     INVENTORY: ("stock", "inventory", "restock", "reorder", "out of", "warehouse",
-                "مخزون", "مخزن", "نفاد", "نفد", "خلص", "إعادة الطلب", "اعادة الطلب"),
+                "مخزون", "مخزن", "نفاد", "نفد", "خلص", "إعادة الطلب", "اعادة الطلب", "ستوك", "الستوك", "المستودع"),
     FORECAST: ("forecast", "demand", "predict", "next month", "next week", "expected sales",
                "توقع", "الطلب", "تنبؤ", "الشهر الجاي", "الشهر القادم"),
     MARKETING: ("campaign", "marketing", "advert", " ad ", "ads", "promotion", "promo",
                 "حملة", "حملات", "تسويق", "اعلان", "إعلان", "ترويج"),
-    COMPETITORS: ("competitor", "competition", "rival", "منافس", "المنافسة"),
+    COMPETITORS: ("competitor", "competition", "rival", "منافس", "المنافسة", "منافسين", "المنافسين", "كومبتيتور"),
     REVIEWS: ("review", "rating", "feedback", "complain", "sentiment", "customers say", "customers think",
               "customer opinion", "satisf", "opinion of us", "think of us", "say about us",
               "تقييم", "مراجع", "آراء", "اراء", "شكاو", "شكوى", "رضا", "رأي الزبائن", "راي الزبائن", "رأي العملاء",
@@ -112,13 +115,34 @@ _PUBLIC_CUES = ("average", "national", "official", "government", "nationwide", "
 _SELF_REFERENCE = re.compile(
     r"(?<![\w])(my|our|we|mine|ours)(?![\w])|"
     r"عندي|لدي|لدينا|عندنا|تبعي|تبعنا|خاصتي|منتجاتي|منتجي|مبيعاتي|زبائني|محلي التجاري|شركتي|متجري|مطعمي|بضاعتي")
+# The company's own story and public presence: answered from its documents when they have it, else researched.
+_COMPANY_BACKGROUND = ("history", "founded", "founder", "founders", "established", "background", "origin story",
+                       "who owns", "owner of", "ownership", "in the news", "news about", "latest news", "press",
+                       "online reputation", "reputation", "what do people say about us online", "known for",
+                       "تاريخ", "تاسس", "تاسست", "مؤسس", "مؤسسين", "اسس", "اسسها", "مين اسس", "من اسس", "نشاه",
+                       "في الاخبار", "اخبار عن", "اخر الاخبار", "سمعه", "معروفه ب", "معروفين ب", "بيحكوا عنا",
+                       "بيقولوا عنا", "يقولون عنا", "شو بيحكوا عن")
+# Competitor questions that need what is happening outside, not only the tracked list.
+_COMPETITOR_RESEARCH = ("news", "latest", "recent", "lately", "doing", "launch", "launched", "opened", "new competitor",
+                        "new competitors", "who are the main", "who are the biggest", "biggest competitors",
+                        "main competitors", "top competitors", "market leader", "leaders in", "strategy", "strategies",
+                        "اخبار", "جديد", "الجديد", "مؤخرا", "شو عم يعملوا", "شو بيعملوا", "وش يسوون", "بيعملوا ايه",
+                        "اكبر المنافسين", "اقوى المنافسين", "اهم المنافسين", "المنافسين الرئيسيين", "استراتيجيه",
+                        "افتتح", "فتحوا", "اطلق", "اطلقوا")
+_DATA_INTENTS = frozenset({SALES, FINANCIALS, INVENTORY, FORECAST, PRODUCTS, PRICING, MARKETING, DOCUMENTS})
+
 _TOP_PRODUCT = ("top product", "top-selling", "top selling", "best seller", "best-seller", "best selling",
                 "best-selling", "most sold", "top seller", "number one product",
                 "اكثر منتج", "الاكثر مبيعا", "افضل منتج", "المنتج الاول", "اعلى منتج")
 _ROUTE = re.compile(r"(?:\bvia|\bthrough|عبر|عن طريق)\s+((?:معبر\s+|the\s+)?[^\s,.?!؟]+(?:\s+(?:border|crossing|port))?)")
 
 _FOLLOW_UP_CUES = ("and ", "what about", "how about", "and what", "same for", "also", "instead", "then", "why?",
-                   "و", "طيب", "وماذا", "وشو", "شو عن", "ماذا عن", "وكمان", "وفي", "بدلا", "بدل", "كمان", "ليش؟", "لماذا؟")
+                   # corrections: "no, I meant last month", "لا قصدي الشهر الماضي"
+                   "no ", "no,", "nope", "i meant", "i mean", "actually", "sorry i meant", "not that", "rather",
+                   "compare them", "compare those", "compare both",
+                   "و", "طيب", "وماذا", "وشو", "شو عن", "ماذا عن", "وكمان", "وفي", "بدلا", "بدل", "كمان", "ليش؟", "لماذا؟",
+                   "لا ", "لا،", "لأ", "قصدي", "اقصد", "أقصد", "قصدت", "مش هيك", "مو هيك", "مش ده", "مش كده", "لا مش",
+                   "قارنلي", "قارنهم", "قارن بينهم", "قارنلي اياهم", "وايش عن", "ووش عن", "طب و", "طيب و")
 # A short question that points back at the product just discussed ("what is its price?").
 _REFERS_BACK = re.compile(
     r"(?<![\w])(it|its|it's|that|this|those|these|them|their)(?![\w])|"
@@ -157,9 +181,54 @@ def _has(text: str, keywords) -> bool:
     return any(_keyword_pattern(keyword).search(text) for keyword in keywords)
 
 
+# Single English words that name a need, for reading a misspelt one ("slaes", "prodcuts", "inventroy").
+_TYPO_VOCABULARY = {
+    "sales": SALES, "sold": SALES, "revenue": SALES, "income": SALES, "invoices": SALES, "orders": SALES,
+    "profit": FINANCIALS, "profits": FINANCIALS, "margin": FINANCIALS, "margins": FINANCIALS, "costs": FINANCIALS,
+    "products": PRODUCTS, "product": PRODUCTS, "catalogue": PRODUCTS, "catalog": PRODUCTS, "items": PRODUCTS,
+    "prices": PRICING, "price": PRICING, "pricing": PRICING,
+    "stock": INVENTORY, "inventory": INVENTORY, "warehouse": INVENTORY, "restock": INVENTORY,
+    "forecast": FORECAST, "forecasts": FORECAST, "demand": FORECAST, "predict": FORECAST,
+    "marketing": MARKETING, "campaign": MARKETING, "campaigns": MARKETING,
+    "competitor": COMPETITORS, "competitors": COMPETITORS, "competition": COMPETITORS,
+    "reviews": REVIEWS, "review": REVIEWS, "ratings": REVIEWS, "feedback": REVIEWS,
+    "documents": DOCUMENTS, "contract": DOCUMENTS, "contracts": DOCUMENTS,
+}
+
+
+def _one_edit(a: str, b: str) -> bool:
+    """a and b differ by one insertion, deletion, substitution or swap of two neighbouring letters."""
+    if a == b or abs(len(a) - len(b)) > 1:
+        return a == b
+    if len(a) == len(b):
+        diff = [i for i in range(len(a)) if a[i] != b[i]]
+        return len(diff) == 1 or (len(diff) == 2 and diff[1] == diff[0] + 1
+                                  and a[diff[0]] == b[diff[1]] and a[diff[1]] == b[diff[0]])
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    return any(long_[:i] + long_[i + 1:] == short for i in range(len(long_)))
+
+
+def correct_typos(text: str) -> str:
+    """The text with misspelt English need words corrected ("how are my slaes" -> "how are my sales"); words of
+    five letters or more only, so short words are never rewritten into something else."""
+    def fix(match: "re.Match") -> str:
+        word = match.group(0)
+        if len(word) < 5 or word in _TYPO_VOCABULARY:
+            return word
+        for candidate in _TYPO_VOCABULARY:
+            if len(candidate) >= 5 and _one_edit(word, candidate):
+                return candidate
+        return word
+    return re.sub(r"[a-z]+", fix, text)
+
+
 def detect_intents(text: str) -> List[str]:
     lowered = f" {_norm(text)} "
     found = [intent for intent, keywords in _KEYWORDS.items() if _has(lowered, keywords)]
+    corrected = correct_typos(lowered)
+    if corrected != lowered:  # "which items are low in inventroy?": products, and the misspelt stock too
+        found += [intent for intent, keywords in _KEYWORDS.items()
+                  if intent not in found and _has(corrected, keywords)]
     if _has(lowered, _LANDED_COST_STRONG):
         found += [intent for intent in (TRADE, LANDED_COST) if intent not in found]
     elif TRADE in found and _has(lowered, _LANDED_COST_CUES):
@@ -313,7 +382,8 @@ class Understanding:
 
     @property
     def needs_research(self) -> bool:
-        return bool(set(self.intents) & EXTERNAL_INTENTS) or self.public_scope
+        return (bool(set(self.intents) & EXTERNAL_INTENTS) or self.public_scope
+                or bool(self.slots.get("competitor_research")))
 
     def state(self) -> dict:
         return {"question": self.question, "intents": self.intents, "slots": self.slots}
@@ -453,7 +523,9 @@ def _products(text: str, catalog: List[dict]) -> List[dict]:
             normalized = _norm(name).strip()
             if len(normalized) < 3:
                 continue
-            if re.search(r"(?<![\w])" + re.escape(normalized) + r"(?![\w])", text):
+            # An Arabic name may carry an attached "و"/"ب"/"ل" ("زيت زيتون وزعتر").
+            prefix = r"(?:[وبل])?" if re.match(r"[\u0621-\u064a]", normalized) else ""
+            if re.search(r"(?<![\w])" + prefix + re.escape(normalized) + r"(?![\w])", text):
                 matched.append({"product_id": product["product_id"], "name": product.get("name") or name})
                 break
     if matched:
@@ -560,6 +632,14 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
     slots = extract_slots(question, catalog, company_currency, today)
     if slots.get("customer_ranking") and SALES not in intents:
         intents.append(SALES)
+    padded = f" {_norm(question)} "
+    about_us = COMPANY in intents or bool(_SELF_REFERENCE.search(padded)) or bool(re.search(r"(?<![a-z])us(?![a-z])", padded))
+    if about_us and _has(padded, _COMPANY_BACKGROUND) and not set(intents) & _DATA_INTENTS:
+        slots["company_background"] = True
+        if COMPANY not in intents:
+            intents.append(COMPANY)
+    if COMPETITORS in intents and _has(padded, _COMPETITOR_RESEARCH):
+        slots["competitor_research"] = True
     previous = previous or {}
     text = _norm(question).strip()
     words = text.split()
@@ -610,8 +690,17 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
             slots["periods"] = list(combined.values())[-4:]
     if slots.get("products"):
         merged.pop("products", None)
+    for key in ("company_background", "competitor_research"):
+        merged.pop(key, None)  # what to research is decided by each message itself
     merged.update(slots)
     combined = list(dict.fromkeys(previous_intents + intents)) if intents else previous_intents
     effective = f"{previous.get('question', '')} {question}".strip()
+    # "And what about our competitors?" after a sales question changes the topic: the new need replaces the
+    # old one (the period, products and countries still carry over), and the earlier question no longer steers
+    # document search or research.
+    switched = bool(intents) and not set(intents) & set(previous_intents) and not refers_back and not (
+        {TRADE, LANDED_COST, REGULATION} & set(previous_intents))
+    if switched and len(words) >= 2:
+        combined, effective = list(intents), question
     return Understanding(question, combined, merged, True, effective, previous_intents,
                          public_scope=is_public_scope(effective, combined, merged))
