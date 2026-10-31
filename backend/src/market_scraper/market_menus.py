@@ -231,7 +231,7 @@ def _state_blobs(html: str) -> List[object]:
             seen.add(raw)
             try:
                 blobs.append(json.loads(raw))
-            except ValueError:
+            except (ValueError, RecursionError):  # malformed, or nested deeper than the parser can follow
                 continue
     return blobs
 

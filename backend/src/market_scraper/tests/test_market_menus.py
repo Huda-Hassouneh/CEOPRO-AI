@@ -263,3 +263,12 @@ def test_menus_never_lower_the_completeness_score_and_can_fill_the_prices_slot()
     without = ce._completeness_score(base)  # noqa: SLF001
     assert ce._completeness_score({**base, ce.FACET_MARKET_MENUS: {"status": ce.STATUS_PENDING}}) == without  # noqa: SLF001
     assert ce._completeness_score({**base, ce.FACET_MARKET_MENUS: {"status": ce.STATUS_SUCCEEDED}}) == round(2 / 7 * 100)  # noqa: SLF001
+
+
+def test_page_data_nested_too_deep_for_the_parser_is_skipped_not_raised():
+    """One odd or hostile listing must not stop the other listings (or the price lookup) from being read."""
+    deep = "[" * 100_000 + "]" * 100_000
+    html = (f'<html><script id="__NEXT_DATA__" type="application/json">{deep}</script>'
+            '<script type="application/json">{"menu": {"items": [{"name": "Mansaf", "price": 8.5, "currency": "JOD"}]}}</script></html>')
+    items, _fees = mm.platform_items(html, "JO")
+    assert [(i["name"], i["price"]) for i in items] == [("Mansaf", 8.5)]
