@@ -707,7 +707,7 @@ def _ask_the_assistant(tenant, monkeypatch, reply=None):
     from src.ai.rag import access as acl
     from src.ai.rag import advisor, llm_client
 
-    def gather(conn, tenant_id, u, access, registry, statuses):
+    def gather(conn, tenant_id, u, access, registry, statuses, skip=frozenset()):
         registry.add_fact_lines(["Sales in the last 30 days:", "- Revenue 20016.928 JOD from 3000 invoices."],
                                 route="/sales", capabilities=frozenset({acl.SALES}))
         return 1

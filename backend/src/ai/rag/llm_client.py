@@ -90,7 +90,7 @@ LOCAL_LLM_BASE_URL = os.getenv("LOCAL_LLM_BASE_URL")
 # Gemini API) would need a new code path here, not just these env vars -
 # that's a real vendor decision, not made in this pass.
 PAID_LLM_BASE_URL = os.getenv("PAID_LLM_BASE_URL")
-PAID_LLM_API_KEY = os.getenv("PAID_LLM_API_KEY")
+PAID_LLM_API_KEY = secret("PAID_LLM_API_KEY") or None
 PAID_LLM_MODEL = os.getenv("PAID_LLM_MODEL")
 
 # Optional: Hugging Face Inference Providers (the OpenAI-compatible router,
@@ -159,7 +159,7 @@ def _configured(provider: str) -> bool:
     if provider == "groq":
         return bool(secret("GROQ_API_KEY"))
     if provider == "huggingface":
-        return bool(HUGGINGFACE_LLM_MODEL and os.getenv("HUGGINGFACE_API_TOKEN"))
+        return bool(HUGGINGFACE_LLM_MODEL and secret("HUGGINGFACE_API_TOKEN"))
     if provider == "local":
         return bool(LOCAL_LLM_BASE_URL)
     if provider == "paid":
@@ -178,7 +178,7 @@ def provider_configured() -> bool:
         if provider == "groq":
             return bool(secret("GROQ_API_KEY"))
         if provider == "huggingface":
-            return bool(os.getenv("HUGGINGFACE_API_TOKEN"))
+            return bool(secret("HUGGINGFACE_API_TOKEN"))
         return True
     return any(_configured(p) for p in chain)
 
@@ -783,7 +783,7 @@ def _call_provider(
         if not api_key:
             raise LLMNotConfiguredError("PAID_LLM_BASE_URL is set but PAID_LLM_API_KEY is not - cannot call the paid LLM provider.")
     elif using_hf:
-        api_key = api_key or os.getenv("HUGGINGFACE_API_TOKEN")
+        api_key = api_key or secret("HUGGINGFACE_API_TOKEN")
         if not api_key:
             raise LLMNotConfiguredError("HUGGINGFACE_LLM_MODEL is set but HUGGINGFACE_API_TOKEN is not - cannot call "
                                         "Hugging Face Inference Providers.")

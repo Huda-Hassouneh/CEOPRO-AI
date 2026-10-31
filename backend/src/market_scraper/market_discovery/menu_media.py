@@ -30,6 +30,7 @@ import shutil
 from difflib import SequenceMatcher
 from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import unquote, urljoin, urlsplit
+from src.ai.core.env_secret import secret
 
 logger = logging.getLogger("KEEL_MARKET_DISCOVERY")
 
@@ -357,7 +358,7 @@ def vision_engine(limit: Optional[int] = None) -> Optional[Callable]:
     if VISION_MODE not in ("fallback", "always"):
         return None
     gemini_keys = [k.strip() for k in os.getenv("GEMINI_API_KEYS", "").split(",") if k.strip()]
-    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+    groq_key = secret("GROQ_API_KEY")
     if VISION_PROVIDER == "groq" or (VISION_PROVIDER == "auto" and not gemini_keys):
         ask = (lambda image: _ask_groq(image, groq_key)) if groq_key else None
     else:

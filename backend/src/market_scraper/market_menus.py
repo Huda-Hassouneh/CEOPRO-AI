@@ -51,6 +51,7 @@ from urllib.parse import quote, urlsplit
 
 import httpx
 
+from src.ai.core.env_secret import secret
 from src.market_scraper import web_search
 from src.market_scraper.market_discovery import intel, menu_media
 from src.market_scraper.network_security import UnsafeTargetError
@@ -503,7 +504,7 @@ def maps_photos(competitor: dict, deep: bool = False, photo_urls: Callable = pla
     from src.market_scraper import social_content
 
     counts = counts if counts is not None else {"images_read": 0, "images_skipped_no_ocr": 0, "searches": 0}
-    key = (os.getenv("GOOGLE_PLACES_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY") or "").strip()
+    key = secret("GOOGLE_PLACES_API_KEY", "GOOGLE_MAPS_API_KEY")
     if not competitor.get("place_id"):
         return {"status": STATUS_NO_PLACE, "facts": [], "photos": 0}
     if not key:

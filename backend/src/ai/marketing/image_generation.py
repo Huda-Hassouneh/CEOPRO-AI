@@ -102,6 +102,7 @@ import httpx
 from PIL import Image
 
 from src.ai.billing import credits
+from src.ai.core.env_secret import secret
 
 logger = logging.getLogger("CEOPRO_AI_MARKETING_IMAGE")
 
@@ -310,7 +311,7 @@ def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = N
 
 
 def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
-    token = credential or os.getenv("HUGGINGFACE_API_TOKEN")
+    token = credential or secret("HUGGINGFACE_API_TOKEN")
     if not token:
         raise ImageGenerationError(
             "NOT_CONFIGURED",

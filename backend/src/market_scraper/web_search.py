@@ -193,7 +193,7 @@ BRAVE_IMAGES_URL = "https://api.search.brave.com/res/v1/images/search"
 def _tavily_images(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[ImageResult]:
     body = {"query": query, "max_results": min(limit, 20), "search_depth": "basic", "include_images": True,
             "include_image_descriptions": True}
-    payload = fetch("POST", TAVILY_URL, json=body, headers={"Authorization": f"Bearer {os.environ['TAVILY_API_KEY']}"})
+    payload = fetch("POST", TAVILY_URL, json=body, headers={"Authorization": f"Bearer {secret('TAVILY_API_KEY')}"})
     out = []
     for image in payload.get("images") or []:
         url, description = (image, "") if isinstance(image, str) else (image.get("url"), image.get("description") or "")
@@ -207,7 +207,7 @@ def _brave_images(fetch: Fetch, query: str, limit: int, country: Optional[str]) 
     if country:
         params["country"] = country.upper()
     payload = fetch("GET", BRAVE_IMAGES_URL, params=params,
-                    headers={"Accept": "application/json", "X-Subscription-Token": os.environ["BRAVE_SEARCH_API_KEY"]})
+                    headers={"Accept": "application/json", "X-Subscription-Token": secret("BRAVE_SEARCH_API_KEY")})
     out = []
     for item in payload.get("results") or []:
         url = (item.get("properties") or {}).get("url") or (item.get("thumbnail") or {}).get("src")

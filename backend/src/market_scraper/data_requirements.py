@@ -62,6 +62,12 @@ FACETS: Dict[str, FacetRequirements] = {
     "NEWS": FacetRequirements("News about them", (
         Need(KEY, ("TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "SEARXNG_INSTANCE_URL"), "a news search provider (Tavily has a free tier)"),
     ), optional=True),
+    # Delivery apps and menu pictures are found through web search; Google Maps photos also use the Places key and
+    # PLACES_TERMS_APPROVAL_REFERENCE (listed under REVIEWS), so without them the facet still collects the rest.
+    "MARKET_MENUS": FacetRequirements("Delivery apps and menu photos", (
+        Need(KEY, ("TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "SEARXNG_INSTANCE_URL"),
+             "a web search provider, to find delivery listings and menu pictures"),
+    ), optional=True),
 }
 
 # Not a facet's need, but without it nobody can open Settings > Service setup to see or test the keys above.

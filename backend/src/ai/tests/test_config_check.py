@@ -149,3 +149,17 @@ def test_a_user_agent_without_a_contact_is_reported(env):
     from src.market_scraper import user_agent
 
     assert user_agent.build() == "KEEL-MarketResearch/1.0 (+ops@example.com; business intelligence; respects robots.txt and API terms)"
+
+
+def test_provider_keys_are_only_read_through_env_secret():
+    """A key read with os.getenv/os.environ is sent with whatever spaces or quotes were pasted around it,
+    and the provider calls a correct key invalid. Read them with src.ai.core.env_secret.secret()."""
+    import re
+    from pathlib import Path
+
+    names = "|".join(config_check.KEY_SETTINGS)
+    raw = re.compile(rf"os\.(getenv|environ\.get)\(\s*[\"']({names})[\"']|os\.environ\[\s*[\"']({names})[\"']")
+    src = Path(__file__).resolve().parents[2]
+    offenders = [f"{path.relative_to(src)}:{number}" for path in src.rglob("*.py") if "tests" not in path.parts
+                 for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1) if raw.search(line)]
+    assert offenders == []

@@ -532,7 +532,8 @@ def test_each_row_carries_its_id_and_a_data_completeness_breakdown(conn):
 
     assert row["id"] == competitor_id
     completeness = row["data_completeness"]
-    assert set(completeness["facets"]) == {"PROFILE", "SOCIAL_LINKS", "REVIEWS", "NEWS", "COMMENTS", "PRICES", "SOCIAL_CONTENT"}
+    assert set(completeness["facets"]) == {"PROFILE", "SOCIAL_LINKS", "REVIEWS", "NEWS", "COMMENTS", "PRICES", "SOCIAL_CONTENT",
+                                          "MARKET_MENUS"}
     # An empty facet always says why, so the owner (or the Retry button) can act on it.
     assert completeness["facets"]["PRICES"]["reason_code"] == "NO_PRODUCTS_MAPPED"
     assert completeness["facets"]["PROFILE"]["can_retry"] is True
