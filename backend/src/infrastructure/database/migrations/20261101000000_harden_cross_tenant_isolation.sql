@@ -49,3 +49,11 @@ BEGIN
         REVOKE EXECUTE ON FUNCTION claim_image_generation_job(TEXT, INTEGER) FROM ceopro_app;
     END IF;
 END $$;
+
+-- 4. web_search_cache is shared by every company and was keyed by the raw
+--    search text, which is built from a company's own product names, and it
+--    stored that product name with the results. Keys are now SHA-256 digests
+--    and results carry only public URLs and titles
+--    (src/market_scraper/search_cache.py); the old entries are dropped (it is
+--    only a cache: the next search refills it).
+DELETE FROM web_search_cache;

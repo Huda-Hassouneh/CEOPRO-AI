@@ -38,8 +38,23 @@ def test_set_then_get_round_trips_real_candidate_sources(conn):
     set_cached(conn, key, candidates)
     conn.commit()
 
-    result = get_cached(conn, key)
+    result = get_cached(conn, key, "Espresso Machine")
     assert result == candidates
+
+
+def test_the_shared_cache_holds_no_company_text(conn):
+    """Shared by every company: the stored key and results must not carry
+    the product name or the query that a company searched for."""
+    query = '"Secret Launch Blend X1" buy shop store price'
+    key = build_cache_key("google_cse", query)
+    set_cached(conn, key, [CandidateSource("Secret Launch Blend X1", "https://acme.example/x1", "Acme")])
+    conn.commit()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT cache_key, results_json::text FROM web_search_cache WHERE cache_key = %s;", (key,))
+        stored_key, stored_results = cursor.fetchone()
+    assert "Secret Launch" not in stored_key and "Secret Launch" not in stored_results
+    # Another company searching the same product still gets the public answer, under its own product name.
+    assert get_cached(conn, key, "Launch Blend")[0].product_name == "Launch Blend"
 
 
 def test_set_overwrites_a_previous_entry_for_the_same_key(conn):

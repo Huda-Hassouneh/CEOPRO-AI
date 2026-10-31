@@ -139,7 +139,7 @@ def _with_cache_and_fallback(
 ) -> List[CandidateSource]:
     cache_key = search_cache.build_cache_key("google_cse", query)
     if conn is not None:
-        cached = search_cache.get_cached(conn, cache_key)
+        cached = search_cache.get_cached(conn, cache_key, product_name)
         if cached is not None:
             return cached
 

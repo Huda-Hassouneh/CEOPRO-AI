@@ -14,12 +14,19 @@ purpose (see the migration's own comment: this is public search-index
 metadata, not tenant data, so sharing the cache across tenants is
 exactly the point).
 
+What is shared is only the public answer. The query text is built from a
+company's own product names, so it is stored as a SHA-256 digest, and the
+product name is not stored with the results: the caller's own name is put
+back on read (found in the multi-tenant security test: every company's
+connection could read every company's product list from this table).
+
 Never fabricates a result: a cache miss returns None, exactly like a
 missing API key or a failed call already does elsewhere in this
 package - callers fall through to a real live call (or the next
 fallback) on a miss, never synthesize a result from a stale/absent
 cache entry.
 """
+import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -29,9 +36,10 @@ from src.market_scraper.discovery import CandidateSource
 DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days - retail search results don't churn hourly
 
 
-def get_cached(conn, cache_key: str) -> Optional[List[CandidateSource]]:
+def get_cached(conn, cache_key: str, product_name: str = "") -> Optional[List[CandidateSource]]:
     """None on a miss (not found, or found but expired) - never a stale
-    result silently served past its own expiry."""
+    result silently served past its own expiry. `product_name` is the
+    caller's own, set on every result (it is not stored)."""
     with conn.cursor() as cursor:
         cursor.execute(
             "SELECT results_json FROM web_search_cache WHERE cache_key = %s AND expires_at > NOW();",
@@ -40,13 +48,13 @@ def get_cached(conn, cache_key: str) -> Optional[List[CandidateSource]]:
         row = cursor.fetchone()
     if not row:
         return None
-    return [CandidateSource(**item) for item in row[0]]
+    return [CandidateSource(product_name=product_name, url=item["url"], title=item["title"]) for item in row[0]]
 
 
 def set_cached(conn, cache_key: str, candidates: List[CandidateSource], ttl_seconds: int = DEFAULT_TTL_SECONDS) -> None:
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
     results_json = json.dumps([
-        {"product_name": c.product_name, "url": c.url, "title": c.title} for c in candidates
+        {"url": c.url, "title": c.title} for c in candidates
     ])
     with conn.cursor() as cursor:
         cursor.execute(
@@ -64,5 +72,6 @@ def build_cache_key(source: str, query: str) -> str:
     """`source` distinguishes which discovery function/vendor produced
     this query (e.g. "google_cse", "searxng") so a cache entry from one
     backend is never mistakenly served to a different one, even if the
-    underlying query text happens to match."""
-    return f"{source}:{query}"
+    underlying query text happens to match. The query itself is hashed: it
+    names the company's own products."""
+    return f"{source}:{hashlib.sha256(query.encode('utf-8')).hexdigest()}"
