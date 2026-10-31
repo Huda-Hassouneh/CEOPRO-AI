@@ -68,9 +68,17 @@ BEGIN
  VALUES(t,p_plan,'trialing',n::date,e::date,'trial');
  RETURN jsonb_build_object('reason',NULL,'plan_key',p_plan,'started_at',n,'ends_at',e);
 END $$;
+-- Neon/managed Postgres: a non-superuser migration role may transfer ownership only to a role it can
+-- SET ROLE to and that has CREATE on the schema, and only the owner can grant on the function, so
+-- the membership lasts only through the grants below (CREATE only through the transfer). The owner has fewer privileges than the migration role,
+-- and the DDL check at the end still applies.
+GRANT ceopro_trial_issuer TO CURRENT_USER;
+GRANT CREATE ON SCHEMA public TO ceopro_trial_issuer;
 ALTER FUNCTION public.billing_setup_trial(TEXT,BOOLEAN) OWNER TO ceopro_trial_issuer;
+REVOKE CREATE ON SCHEMA public FROM ceopro_trial_issuer;
 REVOKE ALL ON FUNCTION public.billing_setup_trial(TEXT,BOOLEAN) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_setup_trial(TEXT,BOOLEAN) TO ceopro_billing_setup;
+REVOKE ceopro_trial_issuer FROM CURRENT_USER;
 
 -- Only unpaid promotion coordination in the disposable proof database.
 GRANT SELECT ON billing_promotions,billing_promotion_plans,billing_promotion_redemptions,billing_promotion_events,usage_plans,billing_plan_prices TO ceopro_billing_setup;

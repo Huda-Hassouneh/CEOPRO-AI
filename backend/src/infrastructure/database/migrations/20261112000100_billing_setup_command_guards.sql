@@ -1,5 +1,8 @@
 -- Forward-only hardening of the new setup identity; no broader grants.
 -- The earlier migration was already applied during disposable verification.
+-- Neon/managed Postgres: replacing a function needs ownership, so the non-superuser migration role
+-- holds the owner role (ceopro_trial_issuer, which has fewer privileges) only while replacing it.
+GRANT ceopro_trial_issuer TO CURRENT_USER;
 CREATE OR REPLACE FUNCTION public.billing_setup_trial(p_plan TEXT,p_start BOOLEAN DEFAULT FALSE) RETURNS JSONB
  LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,pg_temp AS $$
 DECLARE
@@ -27,6 +30,7 @@ BEGIN
  VALUES(t,p_plan,'trialing',n::date,e::date,'trial');
  RETURN jsonb_build_object('reason',NULL,'plan_key',p_plan,'started_at',n,'ends_at',e);
 END $$;
+REVOKE ceopro_trial_issuer FROM CURRENT_USER;
 
 DO $$ DECLARE t TEXT; p TEXT; g TEXT:=$guard$tenant_id=public.get_current_tenant() AND public.keel_active_principal(nullif(current_setting('app.current_user_id',true),'')::uuid,public.get_current_tenant()) AND EXISTS(SELECT FROM public.tenant_users m WHERE m.tenant_id=public.get_current_tenant() AND m.user_id=nullif(current_setting('app.current_user_id',true),'')::uuid AND m.role_key IN ('owner','admin','accountant') AND m.removed_at IS NULL AND m.platform_suspended_at IS NULL)$guard$; BEGIN
  FOREACH t IN ARRAY ARRAY['billing_checkout_attempts','billing_customers','billing_promotion_redemptions','billing_promotion_events'] LOOP
