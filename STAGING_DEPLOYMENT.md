@@ -202,6 +202,26 @@ browser will refuse to call the API.
    - normal for the free tier, not a bug. The static frontend has no
    such spin-down.
 
+### If the API service uses Render's native Python runtime instead of Docker
+
+A service created in the Render dashboard as a **Python** service (not from
+this Blueprint) doesn't read `render.yaml`. The backend lives in `backend/`,
+so the build fails from the repository root with
+`Could not open requirements file: ... 'src/ai/requirements.txt'`. Set the
+service (Settings -> Build & Deploy) to:
+
+| Setting | Value |
+|---|---|
+| Root Directory | `backend` |
+| Build Command | `pip install -r src/ai/requirements.txt` |
+| Start Command | `sh docker-entrypoint.sh` (the file is not executable in git; applies migrations, then `uvicorn src.ai.main:app --host 0.0.0.0 --port $PORT`) |
+| Python version | 3.11, from `backend/.python-version`. Render reads that file from the root directory; without it Render uses its newest Python, which these pins (numpy, torch, xgboost) don't support. A `PYTHON_VERSION` env var, if set, overrides the file, so remove it or set it to a 3.11 release. |
+
+Keep the environment variables listed in `render.yaml` (`GROQ_API_KEY`
+included); changing the root directory doesn't touch them. The native runtime
+has no `tesseract-ocr`, so OCR of menu images and PDFs (discovery) is off.
+Everything else works. The Docker service in `render.yaml` keeps OCR on.
+
 ---
 
 ## Verifying it's actually live
