@@ -127,6 +127,12 @@ def plan_queries(question: str, intents: List[str], slots: dict, company: dict,
     product = ", ".join(p["name"] for p in slots.get("products") or []) or None
     hs_code = slots.get("hs_code")
     planned: List[str] = []
+    # The company's own (public) name is searched only for a question about its story or public presence, and
+    # never for a demonstration workspace; its city only for that and for local competitors.
+    company_name = (company.get("business_name") if slots.get("company_background") and not company.get("is_demo")
+                    else None)
+    city = company.get("city") if (company_name or slots.get("competitor_research") or "competitors" in intents) \
+        else None
     if ask is not None:
         try:
             answer = ask([
@@ -136,12 +142,17 @@ def plan_queries(question: str, intents: List[str], slots: dict, company: dict,
                     "official sources answering the question. Name the country, product and HS code when known. "
                     "For a legal, tax, customs or trade question make at least one query aim at the official "
                     "authority. If the question is in Arabic, write one query in Arabic and one in English. "
-                    "Never include prices, quantities, amounts or any private business figure.")},
+                    "Never include prices, quantities, amounts or any private business figure. When company_name "
+                    "is given the question is about that business itself: search its exact name with its city or "
+                    "country. When the question is about competitors, search for businesses of the same kind in "
+                    "that city or country and recent news about them.")},
                 {"role": "user", "content": json.dumps({
                     "question": public_safe(question, hs_code), "needs": intents, "country": country,
                     "origin_country": slots.get("origin_country"), "route": slots.get("route"),
                     "product": product, "hs_code": hs_code,
-                    "business_type": company.get("business_type")}, ensure_ascii=False)},
+                    "business_type": company.get("business_type"),
+                    **({"company_name": company_name} if company_name else {}),
+                    **({"city": city} if city else {})}, ensure_ascii=False)},
             ], temperature=0, max_tokens=500)
             parsed = json.loads(re.search(r"\{.*\}", answer, re.S).group(0))
             planned = [public_safe(q, hs_code) for q in parsed.get("queries") or [] if isinstance(q, str)]
@@ -150,6 +161,13 @@ def plan_queries(question: str, intents: List[str], slots: dict, company: dict,
     if not planned:
         planned = _template_queries(question, intents, country, slots.get("origin_country"), product, hs_code,
                                     company.get("business_type"), slots.get("route"))
+        english = COUNTRY_NAMES.get(country, (country or "",))[0]
+        if company_name:
+            planned = [f'"{company_name}" {city or ""} {english}'.strip(),
+                       f"{company_name} {company.get('business_type') or ''} {english} history".strip()] + planned
+        elif "competitors" in intents and company.get("business_type"):
+            planned = [f"{company['business_type']} competitors {city or ''} {english}".strip(),
+                       f"{company['business_type']} market news {english}".strip()] + planned
     if country in _OFFICIAL_SITES and ({"regulation", "trade", "landed_cost"} & set(intents)):
         topic = product or hs_code or public_safe(question, hs_code)
         # Second in line, so the three-query cap never drops the official source.

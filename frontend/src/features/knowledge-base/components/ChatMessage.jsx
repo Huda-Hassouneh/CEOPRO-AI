@@ -28,6 +28,7 @@ export function ChatMessage({ message, t, formatTime, formatSize, locale, dir, o
     <div className="rag-message__content">
       <header><strong>{isUser ? t('ragAssistant.chat.you') : t('ragAssistant.chat.assistant')}</strong>{message.createdAt && <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>}</header>
       {!isUser && offline && <p className="rag-evidence-note" role="note"><FileSearch size={14} aria-hidden="true" />{t(`ragAssistant.chat.${message.answerMode === 'evidence' ? 'evidenceNote' : 'unverifiedNote'}`)}</p>}
+      {!isUser && message.answerMode === 'general_knowledge' && <p className="rag-evidence-note" role="note"><Info size={14} aria-hidden="true" />{t('ragAssistant.chat.generalKnowledgeNote')}</p>}
       {message.status === 'generating'
         ? <div className="rag-generating" role="status"><i /><i /><i /><span>{t('ragAssistant.chat.generating')}</span></div>
         : <AssistantResponse content={message.content} blocks={message.blocks} summary={message.summary} onOpenRef={openRef} activeRef={activeRef} t={t} />}

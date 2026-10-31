@@ -153,8 +153,14 @@ def test_a_refusal_inside_the_research_helper_call_is_translated_too():
 def test_with_no_evidence_and_no_provider_the_error_reaches_the_caller(model, monkeypatch):
     fake = model(llm_client.LLMNotConfiguredError("no key"))
     with pytest.raises(llm_client.LLMNotConfiguredError):
-        advisor.answer(None, "t", "hi")
+        advisor.answer(None, "t", "what should we focus on next quarter?")
     assert fake.prompts
+
+
+def test_a_greeting_is_answered_even_with_no_provider_and_no_model_call(model, monkeypatch):
+    fake = model(llm_client.LLMNotConfiguredError("no key"))
+    result = advisor.answer(None, "t", "hi")
+    assert result["answer_mode"] == "conversation" and result["answer"] and fake.prompts == []
 
 
 def test_a_prompt_too_large_for_the_provider_is_retried_compact(model, monkeypatch):
@@ -511,7 +517,7 @@ def test_only_the_recent_turns_and_a_few_records_go_to_the_model_for_a_message_w
     _stub_gathering(monkeypatch, [], lines)
     history = [{"role": "user" if n % 2 == 0 else "assistant", "content": f"turn {n}"} for n in range(20)]
     fake = model(_reply(("x", "general", [])))
-    advisor.answer(object(), "t", "hello there my friend", access=acl.FULL_ACCESS, enable_research=False,
+    advisor.answer(object(), "t", "anything I should keep in mind", access=acl.FULL_ACCESS, enable_research=False,
                    history=history)
     messages = fake.prompts[0]
     assert len(messages) == 1 + advisor.HISTORY_MESSAGES + 1

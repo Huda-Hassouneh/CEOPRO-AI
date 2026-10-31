@@ -79,6 +79,8 @@ class RagQueryBody(BaseModel):
 # (advisor.answer(use_ai=False)). A subscription that isn't active, or a
 # plan without the assistant, is still refused.
 _ALLOWANCE_USED = ("QUOTA_EXHAUSTED",)
+# Answers written without any paid model call.
+NON_CHARGEABLE_MODES = ("evidence", "conversation")
 _AI_CREDITS_USED = ("BUDGET_EXHAUSTED",)
 
 
@@ -203,9 +205,10 @@ def rag_query(
             answer_payload={key: result.get(key) for key in _STORED_ANSWER_FIELDS},
         )
         conversation_store.save_session_state(conn, ctx.tenant_id, session_id, result.pop("state", None) or {})
-        # An evidence-mode reply used no AI capacity, so it doesn't count
-        # against the plan's allowance (released in `finally`).
-        chargeable_answer = result.get("answer_mode") != "evidence"
+        # An evidence-mode reply, and a conversational one (a greeting, thanks,
+        # an off-topic note), used no AI capacity, so it doesn't count against
+        # the plan's allowance (released in `finally`).
+        chargeable_answer = result.get("answer_mode") not in NON_CHARGEABLE_MODES
         reserved_amount = reservation["amount"] if reservation is not None else 0
         if chargeable_answer:
             tokens = int((result.get("token_usage") or {}).get("total_tokens") or 0)

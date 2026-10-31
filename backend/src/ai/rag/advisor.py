@@ -24,6 +24,14 @@ of truth. Each question goes through the same steps:
 Missing, not permitted, failed, unconfigured and stale evidence are each
 reported as what they are - never as zero, and never as proof that
 something does not exist.
+
+Before any of this, conversation.py reads the message: a greeting, thanks,
+goodbye or "who are you" gets a direct reply in the user's dialect (no
+records read, no search, no paid call, the conversation's topic kept); a
+clearly unrelated question gets a polite note of what the assistant covers;
+and a general business-knowledge question ("what is gross margin?") is
+explained from general knowledge, labelled as such, without the company's
+records (_concept_answer).
 """
 import json
 import logging
@@ -37,7 +45,7 @@ from typing import Callable, Dict, List, Optional
 from src.ai.billing import credits
 from src.ai.rag import access as acl
 from src.ai.rag import business_analysis, citations, conversation_memory, evidence as ev, llm_client, product_guide
-from src.ai.rag import business_records, understanding, untrusted
+from src.ai.rag import business_records, conversation, understanding, untrusted
 from src.ai.rag.periods import MONTH_NAMES, label_dates as periods_label
 from src.ai.core.business_time import business_today
 from src.ai.rag.business_tools import build_financial_facts_block
@@ -679,6 +687,12 @@ def _product_records(u: understanding.Understanding, catalog: List[dict], access
     return out
 
 
+def _tracked_competitors(registry: ev.EvidenceRegistry) -> bool:
+    """The company's records name at least one competitor (not just "no competitors are tracked")."""
+    return any(item.route == "/market/competitors" and "no competitors" not in item.excerpt.lower()
+               and "لا يوجد منافس" not in item.excerpt for item in registry.items())
+
+
 def _reviews(conn, tenant_id: str, u: understanding.Understanding, access: acl.Access,
              registry: ev.EvidenceRegistry, statuses: List[dict], language: str = "en") -> int:
     if conn is None or not ({U.REVIEWS, U.CUSTOMER_PREFERENCE} & set(u.intents)):
@@ -993,6 +1007,16 @@ def _prompt(question: str, u: understanding.Understanding, company: dict, access
     if statuses:
         lines.append("Evidence status:\n" + "\n".join(
             f"- {s['need']}: {s['status']}" + (f" ({s['detail']})" if s.get("detail") else "") for s in statuses))
+    if any(item.kind == ev.WEB_PAGE for item in items):
+        lines.append("Public sources were read for this question. Keep them apart from the company's own records "
+                     "('based on public sources, not your own records'); for each public fact say who published it "
+                     "and its date, or that the page is undated; say where sources disagree and how certain the "
+                     "finding is; if they don't answer the question, say so instead of filling the gap.")
+    if u.slots.get("company_background"):
+        lines.append("The question is about the company's own story or public presence. A web page about a "
+                     "business with the same or a similar name may be about a different business: use it only when "
+                     "it matches this company's city, country or kind of business, and say when you can't be sure. "
+                     "Never present a public page as the company's own record.")
     failed = next((s for s in statuses if s["need"] == "public_research" and s["status"] in _RESEARCH_FAILED), None)
     if failed:
         lines.append(f"Public research could not run for this question ({_RESEARCH_FAILED[failed['status']]}). "
@@ -1292,6 +1316,65 @@ def _draft(question: str, u: understanding.Understanding, company: dict, access:
     return draft, "ai", len(issues), False
 
 
+# --- conversation (no evidence needed) ----------------------------------------
+
+CONCEPT_MAX_TOKENS = int(os.getenv("ADVISOR_CONCEPT_MAX_TOKENS", "900"))
+
+
+def _carry_state(state: Optional[dict], profile: dict) -> dict:
+    """The conversation's business context, unchanged, with what the user told about themselves."""
+    kept = dict(state or {})
+    if profile:
+        kept["profile"] = profile
+    return kept
+
+
+def _plain_result(sentences: List[str], follow_ups: List[str], state: dict, mode: str,
+                  kind: str = citations.GENERAL, usage: Optional[dict] = None,
+                  draft: Optional[citations.Draft] = None) -> dict:
+    """An answer that cites nothing: a conversational reply or a general-knowledge explanation."""
+    draft = draft or citations.Draft(
+        blocks=[{"type": "paragraph", "claims": [citations.Claim(text=s, kind=kind, evidence=[]) for s in sentences]}],
+        follow_up_questions=list(follow_ups)[:3])
+    rendered = citations.render(draft, ev.EvidenceRegistry())
+    usage = usage or {}
+    logger.info("assistant_answer mode=%s summary=%s dropped=0 issues=0 repaired=False", mode,
+                rendered["summary_source"])
+    return {
+        "answer": rendered["answer"], "answer_summary": rendered["summary"], "answer_blocks": rendered["blocks"],
+        "references": [], "sources": [], "follow_up_questions": rendered["follow_up_questions"], "calculations": [],
+        "evidence_status": [], "research": None, "state": state, "answer_mode": mode,
+        "token_usage": {key: int(usage.get(key, 0)) for key in ("prompt_tokens", "completion_tokens", "total_tokens")},
+        "citation_check": {"issues": 0, "repaired": False},
+    }
+
+
+def _concept_answer(question: str, turn: "conversation.Turn", history: Optional[list], state: dict,
+                    use_ai: bool) -> dict:
+    """A general business idea explained from general knowledge - no company record is read or sent, so
+    nothing about this (or any other) company can appear in it. Every sentence is labelled "guidance"."""
+    usage: Dict[str, int] = {}
+    if use_ai and llm_client.provider_configured():
+        messages = [{"role": "system", "content": conversation.GENERAL_KNOWLEDGE_PROMPT},
+                    *_history_messages(history)[-4:],
+                    {"role": "user", "content": untrusted.neutralize(question)
+                     + llm_client._reply_language_hint(question)}]
+        try:
+            with _server_refusals_as_llm_errors():
+                raw = _call(messages, usage, CONCEPT_MAX_TOKENS)
+            draft = citations.parse_draft(raw)
+            if draft is not None:
+                draft, _issues = citations.validate(draft, ev.EvidenceRegistry(), user_text=question,
+                                                    allow_guidance=True)
+                if any(block["type"] != "heading" for block in draft.blocks):
+                    return _plain_result([], [], state, "general_knowledge", usage=usage, draft=draft)
+        except llm_client.LLMError as err:
+            logger.warning("general-knowledge answer unavailable: %s", type(err).__name__)
+    return _plain_result([conversation.concept_unavailable_reply(turn)],
+                         list(conversation._SUGGESTIONS[conversation._style_key(turn)]), state, "conversation",
+                         usage=usage)
+
+
 def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optional[list] = None,
            user_id: Optional[str] = None, access: Optional[acl.Access] = None, state: Optional[dict] = None,
            enable_research: bool = True, include_structured_facts: bool = True,
@@ -1304,6 +1387,21 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
 
     Returns {"answer", "answer_blocks", "references", "sources", "follow_up_questions", "calculations",
     "evidence_status", "research", "state", "answer_mode", "token_usage", "citation_check"}."""
+    profile = dict((state or {}).get("profile") or {})
+    turn = conversation.classify(conversation_memory.focus(question), has_context=bool((state or {}).get("question")))
+    if turn.kind == conversation.SOCIAL:
+        if turn.name:
+            profile["name"] = turn.name
+        sentences, follow_ups = conversation.social_reply(turn, question, user_name=profile.get("name"))
+        return _plain_result(sentences, follow_ups, _carry_state(state, profile), "conversation")
+    if turn.kind == conversation.OFF_TOPIC:
+        sentences, follow_ups = conversation.off_topic_reply(turn)
+        return _plain_result(sentences, follow_ups, _carry_state(state, profile), "conversation")
+    if turn.kind == conversation.CONCEPT:
+        return _concept_answer(turn.remainder, turn, _split_history(history)[0], _carry_state(state, profile), use_ai)
+    if turn.acts and turn.remainder:
+        question = turn.remainder  # "hi, how many products do I have?" is the question alone
+
     access = access or (acl.load_access(conn, tenant_id, user_id) if user_id else acl.FULL_ACCESS)
     full_question = question
     question = conversation_memory.focus(full_question)
@@ -1343,7 +1441,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         for item, screen in zip(items, product_guide.guide_screens(question)):
             item.route = screen
 
-    company_found = 0
+    company_found = documents_found = 0
     products: Dict[str, dict] = {}
     if answerable and include_structured_facts:
         for intent in u.intents:
@@ -1358,9 +1456,10 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         if not u.public_scope:  # "the average water price" needs no sales or price-gap records
             exact, replaced = _records(conn, tenant_id, u, access, registry, statuses, language, today)
             company_found += exact
-        company_found += _documents(conn, tenant_id, search, access, registry, top_k, statuses, language,
-                                    intents=u.intents, superseded=replaced,
-                                    all_history=bool(u.slots.get("all_history")))
+        documents_found = _documents(conn, tenant_id, search, access, registry, top_k, statuses, language,
+                                     intents=u.intents, superseded=replaced,
+                                     all_history=bool(u.slots.get("all_history")))
+        company_found += documents_found
         if not u.public_scope:
             company_found += _fact_sections(conn, tenant_id, u, access, registry, statuses, skip=replaced)
             company_found += _analysis(conn, tenant_id, u, access, registry, exact_sales="sales" in replaced)
@@ -1375,9 +1474,22 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     if not use_ai:
         enable_research = False  # research is paid for too
     research_result = None
+    background = bool(u.slots.get("company_background"))
     # "Price" or "cost" alone is not a private question: "the average water price" is about the world.
-    private_only = bool(u.intents) and set(u.intents) <= _PRIVATE_ONLY and not u.public_scope
+    private_only = bool(u.intents) and set(u.intents) <= _PRIVATE_ONLY and not u.public_scope and not background
     wants_research = u.needs_research or (answerable and not guide and not private_only and company_found == 0)
+    # The company's history, founders or public presence: its own documents first; the web only when they
+    # don't cover it. Competitors: researched when none are tracked yet.
+    if background and documents_found == 0:
+        wants_research = True
+    if U.COMPETITORS in u.intents and access.allows(acl.COMPETITORS) and not _tracked_competitors(registry):
+        wants_research = True
+    if wants_research and background and company.get("is_demo") and not (
+            u.needs_research or set(u.intents) - {U.COMPANY}):
+        # A demonstration company is fictional: searching its name would find some real namesake.
+        wants_research = False
+        _status(statuses, "public_research", "not_attempted",
+                "this is a demonstration workspace with a fictional company, so its name was not searched online")
     if wants_research and enable_research and conn is not None and answerable:
         research_result = public_research.research(conn, tenant_id, registry, u.effective_question, u.intents,
                                                    u.slots, company, ask=ask, language=language,
@@ -1443,7 +1555,8 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         "answer": rendered["answer"], "answer_summary": _flag_foreign_summary(rendered["summary"], mode, language), "answer_blocks": rendered["blocks"], "references": rendered["references"],
         "sources": _legacy_sources(rendered["references"]), "follow_up_questions": rendered["follow_up_questions"],
         "calculations": [calculation] if calculation else [], "evidence_status": statuses,
-        "research": research_result.summary() if research_result else None, "state": u.state(),
+        "research": research_result.summary() if research_result else None,
+        "state": _carry_state(u.state(), profile),
         "answer_mode": mode, "token_usage": {"prompt_tokens": usage.get("prompt_tokens", 0),
                                              "completion_tokens": usage.get("completion_tokens", 0),
                                              "total_tokens": usage.get("total_tokens", 0)},

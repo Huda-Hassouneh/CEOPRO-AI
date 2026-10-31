@@ -592,14 +592,51 @@ free for this repo's usage pattern), no new external dependency.
 
 ## 19. Evidence-first advisor (current design)
 
-The chat endpoint (`routers/rag.py`) calls `rag/advisor.py::answer()`. Each
-question goes through these steps:
+The chat endpoint (`routers/rag.py`) calls `rag/advisor.py::answer()`.
+
+0. **Converse first** (`rag/conversation.py`, deterministic, no model, no
+   database). Each message is classified before any company record is read:
+   - *social* (greeting, "how are you", thanks, goodbye, "who are you / what
+     can you do", "my name is ...", "ok", "haha"): a direct reply in the
+     user's language and dialect - English (casual or formal), Modern
+     Standard Arabic, Levantine/Jordanian, Gulf, Egyptian, or Arabic typed
+     in Latin letters - with suggested next questions. Repeated letters,
+     spelling variants and one-letter typos are tolerated (a typo counts
+     only when the whole message is social, so "halal products" is never
+     "hala"). The conversation's stored topic is returned unchanged, so a
+     "thanks" mid-conversation doesn't break the next follow-up; a stated
+     name is kept in `state.profile`.
+   - *off_topic* (weather, football, jokes, recipes, poems...) with no
+     business word or "our"/"عنا": a polite scope reply. Never researched.
+   - *concept* ("what is gross margin?", "شو يعني نقطة التعادل؟") about an
+     idea, not the company's figures, a public figure or the thing just
+     discussed: explained by the model from general knowledge
+     (`GENERAL_KNOWLEDGE_PROMPT`), with **no company evidence sent**. Every
+     sentence is a `guidance` claim; the chat labels the answer "General
+     business knowledge - not taken from your company's records"
+     (`answer_mode=general_knowledge`). Outside this mode a `guidance` claim
+     is checked like a `general` one, so it can't carry unsupported figures.
+     Without a model it says so and offers company answers instead.
+   - *business*: everything else, including "hi, how many products do I
+     have?" (the greeting is removed and the question answered from the
+     records).
+
+   `answer_mode=conversation` replies use no AI capacity and are not charged
+   to the plan's allowance (`routers/rag.py::NON_CHARGEABLE_MODES`).
+
+Each business question then goes through these steps:
 
 1. **Understand** (`rag/understanding.py`): intents and slots (countries,
    period, quantity, amounts and their roles, rates, HS code, incoterm,
    URLs, products) in English and Arabic. A short follow-up inherits the
    previous turn's slots, which are stored per conversation in
-   `conversation_sessions.state`.
+   `conversation_sessions.state`. Follow-ups include corrections ("no, I
+   meant last month", "لا قصدي الشهر الماضي"), comparisons ("قارنلي إياهم مع
+   بعض" keeps the products just discussed) and topic changes ("And what about
+   our competitors?" replaces the need but keeps the period). Dialect words
+   (Egyptian "بعنا كام الشهر ده", Levantine "الغلة", "الستوك"), an attached
+   "و/ب/ل" ("والسنة الماضية", "وزعتر") and misspelt need words ("slaes",
+   "inventroy") are understood.
 2. **Authorize** (`rag/access.py`): the member's role from `tenant_users`
    maps to capabilities. Staff never receive revenue, cost or document
    evidence; anything withheld is reported as `not_permitted` rather than
@@ -614,7 +651,14 @@ question goes through these steps:
    product guide. Every item is registered in `rag/evidence.py` with its
    kind, credibility, dates and the screen or file it comes from.
 4. **Research** (`research/`) only when the question needs public
-   information, or nothing internal answers it. Queries never carry
+   information, or nothing internal answers it. That includes the company's
+   own history, founders or public presence when its documents don't cover
+   it (searched by its public name and city - never for a demonstration
+   workspace, whose company is fictional), and competitors when none are
+   tracked or the question asks what they are doing lately. The prompt asks
+   for each public fact's publisher and date, disagreements between sources
+   and the certainty of the finding, and warns that a page about a
+   same-named business may be about a different one. Queries never carry
    private figures. Official sites come first for trade and regulation.
    Pages are read only if robots.txt allows; every redirect is checked
    for private addresses; login walls and paywalls are reported, never
