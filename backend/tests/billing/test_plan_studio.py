@@ -113,6 +113,47 @@ def test_negative_margin_unsafe_annual_discount_and_neighbor_ladder_are_visible(
     assert {w['code'] for w in plan_analysis.ladder([low,high],policy)} == {'WEAK_PRICE_GAP_FOR_COST_INCREASE','COST_GROWS_FASTER_THAN_PRICE'}
 
 
+def test_canonical_ladder_uses_catalog_membership_and_order_not_legacy_or_draft_tiers():
+    plan, policy, sources = fixture()
+    analyses = []
+    # Mutable administration tier levels and input order must not change the
+    # canonical sequence. Cheap compatibility/draft rows would cause warnings.
+    for key, tier, price in [('enterprise',1,'10'), ('pro',2,'1'), ('basic',1,'1'),
+                             ('growth',9,'20'), ('standard',1,'1'), ('starter',8,'30')]:
+        p = deepcopy(plan)
+        p.update(plan_key=key, tier_level=tier, is_active=key!='growth')
+        p['prices'][0]['amount'] = price
+        analyses.append(plan_analysis.analyze(p, policy, sources))
+    warnings = plan_analysis.ladder(analyses, policy, plan_order=['starter','growth','enterprise'])
+    # Genuine canonical price inversions are still reported.
+    assert {(w['lower'], w['higher']) for w in warnings} == {('starter','growth'),('growth','enterprise')}
+    assert sum(w['code']=='NON_INCREASING_PRICE' for w in warnings) == 2
+
+
+def test_internal_allocations_are_fixed_not_tier_or_utilization_scaled():
+    from src.ai.billing import economic_catalog
+    from src.ai.billing.standard_plan_catalog import load_catalog
+    plan, policy, sources = fixture()
+    sources['feature_economics'] = economic_catalog.coverage()
+    policy['assumptions']['feature_treatments'] = {}
+    results = []
+    for template in load_catalog()['plans']:
+        p = deepcopy(plan)
+        p.update(plan_key=template['plan_key'], entitlements=template['features'])
+        p['feature_limits'] = [dict(feature_code=a['feature_key'], limit_value=a['value'])
+                               for a in template['allowances']]
+        results.append(plan_analysis.analyze(p, policy, sources))
+    assert [r['costs']['internal'] for r in results] == [Decimal('3')]*3
+    # With current canonical coverage, every inter-tier cost difference comes
+    # from the Credit pools, not the substantially larger internal capacities.
+    for r in results:
+        pools = [b for b in r['costs']['breakdown'] if b['classification']=='configured_credit_exposure']
+        for scenario in ('expected','stress'):
+            assert r['costs'][scenario] == (Decimal('3') + sum(b[scenario] for b in pools)).quantize(Decimal('.01'))
+        assert all(b['expected']==b['stress']==0 for b in r['costs']['breakdown']
+                   if b['category']=='internal_allocation')
+
+
 @pytest.mark.parametrize('patch', [dict(target_margin='NaN'),dict(minimum_margin='.5'),dict(stress_utilization='.1'),
     dict(processing_ratio='.6'),dict(usd_to_jod='0'),dict(fx_source=''),dict(annual_allowance_cycles=0),dict(rounding_jod='.013')])
 def test_invalid_policy_rejected(patch):
@@ -178,6 +219,37 @@ def test_analysis_simulation_and_history_cannot_reprice_or_grant_rights(owner_cl
     assert frozen['source_hash'] == original.json()['sourceHash']
     assert client.post(URL+'/analyze',json={'plan_key':'starter','simulation':{'limits':{'imaginary_feature':1}}}).status_code == 422
     assert client.post(URL+'/analyze',json={'plan_key':'starter','simulation':{'limits':{'ai_credits':-1}}}).status_code == 422
+
+
+def test_canonical_neighbors_exclude_history_and_owner_drafts_without_hiding_or_changing_them(owner_client, owner_db):
+    client, _ = owner_client
+    draft = 'draft_'+uuid4().hex[:12]
+    created = client.post('/platform/billing/plans', json=dict(plan_key=draft, display_name='Unrelated draft',
+        display_name_ar='Unrelated draft AR', tier_level=2, trial_days=0, monthly_price='1',
+        reason='SYNTHETIC comparison isolation'))
+    assert created.status_code==201, created.text
+    tables = ['usage_plans','usage_plan_limits','usage_plan_entitlements','billing_plan_prices',
+              'billing_subscriptions','tenant_plan_assignments','usage_ledger','keel_platform_audit']
+    def snapshot():
+        return {t:rows(owner_db,f'SELECT to_jsonb(r) FROM {t} r ORDER BY to_jsonb(r)::text') for t in tables}
+    sources = client.get(URL).json()
+    assert {'standard','pro',draft} <= {p['plan_key'] for p in sources['plans']}
+    catalog = client.get('/platform/billing/plan-templates').json()
+    assert client.post(URL+'/policies',json=policy_body(sources)).status_code==201
+    before = snapshot()
+    for selected in ['starter','growth','enterprise',draft,'pro']:
+        response = client.post(URL+'/analyze', json={'plan_key':selected})
+        assert response.status_code==200, response.text
+        result = response.json()
+        assert result['plan']['plan_key']==selected
+        assert [n['planKey'] for n in result['neighbors']]==['starter','growth','enterprise']
+        assert all((w['lower'],w['higher']) in [('starter','growth'),('growth','enterprise')]
+                   for w in result['ladderWarnings'])
+        assert result['evidence']['comparisonCatalog']==dict(version=catalog['catalog_version'],
+            planKeys=['starter','growth','enterprise'])
+    assert snapshot()==before
+    history = client.get(URL+'/history').json()['analyses']
+    assert any(h['snapshot']['plan']['plan_key']==draft for h in history)
 
 
 @pytest.mark.parametrize('role',['owner','admin','staff'])

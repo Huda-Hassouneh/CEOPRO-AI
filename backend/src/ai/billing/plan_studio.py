@@ -9,7 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 from psycopg2.extras import Json
 
-from src.ai.billing import plan_analysis, economic_catalog
+from src.ai.billing import plan_analysis, economic_catalog, standard_plan_catalog
 
 
 class Assumptions(BaseModel):
@@ -125,11 +125,18 @@ def run_analysis(conn, body):
         if set(simulation['limits']) - limits or set(simulation.get('entitlements') or []) - modules:
             raise ValueError('Simulation must use supported plan quantities and entitlements')
     result = plan_analysis.analyze(plan, policy, sources, simulation)
-    neighbors = [plan_analysis.analyze(p, policy, sources) for p in sources['plans']]
+    # self_serve also includes compatibility identities and owner drafts.
+    # Compare current tiers using installed catalog membership/order, while
+    # retaining every plan in the owner inputs for individual analysis.
+    catalog = standard_plan_catalog.installed_catalog(conn)
+    plan_order = [p['plan_key'] for p in sorted(catalog['plans'], key=lambda p: p['tier_level'])]
+    by_key = {p['plan_key']: p for p in sources['plans']}
+    neighbors = [plan_analysis.analyze(by_key[key], policy, sources) for key in plan_order if key in by_key]
     result['neighbors'] = [{'planKey': p['plan']['plan_key'], 'pricing': p['pricing'], 'costs': p['costs'], 'status': p['status']} for p in neighbors]
-    result['ladderWarnings'] = plan_analysis.ladder(neighbors, policy)
+    result['ladderWarnings'] = plan_analysis.ladder(neighbors, policy, plan_order=plan_order)
     result['asOf'] = sources['as_of']
     result['evidence'] = {'providerSchedules': sources['provider_rates'], 'observations': sources['observations'],
+                          'comparisonCatalog': {'version': catalog['catalog_version'], 'planKeys': plan_order},
                           'creditPolicy': sources['credit_policy'], 'window': sources['observation_window'],
                           'featureEconomics': sources['feature_economics'],
                           'providerReadiness': economic_catalog.readiness(sources['provider_rates'], as_of=sources['as_of'][:10],

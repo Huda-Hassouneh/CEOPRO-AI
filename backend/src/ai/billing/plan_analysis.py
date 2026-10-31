@@ -227,8 +227,12 @@ def analyze(plan, policy, sources, simulation=None):
     return out
 
 
-def ladder(analyses, policy):
-    ordered = sorted(analyses, key=lambda x: x['plan']['tier_level'])
+def ladder(analyses, policy, *, plan_order=None):
+    if plan_order is None:
+        ordered = sorted(analyses, key=lambda x: x['plan']['tier_level'])
+    else:
+        by_key = {a['plan']['plan_key']: a for a in analyses}
+        ordered = [by_key[key] for key in plan_order if key in by_key]
     warnings = []
     for low, high in zip(ordered, ordered[1:]):
         if not low.get('pricing') or not high.get('pricing'):
