@@ -11,6 +11,7 @@ import httpx
 from src.market_scraper.market_discovery import industries
 from src.market_scraper.market_discovery.http import request_json
 from src.market_scraper.market_discovery.models import Candidate, DiscoveryQuery, ProviderResult
+from src.ai.core.env_secret import secret
 
 logger = logging.getLogger("APEX_MARKET_DISCOVERY")
 NAME = "apify_google_maps"
@@ -20,7 +21,7 @@ MAX_PLACES = int(os.getenv("APIFY_MAX_PLACES_PER_SEARCH", "40"))
 
 
 def _token():
-    return os.getenv("APIFY_API_TOKEN") or os.getenv("APIFY_TOKEN")  # APIFY_TOKEN: the older name
+    return secret("APIFY_API_TOKEN", "APIFY_TOKEN") or None  # APIFY_TOKEN: the older name
 
 
 def available():

@@ -1,7 +1,7 @@
 """
 KEEL - operator-owned provider keys: setup status, connection test, one-time alert.
 
-Provider keys (Google Places, YouTube, Apify) belong to the service operator and
+Provider keys (Groq, Tavily, Google Places, YouTube, Apify) belong to the service operator and
 live in environment settings only (docs/SECRETS.md). Nothing here reads a key
 out to a caller: status reports "configured or not" and the variable NAME, a
 connection test returns one fixed word, and an alert names the provider and the
@@ -16,6 +16,8 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from urllib.parse import urlsplit
+
 import httpx
 
 logger = logging.getLogger("CEOPRO_PROVIDER_SETUP")
@@ -27,6 +29,18 @@ ALERT_CODES = ("CREDENTIALS_REJECTED", "QUOTA_EXHAUSTED")
 
 # provider -> what it is for, the variable(s) to set (first is the preferred name), and a cost note.
 PROVIDERS: Dict[str, dict] = {
+    "groq": {
+        "label": "Groq (AI model)",
+        "unlocks": "AI-written assistant answers, analyses and summaries.",
+        "env": ("GROQ_API_KEY",),
+        "cost": "Billed by Groq per token. The test lists the models and asks the configured one for a one-word answer.",
+    },
+    "tavily": {
+        "label": "Tavily (web search)",
+        "unlocks": "Public research in assistant answers, competitor news and web discovery.",
+        "env": ("TAVILY_API_KEY",),
+        "cost": "1,000 free searches a month, then billed per search. The test runs one basic search (1 credit).",
+    },
     "google_places": {
         "label": "Google Places",
         "unlocks": "Competitor discovery, competitor details and the first Google reviews.",
@@ -43,7 +57,7 @@ PROVIDERS: Dict[str, dict] = {
         "label": "Apify",
         "unlocks": "Competitor discovery through Google Maps, reviews beyond five, and prices from social posts.",
         "env": ("APIFY_API_TOKEN", "APIFY_TOKEN"),
-        "cost": "Every run is billed to the Apify account. The test only reads the account and is free.",
+        "cost": "Every run is billed to the Apify account. The test only reads the account (or, for a restricted token, its actor list) and is free.",
     },
 }
 
@@ -57,11 +71,9 @@ def is_operator(email: Optional[str], email_verified: bool) -> bool:
 
 
 def _key(provider: str) -> str:
-    for name in PROVIDERS[provider]["env"]:
-        value = (os.getenv(name) or "").strip()
-        if value:
-            return value
-    return ""
+    from src.ai.core.env_secret import secret
+
+    return secret(*PROVIDERS[provider]["env"])
 
 
 def _redis():
@@ -129,16 +141,76 @@ def _test_youtube(key: str) -> str:
     return "rejected" if response.status_code in (400, 401, 403) else "error"
 
 
-def _test_apify(key: str) -> str:
-    response = httpx.get("https://api.apify.com/v2/users/me", headers={"Authorization": f"Bearer {key}"}, timeout=TIMEOUT)
-    return _classify_http(response.status_code)
+def _test_apify(key: str, evidence: Optional[dict] = None) -> str:
+    """A restricted ("scoped") Apify token may not read the account: Apify answers 403 insufficient-permissions
+    for /users/me although the token is valid. Its actor list then tells a valid token (200) from a bad one."""
+    evidence = {} if evidence is None else evidence
+    headers = {"Authorization": f"Bearer {key}"}
+    response = httpx.get("https://api.apify.com/v2/users/me", headers=headers, timeout=TIMEOUT)
+    evidence["account_http"] = response.status_code
+    if response.status_code != 403:
+        return _classify_http(response.status_code)
+    actors = httpx.get("https://api.apify.com/v2/acts", params={"limit": 1}, headers=headers, timeout=TIMEOUT)
+    evidence["actor_list_http"] = actors.status_code
+    if actors.status_code < 400:
+        evidence["actors_total"] = ((actors.json() or {}).get("data") or {}).get("total")
+        return "valid_restricted"
+    return "rejected" if actors.status_code in (401, 403) else _classify_http(actors.status_code)
 
 
-_TESTS = {"google_places": _test_google_places, "youtube": _test_youtube, "apify": _test_apify}
+def _test_groq(key: str, evidence: Optional[dict] = None) -> str:
+    """The key, the configured model being available to it, and a real answer from that model."""
+    from src.ai.rag import llm_client
+
+    evidence = {} if evidence is None else evidence
+    headers = {"Authorization": f"Bearer {key}"}
+    models = httpx.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=TIMEOUT)
+    evidence["models_http"] = models.status_code
+    if models.status_code >= 400:
+        return _classify_http(models.status_code)
+    available = {m.get("id") for m in (models.json() or {}).get("data") or []}
+    evidence.update(models=len(available), model=llm_client.MODEL_NAME)
+    if llm_client.MODEL_NAME not in available:
+        return "model_unavailable"
+    answer = httpx.post(llm_client.GROQ_API_URL, headers=headers, timeout=30, json={
+        "model": llm_client.MODEL_NAME, "max_tokens": 256,
+        "messages": [{"role": "user", "content": "Reply with the single word OK."}],
+    })
+    evidence["answer_http"] = answer.status_code
+    if answer.status_code >= 400:
+        return _classify_http(answer.status_code)
+    choices = (answer.json() or {}).get("choices") or []
+    text = ((choices[0].get("message") or {}).get("content") or "").strip() if choices else ""
+    evidence["answer"] = text[:40]
+    return "valid" if text else "error"
+
+
+def _test_tavily(key: str, evidence: Optional[dict] = None) -> str:
+    """One real basic search. Tavily answers 432/433 when the plan's or the pay-as-you-go limit is reached."""
+    evidence = {} if evidence is None else evidence
+    response = httpx.post("https://api.tavily.com/search", headers={"Authorization": f"Bearer {key}"}, timeout=TIMEOUT,
+                          json={"query": "Amman restaurant prices", "max_results": 1, "search_depth": "basic"})
+    evidence["search_http"] = response.status_code
+    if response.status_code in (432, 433):
+        return "quota_exhausted"
+    if response.status_code >= 400:
+        return _classify_http(response.status_code)
+    results = (response.json() or {}).get("results")
+    if results is None:
+        return "error"
+    evidence["results"] = len(results)
+    if results:
+        evidence["first_source"] = urlsplit(results[0].get("url") or "").hostname
+    return "valid"
+
+
+_TESTS = {"groq": _test_groq, "tavily": _test_tavily, "google_places": _test_google_places, "youtube": _test_youtube,
+          "apify": _test_apify}
 
 
 def test_connection(provider: str) -> str:
-    """valid | rejected | quota_exhausted | not_configured | error | too_soon. One cheap real call; never returns provider text."""
+    """valid | valid_restricted | rejected | quota_exhausted | model_unavailable | not_configured | error | too_soon.
+    A cheap real call (two or three for Groq and a restricted Apify token); never returns provider text."""
     if provider not in PROVIDERS:
         raise KeyError(provider)
     key = _key(provider)
@@ -154,7 +226,7 @@ def test_connection(provider: str) -> str:
     except Exception as exc:  # noqa: BLE001 - the exception text can carry the request URL, and so the key
         logger.warning("provider test %s failed: %s", provider, type(exc).__name__)
         return "error"
-    if result == "valid":
+    if result in ("valid", "valid_restricted"):
         try:
             client = _redis()
             for code in ALERT_CODES:

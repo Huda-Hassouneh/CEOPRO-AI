@@ -23,6 +23,11 @@ ERROR, WARNING = "error", "warning"
 IGNORED_NAMES = ("CLOUDFLARE_ACCOUNTS", "HUGGINGFACE_API_TOKENS", "GEMINI_API_KEYS", "TOGETHER_API_KEYS",
                  "HORDE_API_KEYS", "POLLINATIONS_API_KEYS")
 
+# Provider keys whose pasted shape (spaces, quotes, a "Bearer " prefix) is checked: names only, never values.
+KEY_SETTINGS = ("GROQ_API_KEY", "TAVILY_API_KEY", "BRAVE_SEARCH_API_KEY", "APIFY_API_TOKEN", "APIFY_TOKEN",
+                "GOOGLE_PLACES_API_KEY", "GOOGLE_MAPS_API_KEY", "YOUTUBE_API_KEY", "PAID_LLM_API_KEY",
+                "HUGGINGFACE_API_TOKEN")
+
 # Settings that must be set together.
 PAIRS = (
     ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"),
@@ -207,6 +212,12 @@ def check_environment() -> List[Finding]:
             add(WARNING, missing, f"must be set together with {first if missing == second else second}")
     if _env("STRIPE_SECRET_KEY").startswith("sk_live_") and not is_deployed:
         add(WARNING, "STRIPE_SECRET_KEY", "is a live key outside staging/production - use an sk_test_ key")
+    from src.ai.core.env_secret import shape_problem
+
+    for name in KEY_SETTINGS:
+        problem = shape_problem(name)
+        if problem:
+            add(WARNING, name, problem)
     for name in IGNORED_NAMES:
         if _env(name):
             add(WARNING, name, "is not read by KEEL (see KEYS_AND_ACCOUNTS_NEEDED.md for the right name) - remove it")
