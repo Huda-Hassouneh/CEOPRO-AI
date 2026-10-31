@@ -7,8 +7,10 @@ touched. Scripts: `backend/scripts/pentest/multitenant/` (how to re-run is in it
 **Result: no cross-company leak of business data, unauthorized change or decision contamination was found through
 the API or the assistant, in either direction.** Four weaknesses were confirmed: three at the database layer, where
 the database itself did not enforce the separation the application code already applied, and one 1-bit disclosure
-of another company's billing state to a token whose user is not a member of that company. All four are fixed, with
-regression tests, and every test was re-run afterwards (see Fixes). Some checks could not run here, mainly
+of another company's billing state to a token whose user is not a member of that company. A second test with
+twin companies (Decision-safety test) found that the two get identical, independent decisions, and found one
+dangerous decision: a single mistyped sales row made the system advise ordering ~190 times the stock needed
+(Fix 5). All five are fixed, with regression tests, and every test was re-run afterwards (see Fixes). Some checks could not run here, mainly
 the live language model and the semantic embedding model; they are listed under Not verified.
 
 ## The two companies
@@ -111,6 +113,51 @@ never returns another company's chunk; billing status says nothing about a compa
 | `legit.py` (legitimate use) | sign-up, sign-in, email verification, invitation of a new and of an existing account (lookup + accept), workspace switch, password reset (code, verify, reset, sign in with the new password), forecasts for both companies: all 200 |
 | Full backend suite | 2,757 passed (2,745 before + 12 new). 13 failed and 3 collection errors, **the same set before and after**, all from this sandbox lacking `torch` and the Hugging Face models |
 | Migration | applies on a fresh database and on one with data; re-runs as a no-op; the rollback file applies and the migration re-applies after it |
+
+## Decision-safety test: twin companies (2026-10-30)
+
+Question: can the system give either company a **dangerous or unfair decision**, not only leak data?
+`backend/scripts/pentest/multitenant/decisions.py` creates two new coffee companies, C and D, as exact twins
+(10 products with the same prices, costs, stock, 120 days of identical sales, reviews and competitor prices).
+It collects 45 decisions per company: forecast and price recommendation per product, product intelligence,
+command center, restock advice, inventory, forecast views, alerts, campaign suggestions, price comparisons and
+4 assistant answers.
+
+**Phase 1, fairness.** Twins with identical data must get identical decisions: **0 of 45 differed**, and a
+repeat run gave the same results (no randomness).
+
+**Phase 2, dangerous situations applied to C only**, one product each, each with a known safe answer. D's
+45 decisions must not move: **D unchanged**.
+
+| # | Situation | Safe answer | Result |
+|---|---|---|---|
+| S1 | Two competitors dump Yirgacheffe at 0.45-0.50 (our cost 3.10, price 8.75) | never below cost + 10% (3.41), at most -15% | kept 8.75 |
+| S2 | Product sold below cost (price 10.00, cost 12.00) | never lower; move to the margin floor | raised to 13.20 (the margin floor wins over the 15% cap, by design) |
+| S3 | One mistyped day: 50,000 units instead of ~8 | forecast and restock not driven by the typo | **FAILED, fixed (Fix 5)** |
+| S4 | Out of stock, steady demand | restock flagged, never "reduce" | restock 425, high priority |
+| S5 | 60 one-star reviews in two days, sales unchanged | no price cut over 15%, no "discontinue" | price kept, no such advice |
+| S6 | Competitor 10× more expensive | no jump over +15% | 11.50 (+15%) |
+| S7 | Cost unknown, competitor cheaper | within 15% | kept 5.00 |
+| S8 | Market below our safe floor | never below cost + 10% | kept 7.00 |
+| S9 | Competitor price entered as 1.00 **USD** | not read as 1.00 JOD | kept 12.00 |
+| - | Every product | change ≤ 15%, never below cost + 10% (unless already sold at a loss) | all pass |
+
+### Fix 5 (High for the customer): one mistyped sales row caused a huge restock order
+
+**Reproduced**: after one sales row of 50,000 units for a product that sells ~8 a day, the 30-day forecast
+went from 225 to **43,082 units**. The dashboard, command center and a red "danger" alert all told the owner to
+**"RESTOCK NOW 42,932 units"**, with 944,504 JOD of "revenue impact". An owner who trusted it would have bought
+about 190 times the stock needed. **Root cause**: the forecast used every sales day as recorded; nothing checked
+whether a day was plausible. **Fix** (`backend/src/ai/forecasting/pipeline.py::cap_isolated_outliers`): before
+forecasting, a day above 10× the product's median selling day is capped to that level when such days are rare
+(at most 2% of selling days, with at least 14 selling days of history). Many high days (a real surge, a new
+best-seller, a season) are kept as they are. The forecast explanation names the capped days and asks the owner
+to check them for a typing error or a one-off bulk order. **After the fix**: forecast 277, restock 127,
+27/27 rules pass, twins still identical, D still unchanged. Tests: 3 in `backend/src/ai/tests/test_pipeline.py`
+(fail without the fix); full suite 2,760 passed, with the same environmental failures as before.
+
+**Not covered by this test**: the language model's own wording of advice (key rejected here; the assistant
+answers were compared in evidence mode) and marketing claims written by the model.
 
 ## Observations (not changed)
 

@@ -31,6 +31,32 @@ INTERMITTENT_ZERO_DAY_SHARE = 0.6
 _TOTAL_BACKTEST_WINDOWS = 4
 BLEND_MIN_HISTORY_DAYS = 60
 
+# Isolated extreme days (a mistyped quantity, one bulk order) are capped before
+# forecasting. Found in the decision-safety test: one row of 50,000 units for a
+# product selling ~8 a day turned the 30-day forecast into 43,082 units and the
+# restock advice into "order 42,932 now". A day is extreme when it is above
+# OUTLIER_MULTIPLE x the product's median selling day; it is capped only when
+# such days are rare (at most OUTLIER_MAX_SHARE of selling days, and at least 14
+# selling days to judge by), so a real surge spread over many days is kept.
+OUTLIER_MULTIPLE = 10.0
+OUTLIER_MAX_SHARE = 0.02
+OUTLIER_MIN_SELLING_DAYS = 14
+
+
+def cap_isolated_outliers(daily: pd.DataFrame) -> tuple:
+    """Returns (daily with isolated extreme days capped, [{date, quantity, used}])."""
+    selling = daily.loc[daily["quantity"] > 0, "quantity"]
+    if len(selling) < OUTLIER_MIN_SELLING_DAYS:
+        return daily, []
+    ceiling = float(selling.median()) * OUTLIER_MULTIPLE
+    extreme = daily["quantity"] > ceiling
+    if not extreme.any() or extreme.sum() > max(1, int(len(selling) * OUTLIER_MAX_SHARE)):
+        return daily, []
+    capped = daily.copy()
+    capped.loc[extreme, "quantity"] = ceiling
+    return capped, [{"date": row["date"].date().isoformat(), "quantity": float(row["quantity"]), "used": round(ceiling, 3)}
+                    for _, row in daily[extreme].iterrows()]
+
 
 def _best_baseline(history: pd.Series, horizon_days: int, with_error: bool = False) -> tuple:
     """Picks the baseline that best predicted past horizon TOTALS (the number
@@ -217,6 +243,7 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
         logger.info(f"No data for tenant={tenant_id} product={product_id}; recorded UNKNOWN evidence={evidence_id}")
         return {"status": "UNKNOWN", "evidence_id": evidence_id}
 
+    daily, capped_days = cap_isolated_outliers(daily)
     sufficiency = cold_start.assess(daily)
     product_context = data_access.load_product_context(conn, tenant_id, product_id) or {}
     current_price = product_context.get("current_price")
@@ -277,6 +304,13 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
             f"(available_days={sufficiency.available_days}, minimum_required={sufficiency.minimum_required})."
         )
 
+    if capped_days:
+        listed = ", ".join(f"{d['date']}: {d['quantity']:g}" for d in capped_days)
+        explanation += (
+            f" {len(capped_days)} unusually large sales day(s) were counted at {capped_days[0]['used']:g} units "
+            f"instead ({listed}) - check them for a typing error or a one-off bulk order."
+        )
+
     # `spread` is a one-day error; over a horizon of independent-ish days the
     # total's error grows with sqrt(horizon), not linearly.
     total_spread = spread * float(np.sqrt(max(horizon_days, 1)))
@@ -291,6 +325,7 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
         features_used={
             "method": chosen_source,
             "horizon_days": horizon_days,
+            "capped_outlier_days": capped_days,
             "daily": [round(float(value), 3) for value in forecast_values],
             "confidence_score": confidence_score,
             "data_sufficiency": sufficiency.as_dict(),
@@ -327,4 +362,5 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
         "forecast_target_date": forecast_target_date.isoformat(),
         "confidence_score": confidence_score,
         "data_sufficiency": sufficiency.as_dict(),
+        "capped_outlier_days": capped_days,
     }
