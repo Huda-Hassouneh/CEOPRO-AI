@@ -32,6 +32,7 @@ Take a backup first. Run staging, check, then production.
 | 14 | `20261026010000_add_comments_refresh_function` | #112 | weekly comments refresh fails | |
 | 15 | `20261026020000_add_competitor_review_index` | #112 | slower review lookups | Build off-peak on a very large `reviews` table |
 | 16 | `20261027000000_add_price_premium_band_overrides` | #120 | saving an owner-set band errors | Rollback loses owner-set bands only |
+| 17 | `20261101000000_harden_cross_tenant_isolation` | `docs/SECURITY_MULTI_TENANT_TEST.md` | auth tokens, global tables and forecast model records stay open to every company at the database level | **Deploy the code first** (`db.auth_lookup_connection()` sets `app.auth_lookup`): with the old code, password reset, email verification and invitation links find no token |
 
 ## After applying
 
