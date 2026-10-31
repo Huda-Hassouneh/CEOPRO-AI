@@ -78,6 +78,7 @@ from src.market_scraper.sector_detection import (
     VERTICAL_INDUSTRY_LABELS, detect_vertical, load_business_type, resolve_tenant_geo_scope, resolve_tenant_search_radius,
 )
 from src.market_scraper.sitemap_discovery import SITEMAP_DOMAINS_BY_VERTICAL, discover_products_via_sitemap
+from src.ai.core.env_secret import secret
 from src.market_scraper.web_product_discovery import (
     discover_industry_candidates, discover_product_candidates, discover_social_profile_candidates,
 )
@@ -379,7 +380,7 @@ def discover_domain_level_competitors_for_tenant(
     # The discovery worker passes no key explicitly; the env var is the
     # production source (it was previously never read here, so Places
     # discovery was silently skipped in every deployed run).
-    google_places_api_key = google_places_api_key or os.getenv("GOOGLE_PLACES_API_KEY") or None
+    google_places_api_key = google_places_api_key or secret("GOOGLE_PLACES_API_KEY") or None
 
     # resolved_radius_km is None only for an explicit COUNTRY scope choice
     # (resolve_tenant_search_radius()'s own contract) - a radius-bounded

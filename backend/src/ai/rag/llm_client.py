@@ -59,6 +59,7 @@ import random
 import time
 
 import httpx
+from src.ai.core.env_secret import secret
 
 
 logger = logging.getLogger("CEOPRO_AI_RAG_LLM")
@@ -156,7 +157,7 @@ def provider_chain() -> list:
 
 def _configured(provider: str) -> bool:
     if provider == "groq":
-        return bool(os.getenv("GROQ_API_KEY"))
+        return bool(secret("GROQ_API_KEY"))
     if provider == "huggingface":
         return bool(HUGGINGFACE_LLM_MODEL and os.getenv("HUGGINGFACE_API_TOKEN"))
     if provider == "local":
@@ -175,7 +176,7 @@ def provider_configured() -> bool:
         # paid are "configured" once selected (the call reports the rest).
         provider = chain[0]
         if provider == "groq":
-            return bool(os.getenv("GROQ_API_KEY"))
+            return bool(secret("GROQ_API_KEY"))
         if provider == "huggingface":
             return bool(os.getenv("HUGGINGFACE_API_TOKEN"))
         return True
@@ -771,7 +772,7 @@ def _call_provider(
             raise LLMNotConfiguredError("HUGGINGFACE_LLM_MODEL is set but HUGGINGFACE_API_TOKEN is not - cannot call "
                                         "Hugging Face Inference Providers.")
     else:
-        api_key = api_key or os.getenv("GROQ_API_KEY")
+        api_key = api_key or secret("GROQ_API_KEY")
         if not api_key:
             if not using_local:
                 raise LLMNotConfiguredError("GROQ_API_KEY is not set - cannot call the LLM provider.")

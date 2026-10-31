@@ -41,6 +41,7 @@ from src.market_scraper.competitor_enrichment import enrich_tenant_competitors
 from src.market_scraper.discovery import refresh_tenant_competitors
 from src.ai.billing import credits
 from src.market_scraper.enqueue import enqueue_collection
+from src.ai.core.env_secret import secret
 from src.market_scraper.tenant_discovery import (
     discover_competitors_for_tenant, discover_domain_level_competitors_for_tenant,
 )
@@ -93,7 +94,7 @@ def discover_for_tenant(tenant_id: str) -> dict:
     # for_tenant()'s google_places_api_key param silently defaulted to
     # None on every real call, so the Places nearby-search branch could
     # never fire in production even with a valid key configured.
-    google_places_api_key = os.getenv("GOOGLE_PLACES_API_KEY") or None
+    google_places_api_key = secret("GOOGLE_PLACES_API_KEY") or None
 
     conn = data_access.get_tenant_connection(tenant_id)
     try:

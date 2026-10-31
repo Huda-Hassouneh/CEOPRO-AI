@@ -27,6 +27,7 @@ import redis
 
 from src.market_scraper import data_access, enrichment_queue, youtube_quota
 from src.market_scraper.competitor_enrichment import COMMENTS_REFRESH_DAYS, enrich_competitor, enrich_tenant_comments, enrich_tenant_competitors
+from src.ai.core.env_secret import secret
 
 STREAM = enrichment_queue.STREAM
 GROUP = "ceopro-market-enrichment"
@@ -128,7 +129,7 @@ def list_tenants_with_due_enrichment() -> list:
 def run_comments_sweep(client) -> dict:
     """Once a day: queue the weekly comments refresh for tenants that have comments gone stale. Never raises."""
     marker = f"market.comments.sweep:{datetime.now(timezone.utc):%Y%m%d}"
-    if not os.getenv("YOUTUBE_API_KEY", "").strip() or not os.getenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "").strip():
+    if not secret("YOUTUBE_API_KEY") or not os.getenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "").strip():
         return {"skipped": "not_configured"}  # nothing can be collected, so do not queue jobs that would only say so
     try:
         if client.exists(marker):
