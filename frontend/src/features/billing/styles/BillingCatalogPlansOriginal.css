@@ -1106,6 +1106,45 @@
   padding-top: 16px;
   border-top: 1px solid var(--ceopro-border-soft);
 }
+fieldset.billing-create-plan-periods {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 16px 0 0;
+  border: 0;
+  border-block-start: 1px solid var(--ceopro-border-soft);
+}
+.billing-create-plan-form :is(.billing-catalog-permission-note, .ceopro-field-message--hint) {
+  color: var(--ceopro-text-secondary);
+}
+.billing-create-plan-form .billing-inline-error,
+.billing-plan-status-error {
+  color: color-mix(in srgb, var(--ceopro-error) 75%, #000);
+}
+.billing-create-plan-periods legend { padding: 0; }
+.billing-create-plan-period {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: var(--ceopro-font-size-label);
+}
+.billing-plan-copy {
+  display: block;
+  max-inline-size: 24rem;
+  min-inline-size: 8rem;
+  overflow-wrap: anywhere;
+}
+.billing-plan-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.billing-plan-configuration .ceopro-badge {
+  max-inline-size: 16rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .billing-catalog-option-list {
   display: grid;
   gap: 10px;

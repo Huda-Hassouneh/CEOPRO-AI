@@ -113,6 +113,12 @@ def test_owner_creates_and_configures_a_new_plan_through_restricted_role_without
             assert created["plan"]["plan_key"] == plan_key
             assert Decimal(str(created["prices"][0]["amount"])) == Decimal("79.00")
             assert Decimal(str(created["prices"][1]["amount"])) == Decimal("829.50")
+            cur.execute("SAVEPOINT incomplete_activation")
+            with pytest.raises(psycopg2.errors.InvalidParameterValue):
+                cur.execute("SELECT public.billing_owner_catalog_command(%s::jsonb)", (Json({
+                    "action": "status", "plan_key": plan_key, "active": True, "reason": "Verify incomplete guard",
+                }),))
+            cur.execute("ROLLBACK TO SAVEPOINT incomplete_activation")
             for code, limit in (("ai_credits", 700), ("data_credits", 900), ("monthly_reports", 25)):
                 command = {"action":"feature","plan_key":plan_key,"feature_code":code,
                            "included":True,"limit_value":limit,"reason":"Disposable feature assignment"}
@@ -129,6 +135,10 @@ def test_owner_creates_and_configures_a_new_plan_through_restricted_role_without
             active_plan = next(row for row in active_model["plans"] if row["plan_key"] == plan_key)
             assert active_plan["is_active"] is True
             assert active_plan["configuration_status"] == "STRIPE_SETUP_REQUIRED"
+            from src.ai.billing.service import _price_or_error, BillingError
+            with pytest.raises(BillingError) as unsynced:
+                _price_or_error(app, plan_key, "monthly")
+            assert unsynced.value.code == "price_not_synced"
             app.commit()
 
     with closing(psycopg2.connect(database_url)) as admin, admin:
@@ -157,3 +167,32 @@ def test_owner_creates_and_configures_a_new_plan_through_restricted_role_without
     with closing(psycopg2.connect(database_url)) as admin, admin:
         with admin.cursor() as cur:
             cur.execute("UPDATE public.keel_platform_members SET role_key='owner' WHERE user_id=%s", (actor,))
+
+    # Exercise the real HTTP boundary too; Stripe is never contacted by these routes.
+    from fastapi.testclient import TestClient
+    from src.ai.main import app as api
+    from src.ai.core.security import create_access_token
+    headers = {"Authorization": "Bearer " + create_access_token(str(tenant), str(actor), email_verified=True)[0]}
+    with TestClient(api) as client:
+        assert client.post("/platform/billing/plans", json=payload, headers=headers).status_code == 409
+        assert client.post("/platform/billing/plans", json={**payload, "plan_key": "custom"}, headers=headers).status_code == 422
+        http_key = plan_key + "_api"
+        response = client.post("/platform/billing/plans", json={**payload, "plan_key": http_key,
+            "display_name": "HTTP Owner Test", "display_name_ar": "\u062e\u0637\u0629 HTTP"}, headers=headers)
+        assert response.status_code == 201, response.text
+        assert response.json()["is_active"] is False
+        status_url = f"/platform/billing/plans/{http_key}/status"
+        command = {"active": True, "reason": "Verify HTTP activation guard"}
+        assert client.patch(status_url, json=command, headers=headers).status_code == 422
+        for code in ("ai_credits", "data_credits", "document_storage_mb", "market_intelligence"):
+            response = client.patch(f"/platform/billing/plans/{http_key}/features", json={
+                "feature_code": code, "included": True, "limit_value": None if code == "market_intelligence" else 700,
+                "reason": "Verify HTTP feature configuration",
+            }, headers=headers)
+            assert response.status_code == 200, response.text
+        assert client.patch(status_url, json=command, headers=headers).status_code == 200
+        current = client.get("/platform/billing/standard-plans", headers=headers)
+        assert current.status_code == 200
+        row = next(p for p in current.json()["plans"] if p["plan_key"] == http_key)
+        assert row["configuration_status"] == "STRIPE_SETUP_REQUIRED"
+        assert client.patch(status_url, json={**command, "active": False}, headers=headers).status_code == 200
