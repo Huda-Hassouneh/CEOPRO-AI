@@ -33,6 +33,7 @@ Take a backup first. Run staging, check, then production.
 | 15 | `20261026020000_add_competitor_review_index` | #112 | slower review lookups | Build off-peak on a very large `reviews` table |
 | 16 | `20261027000000_add_price_premium_band_overrides` | #120 | saving an owner-set band errors | Rollback loses owner-set bands only |
 | 17 | `20261118000000_add_market_menus_facet` | - | "Read delivery apps & menu photos" errors; vision reads refused (no price row) | Widens the facet check; vision price rows stay NULL until an operator prices them |
+| 18 | `20261119000000_set_groq_gpt_oss_20b_price` | `docs/CHATBOT_FIX.md` | **the assistant never writes an answer — it only lists retrieved evidence, even with a valid `GROQ_API_KEY`** (the billing gate refuses the model call while the Groq price is NULL) | Sets Groq's list price for `openai/gpt-oss-20b`; override anytime with `scripts/billing_admin set-price`. No app restart needed (price is read per request) |
 
 ## After applying
 
