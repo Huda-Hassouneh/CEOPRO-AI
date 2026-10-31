@@ -11,6 +11,7 @@ import httpx
 from src.market_scraper.market_discovery import industries
 from src.market_scraper.market_discovery.http import request_json
 from src.market_scraper.market_discovery.models import Candidate, DiscoveryQuery, ProviderResult
+from src.ai.core.env_secret import secret
 
 logger = logging.getLogger("APEX_MARKET_DISCOVERY")
 NAME = "google_places"
@@ -26,7 +27,7 @@ MAX_CALLS = int(os.getenv("GOOGLE_PLACES_MAX_CALLS_PER_RUN", "12"))
 
 
 def _key():
-    return os.getenv("GOOGLE_PLACES_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY")
+    return secret("GOOGLE_PLACES_API_KEY", "GOOGLE_MAPS_API_KEY") or None
 
 
 def available():

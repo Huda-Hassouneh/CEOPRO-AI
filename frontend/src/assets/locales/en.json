@@ -1686,6 +1686,8 @@
       "recent": "Recently reported: {{problem}}",
       "result": {
         "valid": "Valid: the provider accepted the key.",
+        "valid_restricted": "Valid: the key works. It is a restricted token that cannot read the account details, which KEEL does not need.",
+        "model_unavailable": "The key works, but the configured AI model (GROQ_MODEL) is not available to it. Set GROQ_MODEL to a model the account lists.",
         "rejected": "Rejected: the provider refused the key. Check it and that the API is enabled.",
         "quota_exhausted": "Quota used up: the key works but the limit was reached.",
         "not_configured": "Not configured: set the variable first.",

@@ -4,7 +4,7 @@ import { ApexButton, Pill, StateBlock } from '../../../shared/components/apex/Ap
 import { operatorApi } from '../api/operatorApi.js';
 import { SettingsSection } from './SettingsSection.jsx';
 
-const RESULT_TONE = { valid: 'success', rejected: 'danger', quota_exhausted: 'warning' };
+const RESULT_TONE = { valid: 'success', valid_restricted: 'success', rejected: 'danger', quota_exhausted: 'warning', model_unavailable: 'warning' };
 
 function ProviderRow({ row, t }) {
   const [result, setResult] = useState(null);

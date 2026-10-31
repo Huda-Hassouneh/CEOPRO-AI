@@ -56,6 +56,7 @@ from src.market_scraper.discovery import SOCIAL_PLATFORM_HOSTS
 from src.market_scraper.policy import is_public_http_url
 from src.ai.billing import credits
 from src.ai.core import operation_receipts
+from src.ai.core.env_secret import secret
 
 logger = logging.getLogger("CEOPRO_AI_COMPETITOR_ENRICHMENT")
 
@@ -519,7 +520,7 @@ def _reviews_outcome(conn, tenant_id, competitor_id, competitor, api_key, contex
             return STATUS_FAILED, exc.code, exc.detail, 0, None
     records = _places_review_records(place_id, details.get("reviews"))
     # The same token as competitor discovery (apify_maps.py); APIFY_TOKEN is its older name.
-    deep_token = (os.getenv("APIFY_API_TOKEN") or os.getenv("APIFY_TOKEN") or "").strip()
+    deep_token = secret("APIFY_API_TOKEN", "APIFY_TOKEN")
     if not records and not deep_token:
         return STATUS_FAILED, NO_DATA_COLLECTED, "Google returned no review text for this listing.", 0, None
 
@@ -793,7 +794,7 @@ def enrich_comments(conn, tenant_id: str, competitor_id: str, competitor: dict, 
 
 
 def _comments_outcome(conn, tenant_id, competitor_id, competitor, actor_user_id):
-    api_key = os.getenv("YOUTUBE_API_KEY", "").strip()
+    api_key = secret("YOUTUBE_API_KEY")
     if not api_key:
         return STATUS_BLOCKED, NO_CREDENTIALS, "YOUTUBE_API_KEY is not set for the service that collects comments.", 0, None
     approval = os.getenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "").strip()
@@ -921,7 +922,7 @@ def _social_content_outcome(conn, tenant_id, competitor_id, competitor, deep):
     if not profiles:
         return (STATUS_BLOCKED, COLLECTOR_NOT_ENABLED,
                 "None of this competitor's social profiles is on a platform the post reader supports (Instagram, Facebook).", 0, None)
-    token = (os.getenv("APIFY_API_TOKEN") or os.getenv("APIFY_TOKEN") or "").strip()
+    token = secret("APIFY_API_TOKEN", "APIFY_TOKEN")
     if not token:
         return STATUS_BLOCKED, NO_CREDENTIALS, "APIFY_API_TOKEN is not set for the service that reads social posts.", 0, None
     if not os.getenv("SOCIAL_CONTENT_APPROVAL_REFERENCE", "").strip():
@@ -1068,7 +1069,7 @@ def enrich_competitor(
     competitor = _load_competitor(conn, tenant_id, competitor_id)
     if competitor is None:
         raise ValueError("competitor not found for this tenant")
-    api_key = places_api_key or os.getenv("GOOGLE_PLACES_API_KEY") or None
+    api_key = places_api_key or secret("GOOGLE_PLACES_API_KEY") or None
 
     results: dict = {}
     profile_changed = False
@@ -1131,7 +1132,7 @@ def enrich_tenant_comments(conn, tenant_id: str, reserve, max_age_days: Optional
     30 days, so this keeps them continuous. Each competitor costs one YouTube search (100 quota units): `reserve()`
     is asked first and returns False once the day's search budget is spent, which ends the run (tomorrow's run
     resumes). A rejected key or exhausted quota also ends it. Never collects without a key and the recorded approval."""
-    if not os.getenv("YOUTUBE_API_KEY", "").strip() or not os.getenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "").strip():
+    if not secret("YOUTUBE_API_KEY") or not os.getenv("EXTERNAL_COMMENTS_APPROVAL_REFERENCE", "").strip():
         return {"refreshed": 0, "stopped": "not_configured"}
     max_age_days = COMMENTS_REFRESH_DAYS if max_age_days is None else max_age_days
     limit = COMMENTS_REFRESH_MAX_PER_RUN if limit is None else limit

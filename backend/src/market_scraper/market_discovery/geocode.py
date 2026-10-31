@@ -9,6 +9,7 @@ import httpx
 
 from src.market_scraper.market_discovery import cities
 from src.market_scraper.market_discovery.http import request_json
+from src.ai.core.env_secret import secret
 
 logger = logging.getLogger("APEX_MARKET_DISCOVERY")
 NOMINATIM_URL = os.getenv("NOMINATIM_URL", "https://nominatim.openstreetmap.org/search")
@@ -17,7 +18,7 @@ GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
 
 def _google(city, country_code):
-    key = os.getenv("GOOGLE_PLACES_API_KEY") or os.getenv("GOOGLE_MAPS_API_KEY")
+    key = secret("GOOGLE_PLACES_API_KEY", "GOOGLE_MAPS_API_KEY") or None
     if not key:
         return None
     params = {"address": city, "key": key}

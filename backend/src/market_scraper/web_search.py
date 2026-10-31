@@ -34,6 +34,7 @@ logger = logging.getLogger("KEEL_WEB_SEARCH")
 DEFAULT_ORDER = "google_cse,brave,tavily,searxng"
 TIMEOUT = float(os.getenv("WEB_SEARCH_TIMEOUT_SECONDS", "15"))
 from src.market_scraper.user_agent import USER_AGENT  # noqa: E402
+from src.ai.core.env_secret import secret  # noqa: E402
 
 GOOGLE_CSE_URL = "https://www.googleapis.com/customsearch/v1"
 BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
@@ -124,13 +125,13 @@ def _brave(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List
     if country:
         params["country"] = country.upper()
     payload = fetch("GET", BRAVE_URL, params=params,
-                    headers={"Accept": "application/json", "X-Subscription-Token": os.environ["BRAVE_SEARCH_API_KEY"]})
+                    headers={"Accept": "application/json", "X-Subscription-Token": secret("BRAVE_SEARCH_API_KEY")})
     return _results((payload.get("web") or {}).get("results"), "url", "description", limit)
 
 
 def _tavily(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[Result]:
     body = {"query": query, "max_results": min(limit, 20), "search_depth": "basic"}
-    payload = fetch("POST", TAVILY_URL, json=body, headers={"Authorization": f"Bearer {os.environ['TAVILY_API_KEY']}"})
+    payload = fetch("POST", TAVILY_URL, json=body, headers={"Authorization": f"Bearer {secret('TAVILY_API_KEY')}"})
     return _results(payload.get("results"), "url", "content", limit)
 
 
@@ -157,13 +158,13 @@ def _brave_news(fetch: Fetch, query: str, limit: int, country: Optional[str]) ->
     if country:
         params["country"] = country.upper()
     payload = fetch("GET", BRAVE_NEWS_URL, params=params,
-                    headers={"Accept": "application/json", "X-Subscription-Token": os.environ["BRAVE_SEARCH_API_KEY"]})
+                    headers={"Accept": "application/json", "X-Subscription-Token": secret("BRAVE_SEARCH_API_KEY")})
     return _news_results(payload.get("results"), "url", "description", "page_age", limit)
 
 
 def _tavily_news(fetch: Fetch, query: str, limit: int, country: Optional[str]) -> List[Result]:
     body = {"query": query, "max_results": min(limit, 20), "topic": "news", "days": 90}
-    payload = fetch("POST", TAVILY_URL, json=body, headers={"Authorization": f"Bearer {os.environ['TAVILY_API_KEY']}"})
+    payload = fetch("POST", TAVILY_URL, json=body, headers={"Authorization": f"Bearer {secret('TAVILY_API_KEY')}"})
     return _news_results(payload.get("results"), "url", "content", "published_date", limit)
 
 
@@ -260,7 +261,7 @@ PROVIDERS: Dict[str, Tuple[Tuple[str, ...], Callable]] = {
 def configured_providers(exclude: Tuple[str, ...] = ()) -> List[str]:
     """Configured providers in WEB_SEARCH_PROVIDERS order (unknown names ignored)."""
     order = [p.strip() for p in os.getenv("WEB_SEARCH_PROVIDERS", DEFAULT_ORDER).split(",") if p.strip()]
-    return [p for p in order if p in PROVIDERS and p not in exclude and all(os.getenv(v) for v in PROVIDERS[p][0])]
+    return [p for p in order if p in PROVIDERS and p not in exclude and all(secret(v) for v in PROVIDERS[p][0])]
 
 
 def is_configured(exclude: Tuple[str, ...] = ()) -> bool:

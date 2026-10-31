@@ -16,6 +16,8 @@
 #                    --tenant <id> adds one real, metered request
 #   ./keel check     settings vs backend/KEYS_AND_ACCOUNTS_NEEDED.md (names only),
 #                    incl. which competitor data each missing key blocks
+#   ./keel integrations [--api URL --email E]   real calls to Groq, Tavily and
+#                    Apify with this machine's keys, then the assistant end to end
 #   ./keel site-check <url>... | --db   can competitor websites be read from
 #                    this machine? (run on the server; docs/INSTALLATION.md)
 #   ./keel rag-check the assistant end to end on the running app (needs ./keel
@@ -167,6 +169,13 @@ cmd_check() {
   exec python -m scripts.check_config --db
 }
 
+cmd_integrations() {
+  need_setup
+  backend_env
+  cd backend
+  exec python -m scripts.integration_check "$@"
+}
+
 cmd_site_check() {
   need_setup
   backend_env
@@ -246,6 +255,7 @@ case "${1:-help}" in
   llm-check) shift; cmd_llm_check "$@" ;;
   check) cmd_check ;;
   site-check) shift; cmd_site_check "$@" ;;
+  integrations) shift; cmd_integrations "$@" ;;
   rag-check) cmd_rag_check ;;
-  *) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//' ;;
 esac

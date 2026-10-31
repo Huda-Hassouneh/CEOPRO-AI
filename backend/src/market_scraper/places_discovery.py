@@ -30,12 +30,12 @@ matches all return an empty list, not a guessed business name.
 """
 import json
 import logging
-import os
 import urllib.parse
 import urllib.request
 from typing import List, Optional
 from src.market_scraper.settings import USER_AGENT
 from src.market_scraper.provider_billing import metered_request
+from src.ai.core.env_secret import secret
 
 logger = logging.getLogger("CEOPRO_AI_PLACES_DISCOVERY")
 
@@ -89,7 +89,7 @@ def discover_businesses(
     Returns [] (never a guess) when GOOGLE_PLACES_API_KEY isn't set, the
     API call fails, or there are genuinely no matches.
     """
-    api_key = api_key or os.getenv("GOOGLE_PLACES_API_KEY")
+    api_key = api_key or secret("GOOGLE_PLACES_API_KEY")
     if not api_key:
         logger.info("GOOGLE_PLACES_API_KEY not set - competitor discovery via Places API skipped.")
         return []
