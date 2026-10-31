@@ -4,3 +4,14 @@
 .provider-accounting-provenance { display: inline-block; min-width: 180px; max-width: 260px; overflow-wrap: anywhere; }
 .provider-accounting-form { display: grid; gap: var(--ceopro-space-4); }
 .provider-accounting-form .billing-form-actions { display: flex; gap: var(--ceopro-space-3); justify-content: flex-end; }
+.provider-accounting-secondary { display:block; color:var(--ceopro-text-secondary); }
+.provider-accounting-status { display:inline-block; border-radius:4px; padding:.2rem .45rem; font-weight:700; background:var(--ceopro-surface-soft); }
+.provider-accounting-status.status-VERIFIED { color:#146c43; background:#e6f4ec; }
+.provider-accounting-status.status-MISSING,.provider-accounting-status.status-UNVERIFIED,.provider-accounting-status.status-STALE { color:#815709; background:#fff3cd; }
+.provider-accounting-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; min-width:270px; max-width:480px; }
+.provider-accounting-details dt { font-weight:600; }
+.provider-accounting-details dd { margin:0; overflow-wrap:anywhere; }
+.provider-accounting-readiness { margin-block:1rem; }
+.provider-accounting-readiness summary,.provider-accounting td summary { cursor:pointer; }
+.provider-accounting a { color:var(--ceopro-primary); text-decoration:underline; }
+@media(max-width:640px) { .provider-accounting-details { grid-template-columns:1fr; min-width:210px; } }

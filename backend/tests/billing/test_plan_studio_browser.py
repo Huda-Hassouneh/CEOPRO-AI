@@ -17,7 +17,7 @@ import uvicorn
 
 from src.ai import db
 from src.ai.billing import plan_studio
-from src.ai.routers import platform
+from src.ai.routers import platform, billing
 from src.ai.core.security import TenantContext, get_tenant_context
 from .test_custom_self_service_browser import port
 from .test_reconciliation_roles import restricted_runtime  # noqa: F401
@@ -44,6 +44,8 @@ def test_browser_pricing_studio(role,locale,scenario,platform_owner_context,tena
     app=FastAPI()
     app.add_middleware(CORSMiddleware,allow_origins=[ui],allow_methods=['*'],allow_headers=['*'])
     app.include_router(platform.router)
+    # Feature grouping uses the read-only customer configurator catalog.
+    app.include_router(billing.router)
     app.dependency_overrides[get_tenant_context]=lambda:TenantContext(*(platform_owner_context if role=='owner' else tenant))
     server=uvicorn.Server(uvicorn.Config(app,host='127.0.0.1',port=api_port,log_level='error'))
     thread=threading.Thread(target=server.run,daemon=True);thread.start()

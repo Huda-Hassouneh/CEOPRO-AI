@@ -19,6 +19,8 @@ import CustomPlanQuoteManager from "../components/CustomPlanQuoteManager.jsx";
 import BillingOptionsEditor from "../components/BillingOptionsEditor.jsx";
 import { ProviderAccounting } from "../../platform/ProviderAccounting.jsx";
 import { PricingStudio } from "../../platform/PricingStudio.jsx";
+import { BillingSetupGuide, BillingTabGuide } from "../components/BillingGuidance.jsx";
+import { featureUsageType, groupedFeatures } from "../components/billingFeaturePresentation.js";
 import { billingApi } from "../api/billingApi.js";
 import { getApiError, isForbiddenBillingError } from "../api/catalogPresentationErrors.js";
 import "../styles/BillingCatalogOriginal.css";
@@ -53,7 +55,7 @@ function SectionError({ error }) {
   return <p className="billing-inline-error">{getApiError(error).message}</p>;
 }
 
-function CatalogTabs({ ariaLabel, tabs }) {
+function CatalogTabs({ ariaLabel, tabs, platformMode = false }) {
   const location = useLocation();
   const requestedTab = new URLSearchParams(location.search).get("tab");
   const activeTab = tabs.find((tab) => tab.id === requestedTab) ?? tabs[0];
@@ -97,6 +99,7 @@ function CatalogTabs({ ariaLabel, tabs }) {
           </Link>
         ))}
       </nav>
+      {platformMode && <BillingTabGuide tab={activeTab.id} />}
       {activeTab.content}
     </div>
   );
@@ -1125,7 +1128,7 @@ function PlanFeatureManager({
               disabled={!available.length}
             />
             <Input
-              label={t("billing.catalog.fields.limit")}
+              label={`${t(`billing.catalog.guided.usage.${featureUsageType(selectedFeature)}`)}${selectedFeature?.unit ? ` (${selectedFeature.unit})` : ''}`}
               type="number"
               min="0"
               step="1"
@@ -1179,16 +1182,17 @@ function PlanFeatureManager({
                 )
             },
             {
-              header: t("billing.catalog.fields.limit"),
+              header: t("billing.catalog.guided.allowance"),
               render: (link) =>
                 link.feature?.type === "boolean" ? (
-                  t("billing.catalog.planFeatures.notApplicable")
+                  t("billing.catalog.guided.enabled")
                 ) : (
-                  <input
+                  <label className="billing-catalog-limit-label"><span className="billing-catalog-sr-only">{t(`billing.catalog.guided.usage.${featureUsageType(link.feature)}`)}: {locale === 'ar' ? link.feature?.name_ar || link.feature?.name : link.feature?.name}</span><input
                     className="billing-catalog-inline-input"
                     type="number"
                     min="0"
                     step="1"
+                    aria-label={`${t(`billing.catalog.guided.usage.${featureUsageType(link.feature)}`)}: ${locale === 'ar' ? link.feature?.name_ar || link.feature?.name : link.feature?.name}`}
                     value={
                       limitDrafts[link.feature_id] ?? link.limit_value ?? ""
                     }
@@ -1199,7 +1203,7 @@ function PlanFeatureManager({
                         [link.feature_id]: event.target.value
                       }))
                     }
-                  />
+                  /><span>{link.feature?.unit || ''}</span></label>
                 )
             },
             {
@@ -1857,11 +1861,12 @@ export function BillingCatalogPage({
     {
       header: t("billing.catalog.fields.name"),
       render: (feature) =>
-        locale === "ar" && feature.name_ar ? feature.name_ar : feature.name
+        <><strong>{locale === "ar" && feature.name_ar ? feature.name_ar : feature.name}</strong>
+          {(locale === 'ar' ? feature.description_ar || feature.description : feature.description) && <small className="billing-guided-secondary">{locale === 'ar' ? feature.description_ar || feature.description : feature.description}</small>}</>
     },
     {
       header: t("billing.catalog.fields.type"),
-      render: (feature) => t(`billing.catalog.featureTypes.${feature.type}`)
+      render: (feature) => t(`billing.catalog.guided.usage.${featureUsageType(feature)}`)
     },
     {
       header: t("billing.catalog.fields.unit"),
@@ -1934,8 +1939,10 @@ export function BillingCatalogPage({
           data={plans}
           columns={planColumns}
           ariaLabel={t("billing.catalog.plans.title")}
+          emptyMessage={t('billing.catalog.plans.emptyDescription')}
         />
       )}
+      {platformMode && <p className="billing-catalog-permission-note">{t('billing.catalog.guided.planAnalysisNote')}</p>}
       {!canManageAll && promosForbidden && (
         <p className="billing-catalog-permission-note">
           {t("billing.catalog.permissions.planWrite")}
@@ -1975,6 +1982,7 @@ export function BillingCatalogPage({
           data={promos}
           columns={promoColumns}
           ariaLabel={t("billing.catalog.promos.title")}
+          emptyMessage={t('billing.catalog.guided.noPromos')}
         />
       )}
     </section>
@@ -2006,12 +2014,13 @@ export function BillingCatalogPage({
         <Skeleton height="220px" variant="rectangular" />
       ) : featuresError ? (
         <SectionError error={featuresError} />
+      ) : platformMode ? (
+        features.length ? groupedFeatures(features).map(([group, rows]) => <div key={group} className="billing-feature-group">
+          <h3>{t(`billing.catalog.guided.groups.${group}`)}</h3>
+          <Table data={rows} columns={featureColumns} ariaLabel={t(`billing.catalog.guided.groups.${group}`)} />
+        </div>) : <EmptyState title={t('billing.catalog.guided.noFeatures')} description={t('billing.catalog.guided.noFeaturesHelp')} />
       ) : (
-        <Table
-          data={features}
-          columns={featureColumns}
-          ariaLabel={t("billing.catalog.features.title")}
-        />
+        <Table data={features} columns={featureColumns} ariaLabel={t("billing.catalog.features.title")} />
       )}
     </section>
   );
@@ -2108,8 +2117,10 @@ export function BillingCatalogPage({
   }
   return (
     <div className="billing-management-page billing-catalog-page" dir={dir}>
+      {platformMode && <BillingSetupGuide plans={plans} features={features} />}
       <CatalogTabs
         ariaLabel={t("billing.catalog.title")}
+        platformMode={platformMode}
         tabs={[
           {
             id: "plans",

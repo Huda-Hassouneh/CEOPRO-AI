@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { createServer } from 'vite';
 
 let vite, ProviderAccounting, I18nProvider;
@@ -15,7 +16,7 @@ test.before(async () => {
 test.after(async () => { await vite.close(); });
 function render(client) {
   return renderToStaticMarkup(React.createElement(QueryClientProvider, { client },
-    React.createElement(I18nProvider, null, React.createElement(ProviderAccounting, { canManage: true }))));
+    React.createElement(MemoryRouter, null, React.createElement(I18nProvider, null, React.createElement(ProviderAccounting, { canManage: true })))));
 }
 const key = ['platform', undefined, 'provider-accounting'];
 test('accounting page renders loading, safe failure, real schedules and missing prices', () => {
@@ -41,6 +42,7 @@ test('accounting labels are at the billing root in English and readable Arabic',
   for (const locale of ['en', 'ar']) {
     const messages = JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`, import.meta.url), 'utf8'));
     assert.ok(messages.billing.providerAccounting.title);
-    if (locale === 'ar') for (const value of Object.values(messages.billing.providerAccounting)) assert.match(value, /[\u0600-\u06ff]/);
+    const leaves = value => typeof value === 'string' ? [value] : Object.values(value).flatMap(leaves);
+    if (locale === 'ar') for (const value of leaves(messages.billing.providerAccounting)) assert.match(value, /[\u0600-\u06ff]/);
   }
 });

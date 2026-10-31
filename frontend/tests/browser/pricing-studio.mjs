@@ -4,10 +4,14 @@ import { readFileSync } from 'node:fs';
 const {APP_URL,API_URL,CHROMIUM_PATH,E2E_LOCALE,STUDIO_ROLE,STUDIO_SCENARIO}=process.env;
 if(!APP_URL?.startsWith('http://127.0.0.1:')||!API_URL?.startsWith('http://127.0.0.1:'))throw new Error('Disposable loopback runtime required');
 const t=JSON.parse(readFileSync(`src/assets/locales/${E2E_LOCALE}.json`,'utf8')).billing.pricingStudio;
+const billing=JSON.parse(readFileSync(`src/assets/locales/${E2E_LOCALE}.json`,'utf8')).billing;
+const guided=billing.catalog.guided;
 const browser=await chromium.launch({executablePath:CHROMIUM_PATH,headless:true});
 try{
  const page=await browser.newPage({viewport:{width:E2E_LOCALE==='ar'?480:1280,height:950}});
  page.setDefaultTimeout(10000);
+ const navigationWrites=[];
+ page.on('request',request=>{if(request.url().startsWith(API_URL+'/platform/billing') && request.method()!=='GET')navigationWrites.push(request.method()+' '+request.url());});
  await page.addInitScript(locale=>localStorage.setItem('ceopro_locale',locale),E2E_LOCALE);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(APP_URL+'/tests/browser/pricing-studio.html');
@@ -17,6 +21,24 @@ try{
   assert.equal(await page.evaluate(url=>fetch(url).then(r=>r.status),API_URL+'/platform/billing/pricing-studio'),403);
   assert.equal(await page.getByRole('button',{name:t.run,exact:true}).count(),0);
  }else{
+  const guide=page.locator('.billing-guided-overview');
+  await guide.getByRole('heading',{name:guided.title}).waitFor();
+  await guide.getByText(guided.setupTitle).click();
+  await guide.getByText(guided.steps.policy,{exact:true}).waitFor();
+  const nav=page.locator('.billing-catalog-tabs nav');
+  await nav.getByRole('link',{name:billing.providerAccounting.title,exact:true}).click();
+  await page.locator('.billing-tab-guide summary').click();
+  await page.locator('.billing-tab-guide').getByText(guided.tabs['provider-accounting'].purpose,{exact:true}).waitFor();
+  await page.getByText(billing.providerAccounting.operationalTitle,{exact:true}).waitFor();
+  await nav.getByRole('link',{name:billing.catalog.tabs.features,exact:true}).click();
+  await page.locator('.billing-feature-group').first().waitFor();
+  await nav.getByRole('link',{name:billing.catalog.tabs.planFeatures,exact:true}).click();
+  await page.getByRole('columnheader',{name:guided.allowance}).waitFor();
+  const allowance=page.locator('.billing-catalog-limit-label input').first();
+  await allowance.waitFor();
+  assert.ok((await allowance.getAttribute('aria-label'))?.includes(':'));
+  await nav.getByRole('link',{name:billing.catalog.tabs.plans,exact:true}).click();
+  assert.deepEqual(navigationWrites,[], 'Billing navigation must not write financial records');
   const row=page.getByRole('row').filter({has:page.getByRole('button',{name:t.analyzePricing,exact:true})}).first();
   await row.getByRole('button',{name:t.analyzePricing,exact:true}).click();
   await page.getByLabel(t.plan,{exact:true}).waitFor();
@@ -34,6 +56,7 @@ try{
     assert.equal(original.pricing,null);assert.equal(original.status,'INCOMPLETE_DATA');
     await page.getByText(t.statuses.INCOMPLETE_DATA,{exact:true}).waitFor();
     await page.getByRole('alert').filter({hasText:t.warnings.RATE_MISSING}).waitFor();
+    await page.getByRole('link',{name:t.nextSteps['provider-accounting'],exact:true}).waitFor();
   }else{
   assert.ok(original.pricing,JSON.stringify(original.warnings));
   await page.getByTestId('price-recommended').waitFor();assert.ok(await page.getByTestId('price-recommended').textContent());

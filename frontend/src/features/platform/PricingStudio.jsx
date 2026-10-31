@@ -11,7 +11,8 @@ import Skeleton from '../../shared/components/ui/Skeleton.jsx';
 import EmptyState from '../../shared/components/ui/EmptyState.jsx';
 import { platformBillingApi } from './platformBillingApi.js';
 import { EconomicReadiness } from './EconomicReadiness.jsx';
-import { ASSUMPTION_FIELDS, COVERAGE, newPolicy, policyPayload, analysisPayload } from './pricingStudio.js';
+import { BillingTabLink } from '../billing/components/BillingGuidance.jsx';
+import { ASSUMPTION_FIELDS, COVERAGE, newPolicy, policyPayload, analysisPayload, warningAction } from './pricingStudio.js';
 import './pricingStudio.css';
 
 const problem = e => e?.response?.data?.detail;
@@ -31,6 +32,7 @@ function PolicyEditor({ data, api, saved, cancel, text }) {
     <h3>{text('newPolicy')}</h3><p>{text('explicitPolicy')}</p>
     {error && <p role="alert">{error}</p>}
     <div className="pricing-studio-fields">{ASSUMPTION_FIELDS.map(key => <Input key={key} label={text('fields.'+key)}
+      hint={['target_margin','risk_buffer','stress_utilization','usd_to_jod'].includes(key) ? text('fieldHelp.'+key) : undefined}
       value={form[key]} required={key !== 'ladder_min_price_gap'} onChange={event => set(key,event.target.value)} />)}
       <Input label={text('effectiveFrom')} value={form.effective_from} required onChange={event => set('effective_from',event.target.value)} />
       <Input label={text('reason')} value={form.reason} required onChange={event => set('reason',event.target.value)} />
@@ -79,6 +81,7 @@ export function PricingStudio({ api = platformBillingApi }) {
   return <section className="pricing-studio" dir={dir}>
     <header><h2>{text('title')}</h2><p>{text('subtitle')}</p></header>
     <p className="pricing-studio-boundary" role="note">{text('analysisOnly')}</p>
+    {!data.selected_policy && <div className="pricing-studio-guidance" role="status"><strong>{text('policyNeeded')}</strong><p>{text('policyNeededHelp')}</p><Button variant="outline" onClick={()=>setEditor(true)}>{text('configurePolicy')}</Button></div>}
     <div className="pricing-studio-toolbar">
       <label>{text('plan')}<select aria-label={text('plan')} value={plan.plan_key} onChange={event => changePlan(event.target.value)}>{data.plans.map(p => <option key={p.plan_key} value={p.plan_key}>{locale==='ar'?p.display_name_ar||p.display_name:p.display_name}</option>)}</select></label>
       <label>{text('mode')}<select aria-label={text('mode')} value={mode} onChange={event => {setMode(event.target.value);analysis.reset();}}><option value="analyze">{text('analyze')}</option><option value="simulate">{text('simulate')}</option></select></label>
@@ -102,7 +105,10 @@ export function PricingStudio({ api = platformBillingApi }) {
     <EconomicReadiness data={data} text={text}/>
     {result && <>
       <div className="pricing-studio-result-heading"><h3>{text('result')}</h3><strong className={'pricing-studio-status status-'+result.status}>{text('statuses.'+result.status)}</strong><span>{text('policy')}: {result.policyVersion??'—'}</span></div>
-      {result.warnings.length>0 && <ul role="alert" className="pricing-studio-warnings">{result.warnings.map((w,i)=><li key={i}>{text('warnings.'+w.split(':')[0])}{w.includes(':')?' · '+w.split(':').slice(1).join(':'):''}</li>)}</ul>}
+      {result.warnings.length>0 && <div className="pricing-studio-guidance" role="alert"><h4>{text('resolveWarnings')}</h4><ul className="pricing-studio-warnings">{result.warnings.map((w,i)=>{
+        const code=w.split(':')[0]; const action=warningAction(code);
+        return <li key={i}>{text('warnings.'+code)}{w.includes(':')?' · '+w.split(':').slice(1).join(':'):''} {action==='policy' ? <button type="button" className="pricing-studio-inline-link" onClick={()=>setEditor(true)}>{text('newPolicy')}</button> : action==='rate-or-binding' ? <><BillingTabLink tab="custom-quotes">{text('nextSteps.custom-quotes')}</BillingTabLink> · <BillingTabLink tab="provider-accounting">{text('nextSteps.provider-accounting')}</BillingTabLink></> : action ? <BillingTabLink tab={action}>{text('nextSteps.'+action)}</BillingTabLink> : null}</li>;
+      })}</ul></div>}
       <div className="pricing-studio-summary">{['expected','stress'].map(s=><Card key={s}><span>{text('cost.'+s)}</span><strong data-testid={'cost-'+s}>{money(result.costs?.[s])}</strong><small>{result.costs?.knownSubtotalOnly?text('subtotalOnly'):text('configuredModel')}</small></Card>)}
         {['breakEven','safeMinimum','recommended','currentJod'].map(s=><Card key={s}><span>{text('pricing.'+s)}</span><strong data-testid={'price-'+s}>{money(result.pricing?.[s])}</strong></Card>)}
       </div>

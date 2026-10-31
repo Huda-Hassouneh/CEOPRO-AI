@@ -21,6 +21,15 @@ export function priceStatus(row) {
   if (/^0+(\.0+)?$/.test(decimalText(row.unit_cost_usd))) return 'zero';
   return row.cost_is_final ? 'configured' : 'nonFinal';
 }
+export function scheduleEvidence(row, readiness) {
+  if (row.unit_cost_usd == null || row.unit_cost_usd === '') return { status: 'MISSING', origin: 'unknown' };
+  const origin = /^migration |^ai-provider-pricing-|^billing-catalog-/.test(row.configured_by || '') ? 'catalog/bootstrap'
+    : row.configured_by ? 'owner/operator' : 'unknown';
+  const matched = readiness?.providers?.flatMap(path => path.rates || []).find(rate => rate.schedule_id && rate.schedule_id === row.schedule_id);
+  // The owner API has the same verification rule; its policy may additionally mark a rate stale.
+  const status = matched?.status || (row.cost_is_final && row.source && row.verified_at && String(row.verified_at).slice(0, 10) <= new Date().toISOString().slice(0, 10) ? 'VERIFIED' : 'UNVERIFIED');
+  return { status, origin };
+}
 // Keep monetary strings all the way to Pydantic Decimal; never round via Number.
 export function pricePayload(form) {
   const errors = {};

@@ -946,6 +946,7 @@ function QuoteFormModal({
 export function QuoteReviewModal({quote, onClose, api, t, locale}) {
   const {data,error,isLoading} = useSWR(quote ? ['owner-quote-review',quote.id] : null, ()=>api.getCustomPlanQuote(quote.id), swrOptions);
   const detail = data?.data;
+  const reviewReasons = detail?.pricingSnapshot?.reviewDecision?.reasons || [];
   const sections = detail ? [
     ['configuration',detail.configuration],['quantities',detail.quantities],
     ['pricingEvidence',detail.pricingSnapshot],['revisions',detail.revisions],
@@ -954,6 +955,11 @@ export function QuoteReviewModal({quote, onClose, api, t, locale}) {
   return <Modal isOpen={Boolean(quote)} onClose={onClose} maxWidth="960px" title={tr(t,'billing.catalog.legacyRestoration.reviewTitle','Quote review and evidence')} footer={<Button variant="outline" onClick={onClose}>{tr(t,'common.close','Close')}</Button>}>
     {isLoading ? <Skeleton height="220px" variant="rectangular"/> : error ? <p role="alert" className="billing-inline-error">{getApiError(error).message}</p> : detail && <div className="billing-catalog-form">
       <Card className="billing-custom-plan-price-summary"><strong>{detail.name}</strong><Badge variant={statusVariant(detail.status)}>{detail.status}</Badge><span>{tr(t,'billing.catalog.customPlans.finalPrice','Final customer price')}: {money(detail.finalPrice,detail.currency,locale)}</span></Card>
+      {reviewReasons.length > 0 && <div className="billing-custom-plan-review-reasons" role="status"><strong>{t('billing.customPlan.reviewRequired')}</strong><ul>{reviewReasons.map((reason,index)=>{
+        const [code,subject]=reason.split(':');
+        return <li key={`${reason}-${index}`}>{tr(t,`billing.customPlan.reviewReasons.${code}`,code)}{subject ? ` · ${subject}` : ''}</li>;
+      })}</ul></div>}
+      {detail.pricingSnapshot?.commercial && detail.pricingSnapshot?.payment && <p>{t('billing.catalog.guided.frozenTerms', { commercial: `${detail.pricingSnapshot.commercial.amount} ${detail.pricingSnapshot.commercial.currency}`, payment: `${detail.pricingSnapshot.payment.amount} ${detail.pricingSnapshot.payment.currency}` })}</p>}
       <p>{tr(t,'billing.catalog.legacyRestoration.activationBoundary','Approval and customer acceptance do not grant paid rights. Verified billing confirmation is required.')}</p>
       {sections.map(([key,value])=><details key={key}><summary>{tr(t,'billing.catalog.legacyRestoration.'+key,key)}</summary><pre className="billing-custom-plan-configuration">{JSON.stringify(value ?? null,null,2)}</pre></details>)}
     </div>}

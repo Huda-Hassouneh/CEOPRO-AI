@@ -3,6 +3,15 @@ export const ASSUMPTION_FIELDS = ['target_margin','minimum_margin','risk_buffer'
   'infrastructure_jod','support_jod','operations_jod','processing_ratio','processing_fixed_jod','annual_discount',
   'annual_allowance_cycles','rounding_jod','usd_to_jod','fx_source','fx_version','max_rate_age_days','ladder_min_price_gap'];
 export const COVERAGE = ['ai_credits','data_credits','ai_and_data_credits','internal_allocation','additional_external'];
+export function warningAction(code) {
+  if (['POLICY_MISSING','COST_COVERAGE_MISSING','UNBOUNDED_USAGE','MONITORING_ASSUMPTION_MISSING'].includes(code)) return 'policy';
+  if (code === 'RATE_MISSING') return 'rate-or-binding';
+  if (['RATE_UNVERIFIED','RATE_STALE'].includes(code)) return 'provider-accounting';
+  if (code === 'COST_MULTIPLIER_MISSING') return 'custom-quotes';
+  if (code === 'CREDIT_BUDGET_UNAVAILABLE') return 'plan-features';
+  if (code === 'PUBLISHED_PRICE_UNAVAILABLE') return 'plans';
+  return null;
+}
 export function newPolicy(existing) {
   const a = existing?.assumptions || {};
   return { ...Object.fromEntries(ASSUMPTION_FIELDS.map(k => [k, a[k] ?? ''])),

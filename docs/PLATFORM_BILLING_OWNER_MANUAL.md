@@ -25,6 +25,17 @@ decision support, not automatic publishing or subscriber repricing.
 
 ## Initial setup and completeness
 
+The Billing page now opens with a compact **Billing setup** guide. Expand its
+recommended workflow to move between the nine tabs. READY means the cited
+catalog record exists, not that a provider or a published price is economically
+safe. INFO means the step needs an owner review. The provider count includes
+optional alternatives, so it is not a plan completion percentage. Opening a tab
+never marks a step complete. Each tab has an expandable explanation of its
+effect and a contextual next link. Studio warning links point to the relevant
+configuration area; follow the warning's actual evidence before changing a
+rate or policy. The Provider Accounting table distinguishes rate evidence from
+credential presence, and its owner-management link opens the guarded rate editor.
+
 The installation migration workflow (`dev.ps1 migrate` for local operators)
 installs the canonical catalog. Repeated setup reconciles missing approved
 initial records; normal API requests and API-process restarts do not seed prices.
