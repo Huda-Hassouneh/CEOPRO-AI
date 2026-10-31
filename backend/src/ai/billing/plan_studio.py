@@ -1,27 +1,24 @@
 """Owner analysis use cases. Catalog/payment authorities are read-only inputs."""
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 import hashlib
 import json
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 from psycopg2.extras import Json
 
 from src.ai.billing import plan_analysis, economic_catalog, standard_plan_catalog
 
 
-class Assumptions(BaseModel):
+class CommonAssumptions(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     target_margin: Decimal = Field(ge=0, lt=1, allow_inf_nan=False)
     minimum_margin: Decimal = Field(ge=0, lt=1, allow_inf_nan=False)
     risk_buffer: Decimal = Field(ge=0, allow_inf_nan=False)
     expected_utilization: Decimal = Field(ge=0, le=1, allow_inf_nan=False)
     stress_utilization: Decimal = Field(ge=0, le=1, allow_inf_nan=False)
-    infrastructure_jod: Decimal = Field(ge=0, allow_inf_nan=False)
-    support_jod: Decimal = Field(ge=0, allow_inf_nan=False)
-    operations_jod: Decimal = Field(ge=0, allow_inf_nan=False)
     processing_ratio: Decimal = Field(ge=0, lt=1, allow_inf_nan=False)
     processing_fixed_jod: Decimal = Field(ge=0, allow_inf_nan=False)
     annual_discount: Decimal = Field(ge=0, lt=1, allow_inf_nan=False)
@@ -50,11 +47,65 @@ class Assumptions(BaseModel):
         return self
 
 
+class Assumptions(CommonAssumptions):
+    """Read-only compatibility for existing policy versions."""
+    assumptions_schema_version: Literal[1] | None = None
+    infrastructure_jod: Decimal = Field(ge=0, allow_inf_nan=False)
+    support_jod: Decimal = Field(ge=0, allow_inf_nan=False)
+    operations_jod: Decimal = Field(ge=0, allow_inf_nan=False)
+
+
+class InternalCostAssumption(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    monthly_jod: Decimal = Field(ge=0, allow_inf_nan=False)
+    status: Literal['provisional', 'approved']
+    evidence_ref: str | None = Field(default=None, max_length=2000)
+    measured_from: date | None = None
+    measured_to: date | None = None
+    note: str | None = Field(default=None, max_length=2000)
+
+    @field_validator('monthly_jod', mode='before')
+    @classmethod
+    def exact_amount(cls, value):
+        if isinstance(value, (bool, float)):
+            raise ValueError('Use an exact decimal string for monthly JOD cost')
+        return value
+
+    @model_validator(mode='after')
+    def measurement_period(self):
+        if self.measured_from and self.measured_to and self.measured_to < self.measured_from:
+            raise ValueError('Measurement end must not precede its start')
+        return self
+
+
+class InternalCostScenarios(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    expected: InternalCostAssumption
+    stress: InternalCostAssumption
+
+    @model_validator(mode='after')
+    def stress_covers_expected(self):
+        if self.stress.monthly_jod < self.expected.monthly_jod:
+            raise ValueError('Stress internal cost must not be below expected internal cost')
+        return self
+
+
+class TierAssumptions(CommonAssumptions):
+    assumptions_schema_version: Literal[2]
+    internal_costs_by_plan: dict[Literal['starter', 'growth', 'enterprise'], InternalCostScenarios]
+
+    @model_validator(mode='after')
+    def all_canonical_plans(self):
+        if set(self.internal_costs_by_plan) != {'starter', 'growth', 'enterprise'}:
+            raise ValueError('Internal assumptions are required for Standard, Plus and Pro')
+        return self
+
+
 class PolicyCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     effective_from: datetime
     reason: str = Field(min_length=1, max_length=2000)
-    assumptions: Assumptions
+    assumptions: TierAssumptions
 
     @model_validator(mode='after')
     def aware(self):
@@ -117,7 +168,8 @@ def run_analysis(conn, body):
     if policy:
         # Validate stored values as well as HTTP writes; unsafe legacy/direct SQL
         # inputs cannot silently become economic assumptions.
-        policy['assumptions'] = Assumptions.model_validate(policy['assumptions']).model_dump(mode='json')
+        model = TierAssumptions if policy['assumptions'].get('assumptions_schema_version') == 2 else Assumptions
+        policy['assumptions'] = model.model_validate(policy['assumptions']).model_dump(mode='json', exclude_none=True)
     simulation = body.simulation.model_dump() if body.simulation else None
     if simulation:
         limits = {r['feature_code'] for r in plan['feature_limits']}

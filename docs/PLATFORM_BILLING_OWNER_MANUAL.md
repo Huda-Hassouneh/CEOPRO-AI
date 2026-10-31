@@ -128,8 +128,12 @@ heavy-use economics, or simulate a different configuration before deciding.
 **Fields.** Select a plan, Analyze or Simulate mode, and an effective analysis
 policy. Simulation quantities come from actual supported plan allowances;
 module switches are entitlements. A new policy needs explicit utilization,
-margin, risk, infrastructure, support, operations, processing, rounding and FX
-assumptions. Ratios are fractions (0.35 means 35%). JOD per USD converts USD cost
+margin, risk, processing, rounding and FX assumptions. Schema-v2 policies also
+require six monthly internal-cost totals: expected and stress for Standard,
+Plus and Pro. These include allocated hosting, local processing,
+storage/backups/transfer and support/operations; exclude expenses already counted
+through Credits or other economic bindings. No amounts are filled automatically.
+Ratios are fractions (0.35 means 35%). JOD per USD converts USD cost
 and published price into JOD analysis. Record FX source/version and the reason.
 Annual allowance cycles describe a hypothetical annual contract, not an
 automatically available annual checkout option.
@@ -162,6 +166,24 @@ INCOMPLETE DATA means material inputs are absent; a known subtotal is not a full
 cost. Unverified optional alternatives in the catalog are distinct from an
 actually bound material external rate. A bounded Credit-exposure analysis does
 not certify every provider alternative or infer provider availability.
+
+Internal costs are Owner assumptions, not measured provider charges. Each value
+has Provisional or Owner approved status and optional evidence reference,
+measurement dates and note. Editing a value or its evidence resets the editor's
+status to Provisional. Stress must cover expected cost. A result using either
+provisional assumption is labeled PROVISIONAL even when it can calculate a price;
+Owner approval is an attestation, not independent verification. Internal totals
+already describe their scenarios and are not multiplied by Credit utilization.
+Longer terms multiply monthly internal costs by the number of months, preserving
+the existing Credit allowance reset rules.
+
+Legacy policies remain immutable and are not converted into tier assumptions.
+New analyses using them show INCOMPLETE DATA until the Owner saves a schema-v2
+policy. Previously saved results and hashes remain unchanged. New policy versions
+freeze the six assumptions and their evidence. Owner-created plans outside the
+canonical three do not inherit another tier's costs; missing assumptions are
+reported explicitly. Simulation changes quantities, not internal-cost estimates:
+review whether the selected plan's assumptions still cover the simulated workload.
 
 **Safe workflow/example.** Configure and verify actual costs; enter documented
 internal allocations and expected/stress utilization; analyze Pro; simulate more

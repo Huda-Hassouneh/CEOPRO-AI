@@ -1956,6 +1956,24 @@
   },
   "billing": {
     "pricingStudio": {
+      "tierInternal": {
+        "title": "Internal-cost assumptions by plan",
+        "guidance": "Include allocated hosting, local processing, storage/backups/transfer and support/operations. Exclude costs already counted through Credits or other economic bindings.",
+        "attestation": "These are Owner assumptions, not measured provider charges. Approved means Owner attestation, not independent verification. Editing a value or its evidence resets it to provisional.",
+        "plans": {"starter": "Standard", "growth": "Plus", "enterprise": "Pro"},
+        "expected": "Expected internal cost",
+        "stress": "Stress internal cost",
+        "monthly": "JOD/month",
+        "status": "Assumption status",
+        "statuses": {"provisional": "Provisional", "approved": "Owner approved"},
+        "evidence": "Internal-cost evidence and notes",
+        "evidence_ref": "Source / evidence reference (optional)",
+        "measured_from": "Measurement date / period start (optional)",
+        "measured_to": "Measurement period end (optional)",
+        "note": "Owner note (optional)",
+        "exposure": "Credit/provider exposure",
+        "simulation": "Internal-cost assumptions remain those of the selected plan. Changing simulated quantities does not automatically re-cost internal workloads."
+      },
       "catalog": {
         "title": "Economic catalog and setup completeness",
         "explanation": "Runtime-backed coverage fills unmapped features; explicit owner policy wins. Credit-funded calls are counted once. Provider alternatives below are not all required for every plan.",
@@ -2057,6 +2075,7 @@
       "rateStatuses": {"VERIFIED":"Verified","UNVERIFIED":"Unverified rate","MISSING":"Missing rate","STALE":"Stale under policy"},
       "statuses": {
         "SAFE": "SAFE UNDER CONFIGURED POLICY",
+        "PROVISIONAL": "PROVISIONAL — INTERNAL ASSUMPTIONS NOT APPROVED",
         "WARNING": "WARNING",
         "INCOMPLETE_DATA": "INCOMPLETE DATA"
       },
@@ -2110,6 +2129,8 @@
         "configured_usage_verified_rate": "Verified rate × assumed usage"
       },
       "warnings": {
+        "TIER_INTERNAL_ASSUMPTIONS_MISSING": "Tier-specific internal assumptions are not configured. Create a new policy with expected and stress costs for Standard, Plus and Pro.",
+        "INTERNAL_ASSUMPTIONS_PROVISIONAL": "The selected plan uses provisional internal-cost assumptions. This result is not ready for a commercial price decision.",
         "CREDIT_COVERAGE_CONFLICT": "Credit-funded provider costs cannot also be added as external costs.",
         "POLICY_MISSING": "No effective owner-configured policy.",
         "CREDIT_BUDGET_UNAVAILABLE": "Credit value or finite allowance unavailable",

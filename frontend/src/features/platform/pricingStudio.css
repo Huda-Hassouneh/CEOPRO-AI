@@ -12,7 +12,7 @@
 .pricing-studio-summary strong { font-size:24px; font-variant-numeric:tabular-nums; }
 .pricing-studio-status { padding:6px 12px; border-radius:5px; background:#e8edf2; color:#344454; }
 .pricing-studio-status.status-SAFE { color:#146c43; background:#e6f4ec; }
-.pricing-studio-status.status-WARNING,.pricing-studio-status.status-INCOMPLETE_DATA { color:#815709; background:#fff3cd; }
+.pricing-studio-status.status-WARNING,.pricing-studio-status.status-INCOMPLETE_DATA,.pricing-studio-status.status-PROVISIONAL { color:#815709; background:#fff3cd; }
 .pricing-studio-warnings { border:1px solid #d5b56a; padding:16px 32px; border-radius:6px; }
 .pricing-studio-guidance { border-inline-start:3px solid #b47d12; background:#fff9ea; color:#4b370b; padding:12px 16px; border-radius:6px; }
 .pricing-studio-guidance p { margin-block:.4rem; }
@@ -27,4 +27,11 @@
 .pricing-studio-modules { display:flex; gap:16px; flex-wrap:wrap; }
 .pricing-studio-modules label { display:flex; align-items:center; }
 .pricing-studio-evidence p { overflow-wrap:anywhere; }
+.pricing-studio-internal-card { margin-block:14px; }
+.pricing-studio-internal-card .pricing-studio-fields { grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr)); }
+.pricing-studio-internal-card fieldset { min-width:0; border:1px solid var(--ceopro-border); border-radius:6px; padding:12px; display:grid; align-content:start; gap:12px; }
+.pricing-studio-internal-card details .ceopro-input-wrapper { margin-block:10px; }
+.pricing-studio-cost-parts { margin:0; font-size:13px; display:grid; gap:6px; }
+.pricing-studio-cost-parts dd { margin:0 0 6px; font-variant-numeric:tabular-nums; }
+.pricing-studio-contract p { overflow-wrap:anywhere; }
 @media(max-width:640px) { .pricing-studio-toolbar>* { width:100%; } .pricing-studio-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .pricing-studio-summary strong { font-size:20px; } }

@@ -24,7 +24,7 @@ from .test_reconciliation_roles import restricted_runtime  # noqa: F401
 from .test_plan_studio import policy_body
 
 
-@pytest.mark.parametrize('role,locale,scenario',[('owner','en','complete'),('owner','ar','complete'),('tenant','en','denied'),('owner','en','missing')])
+@pytest.mark.parametrize('role,locale,scenario',[('owner','en','complete'),('owner','ar','complete'),('tenant','en','denied'),('owner','en','missing'),('owner','en','legacy'),('owner','ar','legacy')])
 def test_browser_pricing_studio(role,locale,scenario,platform_owner_context,tenant,restricted_runtime):
     root=Path(__file__).resolve().parents[3]
     chrome=next((p for p in [Path(os.environ.get('CHROMIUM_PATH','missing-chrome')),
@@ -37,7 +37,12 @@ def test_browser_pricing_studio(role,locale,scenario,platform_owner_context,tena
             # Explicit separate external cost with no binding remains missing;
             # known local feature coverage no longer needs manual discovery.
             body['assumptions']['feature_treatments']['monthly_reports']='additional_external'
-        plan_studio.create_policy(conn,plan_studio.PolicyCreate.model_validate(body))
+        if scenario=='legacy':
+            from .test_plan_internal_costs import legacy
+            body['assumptions']=legacy(body['assumptions'])
+            plan_studio.command(conn,'create_policy',body)
+        else:
+            plan_studio.create_policy(conn,plan_studio.PolicyCreate.model_validate(body))
         conn.commit()
     api_port,ui_port=port(),port()
     api,ui=f'http://127.0.0.1:{api_port}',f'http://127.0.0.1:{ui_port}'

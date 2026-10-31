@@ -16,7 +16,9 @@ URL = '/platform/billing/pricing-studio'
 
 def assumptions():
     return dict(target_margin='.4', minimum_margin='.2', risk_buffer='.1', expected_utilization='.5', stress_utilization='1',
-        infrastructure_jod='1', support_jod='1', operations_jod='1', processing_ratio='.05', processing_fixed_jod='.5',
+        assumptions_schema_version=2, internal_costs_by_plan={key:{scenario:dict(monthly_jod='3',status='approved')
+            for scenario in ('expected','stress')} for key in ('starter','growth','enterprise')},
+        processing_ratio='.05', processing_fixed_jod='.5',
         annual_discount='.1', annual_allowance_cycles=12, rounding_jod='.01', usd_to_jod='1',
         fx_source='SYNTHETIC ONLY', fx_version='test-v1', max_rate_age_days=90,
         feature_treatments={'monthly_reports': 'additional_external', 'tracked_products': 'internal_allocation',
@@ -130,7 +132,7 @@ def test_canonical_ladder_uses_catalog_membership_and_order_not_legacy_or_draft_
     assert sum(w['code']=='NON_INCREASING_PRICE' for w in warnings) == 2
 
 
-def test_internal_allocations_are_fixed_not_tier_or_utilization_scaled():
+def test_internal_allocations_use_explicit_scenarios_without_capacity_or_utilization_scaling():
     from src.ai.billing import economic_catalog
     from src.ai.billing.standard_plan_catalog import load_catalog
     plan, policy, sources = fixture()
@@ -143,7 +145,7 @@ def test_internal_allocations_are_fixed_not_tier_or_utilization_scaled():
         p['feature_limits'] = [dict(feature_code=a['feature_key'], limit_value=a['value'])
                                for a in template['allowances']]
         results.append(plan_analysis.analyze(p, policy, sources))
-    assert [r['costs']['internal'] for r in results] == [Decimal('3')]*3
+    assert [r['costs']['internalByScenario'] for r in results] == [dict(expected=Decimal('3'),stress=Decimal('3'))]*3
     # With current canonical coverage, every inter-tier cost difference comes
     # from the Credit pools, not the substantially larger internal capacities.
     for r in results:
@@ -158,7 +160,7 @@ def test_internal_allocations_are_fixed_not_tier_or_utilization_scaled():
     dict(processing_ratio='.6'),dict(usd_to_jod='0'),dict(fx_source=''),dict(annual_allowance_cycles=0),dict(rounding_jod='.013')])
 def test_invalid_policy_rejected(patch):
     with pytest.raises(ValidationError):
-        plan_studio.Assumptions.model_validate({**assumptions(), **patch})
+        plan_studio.TierAssumptions.model_validate({**assumptions(), **patch})
 
 
 def policy_body(sources, **patch):
@@ -257,11 +259,13 @@ def test_tenant_roles_cannot_use_any_studio_operation(owner_client, tenant, owne
     from src.ai.routers import platform
     from src.ai.core.security import TenantContext
     client, app = owner_client
+    policy = policy_body(client.get(URL).json())
     rows(owner_db,'UPDATE tenant_users SET role_key=%s WHERE tenant_id=%s RETURNING user_id',(role,tenant[0]))
     app.dependency_overrides[platform.get_tenant_context] = lambda: TenantContext(*tenant)
     assert client.get(URL).status_code == 403
     assert client.get(URL+'/history').status_code == 403
     assert client.post(URL+'/analyze',json={'plan_key':'starter'}).status_code == 403
+    assert client.post(URL+'/policies',json=policy).status_code == 403
     conn = billing_connections(*tenant)
     try:
         with pytest.raises(errors.InsufficientPrivilege):

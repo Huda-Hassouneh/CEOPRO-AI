@@ -28,7 +28,8 @@ def serial(value):
     return value
 
 
-def analyze(plan, policy, sources, simulation=None):
+def analyze(plan, policy, sources, simulation=None, *, replay_legacy=False):
+    """Analyze current assumptions; legacy replay is explicit and never used by HTTP analysis."""
     configuration = deepcopy(plan)
     warnings = []
     if simulation:
@@ -46,6 +47,20 @@ def analyze(plan, policy, sources, simulation=None):
         out['status'] = 'INCOMPLETE_DATA'
         return out
     a = policy['assumptions']
+    tier_specific = a.get('assumptions_schema_version') == 2
+    if not tier_specific and not replay_legacy:
+        out.update(status='INCOMPLETE_DATA', assumptionsSchemaVersion=1, policy=policy, assumptions=a)
+        warnings.append('TIER_INTERNAL_ASSUMPTIONS_MISSING')
+        return out
+    internal_assumptions = a.get('internal_costs_by_plan', {}).get(plan['plan_key']) if tier_specific else None
+    if tier_specific and not internal_assumptions:
+        out.update(status='INCOMPLETE_DATA', assumptionsSchemaVersion=2, policy=policy, assumptions=a)
+        warnings.append('TIER_INTERNAL_ASSUMPTIONS_MISSING')
+        return out
+    if tier_specific:
+        out.update(assumptionsSchemaVersion=2, internalAssumptions=internal_assumptions)
+        if any(internal_assumptions[s]['status'] == 'provisional' for s in ('expected', 'stress')):
+            warnings.append('INTERNAL_ASSUMPTIONS_PROVISIONAL')
     fx = D(a['usd_to_jod'])
     as_of = datetime.fromisoformat(sources['as_of'])
     bindings = sources.get('bindings', [])
@@ -163,14 +178,23 @@ def analyze(plan, policy, sources, simulation=None):
             bucket[scenario] += costs[scenario]
         breakdown.append({'feature': code, 'category': 'additional_external', 'classification': 'configured_usage_verified_rate',
                           'source': 'billing_custom_cost_bindings', 'calculation': result, **costs})
-    internal = D(a['infrastructure_jod']) + D(a['support_jod']) + D(a['operations_jod'])
-    cost = {s: recurring[s] + allowance[s] + internal for s in recurring}
+    if tier_specific:
+        internal = {s: D(internal_assumptions[s]['monthly_jod']) for s in recurring}
+    else:
+        legacy_internal = D(a['infrastructure_jod']) + D(a['support_jod']) + D(a['operations_jod'])
+        internal = {s: legacy_internal for s in recurring}
+    cost = {s: recurring[s] + allowance[s] + internal[s] for s in recurring}
     out.update(costs={'expected': money(cost['expected']), 'stress': money(cost['stress']),
-                     'knownSubtotalOnly': incomplete, 'internal': internal, 'breakdown': breakdown,
+                     'knownSubtotalOnly': incomplete, 'breakdown': breakdown,
                      'recurringExternal': recurring, 'periodAllowances': allowance},
                rateEvidence=evidence, policy=policy, creditPolicy=sources.get('credit_policy'),
                fx={'usdToJod': str(fx), 'source': a['fx_source'], 'version': a['fx_version']},
                assumptions=a)
+    if tier_specific:
+        out['costs'].update(internalByScenario=internal,
+            externalByScenario={s: recurring[s] + allowance[s] for s in recurring})
+    else:
+        out['costs']['internal'] = legacy_internal
     if incomplete:
         out['status'] = 'INCOMPLETE_DATA'
         return out
@@ -206,13 +230,13 @@ def analyze(plan, policy, sources, simulation=None):
         revenue = D(p['amount']) * (fx if p['currency'] == 'USD' else ONE) if p['currency'] in ('USD', 'JOD') else None
         # Actual KEEL sum allowances reset per assigned billing period; they
         # are not silently multiplied by a multi-month Stripe interval.
-        expected = (recurring['expected'] + internal) * months + allowance['expected']
-        stress = (recurring['stress'] + internal) * months + allowance['stress']
+        expected = (recurring['expected'] + internal['expected']) * months + allowance['expected']
+        stress = (recurring['stress'] + internal['stress']) * months + allowance['stress']
         periods.append({'period': p['period_code'], 'months': months, 'revenueJod': revenue,
                         'expectedCost': money(expected), 'stressCost': money(stress), **margins(revenue, expected, stress)})
     cycles = D(a['annual_allowance_cycles'])
-    annual_expected = (recurring['expected'] + internal) * 12 + allowance['expected'] * cycles
-    annual_stress = (recurring['stress'] + internal) * 12 + allowance['stress'] * cycles
+    annual_expected = (recurring['expected'] + internal['expected']) * 12 + allowance['expected'] * cycles
+    annual_stress = (recurring['stress'] + internal['stress']) * 12 + allowance['stress'] * cycles
     annual = prices(annual_expected, annual_stress)
     annual['discountedCandidate'] = round_up(pricing['recommended'] * 12 * (ONE - D(a['annual_discount'])), D(a['rounding_jod']))
     annual.update(expectedCost=money(annual_expected), stressCost=money(annual_stress),
@@ -223,7 +247,8 @@ def analyze(plan, policy, sources, simulation=None):
         warnings.append('CURRENT_PRICE_UNSAFE')
     if current is None:
         warnings.append('PUBLISHED_PRICE_UNAVAILABLE')
-    out.update(pricing=pricing, annual=annual, periods=periods, status='WARNING' if warnings else 'SAFE')
+    status = 'PROVISIONAL' if 'INTERNAL_ASSUMPTIONS_PROVISIONAL' in warnings else 'WARNING' if warnings else 'SAFE'
+    out.update(pricing=pricing, annual=annual, periods=periods, status=status)
     return out
 
 

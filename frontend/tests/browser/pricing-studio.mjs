@@ -8,7 +8,7 @@ const billing=JSON.parse(readFileSync(`src/assets/locales/${E2E_LOCALE}.json`,'u
 const guided=billing.catalog.guided;
 const browser=await chromium.launch({executablePath:CHROMIUM_PATH,headless:true});
 try{
- const page=await browser.newPage({viewport:{width:E2E_LOCALE==='ar'?480:1280,height:950}});
+ const page=await browser.newPage({viewport:{width:E2E_LOCALE==='ar'?390:1280,height:950}});
  page.setDefaultTimeout(10000);
  const navigationWrites=[];
  page.on('request',request=>{if(request.url().startsWith(API_URL+'/platform/billing') && request.method()!=='GET')navigationWrites.push(request.method()+' '+request.url());});
@@ -53,22 +53,58 @@ try{
   await row.getByRole('button',{name:t.analyzePricing,exact:true}).click();
   await page.getByLabel(t.plan,{exact:true}).waitFor();
   await page.getByLabel(t.plan,{exact:true}).selectOption('starter');
-  await page.getByRole('button',{name:t.newPolicy,exact:true}).click();
+  await page.locator('.pricing-studio-toolbar').getByRole('button',{name:t.newPolicy,exact:true}).click();
   assert.ok(await page.getByRole('option',{name:t.catalog.defaultCoverage+' · '+t.treatments.internal_allocation,exact:true}).count());
+  const editor=page.locator('.pricing-studio-policy');
+  for(const plan of ['starter','growth','enterprise'])for(const s of ['expected','stress']){
+    assert.equal(await page.getByTestId(`internal-cost-${plan}-${s}`).inputValue(),STUDIO_SCENARIO==='legacy'?'':'3');
+  }
+  if(STUDIO_SCENARIO==='complete'){
+    for(const [plan,expected,stress] of [['starter','3','5'],['growth','8','12'],['enterprise','20','30']]){
+      await page.getByTestId(`internal-cost-${plan}-expected`).fill(expected);
+      await page.getByTestId(`internal-cost-${plan}-stress`).fill(stress);
+    }
+    await editor.locator('fieldset').first().locator('summary').click();
+    await page.getByLabel(t.tierInternal.plans.starter+' · '+t.tierInternal.expected+' · '+t.tierInternal.evidence_ref,{exact:true}).fill('SYNTHETIC browser worksheet');
+    await page.getByLabel(t.reason,{exact:true}).fill('SYNTHETIC tier assumptions acceptance');
+    await editor.locator('.pricing-studio-internal-card').first().screenshot({path:process.env.SCREENSHOT_PATH.replace('.png','-editor.png')});
+    const saved=page.waitForResponse(r=>r.url()===API_URL+'/platform/billing/pricing-studio/policies'&&r.request().method()==='POST');
+    await page.getByRole('button',{name:t.savePolicy,exact:true}).click();
+    assert.equal((await saved).status(),201);
+    await editor.waitFor({state:'detached'});
+  }else{
   await page.getByRole('button',{name:t.cancel,exact:true}).click();
+  }
   await page.getByTestId('economic-readiness').locator('summary').click();
   await page.getByText(t.catalog.providers,{exact:true}).waitFor();
   assert.ok(await page.getByTestId('economic-readiness').getByText('groq / openai/gpt-oss-20b',{exact:true}).count());
   const request=()=>page.waitForResponse(r=>r.url()===API_URL+'/platform/billing/pricing-studio/analyze');
   let response=request();await page.getByRole('button',{name:t.run,exact:true}).click();
   const original=await(await response).json();
-  if(STUDIO_SCENARIO==='missing'){
+  if(STUDIO_SCENARIO==='legacy'){
+    assert.equal(original.status,'INCOMPLETE_DATA');assert.equal(original.pricing,null);assert.equal(original.costs,null);
+    await page.getByRole('alert').filter({hasText:t.warnings.TIER_INTERNAL_ASSUMPTIONS_MISSING}).waitFor();
+  }else if(STUDIO_SCENARIO==='missing'){
     assert.equal(original.pricing,null);assert.equal(original.status,'INCOMPLETE_DATA');
-    await page.getByText(t.statuses.INCOMPLETE_DATA,{exact:true}).waitFor();
+    await page.locator('.pricing-studio-result-heading').getByText(t.statuses.INCOMPLETE_DATA,{exact:true}).waitFor();
     await page.getByRole('alert').filter({hasText:t.warnings.RATE_MISSING}).waitFor();
     await page.getByRole('link',{name:t.nextSteps['provider-accounting'],exact:true}).waitFor();
   }else{
   assert.ok(original.pricing,JSON.stringify(original.warnings));
+  assert.equal(original.status,'PROVISIONAL');
+  assert.equal(original.internalAssumptions.expected.evidence_ref,'SYNTHETIC browser worksheet');
+  assert.equal(original.costs.internalByScenario.expected,'3');assert.equal(original.costs.internalByScenario.stress,'5');
+  await page.locator('.pricing-studio-result-heading').getByText(t.statuses.PROVISIONAL,{exact:true}).waitFor();
+  await page.getByTestId('cost-internal-expected').waitFor();await page.getByTestId('cost-exposure-stress').waitFor();
+  await page.locator('.pricing-studio-toolbar').getByRole('button',{name:t.newPolicy,exact:true}).click();
+  for(const plan of ['starter','growth','enterprise'])for(const s of ['expected','stress'])await page.getByTestId(`internal-status-${plan}-${s}`).selectOption('approved');
+  await page.getByLabel(t.reason,{exact:true}).fill('SYNTHETIC owner attestation');
+  const approval=page.waitForResponse(r=>r.url()===API_URL+'/platform/billing/pricing-studio/policies'&&r.request().method()==='POST');
+  await page.getByRole('button',{name:t.savePolicy,exact:true}).click();assert.equal((await approval).status(),201);
+  await page.locator('.pricing-studio-policy').waitFor({state:'detached'});
+  response=request();await page.getByRole('button',{name:t.run,exact:true}).click();
+  const approved=await(await response).json();assert.notEqual(approved.status,'PROVISIONAL');assert.ok(approved.pricing);
+  assert.equal(approved.internalAssumptions.expected.status,'approved');
   await page.getByTestId('price-recommended').waitFor();assert.ok(await page.getByTestId('price-recommended').textContent());
   await page.getByLabel(t.mode,{exact:true}).selectOption('simulate');
   await page.getByLabel('ai_credits',{exact:true}).fill('9999');
@@ -81,6 +117,7 @@ try{
   const again=await(await response).json();assert.deepEqual(again.plan,original.plan);assert.deepEqual(again.pricing,original.pricing);
   }
   assert.equal(await page.locator('.pricing-studio').getAttribute('dir'),E2E_LOCALE==='ar'?'rtl':'ltr');
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'No horizontal page overflow');
  }
  assert.deepEqual(errors,[]);
  if(STUDIO_ROLE==='owner'){

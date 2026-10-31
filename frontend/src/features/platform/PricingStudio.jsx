@@ -12,10 +12,44 @@ import EmptyState from '../../shared/components/ui/EmptyState.jsx';
 import { platformBillingApi } from './platformBillingApi.js';
 import { EconomicReadiness } from './EconomicReadiness.jsx';
 import { BillingTabLink } from '../billing/components/BillingGuidance.jsx';
-import { ASSUMPTION_FIELDS, COVERAGE, newPolicy, policyPayload, analysisPayload, warningAction } from './pricingStudio.js';
+import { ASSUMPTION_FIELDS, COVERAGE, INTERNAL_PLANS, INTERNAL_SCENARIOS, newPolicy, policyPayload, analysisPayload, warningAction } from './pricingStudio.js';
 import './pricingStudio.css';
 
 const problem = e => e?.response?.data?.detail;
+
+function InternalCostEditor({ values, onChange, text }) {
+  const update = (plan,scenario,field,value) => {
+    const entry = {...values[plan][scenario],[field]:value};
+    if (field !== 'status') entry.status = 'provisional';
+    onChange({...values,[plan]:{...values[plan],[scenario]:entry}});
+  };
+  return <section aria-label={text('tierInternal.title')}>
+    <h4>{text('tierInternal.title')}</h4><p>{text('tierInternal.guidance')}</p><p>{text('tierInternal.attestation')}</p>
+    {INTERNAL_PLANS.map(plan => <Card key={plan} className="pricing-studio-internal-card">
+      <h4>{text('tierInternal.plans.'+plan)}</h4>
+      <div className="pricing-studio-fields">{INTERNAL_SCENARIOS.map(scenario => {
+        const entry = values[plan][scenario];
+        const prefix = text('tierInternal.plans.'+plan)+' · '+text('tierInternal.'+scenario);
+        const change = (field,value) => update(plan,scenario,field,value);
+        return <fieldset key={scenario}><legend>{text('tierInternal.'+scenario)}</legend>
+          <Input label={prefix+' · '+text('tierInternal.monthly')} type="number" min="0" step="any" inputMode="decimal" dir="ltr"
+            required placeholder={text('notConfigured')} value={entry.monthly_jod}
+            data-testid={`internal-cost-${plan}-${scenario}`} onChange={event=>change('monthly_jod',event.target.value)} />
+          <label>{prefix+' · '+text('tierInternal.status')}<select value={entry.status} data-testid={`internal-status-${plan}-${scenario}`}
+            onChange={event=>change('status',event.target.value)}>
+            {['provisional','approved'].map(status=><option key={status} value={status}>{text('tierInternal.statuses.'+status)}</option>)}
+          </select></label>
+          <details><summary>{text('tierInternal.evidence')}</summary>
+            {['evidence_ref','measured_from','measured_to','note'].map(field=><Input key={field}
+              label={prefix+' · '+text('tierInternal.'+field)} type={field.startsWith('measured_')?'date':'text'}
+              maxLength={field.startsWith('measured_')?undefined:2000} value={entry[field]}
+              onChange={event=>change(field,event.target.value)} />)}
+          </details>
+        </fieldset>;
+      })}</div>
+    </Card>)}
+  </section>;
+}
 
 function PolicyEditor({ data, api, saved, cancel, text }) {
   const [form, setForm] = useState(() => newPolicy(data.selected_policy));
@@ -31,6 +65,7 @@ function PolicyEditor({ data, api, saved, cancel, text }) {
   return <form className="pricing-studio-policy" onSubmit={submit}>
     <h3>{text('newPolicy')}</h3><p>{text('explicitPolicy')}</p>
     {error && <p role="alert">{error}</p>}
+    <InternalCostEditor values={form.internal_costs_by_plan} onChange={value=>set('internal_costs_by_plan',value)} text={text}/>
     <div className="pricing-studio-fields">{ASSUMPTION_FIELDS.map(key => <Input key={key} label={text('fields.'+key)}
       hint={['target_margin','risk_buffer','stress_utilization','usd_to_jod'].includes(key) ? text('fieldHelp.'+key) : undefined}
       value={form[key]} required={key !== 'ladder_min_price_gap'} onChange={event => set(key,event.target.value)} />)}
@@ -82,6 +117,9 @@ export function PricingStudio({ api = platformBillingApi }) {
     <header><h2>{text('title')}</h2><p>{text('subtitle')}</p></header>
     <p className="pricing-studio-boundary" role="note">{text('analysisOnly')}</p>
     {!data.selected_policy && <div className="pricing-studio-guidance" role="status"><strong>{text('policyNeeded')}</strong><p>{text('policyNeededHelp')}</p><Button variant="outline" onClick={()=>setEditor(true)}>{text('configurePolicy')}</Button></div>}
+    {data.selected_policy && data.selected_policy.assumptions.assumptions_schema_version !== 2 &&
+      <div className="pricing-studio-guidance" role="status"><p>{text('warnings.TIER_INTERNAL_ASSUMPTIONS_MISSING')}</p>
+        <Button variant="outline" onClick={()=>setEditor(true)}>{text('configurePolicy')}</Button></div>}
     <div className="pricing-studio-toolbar">
       <label>{text('plan')}<select aria-label={text('plan')} value={plan.plan_key} onChange={event => changePlan(event.target.value)}>{data.plans.map(p => <option key={p.plan_key} value={p.plan_key}>{locale==='ar'?p.display_name_ar||p.display_name:p.display_name}</option>)}</select></label>
       <label>{text('mode')}<select aria-label={text('mode')} value={mode} onChange={event => {setMode(event.target.value);analysis.reset();}}><option value="analyze">{text('analyze')}</option><option value="simulate">{text('simulate')}</option></select></label>
@@ -95,7 +133,7 @@ export function PricingStudio({ api = platformBillingApi }) {
       <p>{text('included')}: {plan.entitlements.join(', ')}</p>
       <p>{text('cadenceContract')}</p>
     </details>
-    {mode==='simulate' && <Card className="pricing-studio-simulation"><h3>{text('simulate')}</h3><p>{text('simulationNote')}</p>
+    {mode==='simulate' && <Card className="pricing-studio-simulation"><h3>{text('simulate')}</h3><p>{text('simulationNote')}</p><p>{text('tierInternal.simulation')}</p>
       <div className="pricing-studio-fields">{plan.feature_limits.map(f => <Input key={f.feature_code} label={f.feature_code} type="number" min="0" step="1"
         value={Object.hasOwn(limits,f.feature_code)?limits[f.feature_code]:f.limit_value??''} onChange={event=>{setLimits({...limits,[f.feature_code]:event.target.value});analysis.reset();}} />)}
         <label>{text('refresh')}<select value={refresh} onChange={event=>{setRefresh(event.target.value);analysis.reset();}}><option value="">{text('policyAssumption')}</option>{['hourly','every_6_hours','every_12_hours','daily','weekly'].map(c=><option key={c} value={c}>{text('cadences.'+c)}</option>)}</select></label>
@@ -109,14 +147,25 @@ export function PricingStudio({ api = platformBillingApi }) {
         const code=w.split(':')[0]; const action=warningAction(code);
         return <li key={i}>{text('warnings.'+code)}{w.includes(':')?' · '+w.split(':').slice(1).join(':'):''} {action==='policy' ? <button type="button" className="pricing-studio-inline-link" onClick={()=>setEditor(true)}>{text('newPolicy')}</button> : action==='rate-or-binding' ? <><BillingTabLink tab="custom-quotes">{text('nextSteps.custom-quotes')}</BillingTabLink> · <BillingTabLink tab="provider-accounting">{text('nextSteps.provider-accounting')}</BillingTabLink></> : action ? <BillingTabLink tab={action}>{text('nextSteps.'+action)}</BillingTabLink> : null}</li>;
       })}</ul></div>}
-      <div className="pricing-studio-summary">{['expected','stress'].map(s=><Card key={s}><span>{text('cost.'+s)}</span><strong data-testid={'cost-'+s}>{money(result.costs?.[s])}</strong><small>{result.costs?.knownSubtotalOnly?text('subtotalOnly'):text('configuredModel')}</small></Card>)}
+      <div className="pricing-studio-summary">{INTERNAL_SCENARIOS.map(s=><Card key={s}><span>{text('cost.'+s)}</span><strong data-testid={'cost-'+s}>{money(result.costs?.[s])}</strong>
+        {result.costs?.internalByScenario && <dl className="pricing-studio-cost-parts">
+          <dt>{text('tierInternal.'+s)}</dt><dd data-testid={'cost-internal-'+s}>{money(result.costs.internalByScenario[s])}</dd>
+          <dt>{text('tierInternal.exposure')}</dt><dd data-testid={'cost-exposure-'+s}>{money(result.costs.externalByScenario[s])}</dd>
+        </dl>}
+        <small>{!result.costs?text('notConfigured'):result.costs.knownSubtotalOnly?text('subtotalOnly'):text('configuredModel')}</small></Card>)}
         {['breakEven','safeMinimum','recommended','currentJod'].map(s=><Card key={s}><span>{text('pricing.'+s)}</span><strong data-testid={'price-'+s}>{money(result.pricing?.[s])}</strong></Card>)}
       </div>
       {result.pricing && <Card><h3>{text('commercialComparison')}</h3><div className="pricing-studio-metrics"><span>{text('published')}: <strong>{money(result.pricing.publishedAmount,result.pricing.publishedCurrency)}</strong></span><span>{text('difference')}: {money(result.pricing.difference)}</span><span>{text('contribution')}: {money(result.pricing.contribution)}</span><span>{text('expectedMargin')}: {percent(result.pricing.expectedMargin)}</span><span>{text('stressMargin')}: {percent(result.pricing.stressMargin)}</span></div></Card>}
       {result.costs && <Card><h3>{text('breakdown')}</h3><p>{text('exposureNote')}</p><Table data={[...result.costs.breakdown].sort((a,b)=>Number(b.stress)-Number(a.stress))} columns={[
         {header:text('feature'),accessor:'feature'},{header:text('classification'),render:r=>text('classifications.'+r.classification)},
         {header:text('cost.expected'),render:r=>money(r.expected)},{header:text('cost.stress'),render:r=>money(r.stress)},
-      ]}/><p>{text('internal')}: {money(result.costs.internal)}</p></Card>}
+      ]}/>{!result.costs.internalByScenario && <p>{text('internal')}: {money(result.costs.internal)}</p>}</Card>}
+      {result.internalAssumptions && <details className="pricing-studio-contract"><summary>{text('tierInternal.evidence')}</summary>
+        <p>{text('tierInternal.attestation')}</p>{INTERNAL_SCENARIOS.map(s=><section key={s}>
+          <h4>{text('tierInternal.'+s)} · {text('tierInternal.statuses.'+result.internalAssumptions[s].status)}</h4>
+          {['evidence_ref','measured_from','measured_to','note'].map(field=><p key={field}>{text('tierInternal.'+field)}: <bdi>{result.internalAssumptions[s][field]||text('notConfigured')}</bdi></p>)}
+        </section>)}
+      </details>}
       {result.periods && <Card><h3>{text('periodEconomics')}</h3><p>{text('periodNote')}</p><Table data={result.periods} columns={[
         {header:text('period'),accessor:'period'},{header:text('revenue'),render:r=>money(r.revenueJod)},
         {header:text('cost.expected'),render:r=>money(r.expectedCost)},{header:text('cost.stress'),render:r=>money(r.stressCost)},
@@ -125,6 +174,7 @@ export function PricingStudio({ api = platformBillingApi }) {
       {result.annual && <Card><h3>{text('annual')}</h3><p>{text('annualNote')}</p><div className="pricing-studio-metrics"><span>{text('candidate')}: {money(result.annual.discountedCandidate)}</span><span>{text('pricing.safeMinimum')}: {money(result.annual.safeMinimum)}</span><span>{text('cost.expected')}: {money(result.annual.expectedCost)}</span><span>{text('cost.stress')}: {money(result.annual.stressCost)}</span><span>{text('expectedMargin')}: {percent(result.annual.expectedMargin)}</span><span>{text('annualCycles')}: {result.annual.allowanceCycles}</span></div></Card>}
       <Card><h3>{text('neighbors')}</h3><Table data={result.neighbors} columns={[
         {header:text('plan'),accessor:'planKey'},{header:text('cost.stress'),render:r=>money(r.costs?.stress)},
+        {header:text('tierInternal.status'),render:r=>text('statuses.'+r.status)},
         {header:text('pricing.currentJod'),render:r=>money(r.pricing?.currentJod)},{header:text('pricing.recommended'),render:r=>money(r.pricing?.recommended)},
       ]}/>{result.ladderWarnings.map((w,i)=><p key={i}>{text('warnings.'+w.code)} · {w.lower} → {w.higher}</p>)}</Card>
       <details className="pricing-studio-evidence"><summary>{text('evidence')}</summary><p>{text('evidenceNote')}</p>
