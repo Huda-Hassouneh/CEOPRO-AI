@@ -11,9 +11,17 @@ BEGIN
  PERFORM 1 FROM public.tenant_users WHERE tenant_id=p_tenant AND user_id=p_actor AND removed_at IS NULL FOR SHARE;
  RETURN FOUND;
 END $$;
+-- Neon/managed Postgres: a non-superuser migration role may transfer ownership only to a role it can
+-- SET ROLE to and that has CREATE on the schema, and only the owner can grant on the function, so
+-- the membership lasts only through the grants below (CREATE only through the transfer). The owner has fewer privileges than the migration role,
+-- and the DDL check at the end still applies.
+GRANT ceopro_schedule_writer TO CURRENT_USER;
+GRANT CREATE ON SCHEMA public TO ceopro_schedule_writer;
 ALTER FUNCTION public.billing_accounting_principal(uuid,uuid) OWNER TO ceopro_schedule_writer;
+REVOKE CREATE ON SCHEMA public FROM ceopro_schedule_writer;
 REVOKE ALL ON FUNCTION public.billing_accounting_principal(uuid,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_accounting_principal(uuid,uuid) TO ceopro_credit_accounting;
+REVOKE ceopro_schedule_writer FROM CURRENT_USER;
 
 CREATE FUNCTION public.billing_webhook_receipt_guard() RETURNS trigger
  LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog,public,pg_temp AS $$
