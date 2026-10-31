@@ -1,4 +1,4 @@
--- Undoes migrations/20261101000000_harden_cross_tenant_isolation.sql (reopens the gaps it closed).
+-- Undoes migrations/20261119000000_harden_cross_tenant_isolation.sql (reopens the gaps it closed).
 DROP POLICY IF EXISTS auth_tokens_scope ON auth_tokens;
 ALTER TABLE auth_tokens DISABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON model_versions;

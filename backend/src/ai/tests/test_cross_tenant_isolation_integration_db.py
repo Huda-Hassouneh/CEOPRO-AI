@@ -271,13 +271,17 @@ def test_subscription_status_says_nothing_about_a_company_the_caller_is_not_in(a
     a, b = companies["a"], companies["b"]
     client = TestClient(app)
 
-    def trial_available(tenant_id, user_id):
+    def subscription(tenant_id, user_id):
         token, _ = security.create_access_token(tenant_id, user_id, email_verified=True)
-        response = client.get("/billing/subscription", headers={"Authorization": f"Bearer {token}"})
-        assert response.status_code == 200
-        return response.json()["trialAvailable"]
+        return client.get("/billing/subscription", headers={"Authorization": f"Bearer {token}"})
 
-    # Company B has never had a trial: its own owner is offered one...
-    assert trial_available(b["tenant_id"], b["user_id"]) is True
-    # ...but A's owner holding a token for B must not see B's eligibility.
-    assert trial_available(b["tenant_id"], a["user_id"]) is False
+    # Company B has never had a trial: its own owner is offered one.
+    own = subscription(b["tenant_id"], b["user_id"])
+    assert own.status_code == 200 and own.json()["trialAvailable"] is True
+    # A's owner holding a token for company B (a non-member) must not learn B's
+    # trial eligibility: either the request is refused outright (membership is
+    # enforced upstream), or it is served but never reveals eligibility as True.
+    foreign = subscription(b["tenant_id"], a["user_id"])
+    assert foreign.status_code in (401, 403) or (
+        foreign.status_code == 200 and foreign.json().get("trialAvailable") is False
+    ), f"non-member saw billing status: {foreign.status_code} {foreign.text[:200]}"

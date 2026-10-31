@@ -283,7 +283,7 @@ def auth_lookup_connection():
     app.auth_lookup = 'on' (this session only) is what lets the sign-in
     flows reach auth_tokens before there is a company: request connections
     see only their own company's invitations and their own codes there
-    (migration 20261101000000_harden_cross_tenant_isolation.sql). Set by a
+    (migration 20261119000000_harden_cross_tenant_isolation.sql). Set by a
     statement, not a startup option (connection poolers refuse those), and
     committed at once so a later rollback in the flow can't undo it.
     """
