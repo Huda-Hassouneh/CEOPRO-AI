@@ -495,6 +495,201 @@ def test_settling_twice_never_double_counts(sys_conn):
     assert _balance(sys_conn, tenant) == (Decimal("0"), Decimal("10"))
 
 
+def test_rag_paid_search_cache_and_concurrent_singleflight(sys_conn, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from src.ai.research import research, search_cache
+    from src.market_scraper import search_quota, web_search
+
+    tenant, other = _company(sys_conn), _company(sys_conn)
+    provider = _provider(sys_conn)
+    monkeypatch.setattr(search_cache, 'TTL_SECONDS', 1)
+    monkeypatch.setattr(web_search, 'is_configured', lambda: True)
+    monkeypatch.setattr(web_search, 'configured_providers', lambda: ['tavily'])
+    monkeypatch.setattr(research, '_tenant_budget_ok', lambda tenant_id: True)
+    quota = []
+    monkeypatch.setattr(search_quota, 'try_reserve_query', lambda conn, limit: quota.append(1) or True)
+    entered, release, second_miss = threading.Event(), threading.Event(), threading.Event()
+    calls = []
+    original_read = search_cache._read
+    def record_miss(client, key):
+        value = original_read(client, key)
+        if entered.is_set() and value is None:
+            second_miss.set()
+        return value
+    monkeypatch.setattr(search_cache, '_read', record_miss)
+    def provider_search(query, limit, country=None, fetch=None):
+        calls.append((query, country))
+        entered.set()
+        assert release.wait(10)
+        with credits.provider_call('data', provider, 'op', {'request': 1}) as call:
+            call.measured({'request': 1})
+        return 'tavily', [web_search.Result('https://example.test/', 'title', 'snippet')]
+    monkeypatch.setattr(web_search, 'search', provider_search)
+    def ask(tenant_id, query='same query', country='JO'):
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with credits.metering(tenant_id, 'assistant_question'):
+                return research._search(conn, tenant_id, query, country, None)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(ask, tenant)
+        assert entered.wait(10)
+        second = pool.submit(ask, tenant)
+        assert second_miss.wait(10)
+        release.set()
+        assert first.result(timeout=15) == second.result(timeout=15)
+    assert len(calls) == len(quota) == 1
+    assert len(_ledger(sys_conn, tenant)) == 1
+    assert ask(tenant) == [{'url': 'https://example.test/', 'title': 'title', 'snippet': 'snippet'}]
+    assert len(calls) == len(quota) == 1 and len(_ledger(sys_conn, tenant)) == 1
+    ask(other)
+    ask(tenant, query='different')
+    ask(tenant, country='US')
+    assert len(calls) == len(quota) == 4
+    from src.ai.core.env_secret import secret
+    config = [('tavily', [secret(setting) for setting in web_search.PROVIDERS['tavily'][0]])]
+    key = search_cache.cache_key(tenant, 'same query', 'JO', research.MAX_RESULTS_PER_QUERY, config)
+    import time
+    time.sleep(1.1)
+    ask(tenant)
+    assert len(calls) == len(quota) == 5
+    assert len(_ledger(sys_conn, tenant)) == 4
+
+
+def test_rag_search_failure_does_not_cache(sys_conn, monkeypatch):
+    from src.ai.research import search_cache
+    from src.ai.core.redis_client import get_shared_redis_client
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'failure', None, 6, ['tavily'])
+    attempts = []
+    def fail_before_provider():
+        attempts.append(1)
+        raise ValueError('provider failed')
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            search_cache.run(sys_conn, tenant, key, fail_before_provider, lambda: ('tavily', []))
+    assert len(attempts) == 2
+    assert get_shared_redis_client(socket_connect_timeout=0.5, socket_timeout=1).get(key) is None
+
+
+def test_rag_search_does_not_duplicate_paid_execution_after_lease_loss(sys_conn, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from src.ai.research import search_cache
+    from src.ai.core.redis_client import get_shared_redis_client
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'lease loss', None, 6, ['tavily'])
+    entered, release, pending = threading.Event(), threading.Event(), threading.Event()
+    calls = []
+    original_claim = search_cache._claim
+    def observe_claim(*args):
+        result = original_claim(*args)
+        if result[0] == 'pending':
+            pending.set()
+        return result
+    monkeypatch.setattr(search_cache, '_claim', observe_claim)
+    def first_provider():
+        calls.append('first')
+        entered.set()
+        assert release.wait(10)
+        return 'tavily', []
+    def second_provider():
+        calls.append('second')
+        return 'tavily', []
+    def run(provider):
+        with psycopg2.connect(DATABASE_URL) as conn:
+            return search_cache.run(conn, tenant, key, lambda: None, provider)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(run, first_provider)
+        assert entered.wait(10)
+        redis = get_shared_redis_client(socket_connect_timeout=0.5, socket_timeout=1)
+        redis.set(key + ':lock', 'old-lease', ex=20)
+        redis.delete(key + ':lock')
+        def redis_unavailable(*args):
+            raise ConnectionError('simulated Redis loss')
+        monkeypatch.setattr(search_cache, '_read', redis_unavailable)
+        second = pool.submit(run, second_provider)
+        assert pending.wait(10)
+        release.set()
+        assert first.result(timeout=10) == second.result(timeout=10) == []
+    assert calls == ['first']
+
+
+def test_rag_search_ambiguous_provider_outcome_never_retries(sys_conn, monkeypatch):
+    from src.ai.research import search_cache
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'ambiguous', None, 6, ['tavily'])
+    calls = []
+    def fail():
+        calls.append(1)
+        raise TimeoutError('unknown provider outcome')
+    with pytest.raises(TimeoutError):
+        search_cache.run(sys_conn, tenant, key, lambda: None, fail)
+    monkeypatch.setattr(search_cache, 'WAIT_SECONDS', 0)
+    with pytest.raises(search_cache.CacheUnavailable):
+        search_cache.run(sys_conn, tenant, key, lambda: None, fail)
+    assert calls == [1]
+
+
+def test_rag_search_result_recovers_after_redis_eviction(sys_conn, monkeypatch):
+    from src.ai.research import search_cache
+    from src.ai.core.redis_client import get_shared_redis_client
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'eviction', None, 6, ['tavily'])
+    calls, quota = [], []
+    def execute():
+        calls.append(1)
+        return 'tavily', [{'url': 'https://example.test/', 'title': 'evidence', 'snippet': ''}]
+    expected = search_cache.run(sys_conn, tenant, key, lambda: quota.append(1), execute)
+    get_shared_redis_client(socket_connect_timeout=0.5, socket_timeout=1).delete(key)
+    assert search_cache.run(sys_conn, tenant, key, lambda: quota.append(1), execute) == expected
+    assert calls == quota == [1]
+
+
+def test_rag_search_reclaims_only_expired_preparation(sys_conn, monkeypatch):
+    from src.ai.research import search_cache
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'reclaim', None, 6, ['tavily'])
+    fingerprint = key.rsplit(':', 1)[-1]
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
+    assert search_cache._claim(sys_conn, tenant, fingerprint, first)[0] == 'owner'
+    assert search_cache._claim(sys_conn, tenant, fingerprint, second)[0] == 'pending'
+    with sys_conn.cursor() as cur:
+        cur.execute('UPDATE rag_search_execution_receipts SET lease_expires_at=now() '
+                    'WHERE tenant_id=%s AND cache_fingerprint=%s', (tenant, fingerprint))
+    sys_conn.commit()
+    assert search_cache._claim(sys_conn, tenant, fingerprint, second)[0] == 'owner'
+    with sys_conn.cursor() as cur:
+        cur.execute("UPDATE rag_search_execution_receipts SET state='provider_started',lease_expires_at=NULL "
+                    'WHERE tenant_id=%s AND cache_fingerprint=%s', (tenant, fingerprint))
+    sys_conn.commit()
+    assert search_cache._claim(sys_conn, tenant, fingerprint, first)[0] == 'pending'
+
+
+def test_rag_search_receipt_restricted_role_tenant_isolation(sys_conn):
+    from src.ai import db
+    from src.ai.research import search_cache
+    tenant, other = _company(sys_conn), _company(sys_conn)
+    actor = str(uuid.uuid4())
+    key = search_cache.cache_key(tenant, 'isolated', None, 6, ['tavily'])
+    other_key = search_cache.cache_key(other, 'isolated', None, 6, ['tavily'])
+    with sys_conn.cursor() as cur:
+        cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES (%s,%s,'test')", (actor, actor + '@example.test'))
+        cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES (%s,%s,'owner')", (tenant, actor))
+        cur.execute("INSERT INTO rag_search_execution_receipts (tenant_id,cache_fingerprint,state,owner_token,lease_expires_at) "
+                    "VALUES (%s,%s,'preparing',%s,now()+interval '1 minute')", (other, other_key.rsplit(':', 1)[-1], str(uuid.uuid4())))
+    sys_conn.commit()
+    conn = db.app_role_connection(tenant, actor)
+    try:
+        assert search_cache._claim(conn, tenant, key.rsplit(':', 1)[-1], str(uuid.uuid4()))[0] == 'owner'
+        with conn.cursor() as cur:
+            cur.execute('SELECT count(*) FROM rag_search_execution_receipts WHERE tenant_id=%s', (other,))
+            assert cur.fetchone()[0] == 0
+            with pytest.raises(psycopg2.Error):
+                cur.execute("INSERT INTO rag_search_execution_receipts (tenant_id,cache_fingerprint,state,owner_token,lease_expires_at) "
+                            "VALUES (%s,%s,'preparing',%s,now()+interval '1 minute')", (other, key.rsplit(':', 1)[-1], str(uuid.uuid4())))
+        conn.rollback()
+    finally:
+        conn.close()
+
+
 # --- provider failures -------------------------------------------------------------
 
 def test_a_failure_the_provider_bills_is_charged(sys_conn):
