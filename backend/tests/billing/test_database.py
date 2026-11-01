@@ -18,6 +18,30 @@ from src.ai.core.security import create_access_token
 from .test_contract import signed
 
 
+def test_reconciled_tenant_security_tables_keep_force_rls(owner_db):
+    with owner_db.cursor() as cursor:
+        cursor.execute("SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class "
+                       "WHERE relnamespace='public'::regnamespace "
+                       "AND relname IN ('auth_tokens','model_versions') ORDER BY relname")
+        assert cursor.fetchall() == [('auth_tokens', True, True), ('model_versions', True, True)]
+
+
+def test_subscription_without_membership_does_not_query_privileged_trial_eligibility(
+    monkeypatch, tenant, billing_connections,
+):
+    from src.ai import db
+    from src.ai.core.security import TenantContext
+    from src.ai.routers import billing
+
+    monkeypatch.setattr(billing, "_role", lambda *args: None)
+    monkeypatch.setattr(db, "billing_setup_connection", lambda *args: pytest.fail(
+        "A missing membership must not acquire billing setup authority"
+    ))
+    result = billing.get_subscription(TenantContext(*tenant))
+    assert result["trialAvailable"] is False
+    assert result["canManageBilling"] is False
+
+
 def live_subscription(tenant, price, *, status="active", cancel=False):
     now = int(time.time())
     return {
