@@ -20,6 +20,7 @@ DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AI_TEST_DATABASE_URL not set - skipping live-DB integration test")
 
 from src.ai.billing import admin, cost_model, credits  # noqa: E402
+from src.ai.billing import logical_operations  # noqa: E402
 from src.ai.core import usage  # noqa: E402
 
 
@@ -232,6 +233,99 @@ def test_a_replayed_operation_is_neither_charged_nor_run_twice(sys_conn):
                 ran.append(True)
     assert duplicate.value.reason == "DUPLICATE_REQUEST" and duplicate.value.status_code == 409 and not ran
     assert len(_ledger(sys_conn, tenant)) == 1
+
+
+def test_logical_operation_identity_is_tenant_scoped_and_immutable(sys_conn):
+    a, b = _company(sys_conn), _company(sys_conn)
+    digest = logical_operations.fingerprint({'query': 'same', 'options': [1, 2]})
+    assert digest == logical_operations.fingerprint({'options': [1, 2], 'query': 'same'})
+    first = logical_operations.claim(a, 'request-1', 'test', digest)
+    retry = logical_operations.claim(a, 'request-1', 'test', digest)
+    other = logical_operations.claim(b, 'request-1', 'test', digest)
+    assert first['created'] and not retry['created'] and first['id'] == retry['id']
+    assert other['created'] and other['id'] != first['id']
+    with pytest.raises(logical_operations.OperationConflict):
+        logical_operations.claim(a, 'request-1', 'test', logical_operations.fingerprint({'query': 'changed'}))
+    with pytest.raises(logical_operations.OperationConflict):
+        logical_operations.claim(a, 'request-1', 'other-kind', digest)
+    assert logical_operations.claim(a, 'request-2', 'test', digest)['created']
+    logical_operations.finish(a, first['id'], 'unknown')
+    unknown = logical_operations.claim(a, 'request-1', 'test', digest)
+    assert unknown == {'id': first['id'], 'status': 'unknown', 'created': False}
+    with pytest.raises(logical_operations.OperationConflict):
+        logical_operations.finish(a, first['id'], 'succeeded')
+
+
+def test_logical_operation_concurrent_claims_share_one_record(sys_conn):
+    from concurrent.futures import ThreadPoolExecutor
+
+    tenant = _company(sys_conn)
+    digest = logical_operations.fingerprint({'query': 'same'})
+    barrier = threading.Barrier(2)
+
+    def claim():
+        barrier.wait(timeout=10)
+        return logical_operations.claim(tenant, 'parallel', 'test', digest)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: claim(), range(2)))
+    assert len({result['id'] for result in results}) == 1
+    assert sum(result['created'] for result in results) == 1
+
+
+def test_logical_operation_links_distinct_provider_calls_and_legacy_rows(sys_conn):
+    tenant = _company(sys_conn)
+    provider = _provider(sys_conn)
+    op = logical_operations.claim(tenant, 'multi-call', 'test', logical_operations.fingerprint({'x': 1}))
+    with credits.metering(tenant, 'test', logical_operation_ref=op['id']):
+        for _ in range(2):
+            with credits.provider_call('data', provider, 'op', {'request': 1}) as call:
+                call.measured({'request': 1})
+    with credits.metering(tenant, 'test'):
+        with credits.provider_call('data', provider, 'op', {'request': 1}) as call:
+            call.measured({'request': 1})
+    sys_conn.rollback()
+    with sys_conn.cursor() as cursor:
+        cursor.execute('SELECT logical_operation_ref, status FROM usage_ledger WHERE tenant_id=%s', (tenant,))
+        rows = cursor.fetchall()
+    assert sum(str(ref) == op['id'] and status == 'consumed' for ref, status in rows) == 2
+    assert sum(ref is None and status == 'consumed' for ref, status in rows) == 1
+
+
+def test_logical_operation_restricted_role_cannot_cross_tenants(sys_conn):
+    tenant_a, tenant_b = _company(sys_conn), _company(sys_conn)
+    op = logical_operations.claim(tenant_b, 'private', 'test', logical_operations.fingerprint({'x': 1}))
+    with sys_conn.cursor() as cursor:
+        cursor.execute('SET ROLE ceopro_credit_accounting')
+        cursor.execute("SELECT set_config('app.current_tenant_id', %s, false)", (tenant_a,))
+        cursor.execute('SELECT count(*) FROM billing_logical_operations WHERE id=%s', (op['id'],))
+        assert cursor.fetchone()[0] == 0
+        cursor.execute('UPDATE billing_logical_operations SET status=%s WHERE id=%s', ('succeeded', op['id']))
+        assert cursor.rowcount == 0
+    sys_conn.rollback()
+    with sys_conn.cursor() as cursor:
+        cursor.execute('RESET ROLE')
+
+
+def test_logical_operation_cannot_link_another_tenants_ledger(sys_conn):
+    tenant_a, tenant_b = _company(sys_conn), _company(sys_conn)
+    provider = _provider(sys_conn)
+    op = logical_operations.claim(tenant_b, 'private', 'test', logical_operations.fingerprint({'x': 1}))
+    with credits.metering(tenant_a, 'test', logical_operation_ref=op['id']):
+        with pytest.raises(credits.BudgetError) as error:
+            credits.reserve('data', provider, 'op', {'request': 1})
+    assert error.value.reason == 'ACCOUNTING_UNAVAILABLE'
+    assert _ledger(sys_conn, tenant_a) == []
+
+
+def test_logical_operation_fingerprint_is_database_immutable(sys_conn):
+    tenant = _company(sys_conn)
+    op = logical_operations.claim(tenant, 'immutable', 'test', logical_operations.fingerprint({'x': 1}))
+    with pytest.raises(psycopg2.Error):
+        with sys_conn.cursor() as cursor:
+            cursor.execute('UPDATE billing_logical_operations SET input_fingerprint=%s WHERE id=%s',
+                           ('0' * 64, op['id']))
+    sys_conn.rollback()
 
 
 def test_settling_twice_never_double_counts(sys_conn):
