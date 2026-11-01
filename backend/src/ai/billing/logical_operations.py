@@ -37,22 +37,24 @@ def claim(tenant_id: str, logical_operation_id: str, operation_kind: str,
         with conn.cursor() as cur:
             cur.execute(
                 'INSERT INTO public.billing_logical_operations '
-                '(tenant_id, logical_operation_id, operation_kind, input_fingerprint) '
-                'VALUES (%s,%s,%s,%s) ON CONFLICT (tenant_id, logical_operation_id) DO NOTHING '
+                '(tenant_id, logical_operation_id, operation_kind, input_fingerprint, actor_user_id) '
+                'VALUES (%s,%s,%s,%s,%s) ON CONFLICT (tenant_id, logical_operation_id) DO NOTHING '
                 'RETURNING id, status',
-                (tenant_id, logical_operation_id, operation_kind, input_fingerprint),
+                (tenant_id, logical_operation_id, operation_kind, input_fingerprint, actor_user_id),
             )
             row = cur.fetchone()
             created = row is not None
             if not created:
-                cur.execute('SELECT id, status, operation_kind, input_fingerprint '
+                cur.execute('SELECT id, status, operation_kind, input_fingerprint, actor_user_id '
                             'FROM public.billing_logical_operations '
                             'WHERE tenant_id=%s AND logical_operation_id=%s',
                             (tenant_id, logical_operation_id))
                 row = cur.fetchone()
                 if row is None:
                     raise RuntimeError('logical operation is not visible')
-                if row[2] != operation_kind or row[3] != input_fingerprint:
+                if (row[2] != operation_kind or row[3] != input_fingerprint
+                        or (str(row[4]) if row[4] is not None else None) !=
+                           (str(actor_user_id) if actor_user_id is not None else None)):
                     raise OperationConflict('logical operation ID already has different input')
         conn.commit()
         return {'id': str(row[0]), 'status': row[1], 'created': created}

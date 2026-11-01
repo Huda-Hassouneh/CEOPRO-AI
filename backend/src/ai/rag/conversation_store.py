@@ -89,7 +89,7 @@ def session_exists(conn, tenant_id: str, session_id: str) -> bool:
 
 
 def load_session_history(conn, tenant_id: str, session_id: str,
-                         limit: Optional[int] = MAX_HISTORY_MESSAGES) -> List[dict]:
+                         limit: Optional[int] = MAX_HISTORY_MESSAGES, exclude_message_id=None) -> List[dict]:
     """Returns [{"role": ..., "content": ...}, ...] oldest-first - the
     exact shape rag/llm_client.py::answer_query()'s own `history` param
     already expects, so this can be passed straight through unchanged.
@@ -99,12 +99,14 @@ def load_session_history(conn, tenant_id: str, session_id: str,
             """
             SELECT role, content FROM (
                 SELECT role, content, seq FROM conversation_messages
-                WHERE tenant_id = %s AND session_id = %s
+                WHERE tenant_id = %s AND session_id = %s AND (%s::uuid IS NULL OR seq < (
+                    SELECT seq FROM conversation_messages WHERE message_id = %s::uuid
+                ))
                 ORDER BY seq DESC
                 LIMIT %s
             ) recent ORDER BY seq ASC;
             """,
-            (tenant_id, session_id, limit),
+            (tenant_id, session_id, exclude_message_id, exclude_message_id, limit),
         )
         return [{"role": role, "content": content} for role, content in cursor.fetchall()]
 
@@ -142,10 +144,22 @@ def load_session_state(conn, tenant_id: str, session_id: str) -> Optional[dict]:
     return row[0] if row and row[0] else None
 
 
-def save_session_state(conn, tenant_id: str, session_id: str, state: dict) -> None:
+def save_session_state(conn, tenant_id: str, session_id: str, state: dict,
+                       *, after_message_id=None, current_assistant_id=None) -> None:
     with conn.cursor() as cursor:
-        cursor.execute("UPDATE conversation_sessions SET state = %s WHERE tenant_id = %s AND session_id = %s;",
-                       (json.dumps(state, ensure_ascii=False, default=str), tenant_id, session_id))
+        if after_message_id is None:
+            cursor.execute("UPDATE conversation_sessions SET state = %s WHERE tenant_id = %s AND session_id = %s;",
+                           (json.dumps(state, ensure_ascii=False, default=str), tenant_id, session_id))
+            return
+        cursor.execute("""UPDATE conversation_sessions SET state = %s WHERE tenant_id = %s AND session_id = %s
+                       AND NOT EXISTS (
+                           SELECT 1 FROM conversation_messages later
+                           WHERE later.tenant_id = %s AND later.session_id = %s
+                             AND later.seq > (SELECT seq FROM conversation_messages WHERE message_id = %s::uuid)
+                             AND later.message_id <> %s::uuid
+                       );""",
+                       (json.dumps(state, ensure_ascii=False, default=str), tenant_id, session_id,
+                        tenant_id, session_id, after_message_id, current_assistant_id))
 
 
 def list_sessions(conn, tenant_id: str, user_id: str, limit: Optional[int] = DEFAULT_SESSION_LIST_LIMIT) -> List[dict]:

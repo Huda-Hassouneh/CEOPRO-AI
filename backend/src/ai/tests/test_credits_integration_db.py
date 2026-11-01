@@ -328,6 +328,162 @@ def test_logical_operation_fingerprint_is_database_immutable(sys_conn):
     sys_conn.rollback()
 
 
+def test_rag_request_replay_and_concurrent_duplicate(sys_conn, monkeypatch):
+    from types import SimpleNamespace
+    from concurrent.futures import ThreadPoolExecutor
+    from src.ai.routers import rag
+    from fastapi import HTTPException
+
+    tenant = _company(sys_conn)
+    user = str(uuid.uuid4())
+    with sys_conn.cursor() as cur:
+        cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES (%s,%s,'test')", (user, user + '@example.test'))
+        cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES (%s,%s,'owner')", (tenant, user))
+    sys_conn.commit()
+    ctx = SimpleNamespace(tenant_id=tenant, user_id=user)
+    ai_provider = _ai_provider(sys_conn)
+    data_provider = _provider(sys_conn)
+    monkeypatch.setattr(rag.usage, 'ensure_ai_rate', lambda *_: None)
+    monkeypatch.setattr(rag.usage, 'remaining', lambda *_: 10)
+    monkeypatch.setattr(rag.usage, 'reserve', lambda *a: {'amount': 1, 'tenant_id': tenant})
+    monkeypatch.setattr(rag.usage, 'settle', lambda *a: None)
+    monkeypatch.setattr(rag.usage, 'release', lambda *a: None)
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def answer(*args, **kwargs):
+        calls.append(credits.current().logical_operation_ref)
+        entered.set()
+        assert release.wait(10)
+        with credits.provider_call('ai', ai_provider, 'op', {'input_token': 2}) as call:
+            call.measured({'input_token': 2})
+        with credits.provider_call('data', data_provider, 'op', {'request': 1}) as call:
+            call.measured({'request': 1})
+        return {'answer': 'saved answer', 'sources': [], 'answer_mode': 'ai',
+                'token_usage': {'total_tokens': 1}, 'citation_check': {}, 'state': {}}
+
+    monkeypatch.setattr(rag.rag_advisor, 'answer', answer)
+    def ask(request_id, question='same'):
+        return rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None,
+                             body=rag.RagQueryBody(query_text=question, request_id=request_id), ctx=ctx)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(ask, 'same-id')
+        assert entered.wait(10)
+        with pytest.raises(HTTPException) as duplicate:
+            ask('same-id')
+        assert duplicate.value.status_code == 409
+        release.set()
+        result = first.result(timeout=10)
+    assert ask('same-id') == result
+    assert len(calls) == 1 and calls[0]
+    assert len(_ledger(sys_conn, tenant)) == 2
+    with pytest.raises(HTTPException) as conflict:
+        ask('same-id', 'different')
+    assert conflict.value.status_code == 409
+    assert ask('new-id')['answer'] == 'saved answer'
+    assert len(calls) == 2
+    assert len(_ledger(sys_conn, tenant)) == 4
+    original_finish = logical_operations.finish
+    def lost_status(*args, **kwargs):
+        raise RuntimeError('simulated interruption after result commit')
+    monkeypatch.setattr(logical_operations, 'finish', lost_status)
+    saved = ask('lost-response')
+    monkeypatch.setattr(logical_operations, 'finish', original_finish)
+    assert ask('lost-response') == saved
+    assert len(calls) == 3 and len(_ledger(sys_conn, tenant)) == 6
+    other_user = str(uuid.uuid4())
+    with sys_conn.cursor() as cur:
+        cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES (%s,%s,'test')", (other_user, other_user + '@example.test'))
+        cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES (%s,%s,'owner')", (tenant, other_user))
+    sys_conn.commit()
+    with pytest.raises(HTTPException) as forbidden_replay:
+        rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None,
+            body=rag.RagQueryBody(query_text='same', request_id='same-id'),
+            ctx=SimpleNamespace(tenant_id=tenant, user_id=other_user))
+    assert forbidden_replay.value.status_code == 409
+    invalid = rag.RagQueryBody(query_text='same', session_id=str(uuid.uuid4()), request_id='before-provider')
+    with pytest.raises(HTTPException) as absent:
+        rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None, body=invalid, ctx=ctx)
+    assert absent.value.status_code == 404
+    with pytest.raises(HTTPException) as failed:
+        rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None, body=invalid, ctx=ctx)
+    assert failed.value.detail == {'code': 'request_failed'}
+    def unknown(*args, **kwargs):
+        raise RuntimeError('simulated provider outcome unknown')
+    monkeypatch.setattr(rag.rag_advisor, 'answer', unknown)
+    with pytest.raises(HTTPException):
+        ask('unknown')
+    with pytest.raises(HTTPException) as retry_unknown:
+        ask('unknown')
+    assert retry_unknown.value.detail == {'code': 'request_unknown'}
+    assert len(calls) == 3 and len(_ledger(sys_conn, tenant)) == 6
+    sys_conn.rollback()
+    with sys_conn.cursor() as cur:
+        cur.execute('SELECT role,count(*) FROM conversation_messages WHERE tenant_id=%s GROUP BY role', (tenant,))
+        assert dict(cur.fetchall()) == {'user': 4, 'assistant': 3}
+        cur.execute('SELECT count(*) FROM usage_ledger WHERE tenant_id=%s AND logical_operation_ref IS NOT NULL', (tenant,))
+        assert cur.fetchone()[0] == 6
+        cur.execute('DELETE FROM rag_logical_requests WHERE tenant_id=%s AND operation_ref=%s', (tenant, calls[0]))
+    sys_conn.commit()
+    with pytest.raises(HTTPException) as missing:
+        ask('same-id')
+    assert missing.value.detail == {'code': 'request_result_missing'}
+    assert len(calls) == 3 and len(_ledger(sys_conn, tenant)) == 6
+
+
+def test_rag_preprovider_crash_recovers_same_turn(sys_conn, monkeypatch):
+    from types import SimpleNamespace
+    from src.ai import db
+    from src.ai.routers import rag
+    from src.infrastructure.request_language import get_request_language
+
+    tenant, user = _company(sys_conn), str(uuid.uuid4())
+    with sys_conn.cursor() as cur:
+        cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES (%s,%s,'test')", (user, user + '@example.test'))
+        cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES (%s,%s,'owner')", (tenant, user))
+    sys_conn.commit()
+    ctx = SimpleNamespace(tenant_id=tenant, user_id=user)
+    digest = logical_operations.fingerprint({'user_id': user, 'question': 'same', 'session_id': None,
+        'top_k': 5, 'history': None, 'locale': get_request_language()})
+    op = logical_operations.claim(tenant, 'crash', 'rag_question', digest, actor_user_id=user)
+    conn = db.app_role_connection(tenant, user)
+    try:
+        prep = rag.request_replay.prepare(conn, tenant, user, op['id'])
+        session = rag.conversation_store.create_session(conn, tenant, user, 'same')
+        message = rag.conversation_store.append_message(conn, tenant, session, user, 'user', 'same')
+        rag.request_replay.bind_turn(conn, tenant, user, op['id'], prep['lease'], session, message, {'topic': 'original'})
+        rag.conversation_store.append_message(conn, tenant, session, user, 'user', 'later turn')
+        rag.conversation_store.save_session_state(conn, tenant, session, {'topic': 'changed'})
+        conn.commit()
+    finally:
+        conn.close()
+    with sys_conn.cursor() as cur:
+        cur.execute("UPDATE rag_logical_requests SET lease_expires_at=now()-interval '1 second' WHERE operation_ref=%s", (op['id'],))
+    sys_conn.commit()
+    monkeypatch.setattr(rag.usage, 'ensure_ai_rate', lambda *_: None)
+    monkeypatch.setattr(rag.usage, 'remaining', lambda *_: 10)
+    monkeypatch.setattr(rag.usage, 'reserve', lambda *a: {'amount': 1, 'tenant_id': tenant})
+    monkeypatch.setattr(rag.usage, 'settle', lambda *a: None)
+    def recover(*args, **kwargs):
+        assert kwargs['state'] == {'topic': 'original'}
+        assert kwargs['history'] == []
+        return {'answer': 'recovered', 'sources': [], 'answer_mode': 'ai', 'token_usage': {'total_tokens': 1}, 'state': {}}
+    monkeypatch.setattr(rag.rag_advisor, 'answer', recover)
+    result = rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None,
+                           body=rag.RagQueryBody(query_text='same', request_id='crash'), ctx=ctx)
+    assert result['session_id'] == session
+    assert rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None,
+                         body=rag.RagQueryBody(query_text='same', request_id='crash'), ctx=ctx) == result
+    sys_conn.rollback()
+    with sys_conn.cursor() as cur:
+        cur.execute('SELECT role,count(*) FROM conversation_messages WHERE tenant_id=%s GROUP BY role', (tenant,))
+        assert dict(cur.fetchall()) == {'user': 2, 'assistant': 1}
+        cur.execute("SELECT count(*) FROM conversation_messages WHERE tenant_id=%s AND content='same'", (tenant,))
+        assert cur.fetchone()[0] == 1
+        cur.execute('SELECT state FROM conversation_sessions WHERE session_id=%s', (session,))
+        assert cur.fetchone()[0] == {'topic': 'changed'}
+
+
 def test_settling_twice_never_double_counts(sys_conn):
     tenant = _company(sys_conn, "starter")
     provider = _provider(sys_conn, usd="0.10")
