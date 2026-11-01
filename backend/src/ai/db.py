@@ -200,6 +200,14 @@ def _service_socket(role: str, password: str):
         raise
 
 
+def image_worker_connection():
+    """Restricted queue identity; never fall back to the migration owner."""
+    password = os.getenv('IMAGE_WORKER_DB_PASSWORD')
+    if not password:
+        raise RuntimeError('IMAGE_WORKER_DB_PASSWORD is required for image worker system operations.')
+    return _service_socket('ceopro_image_worker', password)
+
+
 class _WebhookConnection(PooledTenantConnection):
     verified_webhook_only = True
 

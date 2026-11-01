@@ -60,17 +60,18 @@ class DevTests(unittest.TestCase):
         self.assertIn("keel_dev_admin:admin-test@", dev.environment(self.c, admin=True)["DATABASE_URL"])
 
     def test_setup_credential_is_only_in_api_environment(self):
-        self.c.update(billing_setup_password="setup-test-password", billing_webhook_password="webhook-test-password", credit_accounting_password="accounting-test-password")
+        self.c.update(billing_setup_password="setup-test-password", billing_webhook_password="webhook-test-password", credit_accounting_password="accounting-test-password", image_worker_password="worker-test-password")
         api = dev.api_environment(self.c, external=False)
         self.assertIn("ceopro_app:", api["DATABASE_URL"])
         self.assertEqual(api["BILLING_SETUP_DB_PASSWORD"], "setup-test-password")
+        self.assertNotIn('IMAGE_WORKER_DB_PASSWORD', api)
         self.assertNotIn("admin-test", str(api))
         for env in (dev.environment(self.c, external=False), dev.environment(self.c, admin=True, external=False)):
             self.assertNotIn("BILLING_SETUP_DB_PASSWORD", env)
 
     def test_up_supplies_only_the_api_with_setup_credentials(self):
         import argparse
-        self.c.update(billing_setup_password="setup-test-password", billing_webhook_password="webhook-test-password", credit_accounting_password="accounting-test-password")
+        self.c.update(billing_setup_password="setup-test-password", billing_webhook_password="webhook-test-password", credit_accounting_password="accounting-test-password", image_worker_password="worker-test-password")
         python = self.root / "python.exe"
         python.touch()
         (self.state / "dependencies.json").write_text("{}")
@@ -85,6 +86,7 @@ class DevTests(unittest.TestCase):
         api = next(call for call in start.call_args_list if call.args[0] == "api")
         self.assertIn("ceopro_app:", api.kwargs["env"]["DATABASE_URL"])
         self.assertEqual(api.kwargs["env"]["BILLING_SETUP_DB_PASSWORD"], "setup-test-password")
+        self.assertNotIn('IMAGE_WORKER_DB_PASSWORD', api.kwargs['env'])
         self.assertNotIn("admin-test", str(api.kwargs["env"]))
         for call in start.call_args_list:
             if call.args[0] == "frontend":
@@ -95,6 +97,10 @@ class DevTests(unittest.TestCase):
                 self.assertNotIn("BILLING_WEBHOOK_DB_PASSWORD", worker)
                 self.assertEqual(worker["CREDIT_ACCOUNTING_DB_PASSWORD"], "accounting-test-password")
                 self.assertNotIn("admin-test", worker["DATABASE_URL"])
+                if call.args[0] == 'images':
+                    self.assertEqual(worker['IMAGE_WORKER_DB_PASSWORD'], self.c['image_worker_password'])
+                else:
+                    self.assertNotIn('IMAGE_WORKER_DB_PASSWORD', worker)
 
     def test_setup_credential_upgrade_is_repeatable(self):
         dev.ensure_billing_setup_password(self.c)

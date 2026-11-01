@@ -204,7 +204,7 @@ def fail(conn, tenant_id: str, job_id: str, error: str, *, retryable: bool, dela
 def claim(sys_conn, worker_id: str) -> Optional[tuple]:
     """(job_id, tenant_id, created_by) of the next job, or None. Commits."""
     with sys_conn.cursor() as cursor:
-        cursor.execute("SELECT job_id, tenant_id, created_by FROM claim_image_generation_job(%s, %s);",
+        cursor.execute("SELECT job_id, tenant_id, created_by FROM public.image_worker_claim(%s, %s);",
                        (worker_id, STALE_SECONDS))
         row = cursor.fetchone()
     sys_conn.commit()
@@ -215,8 +215,7 @@ def claim(sys_conn, worker_id: str) -> Optional[tuple]:
 
 def job_heartbeat(sys_conn, job_id: str, worker_id: str) -> None:
     with sys_conn.cursor() as cursor:
-        cursor.execute("UPDATE image_generation_jobs SET heartbeat_at = NOW() WHERE job_id = %s AND worker_id = %s "
-                       "AND status = 'RUNNING';", (job_id, worker_id))
+        cursor.execute("SELECT public.image_job_heartbeat(%s, %s);", (job_id, worker_id))
     sys_conn.commit()
 
 
@@ -224,9 +223,7 @@ def worker_heartbeat(sys_conn, worker_id: str, host: str, servers: int, made: in
     with sys_conn.cursor() as cursor:
         cursor.execute(
             """
-            INSERT INTO image_workers (worker_id, host, servers, heartbeat_at, images_made) VALUES (%s, %s, %s, NOW(), %s)
-            ON CONFLICT (worker_id) DO UPDATE SET heartbeat_at = NOW(), servers = EXCLUDED.servers,
-                images_made = image_workers.images_made + EXCLUDED.images_made;
+            SELECT public.image_worker_heartbeat(%s, %s, %s, %s);
             """,
             (worker_id, host[:200], servers, made),
         )

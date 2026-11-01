@@ -67,7 +67,7 @@ def _keep_alive(job_id: str, worker_id: str, done: threading.Event, system_conne
 def run_one(worker_id: str, system_connection=None, tenant_connection=None) -> Optional[str]:
     """Claims and processes one job. Returns its new status, or None when
     nothing was waiting. Never raises for a job's own failure."""
-    system_connection = system_connection or db.system_connection
+    system_connection = system_connection or db.image_worker_connection
     tenant_connection = tenant_connection or db.dedicated_tenant_connection
     sys_conn = system_connection()
     try:
@@ -169,7 +169,7 @@ def main(argv=None) -> int:
     logger.info("image worker %s started with %d thread(s); servers: %d", base_id, threads, _servers())
     while not _stop.is_set():
         try:
-            conn = db.system_connection()
+            conn = db.image_worker_connection()
             try:
                 image_jobs.worker_heartbeat(conn, base_id, socket.gethostname(), threads)
             finally:

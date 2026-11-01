@@ -29,7 +29,8 @@ def test_environment(c, name):
     env["BILLING_DATABASE_TESTS"] = "1"
     for variable, key in (("BILLING_SETUP_DB_PASSWORD", "billing_setup_password"),
                           ("BILLING_WEBHOOK_DB_PASSWORD", "billing_webhook_password"),
-                          ("CREDIT_ACCOUNTING_DB_PASSWORD", "credit_accounting_password")):
+                          ("CREDIT_ACCOUNTING_DB_PASSWORD", "credit_accounting_password"),
+                          ("IMAGE_WORKER_DB_PASSWORD", "image_worker_password")):
         if c.get(key):
             env[variable] = c[key]
     restricted = dev.environment(c, external=False)["DATABASE_URL"]
@@ -143,7 +144,7 @@ def browser(c, env, target, suite):
     env = dict(env, FRONTEND_BASE_URL=origin, CORS_ALLOWED_ORIGINS=origin)
     # API uses only the restricted app DSN. Tests/seeding use public APIs.
     runtime = dict(env, DATABASE_URL=env["SCRAPER_DATABASE_URL"])
-    for key in ("AI_TEST_DATABASE_URL", "BILLING_TEST_DATABASE_URL", "BILLING_DATABASE_TESTS"):
+    for key in ("AI_TEST_DATABASE_URL", "BILLING_TEST_DATABASE_URL", "BILLING_DATABASE_TESTS", "IMAGE_WORKER_DB_PASSWORD"):
         runtime.pop(key, None)
     runtime.update(KEEL_API_PROXY_TARGET=api, VITE_API_BASE_URL="/api",
                    DISCOVERY_REFRESH_ENABLED="false", NOTIFICATION_DIGEST_ENABLED="false")
