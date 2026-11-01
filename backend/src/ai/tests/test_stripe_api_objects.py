@@ -10,6 +10,8 @@ import pytest
 stripe = pytest.importorskip("stripe")
 
 from src.ai.billing import store, stripe_api, webhooks  # noqa: E402
+from src.ai.billing.payment_contracts import ProviderReference
+from src.ai.billing.stripe_gateway import StripeGateway
 
 
 def test_stripe_isk_and_ugx_compatibility_amounts_are_two_decimal():
@@ -50,15 +52,16 @@ def test_every_stripe_call_wrapper_returns_plain_dicts(monkeypatch):
         assert type(result) is dict and result.get("status") == "active"
 
 
-def test_webhook_tenant_resolution_works_on_a_converted_sdk_object():
+def test_webhook_tenant_resolution_works_on_a_normalized_sdk_object(monkeypatch):
     class NoDb:  # tenant_for_subscription/customer are bypassed by patching below
         pass
 
-    plain = stripe_api._plain(_subscription())
+    monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: stripe_api._plain(_subscription()))
+    snapshot = StripeGateway().get_subscription(ProviderReference("stripe", "sub_123"))
     original = (store.tenant_for_subscription, store.tenant_for_customer)
     store.tenant_for_subscription = lambda conn, sid: None
     store.tenant_for_customer = lambda conn, cid: None
     try:
-        assert webhooks._resolve_tenant(NoDb(), plain) == "11111111-1111-4111-8111-111111111111"
+        assert webhooks._resolve_tenant(NoDb(), snapshot) == "11111111-1111-4111-8111-111111111111"
     finally:
         store.tenant_for_subscription, store.tenant_for_customer = original

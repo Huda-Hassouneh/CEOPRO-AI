@@ -3,6 +3,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 from src.ai.billing import stripe_api
+from src.ai.billing.stripe_gateway import _checkout
 from src.ai.billing.payment_contracts import (
     InvalidPaymentWebhook, PaymentEventKind as Kind, ProviderReference, VerifiedPaymentEvent,
 )
@@ -58,16 +59,18 @@ class StripeWebhookDecoder:
                 subscription = _ref(obj["id"])
             elif kind in (Kind.INVOICE_SETTLED, Kind.INVOICE_FAILED):
                 parent = (obj.get("parent") or {}).get("subscription_details") or {}
-                subscription = _ref(parent.get("subscription") or
-                    (obj.get("subscription_details") or {}).get("subscription") or obj.get("subscription"))
+                subscription = (_ref(parent.get("subscription")) or
+                    _ref((obj.get("subscription_details") or {}).get("subscription")) or _ref(obj.get("subscription")))
                 invoice = _ref(obj["id"])
             elif kind == Kind.SCHEDULE_ENDED:
-                schedule, subscription = _ref(obj["id"]), _ref(obj.get("released_subscription") or obj.get("subscription"))
+                schedule = _ref(obj["id"])
+                subscription = _ref(obj.get("released_subscription")) or _ref(obj.get("subscription"))
             return VerifiedPaymentEvent(
                 provider="stripe", event_id=event["id"], kind=kind,
                 occurred_at=datetime.fromtimestamp(int(event["created"]), timezone.utc),
                 customer=customer, subscription=subscription, checkout=checkout, invoice=invoice,
                 schedule=schedule, raw_payload=payload, raw_evidence=event,
+                checkout_snapshot=_checkout(obj) if kind in (Kind.CHECKOUT_COMPLETED, Kind.CHECKOUT_EXPIRED) else None,
             )
         except Exception:
             raise InvalidPaymentWebhook("Invalid payment webhook") from None

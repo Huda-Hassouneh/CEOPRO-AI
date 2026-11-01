@@ -141,6 +141,7 @@ class CheckoutSnapshot:
     client_reference: str | None = None
     metadata: Mapping[str, str] = field(default_factory=dict)
     is_subscription: bool = False
+    invoice: ProviderReference | None = None
 
 
 @dataclass(frozen=True)
@@ -175,9 +176,17 @@ class InvoiceSnapshot:
     amount_paid: Money
     amount_due: Money
     paid_at: datetime | None
-    initial_subscription_invoice: bool
+    initial_subscription_invoice: bool | None
     coverage: tuple[tuple[datetime | None, datetime | None], ...]
     payment_url: str | None = None
+    document_url: str | None = None
+    metadata: Mapping[str, str] = field(default_factory=dict)
+    tenant_hint: str | None = None
+    failure_reason: str | None = None
+    # Preserve the stricter explicit-settled-state predicate used for the first
+    # post-trial period, separately from legacy provider paid-flag support.
+    settlement_confirmed: bool = False
+    currency_explicit: bool = False
 
 
 @dataclass(frozen=True)
@@ -229,6 +238,7 @@ class VerifiedPaymentEvent:
     schedule: ProviderReference | None
     raw_payload: bytes
     raw_evidence: Mapping
+    checkout_snapshot: CheckoutSnapshot | None = None
 
 
 class SubscriptionPaymentGateway(Protocol):

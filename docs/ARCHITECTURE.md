@@ -93,9 +93,18 @@ Checkout requests are frozen before transport; legacy frozen payloads and their
 idempotency identities replay unchanged through the persistence compatibility
 bridge. Existing Stripe database identifiers are retained without migrations.
 
-Webhook reconciliation still uses its original production path. The separate
-`PaymentWebhookDecoder`/`StripeWebhookDecoder` seam is not wired yet; moving it
-requires a later phase with independent security and reconciliation validation.
+The webhook route passes exact raw bytes to `PaymentWebhookDecoder`, explicitly
+composed as `StripeWebhookDecoder`. Only a `VerifiedPaymentEvent` reaches KEEL
+reconciliation. Neutral event kinds identify affected resources; fresh
+subscription/invoice snapshots come through `SubscriptionPaymentGateway` under
+the existing locks. KEEL retains tenant correlation, payment/trial predicates,
+Custom quote verification, promotion settlement and entitlement decisions.
+
+Original provider payloads/event types remain receipt evidence at the persistence
+boundary because existing restricted-role SQL guards inspect them. These are not
+application event branches. SQL, roles, Stripe identifiers and assignment-source
+values remain unchanged; supporting another real provider still requires later
+additive persistence/security work. Notifications alone never grant access.
 
 Customer action → Python Checkout/quote authority → Stripe → exact-body signed `/billing/webhook` → idempotent reconciliation → subscription/entitlement snapshots and credit accounting → customer UI.
 

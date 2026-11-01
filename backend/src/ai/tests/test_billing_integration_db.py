@@ -19,6 +19,7 @@ DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AI_TEST_DATABASE_URL not set - skipping live-DB integration test")
 
 from src.ai.billing import config, service, store, stripe_api, webhooks  # noqa: E402
+from src.ai.billing.stripe_webhooks import StripeWebhookDecoder
 from src.ai.core import usage  # noqa: E402
 
 WEBHOOK_SECRET = "whsec_test_apex"
@@ -265,6 +266,7 @@ def test_a_paid_checkout_activates_the_plan_and_duplicates_are_ignored(client, s
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: live)
 
     event = _event("checkout.session.completed", {
+        "id": "cs_test_" + uuid.uuid4().hex,
         "object": "checkout.session", "mode": "subscription", "subscription": sub_id, "customer": customer,
         "client_reference_id": tenant, "metadata": {"tenant_id": tenant},
     })
@@ -548,7 +550,8 @@ def test_two_simultaneous_deliveries_of_one_event_process_it_once(sys_conn, stri
 
     tenant = _company(sys_conn)
     sys_conn.commit()
-    event = _event("customer.subscription.updated", {"id": "sub_race"})
+    payload = json.dumps(_event("customer.subscription.updated", {"id": "sub_race"})).encode()
+    event = StripeWebhookDecoder(WEBHOOK_SECRET).decode(payload, _signed(payload))
     runs, results, errors = [], [], []
 
     def slow_sync(conn, subscription_id, created, hint=None):
@@ -576,7 +579,8 @@ def test_two_simultaneous_deliveries_of_one_event_process_it_once(sys_conn, stri
 
 
 def test_a_failed_event_is_retried_not_swallowed_as_a_duplicate(sys_conn, monkeypatch):
-    event = _event("customer.subscription.updated", {"id": "sub_retry"})
+    payload = json.dumps(_event("customer.subscription.updated", {"id": "sub_retry"})).encode()
+    event = StripeWebhookDecoder(WEBHOOK_SECRET).decode(payload, _signed(payload))
     attempts = []
 
     def flaky(conn, subscription_id, created, hint=None):
