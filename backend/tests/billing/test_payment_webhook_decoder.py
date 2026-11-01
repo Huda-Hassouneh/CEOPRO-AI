@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from src.ai.billing import stripe_api, webhooks
+from src.ai.billing import stripe_api
 from src.ai.billing.payment_contracts import InvalidPaymentWebhook, PaymentEventKind as Kind, ProviderReference as Ref
 from src.ai.billing.stripe_webhooks import StripeWebhookDecoder, _KINDS
 
@@ -34,12 +34,12 @@ def event(kind, obj):
      {"id": "cs_test_one", "customer": "cus_one", "subscription": "sub_one", "invoice": "in_one"}, "checkout", "cs_test_one"),
     ("checkout.session.expired", Kind.CHECKOUT_EXPIRED, {"id": "cs_test_one"}, "checkout", "cs_test_one"),
     *[(name, Kind.SUBSCRIPTION_CHANGED, {"id": "sub_one", "customer": {"id": "cus_one"}}, "subscription", "sub_one")
-      for name in sorted(webhooks.SUBSCRIPTION_EVENTS)],
+      for name, mapped in _KINDS.items() if mapped == Kind.SUBSCRIPTION_CHANGED],
     *[(name, Kind.INVOICE_FAILED if name.endswith("failed") else Kind.INVOICE_SETTLED,
        {"id": "in_one", "customer": "cus_one", "parent": {"subscription_details": {"subscription": {"id": "sub_one"}}}},
-       "invoice", "in_one") for name in sorted(webhooks.INVOICE_EVENTS)],
+       "invoice", "in_one") for name, mapped in _KINDS.items() if mapped in (Kind.INVOICE_SETTLED, Kind.INVOICE_FAILED)],
     *[(name, Kind.SCHEDULE_ENDED, {"id": "sched_one", "released_subscription": "sub_one"}, "schedule", "sched_one")
-      for name in sorted(webhooks.SCHEDULE_EVENTS)],
+      for name, mapped in _KINDS.items() if mapped == Kind.SCHEDULE_ENDED],
 ])
 def test_every_current_event_translates_with_original_identity_and_evidence(name, kind, obj, reference_field, reference_id):
     original = event(name, obj)
@@ -103,13 +103,20 @@ def test_raw_evidence_is_copied_and_only_verified_bytes_reach_translation(monkey
 
 
 def test_event_mapping_covers_exactly_the_existing_handled_event_set():
-    assert set(_KINDS) == (webhooks.SUBSCRIPTION_EVENTS | webhooks.INVOICE_EVENTS | webhooks.SCHEDULE_EVENTS |
-                           {"checkout.session.completed", "checkout.session.expired"})
+    assert set(_KINDS) == {
+        "checkout.session.completed", "checkout.session.expired", "invoice.paid",
+        "invoice.payment_succeeded", "invoice.payment_failed", "customer.subscription.created",
+        "customer.subscription.updated", "customer.subscription.deleted", "customer.subscription.paused",
+        "customer.subscription.resumed", "customer.subscription.trial_will_end",
+        "customer.subscription.pending_update_applied", "customer.subscription.pending_update_expired",
+        "subscription_schedule.released", "subscription_schedule.completed",
+        "subscription_schedule.canceled", "subscription_schedule.aborted",
+    }
 
 
-def test_only_outbound_service_and_checkout_persistence_are_wired_and_contract_has_no_infrastructure_imports():
+def test_payment_boundary_wiring_is_scoped_and_contract_has_no_infrastructure_imports():
     src = Path(__file__).resolve().parents[2] / "src"
-    new_modules = {"payment_contracts", "stripe_gateway", "stripe_webhooks"}
+    new_modules = {"payment_contracts", "stripe_gateway", "stripe_webhooks", "payment_runtime"}
     for path in src.rglob("*.py"):
         if "tests" in path.parts or path.stem in new_modules:
             continue
@@ -122,8 +129,10 @@ def test_only_outbound_service_and_checkout_persistence_are_wired_and_contract_h
                 if used:
                     assert path.relative_to(src).as_posix() in {
                         "ai/billing/service.py", "ai/billing/checkout_attempts.py",
+                        "ai/billing/webhooks.py", "ai/billing/store.py", "ai/billing/promotions.py",
+                        "ai/routers/billing.py",
                     }, str(path)
-                    assert "stripe_webhooks" not in used, "Webhook wiring is deferred to Phase 3"
+                    assert "stripe_webhooks" not in used, "Provider decoding is composed at payment_runtime"
     contracts = ast.parse((src / "ai/billing/payment_contracts.py").read_text(encoding="utf-8"))
     imports = {node.module.split(".")[0] for node in ast.walk(contracts) if isinstance(node, ast.ImportFrom)}
     assert imports <= {"dataclasses", "datetime", "decimal", "enum", "typing"}

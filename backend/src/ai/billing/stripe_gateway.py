@@ -59,6 +59,7 @@ def _checkout(data):
         url=data.get("url"), client_reference=data.get("client_reference_id"),
         metadata=deepcopy(data.get("metadata") or {}),
         is_subscription=data.get("mode") == "subscription",
+        invoice=_reference(data.get("invoice")),
     )
 
 
@@ -82,8 +83,9 @@ def _subscription(data):
 
 def _invoice_subscription(data):
     parent = (data.get("parent") or {}).get("subscription_details") or {}
-    return _reference(parent.get("subscription") or (data.get("subscription_details") or {}).get("subscription")
-                      or data.get("subscription"))
+    return (_reference(parent.get("subscription"))
+            or _reference((data.get("subscription_details") or {}).get("subscription"))
+            or _reference(data.get("subscription")))
 
 
 def _money(minor, currency):
@@ -96,6 +98,11 @@ def _money(minor, currency):
 
 def _invoice(data):
     currency = data.get("currency") or "usd"
+    parent = (data.get("parent") or {}).get("subscription_details") or {}
+    details = data.get("subscription_details") or {}
+    metadata = data.get("metadata") or parent.get("metadata") or details.get("metadata") or {}
+    tenant_hint = next((m["tenant_id"] for m in (
+        data.get("metadata"), parent.get("metadata"), details.get("metadata")) if m and m.get("tenant_id")), None)
     return InvoiceSnapshot(
         reference=_required_reference(data["id"]), customer=_reference(data.get("customer")),
         subscription=_invoice_subscription(data),
@@ -103,11 +110,15 @@ def _invoice(data):
         amount_paid=_money(data.get("amount_paid") or 0, currency),
         amount_due=_money(data.get("amount_due") or 0, currency),
         paid_at=_time((data.get("status_transitions") or {}).get("paid_at")),
-        initial_subscription_invoice=data.get("billing_reason") == "subscription_create",
+        initial_subscription_invoice=(data["billing_reason"] == "subscription_create") if data.get("billing_reason") is not None else None,
         coverage=tuple((_time((line.get("period") or {}).get("start")),
                         _time((line.get("period") or {}).get("end")))
                        for line in (data.get("lines") or {}).get("data", [])),
         payment_url=data.get("hosted_invoice_url"),
+        document_url=data.get("invoice_pdf"), metadata=deepcopy(metadata), tenant_hint=tenant_hint,
+        failure_reason=(data.get("last_finalization_error") or {}).get("message"),
+        settlement_confirmed=data.get("status") == "paid",
+        currency_explicit=bool(data.get("currency")),
     )
 
 
