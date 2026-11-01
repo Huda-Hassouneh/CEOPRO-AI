@@ -183,9 +183,11 @@ def test_provider_rejection_releases_reservation_but_uncertain_outcome_is_quaran
         def rollback(self):
             pass
 
-    with pytest.raises(stripe_api.stripe.InvalidRequestError if definitive else TimeoutError):
+    from src.ai.billing.payment_contracts import PaymentProviderError, ProviderOperationOutcome
+    with pytest.raises(PaymentProviderError) as error:
         service.create_checkout(None, Connection(), "tenant", "a@example.test", "Store",
                                 "starter", "monthly", "SAVE", "user-id")
+    assert error.value.outcome == (ProviderOperationOutcome.REJECTED if definitive else ProviderOperationOutcome.OUTCOME_UNKNOWN)
     assert len(calls) == 1
     expected = [{"tenant_id": "tenant", "redemption_id": "1c6125e7-352e-49cf-9f93-7f095f8d5e3e"}]
     assert unknown == ([] if definitive else expected)

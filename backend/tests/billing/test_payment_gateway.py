@@ -1,4 +1,4 @@
-"""Offline parity against existing application transport; no runtime switch."""
+"""Offline transport characterization and outbound application parity."""
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -73,6 +73,25 @@ def test_standard_checkout_request_is_identical_to_existing_service(monkeypatch,
                              "APPROVED" if promotion else None, "actor")
     expected, key = calls.pop()
     metadata = checkout_intent().metadata | ({"keel_promotion_redemption_id": "redemption"} if promotion else {})
+    # Fixed pre-extraction request contract, independent of both wired callers.
+    baseline = {
+        "mode": "subscription", "customer": "cus_existing",
+        "line_items": [{"price": "price_existing", "quantity": 1}],
+        "client_reference_id": "tenant-A", "metadata": metadata,
+        "subscription_data": {"metadata": metadata}, "payment_method_collection": "always",
+        "success_url": "https://keel.example.test/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+        "cancel_url": "https://keel.example.test/billing?checkout=cancelled",
+    }
+    if trial:
+        baseline["subscription_data"].update(trial_end=int(CUTOFF.timestamp()),
+            trial_settings={"end_behavior": {"missing_payment_method": "cancel"}})
+    if promotion:
+        baseline["discounts"] = [{"promotion_code": "promo_bound"}]
+    else:
+        baseline["allow_promotion_codes"] = True
+    if tax:
+        baseline.update(automatic_tax={"enabled": True}, customer_update={"address": "auto", "name": "auto"})
+    assert expected == baseline
     result = StripeGateway().create_checkout(checkout_intent(
         idempotency_key=key,
         trial_end=CUTOFF if trial else None,
@@ -107,6 +126,19 @@ def test_custom_checkout_matches_existing_frozen_quote_transport(monkeypatch, mo
     monkeypatch.setattr(stripe_api, "create_checkout_session", create)
     service._create_custom_quote_checkout(MagicMock(), MagicMock(), "tenant-A", "e", "c", "quote-A", "retry-A")
     expected, key = calls.pop()
+    metadata = {"tenant_id": "tenant-A", "custom_quote_id": "quote-A", "custom_quote_revision_id": "revision-A",
+                "quote_attempt_id": "attempt-A", "billing_kind": "custom_quote"}
+    assert expected == {
+        "mode": "subscription", "customer": "cus_existing",
+        "line_items": [{"price_data": {"currency": "usd", "unit_amount": 10578,
+            "product_data": {"name": "KEEL Custom Plan"},
+            "recurring": {"interval": "month", "interval_count": months}}, "quantity": 1}],
+        "client_reference_id": "attempt-A", "metadata": metadata, "subscription_data": {"metadata": metadata},
+        "payment_method_collection": "always", "allow_promotion_codes": False,
+        "success_url": "https://keel.example.test/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+        "cancel_url": "https://keel.example.test/billing?checkout=cancelled",
+    }
+    assert key == "keel-custom-checkout-attempt-A"
     payment, interval, _ = self_service.checkout_terms(terms)
     StripeGateway().create_checkout(checkout_intent(
         price=None, recurring_amount=Money(payment, "USD"), interval_months=interval, product_name="KEEL Custom Plan",
@@ -151,7 +183,7 @@ def test_subscription_change_requests_match_current_service(monkeypatch, trial, 
     monkeypatch.setattr(store, "set_schedule", lambda *a: None)
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda *a: deepcopy(current))
     monkeypatch.setattr(stripe_api, "retrieve_schedule", lambda *a: deepcopy(schedule))
-    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda *a: {"hosted_invoice_url": "https://invoice.example.test"})
+    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda *a: {"id": "in_existing", "hosted_invoice_url": "https://invoice.example.test"})
     monkeypatch.setattr(stripe_api, "release_schedule", lambda *a: calls.append(("release", a)))
 
     def modify(identifier, **params):
@@ -162,6 +194,20 @@ def test_subscription_change_requests_match_current_service(monkeypatch, trial, 
     before = deepcopy(phase)
     service._change_plan_locked(None, MagicMock(), "tenant-A", "growth", "monthly")
     expected, calls[:] = calls[:], []
+    if upgrade:
+        parameters = {"items": [{"id": "si_existing", "price": "price_new", "quantity": 1}]}
+        if trial:
+            parameters.update(proration_behavior="none", trial_end=int(CUTOFF.timestamp()))
+        else:
+            parameters.update(proration_behavior="always_invoice", payment_behavior="pending_if_incomplete")
+        assert expected == [("release", ("sched_existing",)), ("modify", "sub_existing", parameters)]
+    else:
+        preserved = deepcopy(phase)
+        preserved["items"][0]["price"] = "price_old"
+        if trial:
+            preserved.update(trial_end=int(CUTOFF.timestamp()), end_date=int(CUTOFF.timestamp()))
+        assert expected == [("schedule", "sched_existing", {"end_behavior": "release", "proration_behavior": "none",
+            "phases": [preserved, {"items": [{"price": "price_new", "quantity": 1}]}]})]
     intent = SubscriptionChangeIntent(Ref("stripe", "sub_existing"), Ref("stripe", "price_new"), CUTOFF if trial else None)
     if upgrade:
         result = StripeGateway().change_subscription(intent)
@@ -376,6 +422,7 @@ def test_customer_lists_checkout_expiry_cancellation_resume_portal_and_schedule_
 def test_provider_independent_fake_exercises_application_contract():
     class FakeGateway:
         """No SDK classes, provider dictionaries, prefix parsing or event names."""
+        provider = "another"
         def create_checkout(self, intent):
             self.intent = intent
             return CheckoutSnapshot(Ref("another", "purchase-alpha"), CheckoutState.OPEN, PaymentState.UNPAID,
@@ -389,6 +436,7 @@ def test_provider_independent_fake_exercises_application_contract():
             raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
 
         create_customer = list_customer_subscriptions = list_open_checkouts = unsupported
+        customer_time = prepare_checkout = submit_checkout = unsupported
         get_checkout = expire_checkout = change_subscription = schedule_change = unsupported
         cancel_scheduled_change = set_cancellation = get_invoice = create_portal = unsupported
 
