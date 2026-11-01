@@ -1,6 +1,5 @@
 """External subscription-payment capabilities, independent of SDKs and persistence.
 
-Phase 1 contracts only: no production caller is composed with these yet.
 Callers own authorization, commercial decisions, locks, durable attempts and
 transactions. A provider snapshot or verified notification never grants rights.
 """
@@ -48,9 +47,10 @@ class ProviderOperationOutcome(str, Enum):
 class PaymentProviderError(Exception):
     """Stable failure classification; deliberately contains no provider error body."""
 
-    def __init__(self, outcome: ProviderOperationOutcome):
+    def __init__(self, outcome: ProviderOperationOutcome, *, reason: str | None = None):
         super().__init__(outcome.value)
         self.outcome = outcome
+        self.reason = reason
 
 
 class InvalidPaymentWebhook(ValueError):
@@ -116,6 +116,18 @@ class CheckoutIntent:
             raise ValueError("A positive monthly interval is required")
         if self.recurring_amount is not None and not self.product_name:
             raise ValueError("Inline recurring terms require a product name")
+
+
+@dataclass(frozen=True)
+class FrozenCheckoutRequest:
+    """Opaque transport evidence, persisted before sending and never rebuilt.
+
+    Only the matching adapter interprets payload. Persistence preserves its
+    original shape for compatibility with already frozen Checkout attempts.
+    """
+    provider: str
+    idempotency_key: str
+    payload: Mapping
 
 
 @dataclass(frozen=True)
@@ -225,16 +237,25 @@ class SubscriptionPaymentGateway(Protocol):
     Scheduling means the existing term's end (or the explicitly supplied
     preserved trial cutoff). Callers approve timing and direction beforehand.
     """
+    provider: str
+
+    def customer_time(self, customer: ProviderReference, *, tenant_reference: str,
+                      require_clock: bool = False) -> datetime | None: ...
     def create_customer(self, *, email: str, company_name: str, tenant_reference: str,
                         idempotency_key: str) -> ProviderReference: ...
     def list_customer_subscriptions(self, customer: ProviderReference) -> tuple[SubscriptionSnapshot, ...]: ...
     def list_open_checkouts(self, customer: ProviderReference) -> tuple[CheckoutSnapshot, ...]: ...
     def create_checkout(self, intent: CheckoutIntent) -> CheckoutSnapshot: ...
+    def prepare_checkout(self, intent: CheckoutIntent) -> FrozenCheckoutRequest: ...
+    def submit_checkout(self, request: FrozenCheckoutRequest) -> CheckoutSnapshot: ...
     def get_checkout(self, reference: ProviderReference) -> CheckoutSnapshot: ...
     def expire_checkout(self, reference: ProviderReference) -> CheckoutSnapshot: ...
     def get_subscription(self, reference: ProviderReference) -> SubscriptionSnapshot: ...
-    def change_subscription(self, intent: SubscriptionChangeIntent) -> SubscriptionChangeResult: ...
-    def schedule_change(self, intent: SubscriptionChangeIntent, *, now: datetime) -> ScheduledChange: ...
+    def change_subscription(self, intent: SubscriptionChangeIntent, *,
+                            current: SubscriptionSnapshot | None = None,
+                            resolve_payment_url: bool = True) -> SubscriptionChangeResult: ...
+    def schedule_change(self, intent: SubscriptionChangeIntent, *, now: datetime,
+                        current: SubscriptionSnapshot | None = None) -> ScheduledChange: ...
     def cancel_scheduled_change(self, schedule: ProviderReference) -> ProviderOperationOutcome: ...
     def set_cancellation(self, subscription: ProviderReference, *, cancel_at_period_end: bool) -> SubscriptionSnapshot: ...
     def get_invoice(self, reference: ProviderReference) -> InvoiceSnapshot: ...

@@ -1,4 +1,4 @@
-"""Stripe translation over the existing SDK wrapper; not wired into billing yet.
+"""Outbound Stripe translation over the existing SDK wrapper.
 
 No SQL, commits, tenant lookup, eligibility, pricing or activation belongs here.
 """
@@ -8,9 +8,9 @@ from decimal import Decimal
 
 import stripe
 
-from src.ai.billing import stripe_api
+from src.ai.billing import stripe_api, test_clock
 from src.ai.billing.payment_contracts import (
-    CheckoutIntent, CheckoutSnapshot, CheckoutState, InvoiceSnapshot, Money,
+    CheckoutIntent, CheckoutSnapshot, CheckoutState, FrozenCheckoutRequest, InvoiceSnapshot, Money,
     PaymentProviderError, PaymentState, ProviderOperationOutcome as Outcome,
     ProviderReference, ScheduledChange, SubscriptionChangeIntent,
     SubscriptionChangeResult, SubscriptionItem, SubscriptionSnapshot, SubscriptionState,
@@ -114,9 +114,13 @@ def _invoice(data):
 def _call(operation, *, mutating=False, completed_writes=None):
     try:
         return operation()
-    except PaymentProviderError:
+    except test_clock.TestClockError:
+        # Local-only safety/configuration errors retain their existing HTTP 503
+        # contract. Never turn a failed Test Clock guard into ordinary Checkout.
+        raise
+    except PaymentProviderError as error:
         if completed_writes:
-            raise PaymentProviderError(Outcome.OUTCOME_UNKNOWN) from None
+            raise PaymentProviderError(Outcome.OUTCOME_UNKNOWN, reason=error.reason) from None
         raise
     except Exception as error:
         if completed_writes:
@@ -133,8 +137,7 @@ def _call(operation, *, mutating=False, completed_writes=None):
         raise PaymentProviderError(outcome) from None
 
 
-# Transitional parity with service._preserved_current_phase. Phase 2 can move
-# the existing caller to this adapter; do not make the adapter import a service.
+# Stripe replaces submitted phases; preserve existing commercial settings.
 _PHASE_FIELDS = (
     "application_fee_percent", "automatic_tax", "billing_cycle_anchor", "billing_thresholds",
     "collection_method", "currency", "default_payment_method", "default_tax_rates", "description",
@@ -144,7 +147,7 @@ _PHASE_FIELDS = (
 
 def _preserved_phase(phase, trial_end):
     if phase.get("add_invoice_items"):
-        raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
+        raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY, reason="additional_invoice_items")
     result = {key: deepcopy(phase[key]) for key in _PHASE_FIELDS if phase.get(key) is not None}
     result.update(start_date=phase["start_date"], end_date=phase["end_date"], items=[])
     for item in phase["items"]:
@@ -155,12 +158,20 @@ def _preserved_phase(phase, trial_end):
         result["items"].append(saved)
     if trial_end is not None:
         if phase.get("trial_end") not in (None, trial_end) or not phase["start_date"] < trial_end <= phase["end_date"]:
-            raise PaymentProviderError(Outcome.REJECTED)
+            raise PaymentProviderError(Outcome.REJECTED, reason="trial_boundary_mismatch")
         result.update(trial_end=trial_end, end_date=trial_end)
     return result
 
 
 class StripeGateway:
+    provider = "stripe"
+
+    def customer_time(self, customer, *, tenant_reference, require_clock=False):
+        identifier = _identifier(customer)
+        if require_clock:
+            return _call(lambda: stripe_api.customer_clock_time(identifier, tenant_reference, require_clock=True))
+        return _call(lambda: stripe_api.customer_clock_time(identifier, tenant_reference))
+
     def create_customer(self, *, email, company_name, tenant_reference, idempotency_key):
         if not idempotency_key:
             raise ValueError("A durable idempotency key is required")
@@ -176,6 +187,9 @@ class StripeGateway:
         return _call(lambda: tuple(_checkout(item) for item in stripe_api.open_customer_checkouts(identifier)))
 
     def create_checkout(self, intent: CheckoutIntent):
+        return self.submit_checkout(self.prepare_checkout(intent))
+
+    def prepare_checkout(self, intent: CheckoutIntent):
         if intent.price is not None:
             line = {"price": _identifier(intent.price), "quantity": 1}
         else:
@@ -202,7 +216,12 @@ class StripeGateway:
             params["allow_promotion_codes"] = intent.allow_promotion_entry
         if intent.automatic_tax:
             params.update(automatic_tax={"enabled": True}, customer_update={"address": "auto", "name": "auto"})
-        return self.replay_frozen_checkout(params, idempotency_key=intent.idempotency_key)
+        return FrozenCheckoutRequest(self.provider, intent.idempotency_key, params)
+
+    def submit_checkout(self, request: FrozenCheckoutRequest):
+        if request.provider != self.provider:
+            raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
+        return self.replay_frozen_checkout(request.payload, idempotency_key=request.idempotency_key)
 
     def replay_frozen_checkout(self, frozen_params: dict, *, idempotency_key: str):
         """Stripe-only legacy bridge, deliberately outside the neutral protocol.
@@ -227,20 +246,22 @@ class StripeGateway:
         identifier = _identifier(reference)
         return _call(lambda: _subscription(stripe_api.retrieve_subscription(identifier)))
 
-    def change_subscription(self, intent: SubscriptionChangeIntent):
+    def change_subscription(self, intent: SubscriptionChangeIntent, *, current=None, resolve_payment_url=True):
         identifier, price = _identifier(intent.subscription), _identifier(intent.price)
         trial_end = _epoch(intent.trial_end) if intent.trial_end is not None else None
         completed = []
 
         def change():
-            current = stripe_api.retrieve_subscription(identifier)
-            if _time(current.get("trial_end")) != intent.trial_end and current.get("status") == "trialing":
+            snapshot = current if current is not None else self.get_subscription(intent.subscription)
+            if snapshot.reference != intent.subscription:
                 raise PaymentProviderError(Outcome.REJECTED)
-            schedule = _reference(current.get("schedule"))
+            if snapshot.trial_end != intent.trial_end and snapshot.state == SubscriptionState.TRIALING:
+                raise PaymentProviderError(Outcome.REJECTED, reason="trial_boundary_mismatch")
+            schedule = snapshot.schedule
             if schedule:
                 stripe_api.release_schedule(schedule.opaque_id)
                 completed.append("released")
-            params = {"items": [{"id": current["items"]["data"][0]["id"], "price": price, "quantity": 1}]}
+            params = {"items": [{"id": _identifier(snapshot.items[0].reference), "price": price, "quantity": 1}]}
             if trial_end is not None:
                 params.update(proration_behavior="none", trial_end=trial_end)
             else:
@@ -249,21 +270,23 @@ class StripeGateway:
             completed.append("changed")
             pending = bool(updated.get("pending_update"))
             invoice = _reference(updated.get("latest_invoice"))
-            payment_url = stripe_api.retrieve_invoice(invoice.opaque_id).get("hosted_invoice_url") if pending and invoice else None
+            payment_url = stripe_api.retrieve_invoice(invoice.opaque_id).get("hosted_invoice_url") if pending and invoice and resolve_payment_url else None
             return SubscriptionChangeResult(_subscription(updated), pending, payment_url)
         return _call(change, mutating=True, completed_writes=completed)
 
-    def schedule_change(self, intent: SubscriptionChangeIntent, *, now: datetime):
+    def schedule_change(self, intent: SubscriptionChangeIntent, *, now: datetime, current=None):
         identifier, price = _identifier(intent.subscription), _identifier(intent.price)
         cutoff = _epoch(intent.trial_end) if intent.trial_end is not None else None
         now_epoch = _epoch(now)
         completed = []
 
         def schedule_change():
-            current = stripe_api.retrieve_subscription(identifier)
-            if current.get("status") == "trialing" and _time(current.get("trial_end")) != intent.trial_end:
+            snapshot = current if current is not None else self.get_subscription(intent.subscription)
+            if snapshot.reference != intent.subscription:
                 raise PaymentProviderError(Outcome.REJECTED)
-            schedule = _reference(current.get("schedule"))
+            if snapshot.state == SubscriptionState.TRIALING and snapshot.trial_end != intent.trial_end:
+                raise PaymentProviderError(Outcome.REJECTED, reason="trial_boundary_mismatch")
+            schedule = snapshot.schedule
             if schedule is None:
                 schedule = _required_reference(stripe_api.create_schedule_from_subscription(identifier)["id"])
                 completed.append("created")
@@ -274,7 +297,7 @@ class StripeGateway:
                           and p.get("end_date") == selected.get("end_date")), None)
             phase = phase or next((p for p in phases if (p.get("end_date") or 0) > now_epoch), None)
             if phase is None:
-                raise PaymentProviderError(Outcome.OUTCOME_UNKNOWN)
+                raise PaymentProviderError(Outcome.OUTCOME_UNKNOWN, reason="schedule_unavailable")
             preserved = _preserved_phase(phase, cutoff)
             stripe_api.modify_schedule(schedule.opaque_id, end_behavior="release", proration_behavior="none",
                 phases=[preserved, {"items": [{"price": price, "quantity": 1}]}])

@@ -107,7 +107,7 @@ def test_event_mapping_covers_exactly_the_existing_handled_event_set():
                            {"checkout.session.completed", "checkout.session.expired"})
 
 
-def test_phase_one_has_no_production_wiring_and_contract_has_no_infrastructure_imports():
+def test_only_outbound_service_and_checkout_persistence_are_wired_and_contract_has_no_infrastructure_imports():
     src = Path(__file__).resolve().parents[2] / "src"
     new_modules = {"payment_contracts", "stripe_gateway", "stripe_webhooks"}
     for path in src.rglob("*.py"):
@@ -118,7 +118,12 @@ def test_phase_one_has_no_production_wiring_and_contract_has_no_infrastructure_i
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 names = {alias.name.split(".")[-1] for alias in node.names}
                 module = (getattr(node, "module", None) or "").split(".")[-1]
-                assert not (names | {module}) & new_modules, str(path)
+                used = (names | {module}) & new_modules
+                if used:
+                    assert path.relative_to(src).as_posix() in {
+                        "ai/billing/service.py", "ai/billing/checkout_attempts.py",
+                    }, str(path)
+                    assert "stripe_webhooks" not in used, "Webhook wiring is deferred to Phase 3"
     contracts = ast.parse((src / "ai/billing/payment_contracts.py").read_text(encoding="utf-8"))
     imports = {node.module.split(".")[0] for node in ast.walk(contracts) if isinstance(node, ast.ImportFrom)}
     assert imports <= {"dataclasses", "datetime", "decimal", "enum", "typing"}
