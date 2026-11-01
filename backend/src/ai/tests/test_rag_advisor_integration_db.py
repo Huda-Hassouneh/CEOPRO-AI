@@ -9,7 +9,7 @@ reply is scripted; nothing leaves the machine.
 import json
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from urllib.parse import urlparse, urlunparse
 
 import psycopg2
@@ -60,7 +60,9 @@ def companies():
                    "(%s, %s, %s, 6.000, 3.500, 'JOD'), (%s, %s, %s, 9.000, 7.000, 'JOD');",
                    (product_a, tenant_a, json.dumps({"en": "Cold Pressed Olive Oil 1L", "ar": "زيت زيتون معصور على البارد"}),
                     product_b, tenant_b, json.dumps({"en": "Secret Widget Pro"})))
-    issued = datetime.now(timezone.utc) - timedelta(days=3)
+    # Keep the fixture inside the queried "this month", including its first
+    # three days. Subtracting three days silently moved it to last month.
+    issued = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     invoice = str(uuid.uuid4())
     cursor.execute("INSERT INTO invoices (invoice_id, tenant_id, invoice_number, issue_date, subtotal, total_amount, currency) "
                    "VALUES (%s, %s, 'ADV-1', %s, 777.000, 777.000, 'JOD');", (invoice, tenant_a, issued))

@@ -6,6 +6,20 @@ from pydantic import ValidationError
 from src.ai.routers.platform import StandardPlanCreate
 
 
+@pytest.fixture(autouse=True)
+def _uuid_registration_remains_local():
+    """Creating a plan must not change how later tests decode database IDs."""
+    import uuid
+    from psycopg2 import extensions
+
+    casters = {oid: extensions.string_types.get(oid) for oid in (2950, 2951)}
+    adapter_key = (uuid.UUID, extensions.ISQLQuote)
+    adapter = extensions.adapters.get(adapter_key)
+    yield
+    assert {oid: extensions.string_types.get(oid) for oid in casters} == casters
+    assert extensions.adapters.get(adapter_key) is adapter
+
+
 def test_standard_plan_create_contract_accepts_explicit_terms_without_activating_or_inventing_price():
     body = StandardPlanCreate.model_validate({
         "plan_key": "regional_plus",
@@ -67,14 +81,15 @@ def test_owner_creates_and_configures_a_new_plan_through_restricted_role_without
 
     import psycopg2
     from psycopg2.extras import Json
-    psycopg2.extras.register_uuid()
 
     database_url = os.environ["AI_TEST_DATABASE_URL"]
     parsed = urlparse(database_url)
     app_url = urlunparse(parsed._replace(netloc=(
         f"ceopro_app:{quote(os.environ['APP_DB_PASSWORD'], safe='')}@{parsed.hostname}:{parsed.port or 5432}"
     )))
-    tenant, actor = uuid.uuid4(), uuid.uuid4()
+    # Match KEEL's string-ID boundary without installing a process-wide UUID
+    # caster: that would change unrelated connections later in the test run.
+    tenant, actor = str(uuid.uuid4()), str(uuid.uuid4())
     plan_key = "owner_created_" + uuid.uuid4().hex[:10]
     email = f"{plan_key}@example.test"
     periods = [{"period_code": "yearly", "discount_percent": "12.50"}]

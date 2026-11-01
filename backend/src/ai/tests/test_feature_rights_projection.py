@@ -10,7 +10,7 @@ from src.ai.core import feature_rights
 
 ROOT = Path(__file__).resolve().parents[4]
 CROSSWALK = ROOT / "docs" / "keel-integration" / "FEATURE_AND_ENTITLEMENT_CROSSWALK.csv"
-USAGE_SOURCE = ROOT / "backend" / "src" / "ai" / "core" / "usage.py"
+FEATURE_SOURCE = ROOT / "backend" / "src" / "ai" / "core" / "feature_contracts.py"
 
 
 def _plan(**overrides):
@@ -71,7 +71,7 @@ def test_projection_registry_covers_authoritative_crosswalk_without_inventing_ta
 
 
 def test_established_targets_are_existing_python_feature_or_module_codes():
-    tree = ast.parse(USAGE_SOURCE.read_text(encoding="utf-8"))
+    tree = ast.parse(FEATURE_SOURCE.read_text(encoding="utf-8"))
     python_codes = set()
     for statement in tree.body:
         if not isinstance(statement, ast.Assign) or not isinstance(statement.value, ast.Constant):
