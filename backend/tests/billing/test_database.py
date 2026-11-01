@@ -444,7 +444,7 @@ def test_existing_catalog_has_current_plan_records_without_reference_seeding(own
     }
     assert {
         k: rows[k]["monthly_price"] for k in ("starter", "growth", "enterprise")
-    } == {"starter": 55.0, "growth": 140.0, "enterprise": 350.0}
+    } == {"starter": 29.0, "growth": 59.0, "enterprise": 99.0}
     assert rows["custom"]["self_serve"] is False
     for key in ("starter", "growth", "enterprise"):
         assert {p["period_code"] for p in rows[key]["prices"]} == {

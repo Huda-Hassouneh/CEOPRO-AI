@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": "standard-plans-v1",
+  "catalog_version": "standard-plans-launch-v2",
   "purpose": "Bootstrap/templates only. Persisted owner catalog, billing_plan_prices and Stripe remain commercial authorities. Categories are presentation only.",
   "categories": [
     {
@@ -418,17 +418,17 @@
         }
       ],
       "bootstrap_commercial_defaults": {
-        "source": "20261020000000_keel_subscriptions_and_credits.sql; existing billing_plan_prices",
+        "source": "Owner-approved pre-launch acquisition prices; Pricing Studio policy v4 study. Launch price is a commercial acquisition decision and does not imply that modeled delivery cost has decreased.",
         "currency": "USD",
-        "monthly_price": "55.00",
+        "monthly_price": "29.00",
         "billing_periods": [
           {
             "period_code": "three-months",
-            "discount_percent": "10.00"
+            "discount_percent": "0.00"
           },
           {
             "period_code": "six-months",
-            "discount_percent": "20.00"
+            "discount_percent": "0.00"
           }
         ]
       },
@@ -543,17 +543,17 @@
         }
       ],
       "bootstrap_commercial_defaults": {
-        "source": "20261020000000_keel_subscriptions_and_credits.sql; existing billing_plan_prices",
+        "source": "Owner-approved pre-launch acquisition prices; Pricing Studio policy v4 study. Launch price is a commercial acquisition decision and does not imply that modeled delivery cost has decreased.",
         "currency": "USD",
-        "monthly_price": "140.00",
+        "monthly_price": "59.00",
         "billing_periods": [
           {
             "period_code": "three-months",
-            "discount_percent": "10.00"
+            "discount_percent": "0.00"
           },
           {
             "period_code": "six-months",
-            "discount_percent": "20.00"
+            "discount_percent": "0.00"
           }
         ]
       },
@@ -668,17 +668,17 @@
         }
       ],
       "bootstrap_commercial_defaults": {
-        "source": "20261020000000_keel_subscriptions_and_credits.sql; existing billing_plan_prices",
+        "source": "Owner-approved pre-launch acquisition prices; Pricing Studio policy v4 study. Launch price is a commercial acquisition decision and does not imply that modeled delivery cost has decreased.",
         "currency": "USD",
-        "monthly_price": "350.00",
+        "monthly_price": "99.00",
         "billing_periods": [
           {
             "period_code": "three-months",
-            "discount_percent": "10.00"
+            "discount_percent": "0.00"
           },
           {
             "period_code": "six-months",
-            "discount_percent": "20.00"
+            "discount_percent": "0.00"
           }
         ]
       },

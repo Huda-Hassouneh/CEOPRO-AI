@@ -71,7 +71,10 @@ Use it when checking what new customers can buy or taking a package off sale.
 billing options describe commercial terms. Active means available for new
 purchases; it does not prove payment configuration is ready. Trial days describe
 the offered trial. Current Standard, Plus and Pro use USD commercial prices of
-55, 140 and 350 monthly; three months has 10% discount and six months 20%.
+29, 59 and 99 monthly for the approved initial launch catalog. Three-month totals
+are USD 87, 177 and 297; six-month totals are USD 174, 354 and 594. These terms
+have no additional multi-month discount. Historical customers may retain earlier
+prices and discounts. Custom Plan discounts remain governed separately.
 Retired packages may remain visible for history. Custom is not a fixed-price
 Standard purchase.
 
@@ -121,6 +124,35 @@ control is unavailable, use an explicitly approved catalog publication procedure
 do not substitute Provider Accounting edits to change the customer price.
 
 ## Pricing Studio
+
+### Approved launch price publication
+
+The `standard-plans-launch-v2` templates record the owner's pre-launch acquisition
+decision. Launch price is a commercial acquisition decision and does not imply
+that modeled delivery cost has decreased. AWS Frankfurt + Neon Launch costing,
+local workload measurements, policy v4, provisional support/operations economics
+and affordable-launch sensitivity analysis remain independent evidence. Expect
+provisional, negative-margin and unsafe-price warnings; do not edit cost evidence
+to dismiss them. This is the initial base catalog, not an expiring promotion.
+
+An installation operator uses the existing authenticated-owner billing tool:
+`python -m scripts.billing_admin publish-standard-catalog --by OWNER_UUID
+--owner-token-stdin --reason "APPROVED_DECISION" --evidence decision.json`.
+This previews the repository catalog. After a verified recoverable backup, repeat
+with `--apply --expected-state PREVIEW_STATE_HASH`. Supply the real owner's Python
+bearer token through stdin; never place credentials in command history. The
+evidence JSON should identify policy v4 and the study/approval basis above.
+Publication appends new price rows and retires old availability, preserving old
+amounts, Stripe IDs, subscriptions and assignment snapshots. Repeating the same
+publication is a no-op; later owner changes require a new reviewed version.
+Normal bootstrap still never overwrites owner pricing.
+
+New prices deliberately start without Stripe bindings. Reconcile the catalog
+using `scripts.stripe_sync_catalog --dry-run`, inspect it, then apply in the
+intended account. Local acceptance permits TEST keys only. Production operators
+must separately approve LIVE Product/Price creation and verify all nine amounts,
+USD currency and 1/3/6-month intervals. Never update old Stripe Price amounts or
+automatically move existing subscribers. Annual remains hypothetical only.
 
 **Purpose/use.** Compare a Standard Plan's published price with expected and
 heavy-use economics, or simulate a different configuration before deciding.

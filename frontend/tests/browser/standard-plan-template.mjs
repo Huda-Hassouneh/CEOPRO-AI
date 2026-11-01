@@ -17,6 +17,14 @@ try {
   page.on('response',r=>{if(r.status()>=400)issues.push(`${r.status()} ${r.url()}`);});
   page.on('console',m=>{if(['error','warning'].includes(m.type()))issues.push(m.text());});
   await page.goto(process.env.APP_URL+'/tests/browser/standard-plan-creation.html');
+  const ownerCatalog = await (await context.request.get(process.env.API_URL+'/platform/billing/standard-plans')).json();
+  for (const [key, monthly] of [['starter', 29], ['growth', 59], ['enterprise', 99]]) {
+    const plan = ownerCatalog.plans.find(p => p.plan_key === key);
+    assert.equal(plan.monthly_price, monthly);
+    assert.deepEqual(plan.prices.map(p => [p.interval_months, p.amount, p.discount_percent]),
+      [[1, monthly, 0], [3, monthly * 3, 0], [6, monthly * 6, 0]]);
+    await page.getByText(new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(monthly), { exact: true }).first().waitFor();
+  }
   await page.getByRole('button',{name:t('billing.catalog.plans.create'),exact:true}).click();
   const dialog=page.getByRole('dialog');
   const templates=dialog.getByLabel(t('billing.catalog.templates.select'),{exact:true});
