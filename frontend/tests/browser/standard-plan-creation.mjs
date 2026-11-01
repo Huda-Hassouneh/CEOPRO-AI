@@ -176,7 +176,7 @@ try {
     await auditDialog();
     await dialog.getByRole('button', { name: t('common.cancel'), exact: true }).click();
     const nav = page.locator('.billing-catalog-tabs nav');
-    await nav.getByRole('link', { name: t('billing.catalog.tabs.planFeatures'), exact: true }).click();
+    await nav.getByRole('link', { name: t('billing.catalog.ownerNavigation.allowances'), exact: true }).click();
     await page.getByLabel(t('billing.catalog.fields.plan'), { exact: true }).selectOption(newKey);
     for (const code of [...numeric, 'market_intelligence']) {
       await page.getByLabel(t('billing.catalog.fields.feature'), { exact: true }).selectOption(code);
