@@ -1,5 +1,7 @@
 import { Check } from "lucide-react";
+import { Fragment } from 'react';
 import { featureDisplayName } from '../utils/featurePresentation.js';
+import { categoryLabel, groupedFeatures } from './billingFeaturePresentation.js';
 import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 
 export function PlanComparisonTable({ plans, currentPlanId }) {
@@ -11,6 +13,9 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
   ];
 
   if (!plans.length || !featureKeys.length) return null;
+  const groups = groupedFeatures(featureKeys.map((code) => ({
+    ...plans.find((plan) => plan.features?.[code])?.features[code], code,
+  })));
 
   return (
     <div className="billing-comparison-wrap">
@@ -37,7 +42,9 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
           </tr>
         </thead>
         <tbody>
-          {featureKeys.map((key) => {
+          {groups.map(([group, features]) => <Fragment key={group}>
+            {features[0].category && <tr><th scope="colgroup" colSpan={plans.length + 1}>{categoryLabel(features[0], locale, t)}</th></tr>}
+            {features.map(({ code: key }) => {
             const sampleFeature = plans.find((plan) => plan.features?.[key])
               ?.features[key];
             const featureName = featureDisplayName(key, sampleFeature, locale, t);
@@ -117,6 +124,7 @@ export function PlanComparisonTable({ plans, currentPlanId }) {
               </tr>
             );
           })}
+          </Fragment>)}
         </tbody>
       </table>
     </div>

@@ -246,24 +246,41 @@ def test_a_company_with_no_ai_credits_left_still_gets_an_evidence_answer(client,
     assert {"need": "answer_writing", "status": "allowance_used"} in body["evidence_status"]
 
 
-def test_unpriced_greeting_reports_pricing_keeps_history_and_refunds_allowance(client, model, monkeypatch):
+@pytest.mark.parametrize("provider_refusal", [False, True])
+def test_unpriced_greeting_keeps_history_and_refunds_allowance(client, model, monkeypatch, provider_refusal):
     from src.ai.rag import llm_client
     from src.ai.core import usage
 
     _, calls = model
     monkeypatch.setattr(llm_client, "active_provider", lambda: "unpriced_" + uuid.uuid4().hex[:8])
+    if provider_refusal:
+        # Retain coverage of the HTTP pricing-refusal boundary as well as
+        # main's local, non-chargeable greeting that never invokes a model.
+        from src.ai.routers import rag
+
+        def refused(*args, **kwargs):
+            raise llm_client.LLMPricingNotConfiguredError("Synthetic pricing refusal")
+
+        monkeypatch.setattr(rag.rag_advisor, "answer", refused)
     tenant, headers = _company_with_one_product(client)
     response = client.post("/rag/query", params={"query_text": "hello"}, headers=headers)
-    assert response.status_code == 503, response.text
-    assert response.json()["detail"]["reason"] == "COST_NOT_CONFIGURED"
-    assert response.json()["detail"]["budget"] == "ai"
-    assert response.headers["x-assistant-reason"] == "cost_not_configured"
+    if provider_refusal:
+        assert response.status_code == 503, response.text
+        assert response.json()["detail"]["reason"] == "COST_NOT_CONFIGURED"
+        assert response.json()["detail"]["budget"] == "ai"
+        assert response.headers["x-assistant-reason"] == "cost_not_configured"
+        identity = response.headers["x-assistant-session-id"]
+    else:
+        assert response.status_code == 200, response.text
+        assert response.json()["answer_mode"] == "conversation"
+        assert response.json()["token_usage"]["total_tokens"] == 0
+        identity = response.json()["session_id"]
     assert calls == [], "An unpriced provider must never be contacted"
     assert "unpriced_" not in response.text and "input_token" not in response.text
-    identity = response.headers["x-assistant-session-id"]
     history = client.get(f"/rag/sessions/{identity}/messages", headers=headers)
     assert history.status_code == 200
-    assert [m["content"] for m in history.json()["messages"]] == ["hello"]
+    messages = history.json()["messages"]
+    assert [m["content"] for m in messages] == (["hello"] if provider_refusal else ["hello", response.json()["answer"]])
     used = _admin("SELECT used FROM tenant_usage_counters WHERE tenant_id=%s AND feature_code=%s", (tenant, usage.RAG_ASSISTANT))
     assert all(row[0] == 0 for row in used)
     assert _admin("SELECT count(*) FROM usage_ledger WHERE tenant_id=%s", (tenant,))[0][0] == 0

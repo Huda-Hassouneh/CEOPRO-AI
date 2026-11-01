@@ -4,9 +4,9 @@ KEEL - plan modules as FastAPI dependencies.
     app.include_router(forecasting.router, dependencies=[requires(usage.DEMAND_PREDICTION)])
 
 answers 402 (reason NOT_INCLUDED, or SUBSCRIPTION_INACTIVE) before the
-endpoint runs when the company's plan doesn't include the module (the plan
-catalog: Starter has no market intelligence, demand forecasting or
-competitor tracking). Entitlements are cached per company for a short time,
+endpoint runs when the company's saved plan doesn't include the module.
+All current Standard tiers include these modules by default; owner-edited and
+historical assignments retain their own snapshots. Entitlements are cached per company for a short time,
 so a plan change applies within ENTITLEMENT_CACHE_SECONDS.
 """
 import os

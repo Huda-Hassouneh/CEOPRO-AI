@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useI18n } from '../../app/providers/I18nProvider.jsx';
 import { useAuthStore } from '../auth/store/authStore.js';
@@ -12,7 +13,8 @@ import Skeleton from '../../shared/components/ui/Skeleton.jsx';
 import Toast from '../../shared/components/ui/Toast.jsx';
 import EmptyState from '../../shared/components/ui/EmptyState.jsx';
 import { platformBillingApi } from './platformBillingApi.js';
-import { ACCOUNTING_UNITS, accountingRows, decimalText, emptyPrice, pricePayload, priceStatus } from './providerAccounting.js';
+import { BillingTabLink } from '../billing/components/BillingGuidance.jsx';
+import { ACCOUNTING_UNITS, accountingRows, decimalText, emptyPrice, pricePayload, priceStatus, scheduleEvidence } from './providerAccounting.js';
 import './providerAccounting.css';
 
 export function ProviderAccounting({ canManage = false, api = platformBillingApi }) {
@@ -21,6 +23,7 @@ export function ProviderAccounting({ canManage = false, api = platformBillingApi
   const queryClient = useQueryClient();
   const key = ['platform', actor, 'provider-accounting'];
   const query = useQuery({ queryKey: key, queryFn: api.providerAccounting, retry: false });
+  const readiness = useQuery({ queryKey: ['platform', actor, 'pricing-studio'], queryFn: api.pricingStudio, retry: false });
   const [form, setForm] = useState(null);
   const [locked, setLocked] = useState(false);
   const [errors, setErrors] = useState({});
@@ -51,22 +54,37 @@ export function ProviderAccounting({ canManage = false, api = platformBillingApi
     } finally { setSaving(false); }
   };
   const bool = value => value ? t('common.yes') : t('common.no');
-  const fields = ['budget_kind', 'provider', 'operation', 'unit', 'unit_cost_usd', 'safety_margin', 'charged_on_failure', 'cost_is_final', 'source', 'verified_at', 'configured_by', 'reason', 'updated_at'];
-  const columns = fields.map(field => ({ key: field, header: text(field), render: row => {
-    const value = ['charged_on_failure', 'cost_is_final'].includes(field) ? bool(row[field])
-      : row[field] == null ? '—' : ['unit_cost_usd', 'safety_margin'].includes(field) ? decimalText(row[field]) : row[field];
-    return <span className={['source', 'reason'].includes(field) ? 'provider-accounting-provenance' : 'provider-accounting-value'}>{value}</span>;
-  } }));
-  columns.splice(5, 0, { key: 'status', header: text('status'), render: row => text(priceStatus(row)) });
+  const columns = [
+    { header: text('provider'), accessor: 'provider' },
+    { header: text('operation'), render: row => <>{row.operation}<small className="provider-accounting-secondary">{row.budget_kind}</small></> },
+    { header: text('unit'), accessor: 'unit' },
+    { header: text('unit_cost_usd'), render: row => <span className="provider-accounting-value">{row.unit_cost_usd == null ? '—' : decimalText(row.unit_cost_usd)}</span> },
+    { header: text('status'), render: row => text(priceStatus(row)) },
+    { header: text('verification'), render: row => <span className={`provider-accounting-status status-${scheduleEvidence(row, readiness.data?.provider_readiness).status}`}>{text('evidenceStatuses.'+scheduleEvidence(row, readiness.data?.provider_readiness).status)}</span> },
+    { header: text('origin'), render: row => text('origins.'+scheduleEvidence(row, readiness.data?.provider_readiness).origin) },
+    { header: text('details'), render: row => <details><summary>{text('viewEvidence')}</summary><dl className="provider-accounting-details">
+      {['source','verified_at','configured_by','updated_at','safety_margin','charged_on_failure','cost_is_final','reason'].map(field => <div key={field}><dt>{text(field)}</dt><dd>{['charged_on_failure','cost_is_final'].includes(field) ? bool(row[field]) : row[field] == null || row[field] === '' ? '—' : ['safety_margin'].includes(field) ? decimalText(row[field]) : row[field]}</dd></div>)}
+    </dl></details> },
+  ];
   if (canManage) columns.push({ key: 'actions', header: t('billing.catalog.actions'), render: row => <Button size="sm" variant="secondary" onClick={() => open(row)}>{t('common.edit')}</Button> });
   return <section className="provider-accounting" aria-label={text('title')}>
     <Card>
-      <h2>{text('title')}</h2><p>{text('description')}</p>
+      <h2>{text('title')}</h2><p>{text('description')}</p><p>{text('boundary')}</p>
+      <p><Link to="/admin/billing?python=1&tab=costs">{text('manageRates')}</Link> · <BillingTabLink tab="custom-quotes">{text('vendorRateLink')}</BillingTabLink> · <BillingTabLink tab="pricing-studio">{text('studioLink')}</BillingTabLink></p>
       {canManage && <Button onClick={() => open(null)}>{text('add')}</Button>}
       {query.isPending ? <div role="status" aria-label={t('common.loading')}><Skeleton height="120px" /></div>
         : query.isError ? <div role="alert"><p>{text('loadError')}</p><Button onClick={() => query.refetch()}>{text('retry')}</Button></div>
-          : query.data ? <Table ariaLabel={text('title')} columns={columns} data={accountingRows(query.data.schedules)} />
+          : query.data ? <Table ariaLabel={text('title')} columns={columns} data={accountingRows(query.data.schedules)} emptyMessage={text('empty')} />
             : <EmptyState title={text('empty')} />}
+      {readiness.data?.provider_readiness && <details className="provider-accounting-readiness"><summary>{text('operationalTitle')}</summary><p>{text('operationalNote')}</p>
+        <Table ariaLabel={text('operationalTitle')} data={readiness.data.provider_readiness.providers} columns={[
+          { header: text('provider'), render: path => path.provider + (path.operation ? ` / ${path.operation}` : '') },
+          { header: text('verification'), render: path => path.rates.map(rate => `${rate.unit}: ${text('evidenceStatuses.'+rate.status)}`).join(' · ') },
+          { header: text('credentials'), render: path => text('credentialStatuses.'+path.credential_status) },
+          { header: text('requirements'), render: path => [...path.missing_settings, ...path.approval_requirements].join(' · ') || '—' },
+        ]}/>
+        <p>{text('approvalNote')}</p>
+      </details>}
     </Card>
     {feedback && !form && <Toast {...feedback} onClose={() => setFeedback(null)} />}
     <Modal isOpen={Boolean(form)} onClose={close} title={text('edit')} closeLabel={t('common.close')} maxWidth="640px">

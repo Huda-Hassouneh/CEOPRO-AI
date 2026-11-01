@@ -1,0 +1,37 @@
+.pricing-studio { display:grid; gap:20px; color:var(--ceopro-text-primary); font-family:var(--ceopro-font-family); }
+.pricing-studio>* { min-width:0; }
+.pricing-studio header h2 { margin:0 0 8px; }
+.pricing-studio header p,.pricing-studio small { color:var(--ceopro-text-secondary); }
+.pricing-studio-boundary { border-inline-start:3px solid var(--ceopro-primary); padding:12px 16px; background:var(--ceopro-primary-light); }
+.pricing-studio-toolbar,.pricing-studio-actions,.pricing-studio-result-heading { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+.pricing-studio label { display:grid; gap:7px; font-size:13px; }
+.pricing-studio select,.pricing-studio textarea { border:1px solid var(--ceopro-border); background:var(--apex-glass-solid); color:inherit; padding:10px; border-radius:6px; max-width:100%; }
+.pricing-studio-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; margin-block:18px; }
+.pricing-studio-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; }
+.pricing-studio-summary .ceopro-card { display:grid; gap:10px; }
+.pricing-studio-summary strong { font-size:24px; font-variant-numeric:tabular-nums; }
+.pricing-studio-status { padding:6px 12px; border-radius:5px; background:#e8edf2; color:#344454; }
+.pricing-studio-status.status-SAFE { color:#146c43; background:#e6f4ec; }
+.pricing-studio-status.status-WARNING,.pricing-studio-status.status-INCOMPLETE_DATA,.pricing-studio-status.status-PROVISIONAL { color:#815709; background:#fff3cd; }
+.pricing-studio-warnings { border:1px solid #d5b56a; padding:16px 32px; border-radius:6px; }
+.pricing-studio-guidance { border-inline-start:3px solid #b47d12; background:#fff9ea; color:#4b370b; padding:12px 16px; border-radius:6px; }
+.pricing-studio-guidance p { margin-block:.4rem; }
+.pricing-studio-guidance .pricing-studio-warnings { border:0; padding-block:0; margin-block:.5rem; }
+.pricing-studio-guidance li { margin-block:.35rem; }
+.pricing-studio-guidance a,.pricing-studio-inline-link { color:var(--ceopro-primary); text-decoration:underline; text-underline-offset:2px; }
+.pricing-studio-inline-link { border:0; background:none; cursor:pointer; font:inherit; }
+.pricing-studio-metrics { display:flex; flex-wrap:wrap; gap:20px; line-height:1.8; }
+.pricing-studio-policy,.pricing-studio-evidence,.pricing-studio-contract { border:1px solid var(--ceopro-border); border-radius:8px; padding:18px; }
+.pricing-studio summary { cursor:pointer; font-weight:600; }
+.pricing-studio pre { direction:ltr; text-align:left; overflow:auto; max-height:320px; font-size:12px; padding:14px; background:var(--apex-glass-solid); }
+.pricing-studio-modules { display:flex; gap:16px; flex-wrap:wrap; }
+.pricing-studio-modules label { display:flex; align-items:center; }
+.pricing-studio-evidence p { overflow-wrap:anywhere; }
+.pricing-studio-internal-card { margin-block:14px; }
+.pricing-studio-internal-card .pricing-studio-fields { grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr)); }
+.pricing-studio-internal-card fieldset { min-width:0; border:1px solid var(--ceopro-border); border-radius:6px; padding:12px; display:grid; align-content:start; gap:12px; }
+.pricing-studio-internal-card details .ceopro-input-wrapper { margin-block:10px; }
+.pricing-studio-cost-parts { margin:0; font-size:13px; display:grid; gap:6px; }
+.pricing-studio-cost-parts dd { margin:0 0 6px; font-variant-numeric:tabular-nums; }
+.pricing-studio-contract p { overflow-wrap:anywhere; }
+@media(max-width:640px) { .pricing-studio-toolbar>* { width:100%; } .pricing-studio-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .pricing-studio-summary strong { font-size:20px; } }

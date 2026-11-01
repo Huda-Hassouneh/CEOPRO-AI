@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { accountingRows, decimalText, emptyPrice, pricePayload, priceStatus } from '../src/features/platform/providerAccounting.js';
+import { accountingRows, decimalText, emptyPrice, pricePayload, priceStatus, scheduleEvidence } from '../src/features/platform/providerAccounting.js';
 import { createPlatformBillingApi } from '../src/features/platform/platformBillingApi.js';
 
 test('accounting distinguishes missing, zero and nonfinal prices and supplies missing RAG keys', () => {
@@ -31,4 +31,11 @@ test('invalid or missing prices/provenance never silently convert', () => {
   for (const value of ['', '-1', 'NaN', 'Infinity', '1e-3', '0.0000000000001', '100000000', '1,23']) assert.ok(pricePayload({ ...valid, unit_cost_usd: value }).errors.unit_cost_usd);
   for (const field of ['provider', 'operation', 'source', 'reason', 'verified_at']) assert.ok(pricePayload({ ...valid, [field]: ' ' }).errors[field]);
   assert.ok(pricePayload({ ...valid, safety_margin: '2.1' }).errors.safety_margin);
+});
+test('owner UI distinguishes catalog and owner provenance, verified evidence and missing rates', () => {
+  const row = { schedule_id: 'synthetic', unit_cost_usd: '0', cost_is_final: true, source: 'approved invoice', verified_at: '2026-10-30', configured_by: 'billing-catalog-v1' };
+  assert.deepEqual(scheduleEvidence(row), { status: 'VERIFIED', origin: 'catalog/bootstrap' });
+  assert.deepEqual(scheduleEvidence({ ...row, unit_cost_usd: null }), { status: 'MISSING', origin: 'unknown' });
+  assert.deepEqual(scheduleEvidence({ ...row, configured_by: 'owner-id', verified_at: null }), { status: 'UNVERIFIED', origin: 'owner/operator' });
+  assert.deepEqual(scheduleEvidence(row, { providers: [{ rates: [{ schedule_id: 'synthetic', status: 'STALE' }] }] }), { status: 'STALE', origin: 'catalog/bootstrap' });
 });

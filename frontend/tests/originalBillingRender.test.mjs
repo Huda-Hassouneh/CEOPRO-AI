@@ -6,6 +6,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { createServer } from 'vite';
+import { mapPlan } from '../src/features/billing/api/billingApi.js';
+import { toOriginalPlan } from '../src/features/billing/api/originalBillingModel.js';
+import { formatMoney } from '../src/features/billing/utils/money.js';
 let vite;
 test.before(async()=>{vite=await createServer({server:{middlewareMode:true},appType:'custom',logLevel:'silent'});});
 test.after(async()=>{await vite.close();});
@@ -22,6 +25,32 @@ async function render(locale, file, name, props) {
   } finally { if(original===undefined)delete globalThis.window;else globalThis.window=original; }
 }
 for(const locale of ['en','ar']) {
+  const plan = toOriginalPlan(mapPlan({
+    plan_key: 'starter', name: { en: 'Standard', ar: 'ستاندرد' }, self_serve: true,
+    monthly_price: 29, currency: 'USD', limits: { tracked_products: 100, ai_credits: 500 },
+    feature_catalog: {
+      tracked_products: { name: 'Products', name_ar: 'المنتجات', unit: 'products', category: { key: 'business', label_en: 'Business Operations', label_ar: 'عمليات الأعمال', display_order: 1 } },
+      ai_credits: { name: 'AI Credits', name_ar: 'أرصدة الذكاء الاصطناعي', unit: 'credits', category: { key: 'ai', label_en: 'AI & Automation', label_ar: 'الذكاء الاصطناعي والأتمتة', display_order: 2 } },
+    },
+    entitlements: ['market_intelligence', 'demand_prediction', 'competitor_management'],
+    prices: [{ period_code: 'three-months', interval_months: 3, amount: 87, currency: 'USD', discount_percent: 0, purchasable: true }],
+  }));
+  test(`launch pricing preserves main's redesigned card and term totals in ${locale}`, async () => {
+    const html = await render(locale, 'OriginalPlanCard.jsx', 'PlanCard', { plan, billingPeriod: 'three-months', onSelect() {} });
+    assert.match(html, /ceopro-plan-card__amount/);
+    assert.match(html, /ceopro-plan-card__credits/);
+    assert.ok(html.includes(formatMoney(29, 'USD', locale, { compact: true })));
+    assert.ok(html.includes(formatMoney(87, 'USD', locale, { compact: true })));
+    assert.doesNotMatch(html, /10%|20%/);
+  });
+  test(`full plan comparison retains canonical categories and quantities in ${locale}`, async () => {
+    const html = await render(locale, 'PlanComparisonTable.jsx', 'PlanComparisonTable', { plans: [plan] });
+    assert.match(html, /scope="colgroup" colSpan="2"/);
+    for (const category of ['tracked_products', 'ai_credits'].map(code => plan.features[code].category)) {
+      assert.ok(html.includes(locale === 'ar' ? category.label_ar : category.label_en.replace('&', '&amp;')));
+    }
+    assert.ok(html.includes(new Intl.NumberFormat(locale === 'ar' ? 'ar-JO' : 'en-US').format(100)));
+  });
   test(`subscription review renders the tenant-scoped backend preview and its payment policy in ${locale}`,async()=>{
     const html=await render(locale,'PlanChangePreview.jsx','PlanChangePreview',{
       subscription:{hasStripeSubscription:true},preview:{data:{timing:'period_end',payment_policy:'next_period_price',feature_changes:[{feature_code:'tracked_products',before:250,after:100,over_limit:true}],effective_at:'2026-11-25T12:00:00Z'}},

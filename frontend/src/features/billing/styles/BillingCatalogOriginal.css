@@ -2,6 +2,8 @@
   display: grid;
   gap: 2px;
 }
+.billing-custom-plan-review-reasons { border-inline-start:3px solid #b47d12; background:#fff9ea; color:#4b370b; padding:.65rem 1rem; border-radius:4px; }
+.billing-custom-plan-review-reasons ul { margin-block:.4rem 0; padding-inline-start:1.4rem; }
 
 .ceopro-trial-banner span strong {
   color: #24253d;

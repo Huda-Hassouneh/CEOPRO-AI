@@ -11,13 +11,13 @@ catalog and usage still work and every payment action answers 503
 import logging
 from datetime import datetime
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.ai import db
-from src.ai.billing import config, credits, custom_offers, custom_plan_pricing_service, promotions, service, store, stripe_api, webhooks
+from src.ai.billing import config, credits, custom_offers, custom_plan_pricing_service, promotions, service, store, stripe_api, webhooks, self_service
 from src.ai.core import feature_rights, usage
 from src.ai.core.security import TenantContext, get_tenant_context
 
@@ -66,7 +66,7 @@ class PromotionValidation(BaseModel):
 class CustomOfferConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
     limits: dict[str, object] = Field(default_factory=dict)
-    refresh_frequency: Literal["hourly", "daily", "weekly"] | None = None
+    refresh_frequency: Literal["hourly", "daily", "weekly", "every_12_hours", "every_6_hours"] | None = None
     enabled_features: list[str] = Field(default_factory=list, max_length=20)
 
 
@@ -77,10 +77,19 @@ class CustomQuoteTransition(BaseModel):
 
 
 class CustomPricingPreview(CustomOfferConfiguration):
-    pass
+    billing_period: Literal["monthly", "three-months", "six-months"] = "monthly"
+    idempotency_key: str = Field(default_factory=lambda: str(uuid4()), min_length=1, max_length=200)
+
+
+class CustomAutomaticCheckout(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    preview_id: UUID
+    idempotency_key: str = Field(min_length=1, max_length=200)
 
 class CustomQuoteRequest(CustomOfferConfiguration):
     idempotency_key: str = Field(min_length=1, max_length=200)
+    billing_period: Literal["monthly", "three-months", "six-months"] = "monthly"
+    preview_id: UUID | None = None
 
 class CustomQuoteApproval(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -167,16 +176,23 @@ def _custom_offer_error(err: custom_offers.CustomOfferError) -> HTTPException:
 @router.get("/custom-offers/configurator")
 def custom_offer_configurator(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     """Read-only catalog of feature quantities the existing Python contract supports."""
-    del ctx  # Authentication is required; catalog metadata is not tenant-specific.
-    conn = db.system_connection()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT public.billing_custom_automatic_limits()", ())
+            policy = cur.fetchone()[0]
+        features = custom_offers.feature_catalog(conn)
+        for feature in features:
+            bound = self_service.resolved_limit(feature["featureCode"], policy)
+            feature.update(min=bound["min"], step=bound["step"], automaticMax=bound["max"])
         return {
             "version": 1,
             "mode": "configuration_metadata_only",
-            "features": custom_offers.feature_catalog(conn),
+            "features": features,
             "modules": custom_offers.module_catalog(),
-            "refreshFrequencies": ["hourly", "daily", "weekly"],
+            "refreshFrequencies": list(self_service.CADENCES),
             "initialCheckoutCurrency": "USD",
+            "commercialCurrency": "JOD",
             "pricingAvailable": False,
             "unlimitedQuantityOverridesSupported": False,
         }
@@ -189,8 +205,7 @@ def validate_custom_offer_configuration(
     body: CustomOfferConfiguration, ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict:
     """Check known feature units without saving or changing customer rights."""
-    del ctx
-    conn = db.system_connection()
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         return custom_offers.validate_configuration(
             conn, limits=body.limits, enabled_features=body.enabled_features,
@@ -204,24 +219,73 @@ def validate_custom_offer_configuration(
 
 @router.post("/custom-offers/pricing-preview")
 def preview_custom_offer_pricing(body: CustomPricingPreview, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
-    """Customer-side configuration preflight; private economics stay owner-only."""
+    """Freeze server pricing; expose only commercial/payment totals and decision."""
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    setup = None
     try:
+        _require_billing_role(conn, ctx)
         validation = custom_offers.validate_configuration(
             conn, limits=body.limits, enabled_features=body.enabled_features,
             refresh_frequency=body.refresh_frequency)
+        configuration = {**validation["configuration"], "billingPeriod": body.billing_period}
+        setup = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
+        result = self_service.preview(setup, configuration, body.idempotency_key)
+        setup.commit()
+        eligible = not store.current_subscription(conn, ctx.tenant_id) and not store.has_custom_contract(conn, ctx.tenant_id)
+        result["checkoutAllowed"] = bool(result["checkoutAllowed"] and eligible and config.payments_enabled())
+        result["checkoutBlocker"] = None if eligible else "subscription_or_contract_exists"
+        result["paymentsEnabled"] = config.payments_enabled()
         conn.commit()
-        return {"pricingAvailable": False, "pricingStatus": "manual_review_required",
-                "reviewRequired": True, "reasons": ["platform_owner_review_required"],
-                "currency": "USD", "price": None, "configuration": validation["configuration"]}
+        return result
     except custom_offers.CustomOfferError as exc:
         conn.rollback()
         raise _custom_offer_error(exc)
+    except self_service.CustomPlanPricingError as exc:
+        conn.rollback()
+        raise HTTPException(422, detail={"reason": "pricing_configuration_invalid", "message": str(exc)}) from None
     except Exception:
         conn.rollback()
         raise
     finally:
         conn.close()
+        if setup is not None:
+            setup.close()
+
+
+@router.post("/custom-offers/checkout")
+def automatic_custom_checkout(body: CustomAutomaticCheckout, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    setup = None
+    try:
+        _require_billing_role(conn, ctx)
+        service._require_payments()
+        if store.current_subscription(conn, ctx.tenant_id):
+            raise service.BillingError(409, "subscription_exists", "Use the existing subscription's recovery or plan-change action.")
+        if store.has_custom_contract(conn, ctx.tenant_id):
+            raise service.BillingError(409, "plan_transition_conflict", "An existing Custom contract requires review.")
+        setup = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
+        quote = self_service.command(setup, "checkout", {"preview_id": str(body.preview_id)})
+        setup.commit()  # Frozen quote identity survives an uncertain provider response.
+        name, email = _company(conn, ctx.tenant_id, ctx.user_id)
+        result = service.create_custom_quote_checkout(conn, setup, ctx.tenant_id, email, name,
+                                                      str(quote["quote_id"]), body.idempotency_key)
+        conn.commit()
+        return result
+    except service.BillingError as exc:
+        conn.rollback()
+        raise _to_http(exc)
+    except custom_offers.CustomOfferError as exc:
+        conn.rollback()
+        raise _custom_offer_error(exc)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise _provider_failure(exc)
+    finally:
+        conn.close()
+        if setup is not None:
+            setup.close()
 
 @router.post("/custom-offers/quotes", status_code=201)
 def request_custom_offer_quote(
@@ -229,13 +293,20 @@ def request_custom_offer_quote(
 ) -> dict:
     """Submit tenant configuration for manual review; no price or access is assigned."""
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    setup = None
     try:
         _require_billing_role(conn, ctx)
+        if body.preview_id:
+            setup = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
+            result = self_service.command(setup, "review", {"preview_id": str(body.preview_id)})
+            setup.commit()
+            return result
         result = custom_offers.request_quote(
             conn, tenant_id=ctx.tenant_id, customer_user_id=ctx.user_id,
             idempotency_key=body.idempotency_key,
             configuration={"refreshFrequency": body.refresh_frequency,
-                           "enabledFeatures": body.enabled_features},
+                           "enabledFeatures": body.enabled_features, "selfService": True,
+                           "billingPeriod": body.billing_period},
             feature_quantities=body.limits,
         )
         conn.commit()
@@ -248,6 +319,8 @@ def request_custom_offer_quote(
         raise
     finally:
         conn.close()
+        if setup is not None:
+            setup.close()
 
 @router.post("/custom-offers/admin/pricing/policies", status_code=201)
 def create_custom_pricing_policy(body: dict, ctx: TenantContext = Depends(get_tenant_context)) -> dict:

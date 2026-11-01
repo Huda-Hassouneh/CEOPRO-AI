@@ -18,6 +18,20 @@ Any future commercial catalog change remains PENDING a separately approved versi
 
 ## Context and confirmed source behavior
 
+### Bounded launch approval — 2026-11-01
+
+The owner subsequently approved `standard-plans-launch-v2` for future customer
+purchases: Standard/starter USD 29, Plus/growth USD 59, Pro/enterprise USD 99
+monthly, with undiscounted three- and six-month totals. This approval supersedes
+only the earlier prohibition on changing these future catalog prices. Existing
+subscription terms, invoices, Stripe Price identities and frozen snapshots remain
+protected. Trials, limits, Credits, Provider Accounting, Custom Plan economics and
+Pricing Studio policy v4 remain unchanged. The economic subsidy is deliberate;
+launch pricing is an acquisition decision, not evidence of lower delivery cost.
+Local TEST Stripe catalog reconciliation is authorized; LIVE changes require a
+separate production operation. See the Platform Billing Owner Manual for the
+authenticated operator publication and backup workflow.
+
 Node: Node 21-code catalog, plan-feature/configuration/private plans and independent subscription commercial records. Node seed price 49 is a fixture, not production policy.
 
 Python: Migration 20261020000000 displays Standard/Plus/Pro/Custom, prices USD 55/140/350 and trials 14/14/7; 20261021000000 supersedes Pro products/seats to 500/50; legacy standard/pro price mappings remain.

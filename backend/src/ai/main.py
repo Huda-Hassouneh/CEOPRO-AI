@@ -192,8 +192,8 @@ async def _forget_cached_views_after_writes(request, call_next):
 
 
 # Plan modules (core/entitlements.py): a plan without the module gets 402
-# NOT_INCLUDED from these routers. The Command Center and reports stay open
-# to every plan and simply have no competitor or forecast data on Starter.
+# NOT_INCLUDED from these routers. Current Standard tiers include every module
+# by default; data availability and provider readiness remain separate checks.
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(platform.router)

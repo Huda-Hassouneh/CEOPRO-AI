@@ -4,9 +4,17 @@ const enc = encodeURIComponent;
 const root = '/platform/billing';
 export function createPlatformBillingApi(client) {
   return Object.freeze({
+    pricingStudio: () => unwrap(client.get(`${root}/pricing-studio`)),
+    analyzePlan: (body) => unwrap(client.post(`${root}/pricing-studio/analyze`, body)),
+    createAnalysisPolicy: (body) => unwrap(client.post(`${root}/pricing-studio/policies`, body)),
+    analysisHistory: () => unwrap(client.get(`${root}/pricing-studio/history`)),
     providerAccounting: () => unwrap(client.get(`${root}/provider-accounting`)),
     saveProviderAccounting: (body) => unwrap(client.put(`${root}/provider-accounting`, body)),
     view: (name, limit = 100, offset = 0) => unwrap(client.get(`${root}/admin-views/${enc(name)}`, { params: { limit, offset } })),
+    standardPlans: (limit = 100, offset = 0) => unwrap(client.get(`${root}/standard-plans`, { params: { limit, offset } })),
+    createStandardPlan: (body) => unwrap(client.post(`${root}/plans`, body)),
+    updateStandardPlanDraft: (key, body) => unwrap(client.patch(`${root}/plans/${enc(key)}/draft-terms`, body)),
+    planTemplates: () => unwrap(client.get(`${root}/plan-templates`)),
     updatePlanStatus: (planKey, body) => unwrap(client.patch(`${root}/plans/${enc(planKey)}/status`, body)),
     updatePlanFeature: (planKey, body) => unwrap(client.patch(`${root}/plans/${enc(planKey)}/features`, body)),
     featureCatalog: () => unwrap(client.get(`${root}/feature-catalog`)),

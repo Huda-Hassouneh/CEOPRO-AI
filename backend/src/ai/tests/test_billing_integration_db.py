@@ -81,18 +81,18 @@ def _stripe_sub(sub_id, customer, price_id, status="active", cancel=False, trial
 
 def test_the_catalog_lists_self_serve_plans_with_prices_and_limits(sys_conn):
     plans = {p["plan_key"]: p for p in store.catalog(sys_conn)}
-    # Radar's agreed plan terms (docs/PLAN_LIMITS_FEASIBILITY.md).
+    # Approved launch terms; delivery-cost assumptions remain independent.
     assert {k: (p["name"]["en"], p["monthly_price"], p["trial_days"]) for k, p in plans.items() if p["self_serve"]} == {
-        "starter": ("Standard", 55.0, 14), "growth": ("Plus", 140.0, 14), "enterprise": ("Pro", 350.0, 7)}
+        "starter": ("Standard", 29.0, 14), "growth": ("Plus", 59.0, 14), "enterprise": ("Pro", 99.0, 7)}
     # A trial gets a bounded tenth of a paid month's credits, never the whole month.
     assert {k: plans[k]["trial_limits"] for k in ("starter", "growth", "enterprise")} == {
         "starter": {"data_credits": 43, "ai_credits": 43}, "growth": {"data_credits": 111, "ai_credits": 111},
         "enterprise": {"data_credits": 278, "ai_credits": 278}}
     assert {p["period_code"] for p in plans["growth"]["prices"]} == {"monthly", "three-months", "six-months"}
     amounts = {k: {p["period_code"]: p["amount"] for p in plans[k]["prices"]} for k in ("starter", "growth", "enterprise")}
-    assert amounts == {"starter": {"monthly": 55.0, "three-months": 148.5, "six-months": 264.0},
-                       "growth": {"monthly": 140.0, "three-months": 378.0, "six-months": 672.0},
-                       "enterprise": {"monthly": 350.0, "three-months": 945.0, "six-months": 1680.0}}
+    assert amounts == {"starter": {"monthly": 29.0, "three-months": 87.0, "six-months": 174.0},
+                       "growth": {"monthly": 59.0, "three-months": 177.0, "six-months": 354.0},
+                       "enterprise": {"monthly": 99.0, "three-months": 297.0, "six-months": 594.0}}
     assert plans["custom"]["self_serve"] is False and plans["custom"]["prices"] == []
     assert "standard" not in plans and "pro" not in plans, "retired packages are no longer sold"
     # KEEL's subscription terms (docs/SUBSCRIPTIONS_AND_CREDITS.md): Standard / Plus / Pro.

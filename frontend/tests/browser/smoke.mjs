@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 import { isExpectedPlatformMeDenial } from './response-policy.mjs';
+import { formatMoney } from '../../src/features/billing/utils/money.js';
 
 const BASE = process.env.APP_URL || 'http://localhost:5173';
 const API = process.env.API_URL || 'http://localhost:8000';
@@ -59,7 +60,7 @@ const competitor = (await get('/discovery/competitors?limit=1'))?.competitors?.[
 
 const routes = ['/dashboard', '/products', '/products/new', product && `/products/${product.product_id}`, product && `/products/${product.product_id}/edit`,
   '/demand', '/pricing', '/pricing/report', '/reports', '/market', competitor && `/market/competitors/${competitor.competitor_id}`, '/market/competitors/new',
-  '/market/search-scope', '/market/sources', '/market/leaderboard', '/market/trends', '/marketing', '/ai-advisor', '/connect-data', '/billing',
+  '/market/search-scope', '/market/sources', '/market/leaderboard', '/market/trends', '/marketing', '/ai-advisor', '/connect-data', '/billing', '/billing/plans',
   '/workspaces/new', ...['profile', 'company', 'team', 'notifications', 'preferences', 'security'].map((tab) => `/settings?tab=${tab}`)].filter(Boolean);
 // Text that looks like a translation key ("section.item.label"), not a domain or file name.
 const KEY = '^[a-z][a-zA-Z]+(\\.[a-zA-Z0-9_-]+)+$';
@@ -69,6 +70,28 @@ for (const route of routes) {
   await page.goto(BASE + route, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
   await page.waitForTimeout(800);
+  if (route === '/billing/plans') {
+    await page.locator('.ceopro-plan-card').first().waitFor();
+    if (email === ciTenantEmail) {
+      const catalog = (await get('/billing/plans')).plans;
+      const terms = page.locator('input[name="in-app-billing-period"]');
+      if (await terms.count() !== 3) throw new Error('The disposable launch catalog must have exactly three billing periods.');
+      for (const [index, months] of [[0, 1], [1, 3], [2, 6]]) {
+        await terms.nth(index).check();
+        for (const [key, monthly] of [['starter', 29], ['growth', 59], ['enterprise', 99]]) {
+          const plan = catalog.find((item) => item.plan_key === key);
+          const term = plan?.prices.find((item) => item.interval_months === months);
+          if (term?.amount !== monthly * months || term.discount_percent !== 0) throw new Error(`Wrong launch price for ${key}/${months}`);
+          await page.waitForFunction(([name, amount]) => [...document.querySelectorAll('article')]
+            .find((card) => card.getAttribute('aria-label') === name)?.textContent.includes(amount),
+          [plan.name[locale] || plan.name.en, formatMoney(monthly * months, 'USD', locale, { compact: true })]);
+        }
+      }
+    }
+    await page.locator('[aria-controls="billing-plan-comparison"]').click();
+    await page.locator('#billing-plan-comparison table').waitFor();
+    if (email === ciTenantEmail) await page.locator('#billing-plan-comparison th[scope="colgroup"]').first().waitFor();
+  }
   const found = await page.evaluate((re) => {
     const rx = new RegExp(re);
     const looksLikeKey = (t) => rx.test(t) && !/\.(com|net|org|io|jo|sa|ae|csv|xlsx|pdf|example)$/i.test(t);

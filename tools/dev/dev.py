@@ -466,7 +466,7 @@ def capabilities():
     print("Stripe Test Clock: " + ("ENABLED (local only; up validates the ready clock)" if values.get("STRIPE_TEST_CLOCK_ENABLED", "false").lower() in ("true", "1", "yes", "on") else "DISABLED"))
     print("WooCommerce: requires a tenant's verified test-store connection; none is created by setup.")
     print("Local sentiment/semantic RAG: setup --models installs libraries; first use may download weights.")
-    print("Pricing/paid AI require verified financial configuration. Setup creates no rates, offers or paid rights.")
+    print("Pricing/paid AI require verified financial configuration. Migrations reconcile approved catalog rates only; no offers or paid rights are created.")
 
 
 def delegate_to_runtime(runtime, argv):

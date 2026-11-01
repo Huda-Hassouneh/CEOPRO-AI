@@ -45,7 +45,7 @@ export function CustomPlanQuotePage() {
   const isAccepted = quote?.state === 'accepted' && quote?.revision_state === 'accepted';
   const wasPaid = quoteHasVerifiedActivation(quote);
   const terms = quote?.commercial_terms || {};
-  const checkoutSupported = terms.currency === 'USD' && String(terms.billingPeriodMonths) === '1' && Number(terms.monthlyPriceUsd) > 0;
+  const checkoutSupported = (terms.currency === 'USD' && String(terms.billingPeriodMonths) === '1' && Number(terms.amount ?? terms.monthlyPriceUsd) > 0) || (terms.currency === 'JOD' && terms.paymentCurrency === 'USD' && Number(terms.paymentAmountUsd) > 0);
   const checkoutAvailable = Boolean(checkoutSupported && plansQuery.data?.paymentsEnabled && isAccepted);
   const checkout = useMutation({
     mutationFn: () => customOffersApi.createCheckoutAttempt(quoteId, { idempotency_key: createIdempotencyKey() }),
@@ -88,8 +88,9 @@ export function CustomPlanQuotePage() {
     <section className="billing-management-section custom-plan-offer-terms">
       <header><h2>{t('billing.customPlan.offerTerms')}</h2></header>
       <ul>{included.map((code) => <li key={code}><Check size={15} />{displayCode(code)}</li>)}{Object.entries(quantities).map(([code, value]) => <li key={code}><Check size={15} />{displayCode(code)}: {new Intl.NumberFormat(locale).format(value)}</li>)}</ul>
-      {(isApproved || isAccepted) && terms.currency && terms.monthlyPriceUsd && <div className="custom-plan-price"><span>{t('billing.customPlan.approvedPrice')}</span><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: terms.currency }).format(Number(terms.monthlyPriceUsd))}{terms.billingPeriodMonths ? ' / ' + t('billing.customPlan.month') : ''}</strong></div>}
+      {(isApproved || isAccepted) && terms.currency && (terms.monthlyPriceUsd || terms.amount) && <div className="custom-plan-price"><span>{t('billing.customPlan.approvedPrice')}</span><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: terms.currency }).format(Number(terms.amount ?? terms.monthlyPriceUsd))}{terms.billingPeriodMonths ? ' / ' + t('billing.customPlan.period.' + (terms.periodCode || 'monthly')) : ''}</strong></div>}
       {(isApproved || isAccepted) && <p className="billing-provider-note" role="note">{t('billing.customPlan.priceIsApprovedOffer')}</p>}
+      {(isApproved || isAccepted) && terms.paymentAmountUsd && <p>{t('billing.customPlan.usdPayment', { amount: terms.paymentAmountUsd })}</p>}
     </section>
     {(isApproved || isAccepted) && <div className="custom-plan-offer-actions">
       {isApproved && <Button variant="primary" loading={transition.isPending} disabled={transition.isPending} onClick={() => runTransition('accept')}><Check size={15} />{t('billing.customPlan.acceptOffer')}</Button>}

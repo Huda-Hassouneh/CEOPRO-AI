@@ -21,7 +21,7 @@ import hashlib
 from copy import deepcopy
 import time
 from decimal import Decimal, InvalidOperation
-from src.ai.billing import checkout_attempts, config, promotions, store, stripe_api, test_clock
+from src.ai.billing import checkout_attempts, config, promotions, store, stripe_api, test_clock, self_service
 from src.ai.billing.stripe_api import PaymentsNotConfigured
 from src.ai.core import usage
 
@@ -316,9 +316,13 @@ def create_custom_quote_checkout(conn, sys_conn, tenant_id: str, email: str, com
         from src.ai.billing import custom_offers
         prepared=custom_offers.custom_checkout_prepare(conn,quote_id=quote_id,idempotency_key=idempotency_key)
         terms=prepared.get('commercial_terms') or {}
-        if terms.get('currency')!='USD' or str(terms.get('billingPeriodMonths'))!='1':
+        if terms.get('currency') not in ('USD', 'JOD') or (terms.get('currency') == 'USD' and str(terms.get('billingPeriodMonths')) != '1'):
             raise BillingError(409,'custom_terms_unsupported','This offer has unsupported billing terms.')
-        shared=shared or checkout_attempts.reserve(sys_conn,tenant_id,key,'custom','monthly')
+        try:
+            _, _, period = self_service.checkout_terms(terms)
+        except (ValueError, KeyError):
+            raise BillingError(409, 'custom_terms_unsupported', 'Frozen Custom payment terms are invalid.') from None
+        shared=shared or checkout_attempts.reserve(sys_conn,tenant_id,key,'custom',period)
         return _create_custom_quote_checkout(conn,sys_conn,tenant_id,email,company_name,quote_id,idempotency_key,_shared=shared)
 
 
@@ -352,14 +356,17 @@ def _create_custom_quote_checkout(conn, sys_conn, tenant_id: str, email: str, co
     prepared = custom_offers.custom_checkout_prepare(
         conn, quote_id=quote_id, idempotency_key=idempotency_key)
     terms = prepared.get("commercial_terms") or {}
-    if terms.get("currency") != "USD" or str(terms.get("billingPeriodMonths")) != "1":
+    if terms.get("currency") not in ("USD", "JOD") or (terms.get("currency") == "USD" and str(terms.get("billingPeriodMonths")) != "1"):
         raise BillingError(409, "custom_terms_unsupported", "This Custom offer cannot be checked out with the supported billing terms.")
     try:
-        amount = Decimal(str(terms["monthlyPriceUsd"]))
+        amount, months, _period = self_service.checkout_terms(terms)
     except (KeyError, InvalidOperation, ValueError):
         raise BillingError(409, "custom_terms_unpriced", "This Custom offer has no valid approved price.") from None
     if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.01")):
         raise BillingError(409, "custom_terms_unpriced", "This Custom offer has no valid approved price.")
+    # The shared reservation freezes this attempt ID in provider parameters.
+    # Keep that identity durable if the provider response is uncertain.
+    conn.commit()
     customer = _ensure_customer(conn, sys_conn, tenant_id, email, company_name)
     attempt_id = str(prepared["attempt_id"])
     base = config.app_base_url()
@@ -367,7 +374,7 @@ def _create_custom_quote_checkout(conn, sys_conn, tenant_id: str, email: str, co
         "mode": "subscription", "customer": customer,
         "line_items": [{"price_data": {"currency": "usd", "unit_amount": int(amount * 100),
             "product_data": {"name": "KEEL Custom Plan"},
-            "recurring": {"interval": "month", "interval_count": 1}}, "quantity": 1}],
+            "recurring": {"interval": "month", "interval_count": months}}, "quantity": 1}],
         "client_reference_id": attempt_id,
         "metadata": {"tenant_id": tenant_id, "custom_quote_id": quote_id,
                      "custom_quote_revision_id": str(prepared["revision_id"]),

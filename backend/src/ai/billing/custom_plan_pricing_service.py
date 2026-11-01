@@ -109,7 +109,7 @@ def calculate_preview(conn, *, limits: dict, refresh_frequency: str | None,
             reasons.append("cost_mapping_missing:" + code)
     vendor_rates, infra_rates, source_snapshot = [], [], []
     feature_rows = []
-    frequency_minutes = {"hourly": 60, "daily": 1440, "weekly": 10080}.get(refresh_frequency)
+    frequency_minutes = {"hourly": 60, "daily": 1440, "weekly": 10080, "every_12_hours": 720, "every_6_hours": 360}.get(refresh_frequency)
     for code, quantity in quantities.items():
         feature_rows.append({"feature_id": code, "feature_code": code, "limit_value": quantity,
                              "estimated_usage": quantity})

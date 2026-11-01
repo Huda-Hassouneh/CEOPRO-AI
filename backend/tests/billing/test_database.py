@@ -18,6 +18,30 @@ from src.ai.core.security import create_access_token
 from .test_contract import signed
 
 
+def test_reconciled_tenant_security_tables_keep_force_rls(owner_db):
+    with owner_db.cursor() as cursor:
+        cursor.execute("SELECT relname,relrowsecurity,relforcerowsecurity FROM pg_class "
+                       "WHERE relnamespace='public'::regnamespace "
+                       "AND relname IN ('auth_tokens','model_versions') ORDER BY relname")
+        assert cursor.fetchall() == [('auth_tokens', True, True), ('model_versions', True, True)]
+
+
+def test_subscription_without_membership_does_not_query_privileged_trial_eligibility(
+    monkeypatch, tenant, billing_connections,
+):
+    from src.ai import db
+    from src.ai.core.security import TenantContext
+    from src.ai.routers import billing
+
+    monkeypatch.setattr(billing, "_role", lambda *args: None)
+    monkeypatch.setattr(db, "billing_setup_connection", lambda *args: pytest.fail(
+        "A missing membership must not acquire billing setup authority"
+    ))
+    result = billing.get_subscription(TenantContext(*tenant))
+    assert result["trialAvailable"] is False
+    assert result["canManageBilling"] is False
+
+
 def live_subscription(tenant, price, *, status="active", cancel=False):
     now = int(time.time())
     return {
@@ -444,7 +468,7 @@ def test_existing_catalog_has_current_plan_records_without_reference_seeding(own
     }
     assert {
         k: rows[k]["monthly_price"] for k in ("starter", "growth", "enterprise")
-    } == {"starter": 55.0, "growth": 140.0, "enterprise": 350.0}
+    } == {"starter": 29.0, "growth": 59.0, "enterprise": 99.0}
     assert rows["custom"]["self_serve"] is False
     for key in ("starter", "growth", "enterprise"):
         assert {p["period_code"] for p in rows[key]["prices"]} == {

@@ -1,0 +1,24 @@
+.billing-guided-overview,.billing-tab-guide { border:1px solid var(--ceopro-border); border-radius:var(--ceopro-radius-md); background:var(--ceopro-surface); padding:var(--ceopro-space-4); margin-block-end:var(--ceopro-space-4); }
+.billing-guided-heading { display:flex; align-items:start; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+.billing-guided-heading h2 { font-size:1.1rem; margin:0 0 .25rem; }
+.billing-guided-heading p { margin:0; color:var(--ceopro-text-secondary); }
+.billing-guided-overview summary,.billing-tab-guide summary { cursor:pointer; font-weight:600; }
+.billing-guided-overview details[open] { max-width:100%; }
+.billing-guided-checklist { margin-block-start:.8rem; }
+.billing-guided-checklist ol { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:.5rem 1rem; padding-inline-start:1.5rem; }
+.billing-guided-checklist li { padding-inline-start:.2rem; }
+.billing-guided-checklist li small { display:block; color:var(--ceopro-text-secondary); }
+.billing-guided-status { display:inline-block; margin-inline-end:.4rem; border-radius:4px; padding:.1rem .35rem; font-size:.75rem; font-weight:700; background:var(--ceopro-surface-soft); }
+.billing-guided-status.status-READY { color:#146c43; background:#e6f4ec; }
+.billing-guided-status.status-WARNING,.billing-guided-status.status-INCOMPLETE { color:#815709; background:#fff3cd; }
+.billing-tab-guide dl { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:.75rem; }
+.billing-tab-guide dt { font-weight:600; }
+.billing-tab-guide dd { margin:0; color:var(--ceopro-text-secondary); }
+.billing-guided-overview a,.billing-tab-guide a { color:var(--ceopro-primary); text-decoration:underline; text-underline-offset:2px; }
+.billing-guided-overview :focus-visible,.billing-tab-guide :focus-visible { outline:2px solid var(--ceopro-primary); outline-offset:3px; }
+@media(max-width:640px) { .billing-guided-heading { display:block; } .billing-guided-heading details { margin-block-start:.7rem; } }
+.billing-feature-group { margin-block:1rem; }
+.billing-feature-group h3 { font-size:1rem; margin-block:.5rem; }
+.billing-catalog-limit-label { display:inline-flex; align-items:center; gap:.4rem; }
+.billing-catalog-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.billing-guided-secondary { display:block; color:var(--ceopro-text-secondary); max-width:30rem; }

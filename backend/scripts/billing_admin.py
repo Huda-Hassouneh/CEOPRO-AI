@@ -26,13 +26,14 @@ import os
 import sys
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 from uuid import UUID
 
 import psycopg2
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.ai.billing import admin, cost_model, credits  # noqa: E402
+from src.ai.billing import admin, catalog_publication, cost_model, credits  # noqa: E402
 
 
 def _connect():
@@ -54,6 +55,11 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("budgets", help="the recommended Data/AI Credit budget per plan (cost model)")
+
+    publish = sub.add_parser("publish-standard-catalog", help="preview or explicitly publish repository commercial defaults; never reprice subscribers")
+    publish.add_argument("--apply", action="store_true")
+    publish.add_argument("--expected-state", help="state_hash from the reviewed preview; required for apply")
+    publish.add_argument("--evidence", required=True, type=Path, help="JSON commercial-decision evidence, not provider prices")
 
     p = sub.add_parser("set-price")
     p.add_argument("--budget", required=True, choices=["data", "ai"])
@@ -101,10 +107,10 @@ def main(argv=None) -> int:
 
     sub.add_parser("expire-reservations")
 
-    for command in (p, c, k, a, r):
+    for command in (p, c, k, a, r, publish):
         command.add_argument("--by", required=True, type=UUID, help="existing active Platform Owner user UUID (recorded)")
         command.add_argument("--owner-token-stdin", required=True, action="store_true", help="read the approving owner Python bearer token from stdin; never put tokens in shell history")
-    for command in (p, c, k, a):
+    for command in (p, c, k, a, publish):
         command.add_argument("--reason", required=True)
     r.add_argument("--reason", default="provider-reported usage")
 
@@ -140,7 +146,12 @@ def main(argv=None) -> int:
                 if not cursor.fetchone():
                     raise PermissionError("An active Platform Owner approval is required")
             args.by = owner_id
-        if args.command == "set-price":
+        if args.command == "publish-standard-catalog":
+            result = catalog_publication.publish_prices(conn, approved_by=args.by, reason=args.reason,
+                evidence=json.loads(args.evidence.read_text(encoding='utf-8')),
+                apply=args.apply, expected_state=args.expected_state)
+            print(json.dumps(result, indent=2))
+        elif args.command == "set-price":
             unit_cost = args.usd if args.usd is not None else args.usd_per_million / Decimal(1_000_000)
             written = admin.set_price(conn, budget_kind=args.budget, provider=args.provider, operation=args.operation,
                                       unit=args.unit, unit_cost_usd=unit_cost, source=args.source,
@@ -169,7 +180,7 @@ def main(argv=None) -> int:
         elif args.command == "expire-reservations":
             print(f"expired: {credits.expire_stale_reservations(conn)}")
         conn.commit()
-    except admin.AdminError as err:
+    except (admin.AdminError, catalog_publication.PublicationError) as err:
         conn.rollback()
         print(f"Refused: {err}", file=sys.stderr)
         return 1

@@ -1,6 +1,40 @@
 ﻿import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createPlatformBillingCatalogApi } from '../src/features/platform/platformBillingCatalogApi.js';
+
+test('catalog templates bind creation to the installed version without overriding commercial price', async () => {
+  const catalog=JSON.parse(readFileSync(new URL('../../backend/config/billing/standard_plan_catalog.json',import.meta.url),'utf8'));
+  let captured;
+  const categories=new Map(catalog.categories.map(c=>[c.key,c]));
+  const api=createPlatformBillingCatalogApi({billing:{planTemplates:async()=>catalog,
+    createStandardPlan:async body=>{captured=body;return {is_active:false};},
+    featureCatalog:async()=>({categories:catalog.categories,features:catalog.features.map(f=>({
+      feature_code:f.key,display_name:f.label_en,display_name_ar:f.label_ar,entitlement_type:f.entitlement_type,
+      unit:f.unit,category:categories.get(f.category),display_order:f.display_order,custom_plan_supported:f.usage_feature!==null}))})},
+    offers:{getConfigurator:async()=>({features:[],modules:[]})}});
+  assert.equal((await api.getPlanTemplates()).catalog_version,catalog.catalog_version);
+  const features=(await api.getFeatures()).data;
+  assert.equal(features.length,19);
+  assert.equal(features.find(f=>f.code==='dashboard_analytics').type,'boolean');
+  assert.equal(features.filter(f=>f.customPlanSupported).length,16);
+  assert.equal(features.find(f=>f.code==='dashboard_analytics').customPlanSupported,false);
+  assert.equal(features.find(f=>f.code==='ai_credits').category.key,'automation');
+  await api.createPlan({plan_key:'new_identity',display_name:'New',display_name_ar:'جديد',tier_level:4,trial_days:1,
+    monthly_price:'87.21',reason:'Explicit owner decision',template_key:'growth',template_catalog_version:catalog.catalog_version});
+  assert.equal(captured.monthly_price,'87.21');assert.equal(captured.template_key,'growth');
+  assert.equal(captured.template_catalog_version,catalog.catalog_version);
+  assert.equal(captured.plan_key,'new_identity');
+});
+
+test('template draft editing uses its separate guarded endpoint and preserves explicit price precision', async () => {
+  let captured;
+  const api=createPlatformBillingCatalogApi({billing:{updateStandardPlanDraft:async (key,body)=>{captured={key,body};}}});
+  await api.updateDraftPlan('new_identity',{plan_key:'new_identity',display_name:'New name',display_name_ar:'اسم جديد',
+    tier_level:'5',trial_days:'3',monthly_price:'80.00',billing_periods:[{period_code:'yearly',discount_percent:'7.00'}],reason:'Owner draft decision'});
+  assert.equal(captured.key,'new_identity');assert.equal(captured.body.monthly_price,'80.00');
+  assert.equal(captured.body.trial_days,3);assert.equal(captured.body.template_key,undefined);
+});
 
 test('original billing presentation maps Python plan and feature contracts without changing plan authority', async () => {
   const api = createPlatformBillingCatalogApi({
@@ -13,6 +47,32 @@ test('original billing presentation maps Python plan and feature contracts witho
   assert.equal(plans[0].basePrice, '55.00');
   assert.equal((await api.getFeatures()).data[0].code, 'team_seats');
   assert.equal((await api.getPlanFeatures('growth')).data[0].limitValue, 5);
+});
+
+test('new Standard Plan creation sends explicit USD terms to the owner command', async () => {
+  let captured;
+  const api = createPlatformBillingCatalogApi({ billing: {
+    createStandardPlan: async (body) => { captured = body; return { is_active: false, stripe_setup_required: true }; },
+  } });
+  const result = await api.createPlan({ plan_key: 'regional_plus', display_name: 'Regional Plus', display_name_ar: 'الإقليمي بلس',
+    description: 'Regional teams', description_ar: 'للأعمال الإقليمية', tier_level: '5', trial_days: '7', monthly_price: '82.50',
+    billing_periods: [{ period_code: 'yearly', discount_percent: 12.5 }], reason: 'Approved offer' });
+  assert.equal(result.is_active, false);
+  assert.deepEqual(captured, { plan_key: 'regional_plus', display_name: 'Regional Plus', display_name_ar: 'الإقليمي بلس',
+    description: 'Regional teams', description_ar: 'للأعمال الإقليمية', tier_level: 5, currency: 'USD', monthly_price: '82.50',
+    trial_days: 7, billing_periods: [{ period_code: 'yearly', discount_percent: 12.5 }], reason: 'Approved offer' });
+});
+
+test('owner Plans view surfaces draft completeness and Stripe reconciliation status', async () => {
+  const api = createPlatformBillingCatalogApi({ billing: { standardPlans: async () => ({ plans: [{
+    plan_key: 'regional_plus', display_name: 'Regional Plus', description: 'Regional teams', is_active: false,
+    configuration_status: 'READY_TO_ACTIVATE', stripe_setup_required: true,
+  }] }) } });
+  const [plan] = (await api.getPlans()).data;
+  assert.equal(plan.id, 'regional_plus');
+  assert.equal(plan.description, 'Regional teams');
+  assert.equal(plan.configuration_status, 'READY_TO_ACTIVATE');
+  assert.equal(plan.stripe_setup_required, true);
 });
 
 test('plan quota controls map numeric and module terms to the versioned Python endpoint', async () => {
