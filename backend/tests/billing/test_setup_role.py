@@ -292,7 +292,7 @@ def test_actual_checkout_http_uses_setup_role_and_persists_no_paid_rights(client
     monkeypatch.setenv("PUBLIC_FRONTEND_ORIGIN", "http://127.0.0.1:15273")
     monkeypatch.setattr(db, "billing_setup_connection", setup_connections)
     client.app.dependency_overrides[billing.get_tenant_context] = lambda: TenantContext(tid, uid)
-    monkeypatch.setattr(stripe_api, "create_customer", lambda *a, **kw: {"id": "cus_setup_" + tid})
+    monkeypatch.setattr(stripe_api, "create_customer", lambda *a, **kw: {"id": "cus_setup_" + tid,"metadata":{"tenant_id":tid}})
     calls = []
     def create(params, idempotency_key):
         calls.append(idempotency_key)
@@ -341,7 +341,7 @@ def test_managed_promotion_setup_persists_audit_but_cannot_settle(owner_db, tena
         with owner_db.cursor() as cur:
             cur.execute("INSERT INTO billing_promotions(promotion_id,code,name,status,terms,stripe_coupon_id,stripe_promotion_code_id,approval_reference,approved_by,approved_at) VALUES(%s,%s,'Synthetic offline only','active',%s::jsonb,%s,%s,'disposable regression only',%s,NOW())", (pid, code, json.dumps(terms), terms["stripe_coupon_id"], terms["stripe_promotion_code_id"], uid))
             cur.execute("INSERT INTO billing_promotion_plans(promotion_id,plan_key) VALUES(%s,%s)", (pid, plan))
-        monkeypatch.setattr(stripe_api, "create_customer", lambda *a, **kw: {"id": "cus_setup_promo_" + tid})
+        monkeypatch.setattr(stripe_api, "create_customer", lambda *a, **kw: {"id": "cus_setup_promo_" + tid,"metadata":{"tenant_id":tid}})
         monkeypatch.setattr(stripe_api, "create_checkout_session", lambda *a, **kw: {"id": "cs_setup_promo_" + tid, "url": "https://checkout.stripe.test/offline"})
         with closing(billing_connections(tid, uid)) as app, closing(setup_connections(tid, uid)) as setup:
             result = service.create_checkout(app, setup, tid, "synthetic@example.test", "Synthetic", plan, "monthly", code, uid)

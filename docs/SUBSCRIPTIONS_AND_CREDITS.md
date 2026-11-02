@@ -82,6 +82,28 @@ completed sessions wait for reconciliation. Unknown provider outcomes retain
 their reservation and original idempotency key. Incompatible submitted terms
 require an explicit close action, with provider closure verified before release.
 
+### Provider customer identity and CREATE recovery
+
+Customer creation has its own durable `billing_customer_operations` record,
+separate from Checkout attempts and commercial eligibility. One operation owns
+one stable provider key and an immutable adapter-encoded payload, namespace and
+safe replay window. Contact/name changes never rebuild that CREATE request.
+Mapped customers are verified and reused; replacing a tenant's mapping is refused.
+Any future contact update must be a separate operation, not another CREATE.
+
+Unknown outcomes first try positive provider recovery, then may replay the same
+frozen request within the provider's guaranteed window. An expired replay window
+or an unmapped legacy attempt without its original payload requires reconciliation;
+a negative search is not proof that CREATE failed. Only definitive rejection
+allows another logical operation. Customer coordination grants no trial, plan,
+entitlements or Credits. Verified payment reconciliation remains the authority.
+
+Migration `20261128000000_customer_creation_operations.sql` adds the FORCE RLS
+ledger with scoped setup-role permissions. It preserves existing mappings and
+commercial records and quarantines unmapped historical attempts instead of
+inventing their original request parameters. Apply through a verified backup and
+the normal migration procedure after isolated upgrade/restricted-role checks.
+
 ## 2. Data Credits and AI Credits
 
 Platform Owners manage accounting schedules at

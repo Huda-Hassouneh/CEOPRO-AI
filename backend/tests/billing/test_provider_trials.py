@@ -31,7 +31,7 @@ def provider(monkeypatch,owner_db,restricted_runtime):
         cur.execute("SELECT price_id,stripe_price_id FROM billing_plan_prices WHERE plan_key IN ('starter','growth','enterprise') AND retired_at IS NULL")
         original=cur.fetchall()
         cur.execute("UPDATE billing_plan_prices SET stripe_price_id='price_trial_fixture_'||price_id::text WHERE plan_key IN ('starter','growth','enterprise') AND retired_at IS NULL")
-    monkeypatch.setattr(stripe_api,'create_customer',lambda *a,**kw:{'id':'cus_trial_'+uuid.uuid4().hex})
+    monkeypatch.setattr(stripe_api,'create_customer',lambda email,name,tenant,key,**kw:{'id':'cus_trial_'+uuid.uuid4().hex,'metadata':{'tenant_id':tenant}})
     monkeypatch.setattr(stripe_api,'customer_clock_time',lambda *a,**kw:None)
     monkeypatch.setattr(stripe_api,'retrieve_subscription',lambda key:deepcopy(subscriptions[key]))
     def checkout(params,idempotency_key):
@@ -443,7 +443,7 @@ def test_historical_custom_trial_remains_readable_and_unchanged(owner_db,tenant)
 
 def test_trial_policy_layers_import_no_provider_sdk():
     root=Path(__file__).resolve().parents[2]/'src/ai'
-    for file in ['onboarding_profile.py','billing/trial_checkouts.py','billing/payment_contracts.py','billing/service.py','billing/webhooks.py','core/usage.py','core/entitlements.py']:
+    for file in ['onboarding_profile.py','billing/trial_checkouts.py','billing/customer_operations.py','billing/payment_contracts.py','billing/service.py','billing/webhooks.py','core/usage.py','core/entitlements.py']:
         tree=ast.parse((root/file).read_text(encoding='utf-8'))
         for node in ast.walk(tree):
             if isinstance(node,ast.Import):assert all(n.name!='stripe' and not n.name.startswith('stripe.') for n in node.names),file

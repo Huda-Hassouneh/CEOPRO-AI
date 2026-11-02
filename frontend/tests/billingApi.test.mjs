@@ -7,7 +7,7 @@ test('pending/reconciliation errors are localized and unknown codes never show r
   for (const locale of ['en', 'ar']) {
     const labels = JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`, import.meta.url), 'utf8'));
     const t = key => key.split('.').reduce((value, part) => value?.[part], labels) ?? key;
-    for (const reason of ['checkout_pending', 'checkout_reconciling', 'checkout_reconciliation_required', 'trial_checkout_pending', 'unrecognized_future_code']) {
+    for (const reason of ['checkout_pending', 'checkout_reconciling', 'checkout_reconciliation_required', 'trial_checkout_pending', 'customer_creation_reconciling', 'customer_identity_conflict', 'unrecognized_future_code']) {
       if (reason !== 'unrecognized_future_code') assert.equal(typeof labels.billing.errors[reason], 'string');
       const message = billingErrorMessage({ response: { data: { detail: { reason } } } }, t);
       assert.ok(message.length > 20);

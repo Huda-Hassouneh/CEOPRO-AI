@@ -21,7 +21,7 @@ import hashlib
 from datetime import datetime, timezone
 import time
 from decimal import Decimal, InvalidOperation
-from src.ai.billing import checkout_attempts, config, promotions, store, test_clock, self_service, trial_checkouts
+from src.ai.billing import checkout_attempts, config, promotions, store, test_clock, self_service, trial_checkouts, customer_operations
 from src.ai.billing.payment_contracts import (
     CheckoutIntent, CheckoutState, FrozenCheckoutRequest, Money, PaymentProviderError,
     PaymentState, ProviderOperationOutcome, ProviderReference,
@@ -89,15 +89,13 @@ def _price_or_error(conn, plan_key: str, period_code: str) -> dict:
 
 
 def _ensure_customer(conn, sys_conn, tenant_id: str, email: str, company_name: str) -> str:
-    existing = store.customer_id(conn, tenant_id)
-    if existing:
-        payment_gateway().customer_time(_provider_reference(existing), tenant_reference=tenant_id, require_clock=True)
-        return existing
-    customer = payment_gateway().create_customer(email=email, company_name=company_name,
-        tenant_reference=tenant_id, idempotency_key=f"apex-customer-{tenant_id}")
-    store.save_customer(sys_conn, tenant_id, customer.opaque_id)
-    sys_conn.commit()
-    return customer.opaque_id
+    gateway=payment_gateway()
+    try:
+        customer=customer_operations.resolve(conn,sys_conn,tenant_id,email,company_name,gateway)
+    except customer_operations.CustomerOperationError as error:
+        raise BillingError(409,str(error),'Provider customer identity needs reconciliation before Checkout can continue.') from None
+    gateway.customer_time(ProviderReference(gateway.provider,customer),tenant_reference=tenant_id,require_clock=True)
+    return customer
 
 
 def _check_clock_customer(conn, tenant_id):
