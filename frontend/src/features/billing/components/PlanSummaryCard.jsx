@@ -8,10 +8,17 @@ const planIcons = {
   enterprise: Crown,
 };
 
-export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid', promotionEntered = false }) {
+export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid', checkoutTrialEndsAt = null, promotionEntered = false }) {
   const { locale, t } = useI18n();
   const planNameSafe = String(plan.name || '').trim().toLowerCase();
-  const isTrial = Number(plan.trialPeriodValue) > 0 && checkoutMode === 'trial';
+  // Catalog duration and an already-issued trial's cutoff are different facts.
+  // Never replace configured days with a rounded countdown or restart a trial.
+  const trialDays = Number(plan.trialDays ?? plan.trialPeriodDays ?? plan.trialPeriodValue ?? 0);
+  const trialEnd = checkoutTrialEndsAt ? new Date(checkoutTrialEndsAt * 1000) : null;
+  const isTrial = checkoutMode === 'trial' && trialEnd && !Number.isNaN(trialEnd.getTime());
+  const trialEndLabel = isTrial ? new Intl.DateTimeFormat(locale === 'ar' ? 'ar-JO' : 'en-US', {
+    dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC',
+  }).format(trialEnd) : null;
   const selectedPricingOption =
     plan.pricingOptions?.find((option) => option.period === billingPeriod) ||
     plan.pricingOptions?.[0];
@@ -84,6 +91,10 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
           <span>{t('billing.payment.billingCycle')}</span>
           <strong>{describeBillingOption(selectedPricingOption || {}, t)}</strong>
         </div>
+        <div>
+          <span>{t('billing.payment.configuredTrial')}</span>
+          <strong>{trialDays > 0 ? t('billing.payment.trial', { days: trialDays }) : t('billing.payment.noTrial')}</strong>
+        </div>
         {discountPercent > 0 && (
           <>
             <div>
@@ -99,12 +110,12 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
         {isTrial ? (
           <>
             <div>
-              <span>{t('billing.payment.afterTrial', { days: plan.trialPeriodValue })}</span>
+              <span>{t('billing.payment.afterExistingTrial', { date: trialEndLabel })}</span>
               <strong>{formatCurrency(totalPrice)}</strong>
             </div>
             <div>
               <span className="is-success">
-                {t('billing.payment.trial', { days: plan.trialPeriodValue })}
+                {t('billing.payment.existingTrial')}
               </span>
               <strong className="is-success">{formatCurrency(0)}</strong>
             </div>
@@ -117,6 +128,7 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
         )}
       </div>
 
+      {isTrial && <p role="note">{t('billing.payment.preservedTrial', { date: trialEndLabel })}</p>}
       {promotionEntered&&<p role="note">{t('billing.payment.stripeConfirmsPromotion')}</p>}
       <div className="ceopro-plan-summary__total">
         <span>{t(promotionEntered?'billing.payment.catalogBeforePromotion':'billing.payment.totalDueToday')}</span>

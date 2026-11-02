@@ -193,7 +193,13 @@ def checkout_status(conn, tenant_id: str, session_id: str) -> dict:
 
 
 def checkout_trial_end(trial, now=None):
-    """The existing preserved-trial rule, shared with the customer review DTO."""
+    """Preserve the issued trial's UTC cutoff, shared with the review DTO.
+
+    start_trial/billing_setup_trial already used usage_plans.trial_days when
+    issuing this trial. A later Checkout or plan choice cannot grant that
+    duration again. The 48-hour threshold is Checkout's minimum remaining
+    window, not a plan's trial length. Integer seconds match provider precision.
+    """
     now = time.time() if now is None else now
     return int(trial["ends_at"].timestamp()) if trial and trial["ends_at"].timestamp() > now + 48 * 3600 else None
 

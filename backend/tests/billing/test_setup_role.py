@@ -14,6 +14,7 @@ import pytest
 
 from src.ai import db
 from src.ai.billing import checkout_attempts, service, store, stripe_api
+from src.ai.billing.stripe_gateway import StripeGateway
 from src.ai.core.security import TenantContext
 
 
@@ -27,6 +28,62 @@ def setup_connections(owner_db):
         raw.autocommit = False
         return db._BillingSetupConnection(db._UnpooledOwner(), raw, tid, uid)
     return scoped
+
+
+@pytest.mark.parametrize('days', [14, 7, 0])
+def test_catalog_trial_days_flow_to_issued_cutoff_and_checkout(owner_db, tenant, setup_connections, billing_connections, monkeypatch, days):
+    """Real DB/roles and domain/Stripe encoding, with an offline transport only."""
+    tid, uid = tenant
+    key = 'trial-duration-' + uuid.uuid4().hex
+    with owner_db.cursor() as cur:
+        cur.execute("INSERT INTO usage_plans(plan_key,display_name,monthly_price,currency,trial_days,tier_level,self_serve,is_active) VALUES(%s,'Synthetic trial duration',29,'USD',%s,1,TRUE,TRUE)", (key, days))
+        cur.execute("INSERT INTO billing_plan_prices(plan_key,period_code,interval_months,amount,currency,stripe_price_id) VALUES(%s,'monthly',1,29,'USD',%s)", (key, 'price_offline_' + key))
+    with closing(setup_connections(tid, uid)) as setup, closing(billing_connections(tid, uid)) as conn:
+        issued = store.start_trial(setup, tid, started_by_user_id=uid, plan_key=key)
+        setup.commit()
+        assert next(p for p in store.catalog(conn) if p['plan_key'] == key)['trial_days'] == days
+        if days:
+            assert issued['ends_at'] - issued['started_at'] == timedelta(days=days)
+            now = issued['started_at'].timestamp() + 60
+        else:
+            assert issued is None
+            now = datetime.now().timestamp()
+        monkeypatch.setattr(service.config, 'payments_enabled', lambda: True)
+        monkeypatch.setattr(service.config, 'app_base_url', lambda: 'https://keel.example.test')
+        monkeypatch.setattr(service.config, 'automatic_tax', lambda: False)
+        monkeypatch.setattr(service, '_ensure_customer', lambda *a: 'cus_offline_duration')
+        monkeypatch.setattr(service.time, 'time', lambda: now)
+        monkeypatch.setattr(stripe_api, 'customer_clock_time', lambda *a: None)
+        intents, requests = [], []
+
+        class ObservedGateway(StripeGateway):
+            def prepare_checkout(self, intent):
+                intents.append(intent)
+                return super().prepare_checkout(intent)
+
+        monkeypatch.setattr(service, 'payment_gateway', ObservedGateway)
+        def send(params, idempotency_key):
+            requests.append(params)
+            return {'id': 'cs_offline_duration', 'status': 'open', 'url': 'https://payments.example.test'}
+        monkeypatch.setattr(stripe_api, 'create_checkout_session', send)
+        service._create_checkout(conn, setup, tid, 'synthetic@example.test', 'Synthetic', key, 'monthly')
+        params = requests[0]['subscription_data']
+        assert 'trial_period_days' not in params
+        if days:
+            assert intents[0].trial_end.timestamp() == int(issued['ends_at'].timestamp())
+            assert params['trial_end'] == int(issued['ends_at'].timestamp())
+            # The elapsed minute is consumed; it must never be added again.
+            assert 0 < params['trial_end'] - now < days * 86400
+            before = store.trial(conn, tid)
+            with owner_db.cursor() as cur:
+                cur.execute('UPDATE usage_plans SET trial_days=0 WHERE plan_key=%s', (key,))
+            service._create_checkout(conn, setup, tid, 'synthetic@example.test', 'Synthetic', key, 'monthly')
+            assert requests[-1]['subscription_data']['trial_end'] == params['trial_end']
+            assert store.trial(conn, tid) == before
+        else:
+            assert intents[0].trial_end is None
+            assert 'trial_end' not in params
+            assert store.trial(conn, tid) is None
 
 
 def denied(conn, query, params=None):

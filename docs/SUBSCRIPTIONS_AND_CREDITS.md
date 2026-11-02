@@ -32,6 +32,30 @@ display what `/billing/*` returns.
 - All values are in `usage_plans` / `usage_plan_limits` (migration
   `20261020000000_keel_subscriptions_and_credits.sql`), not in code.
 
+### Configured trial length versus remaining trial time
+
+`usage_plans.trial_days` is the backend source for new trial duration and plan
+cards. `store.start_trial` / the restricted `billing_setup_trial` command issue
+the one-time trial using that plan's configured days, recording UTC
+`billing_trials.started_at` and `ends_at`. Signup currently issues the configured
+default trial plan; selecting a different paid plan later does not issue another
+trial or change that existing cutoff.
+
+Checkout sends the existing cutoff through the provider-neutral
+`CheckoutIntent.trial_end`; the Stripe adapter translates it to
+`subscription_data.trial_end`, never a hardcoded `trial_period_days`. An issued
+14-day trial opened in Checkout a minute after signup has slightly less than 14
+days remaining. Stripe controls its hosted wording. Changing to 14 days from
+Checkout or rounding the cutoff up would extend the issued trial and is not the
+approved policy. Zero-day plans issue no new trial; a previously granted trial
+remains governed by its original cutoff. Checkout's existing minimum remaining
+window is separate from plan duration.
+
+The KEEL review displays catalog trial length separately from the existing UTC
+expiry and explains remaining time. It does not substitute a rounded countdown
+for configured days. Already frozen Checkout requests, subscriptions, credits
+and billing boundaries are unchanged.
+
 ## 2. Data Credits and AI Credits
 
 Platform Owners manage accounting schedules at
