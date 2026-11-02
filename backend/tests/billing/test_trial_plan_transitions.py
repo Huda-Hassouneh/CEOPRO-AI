@@ -104,6 +104,7 @@ def plans(owner_db, tenant):
     with owner_db.cursor() as cur:
         cur.execute("DELETE FROM billing_subscriptions WHERE plan_key=ANY(%s)", (keys,))
         cur.execute("DELETE FROM tenant_plan_assignments WHERE plan_key=ANY(%s)", (keys,))
+        cur.execute("DELETE FROM billing_trials WHERE plan_key=ANY(%s)", (keys,))
         cur.execute("DELETE FROM billing_plan_prices WHERE plan_key=ANY(%s)", (keys,))
         cur.execute("DELETE FROM usage_plan_limits WHERE plan_key=ANY(%s)", (keys,))
         cur.execute("DELETE FROM usage_plan_entitlements WHERE plan_key=ANY(%s)", (keys,))
@@ -115,6 +116,10 @@ def trial(tenant, plans, send, monkeypatch, owner_db):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_offline")
     provider = TrialProvider(tenant[0], plans[1][1])
     provider.install(monkeypatch)
+    # This regression suite represents already-issued historical trials.
+    with owner_db.cursor() as cur:
+        cur.execute('INSERT INTO billing_trials(tenant_id,plan_key,started_at,ends_at,started_by_user_id) VALUES(%s,%s,to_timestamp(%s),to_timestamp(%s),%s)',
+                    (tenant[0],plans[1][0],provider.live['trial_end']-14*86400,provider.live['trial_end'],tenant[1]))
     assert send("customer.subscription.created", {"id": provider.live["id"]}).status_code == 200
     headers = {"Authorization": "Bearer " + create_access_token(*tenant, email_verified=True)[0]}
     return provider, headers

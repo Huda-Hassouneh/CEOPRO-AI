@@ -76,8 +76,10 @@ def _signed_up(client, plan_key="starter"):
     session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Limits Co", "email": email,
                                                      "country_code": "JO", "primary_currency": "JOD", "password": PASSWORD})
     if plan_key:
-        _sql("UPDATE tenant_plan_assignments SET plan_key = %s, status = 'active', source = 'manual' WHERE tenant_id = %s;",
-             (plan_key, session["tenant_id"]))
+        # This fixture deliberately installs paid/manual rights for limit tests.
+        # Signup no longer creates an assignment to overwrite.
+        _sql("INSERT INTO tenant_plan_assignments(tenant_id,plan_key,status,source) VALUES(%s,%s,'active','manual');",
+             (session["tenant_id"], plan_key))
         entitlements.forget(session["tenant_id"])
     return session, {"Authorization": f"Bearer {session['access_token']}"}
 
@@ -291,8 +293,11 @@ def test_concurrent_trial_starts_for_one_person_grant_only_one_trial(sys_conn):
         assert cursor.fetchone()[0] == 1
 
 
-def test_the_trial_endpoint_refuses_a_second_trial(client):
-    _, headers = _signed_up(client, None)                  # sign-up already started the Plus trial
+def test_the_trial_endpoint_refuses_a_second_trial(client,sys_conn,monkeypatch):
+    account, headers = _signed_up(client, None)
+    assert store.start_trial(sys_conn,account['tenant_id'],started_by_user_id=account['user_id'],plan_key='growth')
+    sys_conn.commit()
+    monkeypatch.setenv('STRIPE_SECRET_KEY','sk_test_offline')
     again = client.post("/billing/trial", headers=headers, json={"plan_key": "enterprise"})
     assert again.status_code == 409 and again.json()["detail"]["reason"] == "trial_already_used"
 
@@ -342,7 +347,7 @@ def test_customers_cannot_buy_or_trial_a_custom_plan_online(client, monkeypatch)
     _, headers = _signed_up(client, "starter")
     checkout = client.post("/billing/checkout", headers=headers, json={"plan_key": "custom", "period_code": "monthly"})
     assert checkout.status_code in (400, 404)
-    assert client.post("/billing/trial", headers=headers, json={"plan_key": "custom"}).status_code == 409
+    assert client.post("/billing/trial", headers=headers, json={"plan_key": "custom"}).status_code in (404,409)
 
 
 # --- plan changes and cancellation (Stripe faked) ----------------------------------

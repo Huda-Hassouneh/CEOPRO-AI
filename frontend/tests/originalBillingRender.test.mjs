@@ -26,31 +26,37 @@ async function render(locale, file, name, props) {
 }
 for(const locale of ['en','ar']) {
   for(const days of [14,7,0]){
-    test(`configured ${days}-day trial is distinct from an existing expiry in ${locale}`,async()=>{
+    test(`default ${days}-day trial is shown only without an existing issued trial in ${locale}`,async()=>{
       const configured=toOriginalPlan(mapPlan({plan_key:'starter',name:{en:'Standard',ar:'ستاندرد'},trial_days:days,self_serve:true,monthly_price:29,currency:'USD',prices:[{period_code:'monthly',interval_months:1,amount:29,currency:'USD',discount_percent:0,purchasable:true}]}));
       const {translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
-      const originalNow=Date.now;
-      // Almost a day has already elapsed; configured length must not become 13/6.
-      Date.now=()=>Date.parse('2026-11-03T07:37:19Z');
-      let html;
-      try{
-        html=await render(locale,'PlanSummaryCard.jsx','PlanSummaryCard',{plan:configured,billingPeriod:'monthly',checkoutMode:days?'trial':'paid',checkoutTrialEndsAt:days?Date.parse('2026-11-16T07:37:20Z')/1000:null});
-      }finally{Date.now=originalNow;}
+      const html=await render(locale,'PlanSummaryCard.jsx','PlanSummaryCard',{plan:configured,billingPeriod:'monthly'});
       const expected=translate(locale,days?'billing.payment.trial':'billing.payment.noTrial',{days});
       assert.ok(html.includes(expected));
       if(days){
-        assert.ok(html.includes(translate(locale,'billing.payment.existingTrial')));
-        assert.ok(html.includes('UTC'));
         const card=await render(locale,'OriginalPlanCard.jsx','PlanCard',{plan:configured,billingPeriod:'monthly',onSelect(){}});
         assert.ok(card.includes(String(days)));
-      }else assert.ok(!html.includes(translate(locale,'billing.payment.existingTrial')));
+      }
+      const existing=await render(locale,'PlanSummaryCard.jsx','PlanSummaryCard',{plan:configured,billingPeriod:'monthly',checkoutMode:'trial',checkoutTrialEndsAt:1794814640});
+      assert.ok(!existing.includes(translate(locale,'billing.payment.configuredTrial')));
+      assert.ok(!existing.includes(expected));
+      assert.ok(existing.includes('dateTime="2026-11-16T07:37:20.000Z"'));
+      assert.ok(existing.includes('UTC'));
+      assert.ok(existing.indexOf('billing-existing-trial')<existing.indexOf('<ul>'));
     });
   }
   test(`previously issued trial remains visible even if selected plan offers no new trial in ${locale}`,async()=>{
     const html=await render(locale,'PlanSummaryCard.jsx','PlanSummaryCard',{plan:{trialDays:0,basePrice:29,currency:'USD'},checkoutMode:'trial',checkoutTrialEndsAt:Date.parse('2026-11-16T07:37:20Z')/1000});
     const {translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
-    assert.ok(html.includes(translate(locale,'billing.payment.noTrial')));
+    assert.ok(!html.includes(translate(locale,'billing.payment.noTrial')));
     assert.ok(html.includes(translate(locale,'billing.payment.existingTrial')));
+  });
+  test(`existing-trial plan selection does not promise a new Pro trial in ${locale}`,async()=>{
+    const pro=toOriginalPlan(mapPlan({plan_key:'enterprise',name:{en:'Pro',ar:'برو'},trial_days:7,self_serve:true,monthly_price:99,currency:'USD',prices:[{period_code:'monthly',interval_months:1,amount:99,currency:'USD',discount_percent:0,purchasable:true}]}));
+    const html=await render(locale,'OriginalPlanSelector.jsx','OriginalPlanSelector',{plans:[pro],showTrial:false,showCustomPlan:false});
+    const {translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
+    assert.ok(html.includes(translate(locale,'billing.plans.startWith',{plan:pro.name})));
+    assert.ok(!html.includes(translate(locale,'billing.plans.trialIncluded',{days:7})));
+    assert.ok(!html.includes(translate(locale,'billing.plans.trialAction',{days:7,plan:pro.name})));
   });
   const plan = toOriginalPlan(mapPlan({
     plan_key: 'starter', name: { en: 'Standard', ar: 'ستاندرد' }, self_serve: true,

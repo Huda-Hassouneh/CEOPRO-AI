@@ -11,11 +11,14 @@ import uuid
 
 import psycopg2
 import pytest
+from fastapi import HTTPException
 
 from src.ai import db
 from src.ai.billing import checkout_attempts, service, store, stripe_api
 from src.ai.billing.stripe_gateway import StripeGateway
 from src.ai.core.security import TenantContext
+from .test_provider_trials import provider  # noqa: F401
+from .test_reconciliation_roles import restricted_runtime, send  # noqa: F401
 
 
 @pytest.fixture
@@ -31,16 +34,14 @@ def setup_connections(owner_db):
 
 
 @pytest.mark.parametrize('days', [14, 7, 0])
-def test_catalog_trial_days_flow_to_issued_cutoff_and_checkout(owner_db, tenant, setup_connections, billing_connections, monkeypatch, days):
+def test_catalog_trial_days_flow_to_issued_cutoff_and_checkout(owner_db, tenant, test_price, setup_connections, billing_connections, monkeypatch, days):
     """Real DB/roles and domain/Stripe encoding, with an offline transport only."""
     tid, uid = tenant
-    key = 'trial-duration-' + uuid.uuid4().hex
+    key, _ = test_price
     with owner_db.cursor() as cur:
-        cur.execute("INSERT INTO usage_plans(plan_key,display_name,monthly_price,currency,trial_days,tier_level,self_serve,is_active) VALUES(%s,'Synthetic trial duration',29,'USD',%s,1,TRUE,TRUE)", (key, days))
-        cur.execute("INSERT INTO billing_plan_prices(plan_key,period_code,interval_months,amount,currency,stripe_price_id) VALUES(%s,'monthly',1,29,'USD',%s)", (key, 'price_offline_' + key))
+        cur.execute('UPDATE usage_plans SET trial_days=%s WHERE plan_key=%s', (days,key))
     with closing(setup_connections(tid, uid)) as setup, closing(billing_connections(tid, uid)) as conn:
-        issued = store.start_trial(setup, tid, started_by_user_id=uid, plan_key=key)
-        setup.commit()
+        issued = store.start_trial(owner_db, tid, started_by_user_id=uid, plan_key=key)
         assert next(p for p in store.catalog(conn) if p['plan_key'] == key)['trial_days'] == days
         if days:
             assert issued['ends_at'] - issued['started_at'] == timedelta(days=days)
@@ -53,7 +54,7 @@ def test_catalog_trial_days_flow_to_issued_cutoff_and_checkout(owner_db, tenant,
         monkeypatch.setattr(service.config, 'automatic_tax', lambda: False)
         monkeypatch.setattr(service, '_ensure_customer', lambda *a: 'cus_offline_duration')
         monkeypatch.setattr(service.time, 'time', lambda: now)
-        monkeypatch.setattr(stripe_api, 'customer_clock_time', lambda *a: None)
+        monkeypatch.setattr(stripe_api, 'customer_clock_time', lambda *a, **kw: None)
         intents, requests = [], []
 
         class ObservedGateway(StripeGateway):
@@ -157,11 +158,11 @@ def test_trial_command_preserves_one_time_rule_and_snapshot(owner_db, tenant, se
     tid, uid = tenant
     with closing(setup_connections(tid, uid)) as conn:
         assert store.trial_eligibility(conn, tid, "growth", uid) is None
-        trial = store.start_trial(conn, tid, started_by_user_id=uid, plan_key="growth")
-        conn.commit()
+        denied(conn, "SELECT billing_setup_trial('growth',true)")
+        trial = store.start_trial(owner_db, tid, started_by_user_id=uid, plan_key="growth")
         assert trial["ends_at"] - trial["started_at"] == timedelta(days=14)
         assert store.trial_eligibility(conn, tid, "growth", uid) == "trial_already_used"
-        assert store.start_trial(conn, tid, started_by_user_id=uid, plan_key="growth") is None
+        denied(conn, "SELECT billing_setup_trial('growth',true)")
         denied(conn, "UPDATE tenant_plan_assignments SET status='active' WHERE tenant_id=%s", (tid,))
         with pytest.raises(ValueError, match="identity"):
             store.trial_eligibility(conn, str(uuid.uuid4()), "growth", uid)
@@ -172,38 +173,115 @@ def test_trial_command_preserves_one_time_rule_and_snapshot(owner_db, tenant, se
         assert cur.fetchone() == ("trialing", "trial", True)
 
 
+@pytest.mark.parametrize('plan_key,days', [('starter',14),('growth',14),('enterprise',7)])
+def test_explicit_selected_trial_uses_catalog_snapshot_and_completes_onboarding(
+    client, owner_db, tenant, setup_connections, billing_connections, monkeypatch, provider, send, plan_key, days,
+):
+    from src.ai import onboarding_profile as profile
+    from src.ai.core import usage
+    from src.ai.core.security import create_access_token
+    tid, uid = tenant
+    monkeypatch.setattr(db, 'billing_setup_connection', setup_connections)
+    monkeypatch.setenv('UNASSIGNED_PLAN_ACCESS','none')
+    # Availability must not depend on the legacy default-plan configuration.
+    monkeypatch.setenv('TRIAL_PLAN_KEY', 'not-a-plan')
+    token, _ = create_access_token(tid, uid, email_verified=True)
+    headers = {'Authorization': 'Bearer ' + token}
+    before = client.get('/billing/subscription', headers=headers).json()
+    assert before['planId'] is None and before['planName'] is None
+    assert not before['assigned'] and not before['hasAccess'] and not before['trialUsed']
+    assert {'starter','growth','enterprise'} <= set(before['trialEligiblePlanIds'])
+    with closing(billing_connections(tid, uid)) as conn:
+        choices = [dict(country='JO',city='amman',language='en'),dict(industry='retail'),
+                   dict(businessSize='1-50',annualRevenue='under-100k'),dict(objectives=['knowledge']),
+                   dict(selectedPlan=plan_key,billingPeriod='monthly')]
+        for number, values in enumerate(choices,1):
+            profile.save(conn,tid,uid,profile.StepRequest(step=number,expected_revision=number-1,**values))
+        conn.commit()
+        with pytest.raises(HTTPException) as blocked:
+            profile.complete(conn,tid,uid)
+        assert blocked.value.status_code == 409
+        conn.rollback()
+    response = client.post('/billing/trial', headers=headers, json={'plan_key':plan_key})
+    assert response.status_code == 200, response.text
+    assert not client.get('/billing/subscription',headers=headers).json()['hasAccess']
+    sub = provider['confirm'](response.json()['session_id'])
+    assert send('customer.subscription.created',sub).status_code == 200
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT plan_key,ends_at-started_at FROM billing_trials WHERE tenant_id=%s',(tid,))
+        assert cur.fetchone() == (plan_key,timedelta(days=days))
+        cur.execute('SELECT plan_key,status,source,catalog_snapshot FROM tenant_plan_assignments WHERE tenant_id=%s',(tid,))
+        assigned, status, source, snapshot = cur.fetchone()
+        assert (assigned,status,source) == (plan_key,'trialing','stripe')
+        assert snapshot['plan_key'] == plan_key
+        cur.execute('SELECT feature_code FROM usage_plan_entitlements WHERE plan_key=%s ORDER BY feature_code',(plan_key,))
+        assert snapshot['entitlements'] == [row[0] for row in cur.fetchall()]
+        cur.execute('SELECT feature_code,limit_value,trial_limit_value FROM usage_plan_limits WHERE plan_key=%s',(plan_key,))
+        expected_limits = {code: trial if trial is not None else limit for code,limit,trial in cur.fetchall()}
+    with closing(billing_connections(tid,uid)) as conn:
+        effective = usage.get_plan(conn,tid)
+        assert {code:item['limit'] for code,item in effective['features'].items()} == expected_limits
+        assert profile.complete(conn,tid,uid)['isComplete']
+        conn.commit()
+        original_trial = store.trial(conn,tid)
+    # A different selected plan cannot replace or extend this issued trial.
+    duplicate = client.post('/billing/trial',headers=headers,json={'plan_key':'growth' if plan_key!='growth' else 'enterprise'})
+    assert duplicate.status_code == 409
+    with closing(billing_connections(tid,uid)) as conn:
+        assert store.trial(conn,tid) == original_trial
+        assert usage.get_plan(conn,tid)['plan_key'] == plan_key
+    after = client.get('/billing/subscription',headers=headers).json()
+    assert after['trialEligiblePlanIds'] == [] and not after['trialAvailable']
+
+
+def test_zero_day_plan_is_not_offered_or_issued(client, owner_db, tenant, test_price, setup_connections, billing_connections, monkeypatch, provider):
+    from src.ai.core.security import create_access_token
+    tid,uid = tenant
+    key,_ = test_price  # An active private fixture with trial_days=0.
+    monkeypatch.setattr(db,'billing_setup_connection',setup_connections)
+    token,_ = create_access_token(tid,uid,email_verified=True)
+    headers = {'Authorization':'Bearer '+token}
+    available = client.get('/billing/subscription',headers=headers).json()
+    assert key not in available['trialEligiblePlanIds']
+    denied_trial = client.post('/billing/trial',headers=headers,json={'plan_key':key})
+    assert denied_trial.status_code == 409
+    assert denied_trial.json()['detail']['reason'] == 'plan_has_no_trial'
+    with owner_db.cursor() as cur:
+        for table in ('billing_trials','tenant_plan_assignments'):
+            cur.execute('SELECT count(*) FROM '+table+' WHERE tenant_id=%s',(tid,))
+            assert cur.fetchone()[0] == 0
+
+
 def test_same_person_trial_in_other_tenant_is_denied_without_exposing_rows(owner_db, tenant, setup_connections):
     tid, uid = tenant
     other = str(uuid.uuid4())
     try:
-        with closing(setup_connections(tid, uid)) as conn:
-            assert store.start_trial(conn, tid, started_by_user_id=uid)
-            conn.commit()
+        assert store.start_trial(owner_db, tid, started_by_user_id=uid)
         with owner_db.cursor() as cur:
             cur.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,'Synthetic second workspace','US','USD')", (other,))
             cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')", (other, uid))
         with closing(setup_connections(other, uid)) as conn:
             assert store.trial_eligibility(conn, other, "growth", uid) == "trial_already_used_by_person"
-            assert store.start_trial(conn, other, started_by_user_id=uid) is None
+            denied(conn, "SELECT billing_setup_trial('growth',true)")
             denied(conn, "SELECT * FROM billing_trials")
     finally:
         with owner_db.cursor() as cur:
             cur.execute("DELETE FROM companies WHERE tenant_id=%s", (other,))
 
 
-def test_two_concurrent_trial_requests_issue_one_assignment(owner_db, tenant, setup_connections):
+def test_two_concurrent_trial_requests_cannot_issue_cardless_assignment(owner_db, tenant, setup_connections):
     tid, uid = tenant
-    def claim():
+    def claim(plan_key):
         with closing(setup_connections(tid, uid)) as conn:
-            result = store.start_trial(conn, tid, started_by_user_id=uid)
-            conn.commit()
-            return result
+            denied(conn, 'SELECT billing_setup_trial(%s,true)', (plan_key,))
     with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(lambda _: claim(), range(2)))
-    assert sum(result is not None for result in results) == 1
+        results = list(pool.map(claim, ['starter','enterprise']))
+    assert results == [None,None]
     with owner_db.cursor() as cur:
         cur.execute("SELECT count(*) FROM tenant_plan_assignments WHERE tenant_id=%s", (tid,))
-        assert cur.fetchone()[0] == 1
+        assert cur.fetchone()[0] == 0
+        cur.execute("SELECT count(*) FROM billing_trials WHERE tenant_id=%s", (tid,))
+        assert cur.fetchone()[0] == 0
 
 
 def test_actual_checkout_http_uses_setup_role_and_persists_no_paid_rights(client, owner_db, tenant, test_price, billing_connections, setup_connections, monkeypatch):
@@ -234,16 +312,15 @@ def test_actual_checkout_http_uses_setup_role_and_persists_no_paid_rights(client
         assert cur.fetchone()[0] == 0
 
 
-def test_actual_trial_http_uses_execute_only_issuer(client, tenant, billing_connections, setup_connections, monkeypatch):
+def test_actual_trial_http_uses_execute_only_issuer(client, tenant, billing_connections, setup_connections, monkeypatch, provider):
     from src.ai.routers import billing
     tid, uid = tenant
     monkeypatch.setattr(db, "billing_setup_connection", setup_connections)
     client.app.dependency_overrides[billing.get_tenant_context] = lambda: TenantContext(tid, uid)
     response = client.post("/billing/trial", json={"plan_key": "growth"})
     assert response.status_code == 200, response.json()
-    response = client.post("/billing/trial", json={"plan_key": "growth"})
-    assert response.status_code == 409
-    assert response.json()["detail"]["reason"] == "trial_already_used"
+    again = client.post("/billing/trial", json={"plan_key": "growth"})
+    assert again.status_code == 200 and again.json() == response.json()
 
 
 def test_managed_promotion_setup_persists_audit_but_cannot_settle(owner_db, tenant, test_price, setup_connections, billing_connections, monkeypatch):

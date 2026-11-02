@@ -103,7 +103,7 @@ export const billingApi = Object.freeze({
   cancel: async () => (await httpClient.post('/billing/cancel')).data,
   resume: async () => (await httpClient.post('/billing/resume')).data,
   getUsageHistory: async () => (await httpClient.get('/billing/usage-history')).data.items || [],
-  startTrial: async ({ planId }) => (await httpClient.post('/billing/trial', { plan_key: planId })).data,
+  startTrial: async ({ planId, billingPeriod = 'monthly', promotionCode }) => (await httpClient.post('/billing/trial', { plan_key: planId, period_code: billingPeriod, ...(promotionCode ? {promotion_code:promotionCode} : {}) })).data,
   getCustomOfferConfigurator: customOffersApi.getConfigurator,
   validateCustomOfferConfiguration: customOffersApi.validateConfiguration,
   previewCustomOfferPricing: customOffersApi.previewPricing,

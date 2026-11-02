@@ -190,6 +190,7 @@ def test_price(owner_db):
     with owner_db.cursor() as cur:
         cur.execute("DELETE FROM billing_subscriptions WHERE plan_key=%s", (key,))
         cur.execute("DELETE FROM tenant_plan_assignments WHERE plan_key=%s", (key,))
+        cur.execute("DELETE FROM billing_trials WHERE plan_key=%s", (key,))
         cur.execute("DELETE FROM billing_plan_prices WHERE plan_key=%s", (key,))
         cur.execute("DELETE FROM usage_plans WHERE plan_key=%s", (key,))
     owner_db.commit()

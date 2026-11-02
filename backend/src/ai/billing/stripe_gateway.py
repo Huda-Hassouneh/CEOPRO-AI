@@ -78,6 +78,11 @@ def _subscription(data):
         trial_end=_time(data.get("trial_end")), cancel_at_period_end=bool(data.get("cancel_at_period_end")),
         cancelled_at=_time(data.get("canceled_at")), schedule=_reference(data.get("schedule")),
         latest_invoice=_reference(data.get("latest_invoice")), metadata=deepcopy(data.get("metadata") or {}),
+        trial_start=_time(data.get("trial_start")),
+        recurring_payment_method_ready=bool(data.get("default_payment_method") or data.get("default_source")
+            or (isinstance(data.get("customer"), dict) and (
+                (data["customer"].get("invoice_settings") or {}).get("default_payment_method")
+                or data["customer"].get("default_source")))),
     )
 
 
@@ -215,11 +220,14 @@ class StripeGateway:
         params = {"mode": "subscription", "customer": _identifier(intent.customer), "line_items": [line],
                   "client_reference_id": intent.client_reference, "metadata": dict(intent.metadata),
                   "subscription_data": {"metadata": dict(intent.subscription_metadata)},
-                  "payment_method_collection": "always", "success_url": intent.success_url.replace(
+                  "payment_method_collection": "always" if intent.require_payment_method_before_activation else "if_required", "success_url": intent.success_url.replace(
                       "{checkout_reference}", "{CHECKOUT_SESSION_ID}"),
                   "cancel_url": intent.cancel_url}
         if intent.trial_end is not None:
             params["subscription_data"].update(trial_end=_epoch(intent.trial_end),
+                trial_settings={"end_behavior": {"missing_payment_method": "cancel"}})
+        if intent.trial_duration_days is not None:
+            params["subscription_data"].update(trial_period_days=intent.trial_duration_days,
                 trial_settings={"end_behavior": {"missing_payment_method": "cancel"}})
         if intent.promotion is not None:
             params["discounts"] = [{"promotion_code": _identifier(intent.promotion)}]

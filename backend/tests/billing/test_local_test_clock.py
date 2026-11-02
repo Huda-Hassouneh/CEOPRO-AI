@@ -146,7 +146,7 @@ def test_native_checkout_mapping_reuse_conflict_and_disable(client,clock_runtime
     sdk.clock['frozen_time']-=8*3600  # Existing ready clock with a past origin.
     headers={'Authorization':'Bearer '+create_access_token(tid,uid,email_verified=True)[0]}
     monkeypatch.setenv('PUBLIC_FRONTEND_ORIGIN','http://127.0.0.1:15173')
-    assert client.post('/billing/trial',json={'plan_key':'growth'},headers=headers).status_code==200
+    assert store.start_trial(owner_db,tid,started_by_user_id=uid,plan_key='growth')
     response=client.post('/billing/checkout',json={'plan_key':plan,'period_code':'monthly'},headers=headers)
     assert response.status_code==200,response.json()
     again=client.post('/billing/checkout',json={'plan_key':plan,'period_code':'monthly'},headers=headers)
@@ -176,6 +176,9 @@ def test_clock_time_is_tenant_scoped_and_renewal_credits_are_idempotent(clock_ru
     live=live_subscription(tid,price,status='trialing');live['trial_end']=int(time.time())+14*86400;live['items']['data'][0]['current_period_end']=live['trial_end']
     sdk.customers[live['customer']]={'id':live['customer'],'livemode':False,'metadata':{'tenant_id':tid},'test_clock':sdk.clock['id']}
     monkeypatch.setattr(stripe_api,'retrieve_subscription',lambda _:deepcopy(live))
+    with owner_db.cursor() as cur:
+        cur.execute('INSERT INTO billing_trials(tenant_id,plan_key,started_at,ends_at,started_by_user_id) VALUES(%s,%s,to_timestamp(%s),to_timestamp(%s),%s)',
+                    (tid,test_price[0],live['trial_end']-14*86400,live['trial_end'],uid))
     assert send('customer.subscription.created',{'id':live['id']}).status_code==200
     with closing(db.app_role_connection(tid,uid)) as conn:assert usage.get_plan(conn,tid)['status']=='trialing'
     sdk.clock['frozen_time']=live['trial_end']
@@ -244,6 +247,9 @@ def test_enabled_trial_schedule_preserves_cutoff_and_simulated_expiry(client,clo
     sdk.customers[provider.live['customer']]={'id':provider.live['customer'],'livemode':False,'metadata':{'tenant_id':tid},'test_clock':sdk.clock['id']}
     provider.install(monkeypatch)
     monkeypatch.setattr(store,'resolve_price',lambda *a:('growth','monthly'))
+    with owner_db.cursor() as cur:
+        cur.execute('INSERT INTO billing_trials(tenant_id,plan_key,started_at,ends_at,started_by_user_id) VALUES(%s,%s,to_timestamp(%s),to_timestamp(%s),%s)',
+                    (tid,'growth',provider.live['trial_end']-14*86400,provider.live['trial_end'],uid))
     assert send('customer.subscription.created',{'id':provider.live['id']}).status_code==200
     original_price=store.current_price
     def configured(conn,key,term):

@@ -1,6 +1,7 @@
 import { Check, Crown, Sprout } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { describeBillingOption } from '../utils/billingPeriodPresentation.js';
+import { ExistingTrialNotice } from './ExistingTrialNotice.jsx';
 
 const planIcons = {
   starter: Sprout,
@@ -16,9 +17,6 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
   const trialDays = Number(plan.trialDays ?? plan.trialPeriodDays ?? plan.trialPeriodValue ?? 0);
   const trialEnd = checkoutTrialEndsAt ? new Date(checkoutTrialEndsAt * 1000) : null;
   const isTrial = checkoutMode === 'trial' && trialEnd && !Number.isNaN(trialEnd.getTime());
-  const trialEndLabel = isTrial ? new Intl.DateTimeFormat(locale === 'ar' ? 'ar-JO' : 'en-US', {
-    dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC',
-  }).format(trialEnd) : null;
   const selectedPricingOption =
     plan.pricingOptions?.find((option) => option.period === billingPeriod) ||
     plan.pricingOptions?.[0];
@@ -51,13 +49,10 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
             <small>{finalDescription}</small>
           </div>
         </div>
-        <span>
-          {isTrial
-            ? t('billing.payment.planTrial', { plan: finalPlanName })
-            : finalPlanName}
-        </span>
+        <span>{finalPlanName}</span>
       </header>
 
+      {isTrial && <ExistingTrialNotice endsAt={checkoutTrialEndsAt} />}
       <ul>
         {Object.entries(plan.features || {}).map(([featureCode, feature]) => {
           const featureName =
@@ -91,10 +86,10 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
           <span>{t('billing.payment.billingCycle')}</span>
           <strong>{describeBillingOption(selectedPricingOption || {}, t)}</strong>
         </div>
-        <div>
+        {!isTrial && <div>
           <span>{t('billing.payment.configuredTrial')}</span>
           <strong>{trialDays > 0 ? t('billing.payment.trial', { days: trialDays }) : t('billing.payment.noTrial')}</strong>
-        </div>
+        </div>}
         {discountPercent > 0 && (
           <>
             <div>
@@ -110,7 +105,7 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
         {isTrial ? (
           <>
             <div>
-              <span>{t('billing.payment.afterExistingTrial', { date: trialEndLabel })}</span>
+              <span>{t('billing.payment.afterExistingTrialEnd')}</span>
               <strong>{formatCurrency(totalPrice)}</strong>
             </div>
             <div>
@@ -128,7 +123,6 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
         )}
       </div>
 
-      {isTrial && <p role="note">{t('billing.payment.preservedTrial', { date: trialEndLabel })}</p>}
       {promotionEntered&&<p role="note">{t('billing.payment.stripeConfirmsPromotion')}</p>}
       <div className="ceopro-plan-summary__total">
         <span>{t(promotionEntered?'billing.payment.catalogBeforePromotion':'billing.payment.totalDueToday')}</span>

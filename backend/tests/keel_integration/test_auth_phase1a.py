@@ -5,6 +5,7 @@ import pytest
 from fastapi import HTTPException
 from src.ai.core import pending_registration as pending, security
 from src.ai.routers import auth
+from src.ai.billing import store
 
 PAYLOAD={'email':'New.Owner+trial@example.test','password':'StrongPass1!','full_name':'New owner','business_name':'New business','country_code':'jo','primary_currency':'jod'}
 
@@ -14,7 +15,7 @@ def test_signup_only_stages_and_never_issues_a_session(api,monkeypatch):
     monkeypatch.setattr(pending,'_call',lambda action,payload:(calls.append((action,payload))or{'status':'pending'}))
     monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a:True)
     monkeypatch.setattr(auth,'_insert_company',lambda *a:pytest.fail('Permanent company created before verification'))
-    monkeypatch.setattr(auth,'_start_free_trial',lambda *a:pytest.fail('Trial started before verification'))
+    monkeypatch.setattr(store,'start_trial',lambda *a,**kw:pytest.fail('Trial started before explicit plan activation'))
     result=api.post('/auth/signup',json=PAYLOAD)
     assert result.status_code==202
     data=result.json();assert data['status']=='pending_verification' and data['delivery']=='sent'
@@ -49,22 +50,42 @@ def test_email_failure_is_truthful_and_does_not_create_a_permanent_account(api,m
     assert 'registration_token'in result.json() and 'access_token'not in result.json()
 
 
-def test_verified_registration_uses_existing_session_and_trial_authorities(api,monkeypatch):
+def test_verified_registration_issues_session_without_commercial_assignment(api,monkeypatch):
     result={'status':'created','created':True,'tenant_id':'t','user_id':'u','business_name':'Shop','full_name':'Owner','email':'a@example.test'}
     monkeypatch.setattr(pending,'_call',lambda *a:result)
-    calls=[];monkeypatch.setattr(auth,'_start_free_trial',lambda *a:calls.append(a))
+    monkeypatch.setattr(store,'start_trial',lambda *a,**kw:pytest.fail('Verification must not issue a trial'))
+    monkeypatch.setattr(auth.db,'billing_setup_connection',lambda *a:pytest.fail('Verification acquired billing authority'))
     monkeypatch.setattr(auth,'_session',lambda *a:{'access_token':'python-issued','tenant_id':'t','user_id':'u'})
     response=api.post('/auth/email/verify',json={'email':'a@example.test','code':'123456','registration_token':'secret'})
-    assert response.status_code==200 and response.json()['access_token']=='python-issued' and calls==[('t','u')]
+    assert response.status_code==200 and response.json()['access_token']=='python-issued'
 
 
 def test_duplicate_verification_does_not_issue_another_session_or_trial(api,monkeypatch):
     monkeypatch.setattr(pending,'_call',lambda *a:{'status':'verified','created':False})
-    monkeypatch.setattr(auth,'_start_free_trial',lambda *a:pytest.fail('Duplicate trial'))
+    monkeypatch.setattr(store,'start_trial',lambda *a,**kw:pytest.fail('Duplicate trial'))
     monkeypatch.setattr(auth,'_session',lambda *a:pytest.fail('Duplicate token issuance'))
     response=api.post('/auth/email/verify',json={'email':'a@example.test','code':'123456','registration_token':'secret'})
     assert response.status_code==200 and response.json()['already_verified']
     assert 'access_token'not in response.json()
+
+
+def test_new_workspace_creates_owner_membership_without_trial(api,monkeypatch,token):
+    conn=MagicMock()
+    monkeypatch.setattr(auth.db,'auth_lookup_connection',lambda:conn)
+    monkeypatch.setattr(auth.db,'app_role_connection',lambda *a:conn)
+    monkeypatch.setattr(auth.db,'billing_setup_connection',lambda *a:pytest.fail('Workspace acquired billing authority'))
+    monkeypatch.setattr(auth,'_fetch_user_memberships',lambda *a:[])
+    monkeypatch.setattr(auth,'_user_profile',lambda *a:('owner@example.test','Owner','en'))
+    created=[]
+    monkeypatch.setattr(auth,'_insert_company',lambda *a:created.append(a[1]))
+    monkeypatch.setattr(store,'start_trial',lambda *a,**kw:pytest.fail('Workspace must not issue a trial'))
+    monkeypatch.setattr(auth,'_session',lambda tid,*a,**kw:{'tenant_id':tid,'role_key':'owner'})
+    response=api.post('/auth/workspaces',headers=token,json={'business_name':'New workspace','country_code':'JO','primary_currency':'JOD'})
+    assert response.status_code==201 and response.json()['tenant_id']==created[0]
+    conn.commit.assert_called_once()
+    statements=[call.args[0] for call in conn.cursor.return_value.__enter__.return_value.execute.call_args_list]
+    assert any('INSERT INTO tenant_users' in sql for sql in statements)
+    assert not any('billing_trials' in sql or 'tenant_plan_assignments' in sql for sql in statements)
 
 
 @pytest.mark.parametrize('state,expected',[('invalid',400),('limited',429),('conflict',409)])

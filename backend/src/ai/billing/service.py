@@ -21,7 +21,7 @@ import hashlib
 from datetime import datetime, timezone
 import time
 from decimal import Decimal, InvalidOperation
-from src.ai.billing import checkout_attempts, config, promotions, store, test_clock, self_service
+from src.ai.billing import checkout_attempts, config, promotions, store, test_clock, self_service, trial_checkouts
 from src.ai.billing.payment_contracts import (
     CheckoutIntent, CheckoutState, FrozenCheckoutRequest, Money, PaymentProviderError,
     PaymentState, ProviderOperationOutcome, ProviderReference,
@@ -130,7 +130,7 @@ def _check_legacy_provider_contracts(conn,sys_conn,tenant_id,attempt):
 
 def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
                     plan_key: str, period_code: str, promotion_code: str | None = None,
-                    actor_user_id: str | None = None) -> dict:
+                    actor_user_id: str | None = None, *, trial_requested: bool = False) -> dict:
     _require_payments()
     try:
         origin = config.app_base_url()
@@ -140,12 +140,20 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
         raise BillingError(409, 'subscription_exists', 'Your company already has a subscription. Use Change Plan or payment recovery.')
     _price_or_error(conn, plan_key, period_code)
     request_key = hashlib.sha256(f'{plan_key}:{period_code}:{(promotion_code or "").strip().upper()}:{origin}'.encode()).hexdigest()
+    if trial_requested:
+        request_key = hashlib.sha256((request_key + ':selected-plan-trial').encode()).hexdigest()
     with checkout_attempts.tenant_lock(sys_conn, tenant_id):
         _check_clock_customer(conn, tenant_id)
         if store.current_subscription(conn, tenant_id):
             raise BillingError(409, 'subscription_exists', 'Your company already has a subscription. Use its plan-change or recovery action.')
         if store.has_custom_contract(conn, tenant_id):
             raise BillingError(409, 'plan_transition_conflict', 'Review the existing Custom contract before starting another subscription.')
+        if trial_requested:
+            if not actor_user_id:
+                raise BillingError(400,'trial_identity_required','An authenticated trial owner is required.')
+            reason=store.trial_eligibility(sys_conn,tenant_id,plan_key,actor_user_id)
+            if reason:
+                raise BillingError(409,reason,'This plan is not eligible for a new trial. Review your current trial or pending checkout.')
         attempt = checkout_attempts.active(sys_conn, tenant_id)
         _check_legacy_provider_contracts(conn,sys_conn,tenant_id,attempt)
         if attempt and attempt['session_id']:
@@ -169,7 +177,7 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
             raise BillingError(409, 'checkout_reconciling', 'The previous provider request needs reconciliation before it can be retried safely.')
         attempt = attempt or checkout_attempts.reserve(sys_conn, tenant_id, request_key, plan_key, period_code)
         result = _create_checkout(conn, sys_conn, tenant_id, email, company_name, plan_key, period_code,
-                                  promotion_code, actor_user_id, _attempt=attempt)
+                                  promotion_code, actor_user_id, _attempt=attempt, trial_requested=trial_requested)
         if result.get('session_id'):
             checkout_attempts.opened(sys_conn, attempt, {'id':result['session_id']})
         return result
@@ -206,7 +214,7 @@ def checkout_trial_end(trial, now=None):
 
 def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: str,
                     plan_key: str, period_code: str, promotion_code: str | None = None,
-                    actor_user_id: str | None = None, _attempt=None) -> dict:
+                    actor_user_id: str | None = None, _attempt=None, trial_requested: bool = False) -> dict:
     _require_payments()
     if store.current_subscription(conn, tenant_id):
         raise BillingError(409, "subscription_exists", "Your company already has a subscription. Change plan instead.")
@@ -220,10 +228,20 @@ def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: s
             )
         except promotions.PromotionError as err:
             raise BillingError(err.status, err.code, err.message) from err
+    fresh_trial = None
+    if trial_requested:
+        if not _attempt:
+            raise BillingError(409,'trial_checkout_required','A durable subscription checkout is required.')
+        try:
+            fresh_trial = trial_checkouts.reserve(sys_conn,tenant_id,actor_user_id,_attempt,plan_key,period_code)
+        except trial_checkouts.TrialCheckoutError as err:
+            raise BillingError(409,str(err),'This trial cannot be started. Review your existing trial or pending checkout.') from err
     customer = _ensure_customer(conn, sys_conn, tenant_id, email, company_name)
 
     gateway = payment_gateway()
     metadata = {"tenant_id": tenant_id, "plan_key": plan_key, "period_code": period_code}
+    if fresh_trial:
+        metadata['keel_trial_attempt_id'] = str(_attempt['attempt_id'])
     # A company still inside its free trial keeps those days: billing starts
     # when the trial would have ended. The trial is never granted twice.
     trial = store.trial(conn, tenant_id)
@@ -276,6 +294,8 @@ def _create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: s
             idempotency_key=provider_key, client_reference=tenant_id,
             metadata=metadata, subscription_metadata=metadata,
             trial_end=datetime.fromtimestamp(trial_end, timezone.utc) if trial_end else None,
+            trial_duration_days=fresh_trial['trial_duration_days'] if fresh_trial else None,
+            require_payment_method_before_activation=True,
             promotion=_provider_reference(promotion["stripe_promotion_code_id"]) if promotion else None,
             automatic_tax=config.automatic_tax(),
             success_url=f"{base}/billing?checkout=success&session_id={{checkout_reference}}",
@@ -361,6 +381,9 @@ def cancel_pending_checkout(conn,sys_conn,tenant_id):
         attempt=checkout_attempts.active(sys_conn,tenant_id)
         if not attempt:return {'state':'no_pending_checkout'}
         if not attempt['session_id']:
+            if attempt['params'] is None:
+                checkout_attempts.expire(sys_conn,attempt)
+                return {'state':'checkout_cancelled'}
             raise BillingError(409,'checkout_reconciling','The previous provider request must be reconciled first.')
         session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
         if session.state == CheckoutState.COMPLETE:

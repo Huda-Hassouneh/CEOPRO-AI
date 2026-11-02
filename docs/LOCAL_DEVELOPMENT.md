@@ -85,7 +85,10 @@ MinIO's generated login remains in private local config; never publish it.
 1. Open the frontend's signup page and use a new synthetic email and password.
 2. Open the printed Mailpit inbox and submit the actual verification code.
 3. Sign in and complete the business/onboarding steps. The verified account
-   receives its own tenant and normal eligible trial, not another user's data.
+   receives its own tenant and onboarding state, not another user's data or plan.
+   Choose a plan during onboarding and complete its TEST provider Checkout,
+   including a reusable payment method. Verified reconciliation activates its trial;
+   without payment-provider configuration, fresh commercial access is unavailable.
 4. Inspect Dashboard and Products. Empty business data is expected; import
    reviewed files or create disposable records through the application.
 5. Check the optional-capability messages. Without provider keys, live AI,

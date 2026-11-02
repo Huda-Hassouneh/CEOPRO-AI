@@ -128,7 +128,7 @@ def test_payment_boundary_wiring_is_scoped_and_contract_has_no_infrastructure_im
                 used = (names | {module}) & new_modules
                 if used:
                     assert path.relative_to(src).as_posix() in {
-                        "ai/billing/service.py", "ai/billing/checkout_attempts.py",
+                        "ai/billing/service.py", "ai/billing/checkout_attempts.py", "ai/billing/trial_checkouts.py",
                         "ai/billing/webhooks.py", "ai/billing/store.py", "ai/billing/promotions.py",
                         "ai/routers/billing.py",
                     }, str(path)
