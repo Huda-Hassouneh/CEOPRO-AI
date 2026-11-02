@@ -9,7 +9,7 @@ const planIcons = {
   enterprise: Crown,
 };
 
-export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid', checkoutTrialEndsAt = null, promotionEntered = false }) {
+export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid', checkoutTrialEndsAt = null, promotionEntered = false, selected = false, trialAvailable = false, changePlanAction, children }) {
   const { locale, t } = useI18n();
   const planNameSafe = String(plan.name || '').trim().toLowerCase();
   // Catalog duration and an already-issued trial's cutoff are different facts.
@@ -26,9 +26,9 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
     ? totalPrice / (1 - discountPercent / 100)
     : totalPrice;
   const discountAmount = subtotal - totalPrice;
-  const dueToday = isTrial ? 0 : totalPrice;
+  const dueToday = isTrial || trialAvailable ? 0 : totalPrice;
   const PlanIcon = planIcons[planNameSafe] || Sprout;
-  const finalPlanName = plan.displayName || plan.name || '';
+  const finalPlanName = plan.displayName || (locale === 'ar' && plan.name_ar ? plan.name_ar : plan.name) || '';
   const finalDescription = plan.displayDescription || plan.description || '';
 
   const formatCurrency = (amount) =>
@@ -40,48 +40,44 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
     new Intl.NumberFormat(locale === 'ar' ? 'ar-JO' : 'en-US').format(number);
 
   return (
-    <aside className="ceopro-plan-summary">
+    <aside className={`ceopro-plan-summary${selected ? ' ceopro-plan-summary--selected' : ''}`} aria-label={selected ? t('billing.payment.selectedPlan') : undefined}>
       <header>
         <div className="ceopro-plan-summary__identity">
-          <span className="ceopro-plan-summary__icon"><PlanIcon size={17} /></span>
+          <span className="ceopro-plan-summary__icon">{selected ? <Check size={20} aria-hidden="true" /> : <PlanIcon size={17} />}</span>
           <div>
-            <h2>{t('billing.payment.yourPlan')}</h2>
+            {selected && <span className="ceopro-plan-summary__selected-label">{t('billing.payment.selectedPlan')}</span>}
+            <h2>{selected ? finalPlanName : t('billing.payment.yourPlan')}</h2>
             <small>{finalDescription}</small>
           </div>
         </div>
-        <span>{finalPlanName}</span>
+        {selected ? changePlanAction : <span>{finalPlanName}</span>}
       </header>
 
       {isTrial && <ExistingTrialNotice endsAt={checkoutTrialEndsAt} />}
-      <ul>
-        {Object.entries(plan.features || {}).map(([featureCode, feature]) => {
-          const featureName =
-            locale === 'ar' && feature?.name_ar
-              ? feature.name_ar
-              : feature?.name || featureCode;
-          const isBoolean = feature?.type === 'boolean';
-          const limitText = isBoolean
-            ? t('billing.management.included')
-            : feature?.limitValue === null
-              ? t('common.unlimited')
-              : formatNumber(feature?.limitValue ?? 0);
-          const unitText =
-            locale === 'ar' ? feature?.unit_ar || feature?.unit : feature?.unit;
+      {selected && <div className="ceopro-plan-summary__offer">
+        <p className="ceopro-plan-summary__headline-price">
+          <strong>{formatCurrency(totalPrice)}</strong>
+          <span>{describeBillingOption(selectedPricingOption || {}, t)}</span>
+        </p>
+        {trialAvailable && <span className="ceopro-plan-summary__trial-badge">{t('billing.payment.trial', { days: trialDays })}</span>}
+        {(trialAvailable || isTrial) && <p className="ceopro-plan-summary__renewal">{t('billing.payment.postTrialBilling', {
+          amount: formatCurrency(totalPrice), period: describeBillingOption(selectedPricingOption || {}, t),
+        })}</p>}
+        {promotionEntered && <p className="ceopro-plan-summary__renewal">{t('billing.payment.stripeConfirmsPromotion')}</p>}
+        <div className="ceopro-plan-summary__total">
+          <span>{t(promotionEntered ? 'billing.payment.catalogBeforePromotion' : 'billing.payment.totalDueToday')}</span>
+          <strong className={trialAvailable || isTrial ? 'is-success' : ''}>{formatCurrency(dueToday)}</strong>
+        </div>
+      </div>}
 
-          return (
-            <li className="ceopro-plan-summary__feature" key={featureCode}>
-              <Check size={14} />
-              <span>{featureName}</span>
-              <strong>
-                {limitText}
-                {!isBoolean && feature?.limitValue !== null && unitText ? ` ${unitText}` : ''}
-              </strong>
-            </li>
-          );
-        })}
-      </ul>
+      {children}
+      {selected && <details className="ceopro-plan-summary__details">
+        <summary>{t('billing.payment.planDetails')}</summary>
+        <PlanFeatures plan={plan} locale={locale} t={t} formatNumber={formatNumber} />
+      </details>}
+      {!selected && <PlanFeatures plan={plan} locale={locale} t={t} formatNumber={formatNumber} />}
 
-      <div className="ceopro-plan-summary__price">
+      {!selected && <div className="ceopro-plan-summary__price">
         <div>
           <span>{t('billing.payment.billingCycle')}</span>
           <strong>{describeBillingOption(selectedPricingOption || {}, t)}</strong>
@@ -121,13 +117,45 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
             <strong>{formatCurrency(totalPrice)}</strong>
           </div>
         )}
-      </div>
+      </div>}
 
-      {promotionEntered&&<p role="note">{t('billing.payment.stripeConfirmsPromotion')}</p>}
-      <div className="ceopro-plan-summary__total">
-        <span>{t(promotionEntered?'billing.payment.catalogBeforePromotion':'billing.payment.totalDueToday')}</span>
-        <strong className={isTrial ? 'is-success' : ''}>{formatCurrency(dueToday)}</strong>
-      </div>
+      {!selected && <>
+        {promotionEntered&&<p role="note">{t('billing.payment.stripeConfirmsPromotion')}</p>}
+        <div className="ceopro-plan-summary__total">
+          <span>{t(promotionEntered?'billing.payment.catalogBeforePromotion':'billing.payment.totalDueToday')}</span>
+          <strong className={isTrial ? 'is-success' : ''}>{formatCurrency(dueToday)}</strong>
+        </div>
+      </>}
     </aside>
   );
+}
+
+function PlanFeatures({ plan, locale, t, formatNumber }) {
+  return <ul>
+        {Object.entries(plan.features || {}).map(([featureCode, feature]) => {
+          const featureName =
+            locale === 'ar' && feature?.name_ar
+              ? feature.name_ar
+              : feature?.name || featureCode;
+          const isBoolean = feature?.type === 'boolean';
+          const limitText = isBoolean
+            ? t('billing.management.included')
+            : feature?.limitValue === null
+              ? t('common.unlimited')
+              : formatNumber(feature?.limitValue ?? 0);
+          const unitText =
+            locale === 'ar' ? feature?.unit_ar || feature?.unit : feature?.unit;
+
+          return (
+            <li className="ceopro-plan-summary__feature" key={featureCode}>
+              <Check size={14} />
+              <span>{featureName}</span>
+              <strong>
+                {limitText}
+                {!isBoolean && feature?.limitValue !== null && unitText ? ` ${unitText}` : ''}
+              </strong>
+            </li>
+          );
+        })}
+      </ul>;
 }

@@ -86,6 +86,13 @@ export function errorReason(error) {
   return error?.response?.data?.detail?.reason || null;
 }
 
+export function billingErrorMessage(error, t) {
+  const reason = errorReason(error);
+  const key = reason ? `billing.errors.${reason}` : 'billing.errors.generic';
+  const message = t(key);
+  return message === key ? t('billing.errors.generic') : message;
+}
+
 export const billingApi = Object.freeze({
   getPlans: async () => {
     const { data } = await httpClient.get('/billing/plans');
@@ -97,6 +104,7 @@ export const billingApi = Object.freeze({
   },
   getInvoices: async () => (await httpClient.get('/billing/invoices')).data.invoices || [],
   checkout: async ({ planId, billingPeriod, promotionCode }) => (await httpClient.post('/billing/checkout', { plan_key: planId, period_code: billingPeriod, ...(promotionCode ? { promotion_code:promotionCode } : {}) })).data,
+  cancelPendingCheckout: async () => (await httpClient.post('/billing/checkout/cancel-pending')).data,
   openPortal: async () => (await httpClient.post('/billing/portal')).data,
   changePlan: async ({ planId, billingPeriod }) => (await httpClient.post('/billing/change-plan', { plan_key: planId, period_code: billingPeriod })).data,
   cancelScheduledChange: async () => (await httpClient.delete('/billing/scheduled-change')).data,

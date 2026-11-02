@@ -72,6 +72,16 @@ Pro does not replace a previously issued Plus trial with Pro's shorter default.
 No rounded countdown replaces configured days. Already frozen Checkout
 requests, subscriptions, credits and billing boundaries are unchanged.
 
+Pending Checkout retries reuse the original frozen request and provider session
+under the tenant's Checkout lock. Continue may also resume an already authorized
+trial Checkout for the same plan, term and promotion; Start trial cannot silently
+resume a paid Checkout. A reservation with no session and no frozen request has
+never submitted Checkout and can safely release its trial claim when changing
+selection or after a setup failure. Verified expired/missing sessions can retry;
+completed sessions wait for reconciliation. Unknown provider outcomes retain
+their reservation and original idempotency key. Incompatible submitted terms
+require an explicit close action, with provider closure verified before release.
+
 ## 2. Data Credits and AI Credits
 
 Platform Owners manage accounting schedules at

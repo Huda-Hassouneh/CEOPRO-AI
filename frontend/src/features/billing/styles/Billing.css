@@ -1457,3 +1457,172 @@
   font-size: 10px !important;
   line-height: 1.5;
 }
+
+/* Onboarding: the selected commercial plan owns the single Checkout action. */
+.ceopro-payment-layout.ceopro-payment-layout--focused {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 700px;
+  margin-inline: auto;
+}
+
+.ceopro-plan-summary.ceopro-plan-summary--selected {
+  padding: clamp(20px, 4vw, 32px);
+  border: 2px solid var(--ceopro-primary);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ceopro-primary) 4%, var(--ceopro-surface, #fff));
+  text-align: start;
+}
+
+.ceopro-plan-summary--selected header {
+  align-items: center;
+  border-bottom: 1px solid var(--ceopro-border-soft);
+  padding-bottom: 20px;
+}
+
+.ceopro-plan-summary--selected .ceopro-plan-summary__icon {
+  width: 40px;
+  height: 40px;
+  background: var(--ceopro-primary);
+  color: #fff;
+}
+
+.ceopro-plan-summary--selected .ceopro-plan-summary__selected-label {
+  color: var(--ceopro-primary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.ceopro-plan-summary--selected h2 {
+  margin: 4px 0 0;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.ceopro-payment-change-plan {
+  flex-shrink: 0;
+  color: var(--ceopro-primary);
+  font-size: 13px;
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+
+.ceopro-plan-summary__offer {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-block: 22px;
+}
+
+.ceopro-plan-summary__headline-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.ceopro-plan-summary__headline-price strong {
+  font-size: clamp(28px, 5vw, 36px);
+  line-height: 1.15;
+  color: var(--ceopro-text-primary);
+}
+
+.ceopro-plan-summary__headline-price span {
+  color: var(--ceopro-text-secondary);
+  font-size: 15px;
+}
+
+.ceopro-plan-summary__trial-badge {
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--ceopro-primary-light);
+  color: var(--ceopro-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ceopro-plan-summary__renewal {
+  margin: 0;
+  color: var(--ceopro-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.ceopro-plan-summary__offer .ceopro-plan-summary__total {
+  align-self: stretch;
+  justify-self: stretch;
+  margin-top: 2px;
+  font-size: 14px;
+}
+
+.ceopro-payment-method.ceopro-payment-method--single {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ceopro-payment-required {
+  margin: 0 0 12px;
+  color: var(--ceopro-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ceopro-payment-method--single > .ceopro-button--primary {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+.ceopro-payment-no-charge {
+  margin: 12px 0 0;
+  color: var(--ceopro-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.ceopro-payment-security {
+  display: grid;
+  gap: 6px;
+  padding-block: 16px;
+  color: var(--ceopro-text-secondary);
+  text-align: center;
+}
+
+.ceopro-payment-security p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.ceopro-payment-security small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ceopro-payment-promo,
+.ceopro-plan-summary__details {
+  padding-top: 18px;
+  border-top: 1px solid var(--ceopro-border-soft);
+}
+
+.ceopro-payment-promo .billing-coupon-block {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ceopro-plan-summary__details {
+  margin-top: 20px;
+}
+
+.ceopro-plan-summary__details summary {
+  cursor: pointer;
+  color: var(--ceopro-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
