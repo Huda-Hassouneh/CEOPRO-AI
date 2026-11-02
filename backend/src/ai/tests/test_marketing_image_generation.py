@@ -9,6 +9,7 @@ behavior - this sandbox's network policy blocks every image provider.
 """
 import base64
 import io
+import logging
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -313,6 +314,133 @@ def test_aihorde_polls_downloads_and_always_cancels(monkeypatch):
     assert image.content == PNG and params["width"] % 64 == 0 and params["height"] % 64 == 0
     assert post.call_args.kwargs["headers"]["apikey"] == "0000000000"
     delete.assert_called_once()
+
+
+def test_aihorde_size_can_be_reduced_without_changing_other_providers():
+    assert image_generation._horde_size((1024, 1024), max_pixels=512 * 512) == (512, 512)
+
+
+def test_aihorde_retries_once_at_512_after_kudos_upfront():
+    rejected = _response(
+        403, content_type="application/json",
+        json_body={"rc": "KudosUpfront", "message": "This request requires more kudos."},
+    )
+    accepted = _response(json_body={"id": "job-512"}, content_type="application/json")
+
+    def get(url, **_kwargs):
+        if "/generate/check/" in url:
+            return _response(json_body={"done": True}, content_type="application/json")
+        if "/generate/status/" in url:
+            return _response(
+                json_body={"generations": [{"img": "https://r2.example/image.webp"}]},
+                content_type="application/json",
+            )
+        return _response(content=_picture(512), content_type="image/png")
+
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=[rejected, accepted]) as post, \
+         patch("src.ai.marketing.image_generation.httpx.get", side_effect=get), \
+         patch("src.ai.marketing.image_generation.httpx.delete"), \
+         patch("src.ai.marketing.image_generation.time.sleep"):
+        image = image_generation._generate_via_aihorde(
+            "campaign prompt", credential="registered-horde-key", size=(1024, 1024),
+        )
+
+    assert image.provider == "aihorde"
+    assert post.call_count == 2
+    assert [call.kwargs["json"]["params"]["width"] for call in post.call_args_list] == [768, 512]
+    assert [call.kwargs["json"]["params"]["height"] for call in post.call_args_list] == [768, 512]
+    assert all(call.kwargs["headers"]["apikey"] == "registered-horde-key" for call in post.call_args_list)
+
+
+def test_aihorde_kudos_upfront_after_reduced_attempt_is_not_retryable():
+    rejected = _response(
+        403, content_type="application/json",
+        json_body={"rc": "KudosUpfront", "message": "This request requires more kudos."},
+    )
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=[rejected, rejected]) as post:
+        with pytest.raises(ImageGenerationError) as exc:
+            image_generation._generate_via_aihorde("campaign prompt", size=(1024, 1024))
+
+    assert exc.value.retryable is False
+    assert exc.value.message == "AI Horde rejected the request (HTTP 403)."
+    assert post.call_count == 2
+    assert [call.kwargs["json"]["params"]["width"] for call in post.call_args_list] == [768, 512]
+
+
+def test_nonretryable_horde_capacity_error_still_falls_through_to_next_provider(monkeypatch):
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "aihorde,pollinations")
+
+    def horde(*_args, **_kwargs):
+        raise image_generation.HordeKudosUpfront()
+
+    def next_provider(*_args, **_kwargs):
+        return GeneratedImage(content=PNG, content_type="image/png", provider="pollinations")
+
+    with patch.dict(image_generation._PROVIDERS, {"aihorde": horde, "pollinations": next_provider}):
+        image = generate_campaign_image("campaign prompt")
+
+    assert image.provider == "pollinations"
+    assert image.attempts == [{"provider": "aihorde", "reason": "failed"}]
+
+
+def test_nonretryable_horde_capacity_error_prevents_job_retry_after_fallback_fails(monkeypatch):
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "aihorde,pollinations")
+
+    def horde(*_args, **_kwargs):
+        raise image_generation.HordeKudosUpfront()
+
+    def unavailable(*_args, **_kwargs):
+        raise ImageGenerationError("PROVIDER_ERROR", "Provider unavailable.")
+
+    with patch.dict(image_generation._PROVIDERS, {"aihorde": horde, "pollinations": unavailable}):
+        with pytest.raises(ImageGenerationError) as exc:
+            generate_campaign_image("campaign prompt")
+
+    assert exc.value.retryable is False
+
+
+def test_aihorde_rejection_logs_sanitized_structured_error(caplog):
+    credential = "registered-test-secret"
+    prompt = "private campaign prompt phrase"
+    request_prompt = f"{prompt} ### text, letters, watermark, logo, blurry, low quality, deformed"
+    response = _response(
+        403,
+        content_type="application/json",
+        json_body={
+            "rc": "AnonForbidden",
+            "message": f"Access denied; apikey={credential}; request={request_prompt}",
+        },
+    )
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=response) as post, \
+         caplog.at_level(logging.WARNING, logger="CEOPRO_AI_MARKETING_IMAGE"):
+        with pytest.raises(ImageGenerationError) as exc:
+            image_generation._generate_via_aihorde(prompt, credential=credential)
+
+    assert "HTTP 403 rc=AnonForbidden" in caplog.text
+    assert "Access denied" in caplog.text
+    assert credential not in caplog.text
+    assert prompt not in caplog.text
+    assert "apikey" not in caplog.text
+    assert post.call_args.kwargs["headers"]["apikey"] == credential
+    assert exc.value.message == "AI Horde rejected the request (HTTP 403)."
+
+
+def test_aihorde_malformed_rejection_logs_status_only(caplog):
+    response = _response(
+        403,
+        content=b"apikey=do-not-log private campaign prompt",
+        content_type="text/plain",
+    )
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=response), \
+         caplog.at_level(logging.WARNING, logger="CEOPRO_AI_MARKETING_IMAGE"):
+        with pytest.raises(ImageGenerationError):
+            image_generation._generate_via_aihorde("private campaign prompt")
+
+    assert "HTTP 403" in caplog.text
+    assert "rc=" not in caplog.text
+    assert "message=" not in caplog.text
+    assert "do-not-log" not in caplog.text
+    assert "private campaign prompt" not in caplog.text
 
 
 def test_aihorde_queue_timeout_cancels_and_is_busy(monkeypatch):

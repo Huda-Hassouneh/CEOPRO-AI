@@ -55,7 +55,7 @@ this sandbox to re-check. If confirmed, switch the local model to **Qwen2.5-7B-I
 | Hugging Face Inference, FLUX.1 [schnell] / SDXL | Good | Small monthly free credit | Size honoured |
 | Google AI Studio (`gemini-2.5-flash-image`) | Good | Free-tier key with limits | Nearest supported aspect ratio, then cropped |
 | Together, FLUX.1-schnell-Free | Good | Free model with a key; rate-limited | Size honoured |
-| AI Horde (community) | Fair | Free; anonymous jobs can queue for minutes | Sizes rounded to multiples of 64 |
+| AI Horde (community) | Fair | Free; anonymous jobs can queue for minutes | Sizes rounded to multiples of 64; on `KudosUpfront`, KEEL retries once at a provider-specific 512² pixel budget, preserving the requested aspect ratio; if still rejected, the job is not auto-retried |
 | Pollinations | Good | Keyed use only (the keyless tier watermarks) | Size honoured |
 | **Self-hosted** (new): SDXL / SD 1.5 / FLUX via AUTOMATIC1111, Forge, SD.Next, LocalAI or stable-diffusion.cpp | Depends on the model | Free per image; your hardware | Needs a GPU for comfortable speed. Check each model's licence (FLUX.1 [schnell] is Apache-2.0; SDXL uses CreativeML Open RAIL++-M; SD-Turbo / SDXL-Turbo use Stability's own licences) |
 | Designed poster (built in) | Clean layout from the campaign's own text and photo, not AI | Free, local, always available | The last fallback; labelled "Designed" |
@@ -106,7 +106,8 @@ Studio (MarketingStudioPage, CampaignEditor, ImageStudio)
 routers/marketing.py
   copy:  content_generator -> rag/llm_client (provider_chain: LLM_PROVIDERS)
   image: image_generation.generate_campaign_image(prompt, image_format)
-           local -> keyed free accounts (rotated) -> AI Horde      (each: request size -> verify -> crop)
+           local -> keyed free accounts (rotated) -> AI Horde      (each: request size -> verify -> crop;
+                                                                    Horde alone retries once at reduced size on KudosUpfront)
          on failure: designed_poster.render_designed_poster(campaign, photo, size)
   store: MinIO / S3-compatible bucket ceopro-marketing-generated-images, key {tenant}/{campaign}/...
          campaign_image_assets row (+ tenant_storage_objects for plan storage)

@@ -114,7 +114,7 @@ def run_one(worker_id: str, system_connection=None, tenant_connection=None) -> O
             if attempts and all(a.get("reason") == "busy" for a in attempts):
                 return finish_failed("Every image server was busy.", retryable=True, delay_seconds=BUSY_RETRY_SECONDS,
                                      count_attempt=False)
-            return finish_failed(f"No image could be made: {err.message}", retryable=True)
+            return finish_failed(f"No image could be made: {err.message}", retryable=err.retryable)
         except (usage.PlanLimitReached, credits.BudgetError) as err:
             return finish_failed(f"Refused: {type(err).__name__}: {getattr(err, 'reason', '') or err}", retryable=False)
         except image_service.ReferenceImageError:

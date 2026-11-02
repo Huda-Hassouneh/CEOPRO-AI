@@ -54,10 +54,10 @@ Formats (IMAGE_FORMATS): square, 4:5 portrait, 9:16 story, 16:9 landscape
 and 1.91:1 link/ad. Each provider is asked for that shape where its API
 allows, and every result is centre-cropped to the exact ratio.
 
-This sandbox's network policy blocks every image provider and the model
-download CDN, so live generation could not be checked here; the request
-building, response parsing, fallback and checks are tested against the
-providers' documented response shapes.
+Provider availability depends on each account and current provider load.
+The request building, response parsing, fallback and checks are tested
+against mocked provider responses; a successful live request on one
+machine does not guarantee availability elsewhere.
 
 ## Reference/product image ("product-preservation") generation
 
@@ -93,6 +93,7 @@ import io
 import logging
 import os
 import random
+import re
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -180,10 +181,20 @@ class ImageGenerationError(Exception):
     persist verbatim - callers must never invent a fourth status or map
     this to a fake "COMPLETED"."""
 
-    def __init__(self, status: str, message: str):
+    def __init__(self, status: str, message: str, *, retryable: bool = True):
         super().__init__(message)
         self.status = status
         self.message = message
+        self.retryable = retryable
+
+
+class HordeKudosUpfront(ImageGenerationError):
+    """AI Horde refused this size because the account lacks upfront kudos."""
+
+    def __init__(self, status_code: int = 403):
+        super().__init__(
+            "PROVIDER_ERROR", f"AI Horde rejected the request (HTTP {status_code}).", retryable=False,
+        )
 
 
 @dataclass
@@ -462,6 +473,48 @@ _TOGETHER_URL = os.getenv("TOGETHER_URL", "https://api.together.xyz/v1/images/ge
 _ANON_HORDE_KEY = "0000000000"
 _HORDE_URL = "https://aihorde.net/api/v2"
 _HORDE_MAX_WAIT = float(os.getenv("MARKETING_AI_HORDE_MAX_WAIT_SECONDS", "240"))
+_HORDE_MAX_PIXELS = 768 * 768
+_HORDE_KUDOS_FALLBACK_MAX_PIXELS = 512 * 512
+
+
+def _sanitize_horde_error_field(value, *, credential: Optional[str], prompt: str) -> str:
+    if not isinstance(value, (str, int, float)):
+        return ""
+    text = " ".join(str(value).split())[:500]
+    if prompt:
+        text = text.replace(prompt, "[redacted prompt]")
+    if credential:
+        text = re.sub(re.escape(credential), "[redacted]", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"(?i)\b(api[\s_-]?key|authorization|client-agent|token)\b\s*[:=]\s*[^\s,;]+",
+        "[redacted]",
+        text,
+    )
+    text = re.sub(r"(?i)\bbearer\s+\S+", "Bearer [redacted]", text)
+    return text[:300]
+
+
+def _horde_error_details(response, *, credential: Optional[str], prompt: str) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    rc = _sanitize_horde_error_field(payload.get("rc"), credential=credential, prompt=prompt)
+    message = _sanitize_horde_error_field(payload.get("message"), credential=credential, prompt=prompt)
+    if not rc and not message:
+        return ""
+    return f" rc={rc or 'unknown'} message={message or 'unspecified'}"
+
+
+def _horde_error_rc(response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        return ""
+    rc = payload.get("rc") if isinstance(payload, dict) else None
+    return rc.strip() if isinstance(rc, str) else ""
 
 
 def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
@@ -491,15 +544,19 @@ def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None,
     )
 
 
-def _horde_size(size: Optional[tuple]) -> tuple:
-    """The requested shape at about 768x768 pixels in all (what anonymous
-    Horde workers accept), each side a multiple of 64 (Horde's rule)."""
+def _horde_size(size: Optional[tuple], max_pixels: int = _HORDE_MAX_PIXELS) -> tuple:
+    """Scale to a pixel budget while preserving shape and Horde's 64px sides."""
+    if max_pixels < 64 * 64:
+        raise ValueError("AI Horde max pixel budget must be at least 4096.")
     width, height = size or (768, 768)
-    scale = (768 * 768 / (width * height)) ** 0.5
+    scale = (max_pixels / (width * height)) ** 0.5
     return max(64, int(width * scale) // 64 * 64), max(64, int(height * scale) // 64 * 64)
 
 
-def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
+def _generate_via_aihorde_once(
+    prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None,
+    credential: Optional[str] = None, dimensions: tuple = (768, 768), seed: Optional[int] = None,
+) -> GeneratedImage:
     """AI Horde (aihorde.net): a free, community-run Stable Diffusion network.
     Works with no account (the anonymous key) but anonymous jobs can wait in a
     queue for minutes, so it sits last in the chain; a free registered key
@@ -508,13 +565,20 @@ def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, 
     body = {"prompt": f"{prompt[:1200]} ### text, letters, watermark, logo, blurry, low quality, deformed",
             "nsfw": False, "censor_nsfw": True, "r2": True,
             # Horde rejects sizes that are not multiples of 64 (HTTP 400).
-            "params": {"width": _horde_size(size)[0], "height": _horde_size(size)[1], "steps": 25, "n": 1, "cfg_scale": 6}}
+            "params": {"width": dimensions[0], "height": dimensions[1], "steps": 25, "n": 1, "cfg_scale": 6}}
     job = None
     try:
         submitted = httpx.post(f"{_HORDE_URL}/generate/async", headers=headers, json=body, timeout=_TIMEOUT_SECONDS)
         if submitted.status_code == 429:
             raise ProviderBusy("AI Horde rate limit reached", _retry_after(submitted))
         if submitted.status_code >= 400:
+            rc = _horde_error_rc(submitted)
+            details = _horde_error_details(
+                submitted, credential=credential or _ANON_HORDE_KEY, prompt=body["prompt"],
+            )
+            logger.warning("AI Horde request rejected: HTTP %s%s", submitted.status_code, details)
+            if rc == "KudosUpfront":
+                raise HordeKudosUpfront(submitted.status_code)
             raise ImageGenerationError("PROVIDER_ERROR", f"AI Horde rejected the request (HTTP {submitted.status_code}).")
         job = submitted.json().get("id")
         if not job:
@@ -547,6 +611,28 @@ def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, 
                 httpx.delete(f"{_HORDE_URL}/generate/status/{job}", headers=headers, timeout=10)
             except httpx.HTTPError:
                 pass
+
+
+def _generate_via_aihorde(
+    prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None,
+    credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None,
+) -> GeneratedImage:
+    dimensions = _horde_size(size)
+    try:
+        return _generate_via_aihorde_once(
+            prompt, reference_image, reference_content_type, credential, dimensions, seed,
+        )
+    except HordeKudosUpfront:
+        reduced_dimensions = _horde_size(size, max_pixels=_HORDE_KUDOS_FALLBACK_MAX_PIXELS)
+        if reduced_dimensions == dimensions:
+            raise
+        logger.info(
+            "AI Horde upfront-kudos limit: retrying once at provider dimensions %sx%s",
+            reduced_dimensions[0], reduced_dimensions[1],
+        )
+        return _generate_via_aihorde_once(
+            prompt, reference_image, reference_content_type, credential, reduced_dimensions, seed,
+        )
 
 
 # A self-hosted image server on the operator's own hardware (free per image,
@@ -835,13 +921,15 @@ def generate_campaign_image(
     if not (prompt or "").strip():
         raise ImageGenerationError("PROVIDER_ERROR", "No creative direction/brief available to build an image prompt from.")
 
-    attempts, started = [], time.monotonic()
+    attempts, retryable_attempts, started = [], [], time.monotonic()
     for name in names:
         if provider is None and _cooling_down(name):
             attempts.append({"provider": name, "reason": "busy"})
+            retryable_attempts.append(True)
             continue
         if attempts and time.monotonic() - started > _TOTAL_BUDGET_SECONDS:
             attempts.append({"provider": name, "reason": "out_of_time"})
+            retryable_attempts.append(True)
             break
         logger.info("Generating marketing image via %s (reference_image=%s)", name, bool(reference_image))
         try:
@@ -860,15 +948,18 @@ def generate_campaign_image(
             if err.reason not in _PROVIDER_SPECIFIC_REFUSALS:
                 raise  # the company's budget or access: no other provider may run either
             attempts.append({"provider": name, "reason": "not_configured"})
+            retryable_attempts.append(True)
             logger.warning("image provider %s refused by spending policy: %s", name, err.reason)
             continue
         except ProviderBusy as err:
             _cool_down(name, err.retry_after)
             attempts.append({"provider": name, "reason": "busy"})
+            retryable_attempts.append(True)
             logger.warning("image provider %s busy: %s", name, err.message)
             continue
         except ImageGenerationError as err:
             attempts.append({"provider": name, "reason": "not_configured" if err.status == "NOT_CONFIGURED" else "failed"})
+            retryable_attempts.append(err.retryable)
             logger.warning("image provider %s failed: %s", name, err.message)
             if len(names) == 1:  # nothing to fall back to: keep the provider's own explanation
                 err.attempts = attempts
@@ -877,9 +968,16 @@ def generate_campaign_image(
         image.attempts = attempts
         return image
     if all(a["reason"] == "not_configured" for a in attempts):
-        raise ImageGenerationError("NOT_CONFIGURED", _NOT_CONFIGURED_MESSAGE)
+        error = ImageGenerationError(
+            "NOT_CONFIGURED", _NOT_CONFIGURED_MESSAGE, retryable=all(retryable_attempts),
+        )
+        error.attempts = attempts
+        raise error
     summary = ", ".join(f"{a['provider']}: {a['reason']}" for a in attempts)
-    error = ImageGenerationError("PROVIDER_ERROR", f"No image provider produced an image ({summary}).")
+    error = ImageGenerationError(
+        "PROVIDER_ERROR", f"No image provider produced an image ({summary}).",
+        retryable=all(retryable_attempts),
+    )
     error.attempts = attempts
     raise error
 
