@@ -22,9 +22,16 @@ Repository: `Huda-Hassouneh/CEOPRO-AI` (verified as the KEEL repository; `360-Ra
   geography and visual instructions do not. Negated/hypothetical terms are excluded.
   Citations normalize Unicode typography and Arabic/Latin digits, without accepting
   invented source quotations. Unsupported discounts, dates and urgency still fail
-  closed. There is one repair/review attempt. Both the writer and second reviewer
-  receive actionable rejection feedback, including invalid citation spans;
-  previous feedback never counts as factual evidence.
+  closed. There is one bounded repair cycle and at most two reviews. Invalid
+  reviewer evidence (including rejected assertions absent from the current copy)
+  repairs the review against the unchanged draft; it does not instruct the writer
+  to remove supplied facts or rewrite creative wording. Evidence-valid content
+  rejections still use the writer repair path. Deterministic safety checks take
+  precedence, and no copy is returned without a valid affirmative review.
+  Obsolete rejected claim text is never fed to the independent reviewer after
+  repair; only the writer receives removal details. Review-contract correction
+  uses a content-free reminder. Source/draft excerpts and rejection spans are
+  validated for English and Arabic alike.
 - Hashtags are optional in the current output/edit contract. Instagram/TikTok
   counts remain prompt guidance; Google Ads always has none. Empty hashtag sets
   remain valid, and any supplied hashtags undergo the same factual review as copy.
@@ -47,6 +54,13 @@ Repository: `Huda-Hassouneh/CEOPRO-AI` (verified as the KEEL repository; `360-Ra
   and Product Link copy used explicit offline fixtures; HTTP extraction was real.
   Image calls were excluded. This does not establish success against the earlier
   YETI/LEGO/Shopify/OpenCart URLs or a general model acceptance rate.
+- Review-evidence follow-up: 139 focused backend tests passed, including
+  Arabic, bounded review repair and fail-closed safety regressions. The three
+  previously failed English Description goals (offer, awareness, seasonal)
+  passed targeted real-Groq Chrome acceptance and refresh persistence. An
+  injected unsupported draft with real-Groq review remained rejected with no
+  completed copy. The other seven prior scenarios and image/provider suites
+  were not rerun for this follow-up.
 
 | Area | Before | Now |
 |---|---|---|

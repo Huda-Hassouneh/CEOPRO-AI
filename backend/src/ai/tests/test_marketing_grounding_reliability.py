@@ -115,16 +115,91 @@ def test_reviewer_cannot_list_source_facts_absent_from_the_draft(monkeypatch):
 
 def test_second_review_gets_actionable_citation_feedback_without_relaxing_checks(monkeypatch):
     answers = iter([draft('Explore NovaCup.'), review([{'claim': 'a steel cup', 'source_quote': 'a steel cup'}]),
-                    draft('Explore NovaCup.'), review([{'claim': 'NovaCup', 'source_quote': 'NovaCup'}])])
+                    review([{'claim': 'NovaCup', 'source_quote': 'NovaCup'}])])
     calls = []
     def completion(messages, **kwargs):
         calls.append(messages)
         return next(answers)
     monkeypatch.setattr(cg.llm_client, 'chat_completion', completion)
     cg.generate_campaign_content('NovaCup is a steel cup.', platforms=['INSTAGRAM'])
-    assert len(calls) == 4
-    feedback = json.loads(calls[3][-1]['content'])['PREVIOUS_REJECTION_FEEDBACK']
-    assert 'claim_not_in_draft' in feedback and 'a steel cup' in feedback
+    assert len(calls) == 3
+    assert calls[2][0]['content'] == cg._GROUNDING_PROMPT
+    assert json.loads(calls[1][-1]['content'])['DRAFT'] == json.loads(calls[2][-1]['content'])['DRAFT']
+    second_input = json.loads(calls[2][-1]['content'])
+    assert 'CURRENT DRAFT' in second_input['REVIEW_CONTRACT_CORRECTION']
+    assert 'PREVIOUS_REJECTION_FEEDBACK' not in second_input
+    assert 'a steel cup' not in second_input['REVIEW_CONTRACT_CORRECTION']
+
+
+@pytest.mark.parametrize('copy', [
+    'NovaCup: effortless everyday elegance. Your daily companion.',
+    'Imagine this blue NovaCup on your desk during harvest season. A crisp, mindful sip.',
+    'نوفاكب: رفيقك اليومي. تخيل لحظة هادئة خلال موسم القطاف.',
+])
+def test_creative_wording_is_not_rewritten_when_review_lists_absent_source_facts(monkeypatch, copy):
+    claim = 'نوفاكب' if copy.startswith('نوفاكب') else 'NovaCup'
+    answers = iter([draft(copy), review(supported=False, unsupported_claims=['330 ml capacity']),
+                    review([{'claim':claim, 'source_quote':'NovaCup'}])])
+    calls = []
+    def completion(messages, **kwargs):
+        calls.append(messages)
+        return next(answers)
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', completion)
+    result = cg.generate_campaign_content('NovaCup is a blue, 330 ml steel cup.', platforms=['INSTAGRAM'],
+                                          language='ar' if claim=='نوفاكب' else 'en')
+    assert result.variants_by_platform['INSTAGRAM'][0].body_copy == copy
+    assert len(calls) == 3 and calls[2][0]['content'] == cg._GROUNDING_PROMPT
+    assert 'REVIEW_CONTRACT_CORRECTION' in json.loads(calls[2][-1]['content'])
+
+
+def test_explicit_offer_and_natural_date_survive_reviewer_citation_repair(monkeypatch):
+    copy = 'NovaCup: 10% off until Dec 20.'
+    answers = iter([draft(copy), review([{'claim':'2026-12-20','source_quote':'2026-12-20'}]),
+                    review([{'claim':'10%','source_quote':'Explicit campaign discount: 10%'},
+                            {'claim':'Dec 20','source_quote':'Explicit campaign deadline: 2026-12-20'}])])
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', lambda *a, **k: next(answers))
+    result = cg.generate_campaign_content('NovaCup.', custom_creative_prompt='10% discount valid until 2026-12-20.',
+                                          platforms=['INSTAGRAM'])
+    assert result.variants_by_platform['INSTAGRAM'][0].body_copy == copy
+
+
+def test_two_invalid_reviews_never_become_an_approval(monkeypatch):
+    calls = []
+    answers = iter([draft('A creative moment.'), review(supported=False,unsupported_claims=['330 ml capacity']),
+                    review(supported=False,unsupported_claims=['330 ml capacity'])])
+    def completion(messages, **kwargs):
+        calls.append(messages)
+        return next(answers)
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', completion)
+    with pytest.raises(cg.MarketingGenerationError):
+        cg.generate_campaign_content('Cup, 330 ml capacity.',platforms=['INSTAGRAM'])
+    assert len(calls) == 3
+
+
+@pytest.mark.parametrize('copy', ['Safe for every liquid.', 'آمن لكل السوائل.'])
+def test_valid_reviewer_rejection_of_unsupported_compatibility_still_fails(monkeypatch, copy):
+    rejection = review(supported=False, unsupported_claims=[copy])
+    answers = iter([draft(copy), rejection, draft(copy), rejection])
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', lambda *a, **k: next(answers))
+    with pytest.raises(cg.MarketingGenerationError):
+        cg.generate_campaign_content('NovaCup.', platforms=['INSTAGRAM'])
+
+
+def test_repaired_draft_review_never_receives_obsolete_rejected_claims(monkeypatch):
+    bad = 'NovaCup keeps drinks at the perfect temperature.'
+    good = 'NovaCup: your daily companion.'
+    answers = iter([draft(bad), review(supported=False,unsupported_claims=[bad]),
+                    draft(good), review([{'claim':'NovaCup','source_quote':'NovaCup'}])])
+    calls = []
+    def completion(messages, **kwargs):
+        calls.append(messages)
+        return next(answers)
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', completion)
+    result = cg.generate_campaign_content('NovaCup is a reusable cup.',platforms=['INSTAGRAM'])
+    assert result.variants_by_platform['INSTAGRAM'][0].body_copy == good
+    assert bad in calls[2][-1]['content']  # only the writer gets removal details
+    assert bad not in json.dumps(calls[3],ensure_ascii=False)
+    assert set(json.loads(calls[3][-1]['content'])) == {'SOURCE','DRAFT'}
 
 
 @pytest.mark.parametrize('response', ['[]', '{}', '{"supported":true,"claims":[null],"unsupported_claims":[]}'])
