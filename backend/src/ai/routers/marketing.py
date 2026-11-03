@@ -41,7 +41,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from urllib.parse import urlparse
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import psycopg2
 
@@ -311,7 +311,12 @@ def create_campaign_endpoint(body: CampaignCreateRequest, ctx: TenantContext = D
             try:
                 extracted = url_extractor.extract_product_info_from_url(body.url)
             except url_extractor.URLExtractionError as err:
-                raise HTTPException(status_code=422, detail=str(err))
+                diagnostic = uuid4().hex
+                logger.warning('Marketing URL extraction failed diagnostic_id=%s tenant=%s reason=%s remote_status=%s',
+                               diagnostic, ctx.tenant_id, err.reason, err.remote_status)
+                raise HTTPException(status_code=422,
+                                    detail='Could not read product information from this URL. Check the link or use a description instead.',
+                                    headers={'X-Marketing-Diagnostic-ID': diagnostic}) from None
             product_understanding = extracted.as_text()
             product_name = (extracted.name or "").strip() or urlparse(body.url).netloc or None
 

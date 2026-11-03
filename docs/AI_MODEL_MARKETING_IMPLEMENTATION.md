@@ -12,6 +12,42 @@ Repository: `Huda-Hassouneh/CEOPRO-AI` (verified as the KEEL repository; `360-Ra
 
 ## 1. What changed
 
+### Campaign/copy reliability (2026-11-03)
+
+- The Studio retains visible audience/theme/notes while composing variations. Clear
+  these controls for an independent scenario. Changing away from a seasonal goal
+  clears its occasion; a hidden occasion never enters the submitted creative prompt.
+- Writer and factual reviewer share the same source. Explicit numeric discounts
+  and dated deadlines supplied in notes supplement product facts; audience,
+  geography and visual instructions do not. Negated/hypothetical terms are excluded.
+  Citations normalize Unicode typography and Arabic/Latin digits, without accepting
+  invented source quotations. Unsupported discounts, dates and urgency still fail
+  closed. There is one repair/review attempt. Both the writer and second reviewer
+  receive actionable rejection feedback, including invalid citation spans;
+  previous feedback never counts as factual evidence.
+- Hashtags are optional in the current output/edit contract. Instagram/TikTok
+  counts remain prompt guidance; Google Ads always has none. Empty hashtag sets
+  remain valid, and any supplied hashtags undergo the same factual review as copy.
+- Product Link failures return a generic 422 plus `X-Marketing-Diagnostic-ID`.
+  Find that ID in `CEOPRO_AI_MARKETING` logs for `reason` and `remote_status`.
+  Reasons distinguish DNS, blocked addresses, remote HTTP status, redirect
+  rejection, content type/size, absent metadata, malformed structured data,
+  transport and extraction failure. Logs omit URLs, query strings and fetched
+  contents. Customer errors do not disclose remote status or private targets.
+- Product parsing supports JSON-LD `@graph`, actual extruct OpenGraph properties,
+  and microdata type/property lists. Title-only fallback remains supported.
+  `test_marketing_url_http_fixture.py` serves actual HTML over HTTP through the
+  full validation/download/parser path, with test-only public-DNS/socket routing.
+  It does not enable private URL access in production. JavaScript-only pages,
+  bot protection and remote authorization remain external limitations.
+- Focused verification: 165 backend tests, 7 frontend tests, ESLint and
+  `git diff --check` passed. Installed Chrome passed state isolation A→B,
+  English Description and Arabic explicit-offer campaigns (real Groq writer/
+  reviewer, Arabic RTL), and controlled Product Link extraction. State isolation
+  and Product Link copy used explicit offline fixtures; HTTP extraction was real.
+  Image calls were excluded. This does not establish success against the earlier
+  YETI/LEGO/Shopify/OpenCart URLs or a general model acceptance rate.
+
 | Area | Before | Now |
 |---|---|---|
 | Language model | Exactly one provider (paid > Hugging Face > local > Groq). A bad key, a used-up quota or an unpriced model stopped the assistant and campaign writing. | Optional fallback chain `LLM_PROVIDERS` (for example `groq,local`): the next provider answers when one is not configured, rejects its key, is rate limited, is down, returns a malformed answer, or has no confirmed price. Each provider has its own circuit breaker. Unset, behaviour is exactly as before. |

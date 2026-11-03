@@ -260,7 +260,20 @@ def test_create_campaign_from_url_extraction_failure_returns_422():
         response = client.post("/marketing/campaigns", json={"url": "https://example.com/widget"}, headers=_auth())
 
     assert response.status_code == 422
-    assert "could not fetch" in response.json()["detail"]
+    assert 'Could not read product information' in response.json()['detail']
+
+
+@pytest.mark.parametrize('reason', sorted(URLExtractionError.REASONS))
+def test_url_diagnostics_have_safe_operator_code_and_public_correlation_only(caplog, reason):
+    with patch('src.ai.routers.marketing.db.app_role_connection', return_value=MagicMock()), \
+         patch('src.ai.routers.marketing.url_extractor.extract_product_info_from_url',
+               side_effect=URLExtractionError(reason, remote_status=403)):
+        response = client.post('/marketing/campaigns', json={'url': 'https://example.com/private?token=secret'}, headers=_auth())
+    assert response.status_code == 422
+    assert len(response.headers['x-marketing-diagnostic-id']) == 32
+    assert 'reason='+reason in caplog.text
+    assert 'remote_status=403' in caplog.text
+    assert 'secret' not in response.text+caplog.text and 'example.com' not in response.text+caplog.text
 
 
 def test_create_campaign_from_url_uses_extracted_text():

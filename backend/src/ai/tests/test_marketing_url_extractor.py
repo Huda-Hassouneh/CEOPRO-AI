@@ -71,7 +71,14 @@ def _patched_client(*responses):
     client.__exit__.return_value = False
     iterator = iter(responses)
     client.stream.side_effect = lambda *a, **kw: _response_cm(next(iterator))
-    return patch("src.ai.marketing.url_extractor.httpx.Client", return_value=client)
+    @contextmanager
+    def fixture():
+        # These are parser/guard unit cases. Real pinning + real HTTP has its
+        # own controlled-server integration tests; never resolve external DNS here.
+        with patch("src.ai.marketing.url_extractor.httpx.Client", return_value=client), \
+             patch('src.ai.marketing.url_extractor.pin_request', side_effect=lambda url: (url, {}, {})):
+            yield client
+    return fixture()
 
 
 def _patched_dns(ip: str = _PUBLIC_IP):
@@ -128,8 +135,9 @@ def test_raises_on_network_failure():
     client.__exit__.return_value = False
     client.stream.side_effect = httpx.ConnectError("connection refused")
     with _patched_dns(), patch("src.ai.marketing.url_extractor.httpx.Client", return_value=client):
-        with pytest.raises(URLExtractionError):
+        with pytest.raises(URLExtractionError) as error:
             extract_product_info_from_url("https://example.com/down")
+    assert error.value.reason == 'network_failure'
 
 
 def test_follows_a_redirect_to_another_public_host():
@@ -172,3 +180,61 @@ def test_rejects_a_redirect_that_targets_a_private_address():
          _patched_client(_fake_response(status_code=302, location="https://internal.example.com/secret")):
         with pytest.raises(URLExtractionError):
             extract_product_info_from_url("https://example.com/redirect-to-internal")
+
+
+@pytest.mark.parametrize('status', [401, 403, 404, 429, 500])
+def test_remote_status_is_operator_metadata_not_remote_content(status):
+    with _patched_dns(), _patched_client(_fake_response(status_code=status, body=b'private remote body')):
+        with pytest.raises(URLExtractionError) as error:
+            extract_product_info_from_url('https://example.com/product?token=private-query')
+    assert error.value.reason == 'remote_http' and error.value.remote_status == status
+    assert 'private' not in str(error.value) and 'example.com' not in str(error.value)
+
+
+@pytest.mark.parametrize('response,reason', [
+    (_fake_response(status_code=302), 'redirect_rejected'),
+    (_fake_response(content_type='application/pdf; secret=hidden'), 'unsupported_content_type'),
+    (_fake_response(body=_EMPTY_PAGE), 'no_product_metadata'),
+    (_fake_response(body=b'<html><script type="application/ld+json">{bad</script></html>'), 'malformed_structured_data'),
+])
+def test_safe_diagnostic_categories(response, reason):
+    with _patched_dns(), _patched_client(response):
+        with pytest.raises(URLExtractionError) as error:
+            extract_product_info_from_url('https://example.com/product')
+    assert error.value.reason == reason
+    assert 'hidden' not in str(error.value)
+
+
+def test_dns_and_private_address_categories():
+    with patch('src.ai.marketing.url_extractor.socket.getaddrinfo', side_effect=socket.gaierror('private details')):
+        with pytest.raises(URLExtractionError) as error:
+            extract_product_info_from_url('https://example.com/product')
+    assert error.value.reason == 'dns_failure' and 'private details' not in str(error.value)
+    with _patched_dns(_PRIVATE_IP):
+        with pytest.raises(URLExtractionError) as error:
+            extract_product_info_from_url('https://example.com/product')
+    assert error.value.reason == 'blocked_address'
+
+
+def test_parser_failure_diagnostic_is_sanitized():
+    with _patched_dns(), _patched_client(_fake_response(body=_JSONLD_PRODUCT_PAGE)), \
+         patch('src.ai.marketing.url_extractor.extruct.extract', side_effect=RuntimeError('secret page content')):
+        with pytest.raises(URLExtractionError) as error:
+            extract_product_info_from_url('https://example.com/product')
+    assert error.value.reason == 'extraction_failure'
+    assert 'secret' not in str(error.value)
+
+
+def test_second_resolution_policy_rejection_is_a_normal_extraction_error():
+    from src.market_scraper.network_security import UnsafeTargetError
+    with _patched_dns(), patch('src.ai.marketing.url_extractor.pin_request', side_effect=UnsafeTargetError('private address')):
+        with pytest.raises(URLExtractionError) as error:
+            extract_product_info_from_url('https://example.com/product')
+    assert error.value.reason == 'blocked_address'
+
+
+def test_real_microdata_type_and_property_lists_are_supported():
+    page = b'<html><div itemscope itemtype="https://schema.org/Product"><span itemprop="name">MicroCup</span><span itemprop="description">A small cup</span></div></html>'
+    with _patched_dns(), _patched_client(_fake_response(body=page)):
+        result = extract_product_info_from_url('https://example.com/product')
+    assert result.name == 'MicroCup' and result.description == 'A small cup'

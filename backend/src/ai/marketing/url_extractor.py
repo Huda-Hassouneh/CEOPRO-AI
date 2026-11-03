@@ -26,6 +26,7 @@ whatever it can't find. The caller (content_generator.py) is expected to
 be honest about what starting information a URL-sourced campaign actually
 had.
 """
+import json
 import socket
 from dataclasses import dataclass
 from typing import Optional
@@ -35,7 +36,7 @@ import extruct
 import httpx
 from lxml import html as lxml_html
 
-from src.market_scraper.network_security import is_public_address, pin_request
+from src.market_scraper.network_security import UnsafeTargetError, is_public_address, pin_request
 
 _REQUEST_TIMEOUT_SECONDS = 10.0
 _MAX_RESPONSE_BYTES = 2 * 1024 * 1024  # 2MB - a product page's HTML, not its assets
@@ -56,7 +57,16 @@ _MAX_REDIRECTS = 5
 class URLExtractionError(Exception):
     """Raised when the URL can't be fetched or contains no usable HTML -
     the caller maps this to a clear 422, never silently falls back to a
-    fabricated product description."""
+    fabricated product description. Diagnostics never contain fetched text/URLs."""
+
+    REASONS = {'invalid_url', 'dns_failure', 'blocked_address', 'remote_http',
+               'redirect_rejected', 'unsupported_content_type', 'response_too_large',
+               'no_product_metadata', 'malformed_structured_data', 'network_failure', 'extraction_failure'}
+
+    def __init__(self, reason='extraction_failure', *, remote_status=None):
+        self.reason = reason if reason in self.REASONS else 'extraction_failure'
+        self.remote_status = remote_status if isinstance(remote_status, int) and 100 <= remote_status <= 599 else None
+        super().__init__('Product URL extraction failed ('+self.reason+').')
 
 
 def _assert_url_targets_a_public_host(url: str) -> None:
@@ -66,23 +76,30 @@ def _assert_url_targets_a_public_host(url: str) -> None:
     hostname itself (not just string-matching it) so a DNS name that
     merely points at an internal IP is caught too, not just a literal
     "localhost"/"127.0.0.1" in the URL text."""
-    parsed = urlparse(url)
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        parsed.port  # Reject malformed ports before transport construction.
+    except ValueError as err:
+        raise URLExtractionError('invalid_url') from err
     if parsed.scheme not in ("http", "https"):
-        raise URLExtractionError(f"Unsupported URL scheme '{parsed.scheme}' - only http/https URLs are allowed.")
-    hostname = parsed.hostname
-    if not hostname:
-        raise URLExtractionError("URL has no host to fetch.")
+        raise URLExtractionError('invalid_url')
+    if not hostname or parsed.username or parsed.password:
+        raise URLExtractionError('invalid_url')
 
     try:
         resolved = socket.getaddrinfo(hostname, None)
     except socket.gaierror as err:
-        raise URLExtractionError(f"Could not resolve host '{hostname}': {err}") from err
+        raise URLExtractionError('dns_failure') from err
+
+    if not resolved:
+        raise URLExtractionError('dns_failure')
 
     for family, _type, _proto, _canonname, sockaddr in resolved:
         # is_public_address also judges IPv6 forms that carry an IPv4 address (NAT64, 6to4,
         # IPv4-mapped) and shared/CGNAT ranges, which the old private/loopback checks let through.
         if not is_public_address(sockaddr[0]):
-            raise URLExtractionError(f"URL host '{hostname}' resolves to a non-public address and cannot be fetched.")
+            raise URLExtractionError('blocked_address')
 
 
 @dataclass
@@ -111,16 +128,27 @@ class ExtractedProductInfo:
 
 def _first_product_from_jsonld(items: list) -> Optional[dict]:
     for item in items:
+        if not isinstance(item, dict):
+            continue
         types = item.get("@type")
         types = [types] if isinstance(types, str) else (types or [])
-        if any(t == "Product" for t in types):
+        if any(isinstance(t, str) and t.rstrip('/').rsplit('/', 1)[-1] == "Product" for t in types):
             return item
+        graph = item.get('@graph')
+        if isinstance(graph, list):
+            product = _first_product_from_jsonld(graph)
+            if product:
+                return product
     return None
 
 
 def _first_product_from_microdata(items: list) -> Optional[dict]:
     for item in items:
-        if item.get("type", "").rsplit("/", 1)[-1] == "Product":
+        if not isinstance(item, dict):
+            continue
+        types = item.get('type') or []
+        types = [types] if isinstance(types, str) else types
+        if any(isinstance(t, str) and t.rstrip('/').rsplit('/', 1)[-1] == "Product" for t in types):
             return item.get("properties", {})
     return None
 
@@ -131,23 +159,28 @@ def _offer_price(offers) -> Optional[str]:
     if isinstance(offers, dict):
         price = offers.get("price") or offers.get("lowPrice")
         currency = offers.get("priceCurrency")
-        if price:
+        if price is not None:
             return f"{price} {currency}".strip() if currency else str(price)
     return None
 
 
 def _extract_structured(html_text: str, base_url: str) -> Optional[ExtractedProductInfo]:
     try:
-        data = extruct.extract(html_text, base_url=base_url, syntaxes=["json-ld", "microdata", "opengraph"], errors="log")
-    except Exception:
-        return None
+        data = extruct.extract(html_text, base_url=base_url, syntaxes=["json-ld", "microdata", "opengraph"], errors="ignore")
+    except Exception as err:
+        raise URLExtractionError('extraction_failure') from err
+
+    def text(value):
+        if isinstance(value, list):
+            value = value[0] if value else None
+        return value.strip() or None if isinstance(value, str) else None
 
     product = _first_product_from_jsonld(data.get("json-ld", []))
     if product:
         return ExtractedProductInfo(
             source_url=base_url,
-            name=product.get("name"),
-            description=product.get("description"),
+            name=text(product.get("name")),
+            description=text(product.get("description")),
             price=_offer_price(product.get("offers")),
             image_url=product.get("image") if isinstance(product.get("image"), str) else None,
         )
@@ -156,18 +189,23 @@ def _extract_structured(html_text: str, base_url: str) -> Optional[ExtractedProd
     if microdata_product:
         return ExtractedProductInfo(
             source_url=base_url,
-            name=microdata_product.get("name"),
-            description=microdata_product.get("description"),
+            name=text(microdata_product.get("name")),
+            description=text(microdata_product.get("description")),
             price=None,
-            image_url=microdata_product.get("image"),
+            image_url=text(microdata_product.get("image")),
         )
 
-    og = {item.get("property"): item.get("content") for item in data.get("opengraph", []) if item.get("property")}
+    og = {}
+    for item in data.get('opengraph', []):
+        if isinstance(item, dict):
+            og.update(item.get('properties') or [])
+            if item.get('property'):
+                og[item['property']] = item.get('content')
     if og.get("og:title") or og.get("og:description"):
         return ExtractedProductInfo(
             source_url=base_url,
-            name=og.get("og:title"),
-            description=og.get("og:description"),
+            name=text(og.get("og:title")),
+            description=text(og.get("og:description")),
             price=None,
             image_url=og.get("og:image"),
         )
@@ -218,38 +256,49 @@ def extract_product_info_from_url(url: str, timeout: float = _REQUEST_TIMEOUT_SE
                     if response.is_redirect:
                         location = response.headers.get("location")
                         if not location:
-                            raise URLExtractionError("URL redirected without a Location header.")
+                            raise URLExtractionError('redirect_rejected')
                         current_url = urljoin(current_url, location)
                         continue
 
                     if response.status_code >= 400:
-                        raise URLExtractionError(f"URL returned HTTP {response.status_code}.")
+                        raise URLExtractionError('remote_http', remote_status=response.status_code)
                     content_type = response.headers.get("content-type", "")
                     if "html" not in content_type.lower():
-                        raise URLExtractionError(f"URL did not return HTML content (got '{content_type}').")
+                        raise URLExtractionError('unsupported_content_type')
 
                     chunks = []
                     total = 0
                     for chunk in response.iter_bytes():
                         total += len(chunk)
                         if total > _MAX_RESPONSE_BYTES:
-                            raise URLExtractionError("Page is too large to fetch for product understanding.")
+                            raise URLExtractionError('response_too_large')
                         chunks.append(chunk)
                     html_bytes = b"".join(chunks)
                     break
             else:
-                raise URLExtractionError("Too many redirects.")
+                raise URLExtractionError('redirect_rejected')
+    except UnsafeTargetError as err:
+        reason = 'dns_failure' if isinstance(err.__cause__, socket.gaierror) else 'blocked_address'
+        raise URLExtractionError(reason) from err
     except httpx.HTTPError as err:
-        raise URLExtractionError(f"Could not fetch URL: {err}") from err
+        raise URLExtractionError('network_failure') from err
     url = current_url
 
-    html_text = html_bytes.decode(response.encoding or "utf-8", errors="replace")
-
-    info = _extract_structured(html_text, url)
-    if info is None or not (info.name or info.description):
-        info = _extract_title_fallback(html_text, url)
-
-    if not (info.name or info.description):
-        raise URLExtractionError("No product name or description could be found on this page.")
-
-    return info
+    try:
+        html_text = html_bytes.decode(response.encoding or "utf-8", errors="replace")
+        info = _extract_structured(html_text, url)
+        if info is None or not (info.name or info.description):
+            info = _extract_title_fallback(html_text, url)
+        if not (info.name or info.description):
+            tree = lxml_html.fromstring(html_text)
+            for raw in tree.xpath('//script[@type="application/ld+json"]/text()'):
+                try:
+                    json.loads(raw)
+                except (ValueError, TypeError):
+                    raise URLExtractionError('malformed_structured_data') from None
+            raise URLExtractionError('no_product_metadata')
+        return info
+    except URLExtractionError:
+        raise
+    except Exception as err:
+        raise URLExtractionError('extraction_failure') from err
