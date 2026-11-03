@@ -57,6 +57,22 @@ For an entirely offline module, the [debugging environment example](LOCAL_DEVELO
 can run pytest directly with a validated local environment. Do not point a
 mutating/native DB module at the normal customer database by copying that example.
 
+## Arabic, RTL and extraction quality
+
+A reproducible Arabic benchmark (synthetic documents, ground truth, RAG
+questions, RTL strings) runs KEEL's real extraction, retrieval, export and
+image-typography paths and prints CER/WER, reading order, table/field and
+retrieval (P@K, R@K, MRR, nDCG) scores. It needs Chromium, LibreOffice and
+`tesseract-ocr-ara` to build its corpus; it makes no provider call unless
+`--llm` is given. Results and method: [Arabic AI quality report](ARABIC_AI_QUALITY_REPORT.md).
+
+```bash
+python -m scripts.arabic_benchmark.run_benchmark --json arabic-benchmark.json
+```
+
+Regression tests: `src/ai/tests/test_arabic_text_quality.py` (backend) and
+`tests/rtlBidi.test.mjs` (frontend).
+
 ## Frontend and browser changes
 
 `frontend/package.json` is the source for `npm test`, `npm run lint`,

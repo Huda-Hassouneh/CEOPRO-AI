@@ -36,7 +36,7 @@ function ProductChoice({ match, value, onChange, primaryCurrency, canCreateProdu
   const action = value?.action || '';
   return (
     <fieldset className="structured-import-choice">
-      <legend>{importSheetLabel(match.sheet, t)}, {t('connectData.feedback.rowNumber', { row: match.row })}: {match.productName || match.sku}</legend>
+      <legend>{importSheetLabel(match.sheet, t)}, {t('connectData.feedback.rowNumber', { row: match.row })}: <bdi>{match.productName || match.sku}</bdi></legend>
       <p>{t(`connectData.review.status.${match.status}`)}</p>
       {match.status === 'conflict' ? (
         <p role="alert">{t('connectData.review.fixFile')}</p>
@@ -141,7 +141,7 @@ export function StructuredImportReview({ preview, choices, review, busy, onChoic
       {review.changes?.length > 0 && <div className="structured-import-change-list">
         <h5>{t('connectData.review.stockChanges')}</h5>
         <ul>{review.changes.map((change) => <li key={change.key}>
-          <strong>{typeof change.productName === 'object' ? displayProduct({ product_name: change.productName }, locale) : change.productName}</strong>
+          <strong><bdi>{typeof change.productName === 'object' ? displayProduct({ product_name: change.productName }, locale) : change.productName}</bdi></strong>
           {' · '}{change.warehouse || t('connectData.review.defaultWarehouse')}{' · '}
           {change.previous == null ? t('connectData.review.newBalance', { next: change.next }) : t('connectData.review.replaceBalance', { previous: change.previous, next: change.next })}
         </li>)}</ul>

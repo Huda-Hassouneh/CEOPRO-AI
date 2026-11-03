@@ -21,7 +21,7 @@ from typing import Callable, Optional
 from src.ai import db
 from src.ai.billing import credits
 from src.ai.core import storage_ledger, usage
-from src.ai.marketing import data_access, designed_poster, image_generation, image_storage
+from src.ai.marketing import data_access, designed_poster, image_generation, image_storage, typography
 
 logger = logging.getLogger("CEOPRO_AI_MARKETING")
 
@@ -54,7 +54,7 @@ def uses_plan_allowance() -> bool:
 def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id: str, campaign: dict, *,
                        image_format: str = image_generation.DEFAULT_IMAGE_FORMAT, prompt: Optional[str] = None,
                        channel: Optional[str] = None, attach: bool = True, seed: Optional[int] = None,
-                       fallback_to_designed: bool = True,
+                       fallback_to_designed: bool = True, text_overlay: bool = False,
                        on_pre_upload: Optional[Callable[[str, str, int], None]] = None) -> dict:
     """Makes a campaign image in `image_format` with the provider chain and
     adds it to the campaign's gallery (campaign_image_assets); with attach
@@ -68,7 +68,13 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
     designed poster is stored instead and the outcome says so; without it
     (the background worker, which retries later) ImageGenerationError is
     raised. Raises ReferenceImageError for an unreadable product photo and
-    usage.PlanLimitReached / credits.BudgetError before any provider call."""
+    usage.PlanLimitReached / credits.BudgetError before any provider call.
+
+    text_overlay: draw the campaign's own headline and call to action on the
+    AI image as a separate, correctly shaped text layer (typography.py) -
+    image models cannot spell Arabic, so the model is asked for a text-free
+    picture and KEEL sets the words. The designed poster already carries
+    its text, so it is not overlaid twice."""
     reference_content = reference_content_type = None
     if campaign.get("reference_image_selection"):
         try:
@@ -124,6 +130,15 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
                     "image_generation_used_reference": False, "image_generation_reference_note": None,
                 }
 
+        overlaid = False
+        if text_overlay and generated.mode == "ai":
+            headline, cta = designed_poster.pick_copy(campaign)
+            if headline:
+                # Direction is detected from the copy itself (campaigns store no language field).
+                generated.content = typography.compose(generated.content, headline, cta)
+                generated.content_type = "image/png"
+                overlaid = True
+
         client = db.minio_client()
         image_key = image_storage.upload_generated_image(
             client, generated.content, generated.content_type, tenant_id, campaign_id,
@@ -155,6 +170,7 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
             "generated_image_key": current_key,
             "image_generation_used_reference": generated.used_reference,
             "image_generation_reference_note": generated.reference_note,
+            "text_overlay": overlaid,
             # The gallery entry just written (same shape as GET .../assets).
             "asset": {
                 "asset_id": asset_id, "image_format": image_format, "channel": channel, "mode": generated.mode,

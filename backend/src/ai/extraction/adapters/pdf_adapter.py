@@ -26,12 +26,18 @@ are expected to live IN the table for a page to be treated as structured;
 free text alongside it is not part of the guaranteed data contract, the
 same way a CSV/XLSX file has no equivalent for "text near the data".
 
+Text and table cells are read in Unicode logical order by
+extraction/pdf_text.py (Arabic was returned reversed, as presentation-form
+glyphs, by pdfplumber's own text joining), and a page with no text layer is
+OCR'd when tesseract is installed - see that module.
+
 Requires pdfplumber (pip install pdfplumber).
 """
 from typing import Dict, List, Optional, Tuple
 
 import pdfplumber
 
+from src.ai.extraction import pdf_text
 from src.ai.extraction.template_detection import normalize_header
 
 PAGE_TEXT_HEADER = "page_text"
@@ -67,8 +73,29 @@ def _rows_from_table(table: list, canonical_headers: List[str]) -> List[Dict[str
     return rows
 
 
+def _page_tables(page, rtl: Optional[bool]) -> List[list]:
+    """The page's tables as rows of cell strings - logical order, columns in
+    reading order - or the page object's own extract_tables() for a page
+    object without pdfplumber's table finder."""
+    if not hasattr(page, "find_tables") or not hasattr(page, "chars"):
+        return page.extract_tables()
+    return [pdf_text.table_rows(page, table, rtl) for table in pdf_text.find_tables(page)]
+
+
+def _page_text(page, rtl: Optional[bool], use_ocr: bool) -> str:
+    if not hasattr(page, "chars"):
+        return page.extract_text() or ""
+    try:
+        text = pdf_text.page_text(page, rtl)
+    except Exception:  # noqa: BLE001 - the library's own reading for this page
+        text = page.extract_text() or ""
+    if use_ocr and len(text.replace(" ", "").replace("\n", "")) < pdf_text.MIN_TEXT_CHARS:
+        text = pdf_text.ocr_page(page) or text
+    return text
+
+
 def _process_page_tables(
-    page, canonical_headers: Optional[List[str]]
+    page, canonical_headers: Optional[List[str]], rtl: Optional[bool] = None
 ) -> Tuple[Optional[List[str]], List[Dict[str, object]]]:
     """
     Returns (possibly-newly-set canonical_headers, rows found on this
@@ -78,7 +105,7 @@ def _process_page_tables(
     """
     page_rows: List[Dict[str, object]] = []
 
-    for table in page.extract_tables():
+    for table in _page_tables(page, rtl):
         if not table or len(table) < _MIN_TABLE_ROWS:
             continue
         header_row = _clean_header_row(table[0])
@@ -100,13 +127,15 @@ def read_pdf_file(file_path: str) -> Tuple[List[str], List[Dict[str, object]]]:
     fallback_rows: List[Dict[str, object]] = []
 
     with pdfplumber.open(file_path) as pdf:
+        rtl = pdf_text.document_is_rtl(pdf) if all(hasattr(p, "chars") for p in pdf.pages) else None
+        use_ocr = pdf_text.ocr_available()
         for page in pdf.pages:
-            canonical_headers, page_rows = _process_page_tables(page, canonical_headers)
+            canonical_headers, page_rows = _process_page_tables(page, canonical_headers, rtl)
             if page_rows:
                 structured_rows.extend(page_rows)
                 continue
 
-            text = page.extract_text() or ""
+            text = _page_text(page, rtl, use_ocr)
             if text.strip():
                 fallback_rows.append({PAGE_TEXT_HEADER: text})
 

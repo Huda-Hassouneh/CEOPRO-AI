@@ -128,7 +128,7 @@ export function ProductsListPage() {
                     return (
                       <tr key={product.product_id}>
                         <td>
-                          <button type="button" className="apex-table__link" onClick={() => openProduct(product)}>{product.product_name}</button>
+                          <button type="button" className="apex-table__link" onClick={() => openProduct(product)}><bdi>{product.product_name}</bdi></button>
                           <div className="apex-muted products-apex-sub">{[product.category, product.brand].filter(Boolean).join(' · ')}</div>
                         </td>
                         <td className="apex-table__num apex-table__primary">{currencyFormatter(product.current_price, product.currency)}</td>
@@ -200,7 +200,7 @@ function SaleProductPicker({ open, onClose, onPick, t, currencyFormatter }) {
         {query.data?.products?.map((product) => (
           <li key={product.product_id}>
             <button type="button" onClick={() => onPick(product)}>
-              <span>{product.product_name}</span>
+              <span><bdi>{product.product_name}</bdi></span>
               <span className="apex-muted">{currencyFormatter(product.current_price, product.currency)}</span>
             </button>
           </li>

@@ -142,6 +142,9 @@ substituting a 90-day summary. Chat history and citation references persist.
   keyword fallback remains usable where supported. Test retrieval scope,
   follow-ups, citations, history and metering separately. See
   [provider setup](INTEGRATIONS.md#ai-and-market-providers).
+  PDFs are read in Unicode logical order (Arabic included) by
+  `extraction/pdf_text.py`, with OCR for scanned pages when tesseract is
+  installed; measured results in the [Arabic AI quality report](ARABIC_AI_QUALITY_REPORT.md).
 
 ### Marketing copy and images
 
@@ -159,6 +162,8 @@ repaired or rejected. Creative themes are not proof of product origin.
   and reference-photo fidelity are not fully accepted. Test
   `test_marketing_content_generator.py`, image-job persistence, grounding failure
   and credit settlement; only explicitly authorized tests may invoke providers.
+  `text_overlay: true` on generate-image draws the campaign's headline and CTA
+  on the (text-free) AI image with proper Arabic shaping (`marketing/typography.py`).
 
 ## Smart alerts and notifications
 

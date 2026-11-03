@@ -28,17 +28,17 @@ function Claims({ claims, onOpenRef, activeRef, t }) {
 
 function CitedBlocks({ blocks, onOpenRef, activeRef, t }) {
   return <div className="rag-answer-copy">{blocks.map((block, index) => {
-    if (block.type === 'heading') return <h4 key={index}>{block.text}</h4>;
+    if (block.type === 'heading') return <h4 key={index} dir="auto">{block.text}</h4>;
     if (block.type === 'list') {
       const List = block.ordered ? 'ol' : 'ul';
-      return <List key={index}>{block.items.map((item, k) => <li key={k}><Claims claims={item} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></li>)}</List>;
+      return <List key={index}>{block.items.map((item, k) => <li key={k} dir="auto"><Claims claims={item} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></li>)}</List>;
     }
     if (block.type === 'table') {
       return <div className="rag-answer-table-wrap" key={index}><table><thead><tr>{block.columns.map((column, c) => <th key={c} scope="col">{column}</th>)}</tr></thead>
         <tbody>{block.rows.map((row, r) => <tr key={r}>{block.columns.map((_, c) => <td key={c}><bdi>{row[c] ?? ''}</bdi></td>)}</tr>)}</tbody></table>
         {block.refs.length > 0 && <p className="rag-table-refs"><CitationMarkers refs={block.refs} onOpen={onOpenRef} activeRef={activeRef} t={t} /></p>}</div>;
     }
-    return <p key={index}><Claims claims={block.claims} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></p>;
+    return <p key={index} dir="auto"><Claims claims={block.claims} onOpenRef={onOpenRef} activeRef={activeRef} t={t} /></p>;
   })}</div>;
 }
 
@@ -52,10 +52,10 @@ function inline(text, keyBase) {
 
 function MarkdownAnswer({ text }) {
   return <div className="rag-answer-copy">{parseMarkdown(text).map((block, index) => {
-    if (block.type === 'table') return <div className="rag-answer-table-wrap" key={index}><table><thead><tr>{block.head.map((cell, c) => <th key={c}>{inline(cell, `h${c}`)}</th>)}</tr></thead><tbody>{block.rows.map((row, r) => <tr key={r}>{block.head.map((_, c) => <td key={c}>{inline(row[c] ?? '', `c${r}-${c}`)}</td>)}</tr>)}</tbody></table></div>;
-    if (block.type === 'list') { const List = block.ordered ? 'ol' : 'ul'; return <List key={index}>{block.items.map((item, k) => <li key={k}>{inline(item, `l${index}-${k}`)}</li>)}</List>; }
-    if (block.type === 'heading') return <h4 key={index}>{inline(block.text, `t${index}`)}</h4>;
-    return <p key={index}>{inline(block.text, `p${index}`)}</p>;
+    if (block.type === 'table') return <div className="rag-answer-table-wrap" key={index}><table><thead><tr>{block.head.map((cell, c) => <th key={c} dir="auto">{inline(cell, `h${c}`)}</th>)}</tr></thead><tbody>{block.rows.map((row, r) => <tr key={r}>{block.head.map((_, c) => <td key={c} dir="auto">{inline(row[c] ?? '', `c${r}-${c}`)}</td>)}</tr>)}</tbody></table></div>;
+    if (block.type === 'list') { const List = block.ordered ? 'ol' : 'ul'; return <List key={index}>{block.items.map((item, k) => <li key={k} dir="auto">{inline(item, `l${index}-${k}`)}</li>)}</List>; }
+    if (block.type === 'heading') return <h4 key={index} dir="auto">{inline(block.text, `t${index}`)}</h4>;
+    return <p key={index} dir="auto">{inline(block.text, `p${index}`)}</p>;
   })}</div>;
 }
 

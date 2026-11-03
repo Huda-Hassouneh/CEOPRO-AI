@@ -289,16 +289,37 @@ _DATE_WORDS = {understanding._norm(name) for names in MONTH_NAMES.values() for n
 
 def _content_words(text: str) -> set:
     # Arabic punctuation sits inside the Arabic letter range: "طلب؟" must still be the word "طلب".
-    words = re.findall(r"[\w؀-ۿ]{3,}", _ARABIC_PUNCTUATION.sub(" ", understanding._norm(text)))
+    words = re.findall(r"[\w\u0600-\u06ff]{3,}", _ARABIC_PUNCTUATION.sub(" ", understanding._norm(text)))
     return {w[2:] if w.startswith("ال") and len(w) > 4 else w for w in words
             if w not in _STOP and w not in _DATE_WORDS and not w.isdigit()}
+
+
+_PROCLITICS = ("و", "ف", "ب", "ل", "ك")
+
+
+def _variants(word: str) -> set:
+    """The word and its forms without an attached Arabic conjunction/preposition
+    ("بقسيمة" also matches "قسيمة", "وللطلبات" matches "طلبات"); never shorter
+    than three letters, so short words are left alone."""
+    out = {word}
+    if not re.match("[ء-ي]", word):
+        return out
+    stem = word
+    for _ in range(2):
+        if len(stem) > 4 and stem[0] in _PROCLITICS:
+            stem = stem[1:]
+            out.add(stem)
+            if stem.startswith("ال") and len(stem) > 4:
+                out.add(stem[2:])
+    return out
 
 
 def _relevant(question: str, text: str) -> bool:
     wanted = _content_words(question)
     if not wanted:
         return False
-    found = wanted & _content_words(text)
+    have = set().union(*(_variants(w) for w in _content_words(text)))
+    found = [w for w in wanted if _variants(w) & have]
     return len(found) >= min(2, len(wanted))
 
 

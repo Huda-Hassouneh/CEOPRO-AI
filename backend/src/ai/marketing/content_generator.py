@@ -162,6 +162,28 @@ def without_fixed_labels(audience_summary: Optional[str], creative_direction: Op
     return audience_summary, creative_direction
 
 
+_HASHTAG_JOINERS = re.compile(r"[\s\-\u2010-\u2015]+")
+_HASHTAG_DROP = re.compile(r"[^\w\u0640]+", re.UNICODE)
+
+
+def _clean_hashtags(tags) -> List[str]:
+    """Platform-valid hashtags: one '#', words joined by '_' (a space or hyphen
+    ends a hashtag on Instagram/TikTok/Facebook - "#زيت زيتون" tagged only
+    "#زيت"), punctuation removed, duplicates (case-insensitive) dropped.
+    Arabic, Latin and digits are kept as written."""
+    out, seen = [], set()
+    for tag in tags or []:
+        if not isinstance(tag, str):
+            continue
+        body = _HASHTAG_JOINERS.sub("_", tag.strip().lstrip("#＃").strip())
+        body = _HASHTAG_DROP.sub("", body).strip("_")
+        key = body.casefold()
+        if body and key not in seen:
+            seen.add(key)
+            out.append("#" + body)
+    return out
+
+
 def _strip_code_fences(text: str) -> str:
     match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
     return match.group(1) if match else text.strip()
@@ -192,7 +214,7 @@ def _parse_response(raw_text: str, platforms=PLATFORMS) -> GeneratedCampaign:
             variant = ContentVariant(
                 headline=item.get("headline"),
                 body_copy=item["body_copy"],
-                hashtags=list(item.get("hashtags") or []),
+                hashtags=_clean_hashtags(item.get("hashtags")),
                 cta=item.get("cta"),
             )
             variants.append(_enforce_platform_limits(platform, variant))
@@ -219,9 +241,6 @@ _SENSITIVE_FACTS = {
 
 
 _GROUNDING_PROMPT = """Audit customer-facing ad copy against SOURCE product information only.
-Source-grounded means consistent with SOURCE, NOT independently verified in
-the outside world. Accept supplied facts even when SOURCE describes a synthetic
-demo product. Do not reject a product name or brand for lack of outside evidence.
 Source-grounded means consistent with SOURCE, NOT independently verified in
 the outside world. Accept supplied facts even when SOURCE describes a synthetic
 demo product. Do not reject a product name or brand for lack of outside evidence.
@@ -252,12 +271,6 @@ by the supplied name and brand. The hook and invitation are not factual claims.
 The same SOURCE with DRAFT "Bottled in Amman from organic olives" is supported:
 false, with that unsupported origin/organic assertion listed for removal.
 
-Example SOURCE "Product name: Extra Virgin Olive Oil 1L. Brand: Zaytouna Demo."
-with DRAFT "Your pantry's new best friend: Zaytouna Demo olive oil. Explore today!"
-is supported: true. Its only factual claim is "Zaytouna Demo olive oil", supported
-by the supplied name and brand. The hook and invitation are not factual claims.
-The same SOURCE with DRAFT "Bottled in Amman from organic olives" is supported:
-false, with that unsupported origin/organic assertion listed for removal.
 """
 
 

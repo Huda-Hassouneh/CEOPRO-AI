@@ -19,6 +19,7 @@ and put in visual order with python-bidi, since the PDF library draws
 glyphs left to right.
 """
 import io
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -107,14 +108,54 @@ def _register_fonts():
     _fonts_ready = True
 
 
+# Digits joined by "-" (ISO dates, ranges, phone numbers). After Arabic text
+# the bidi algorithm makes each digit group a separate right-to-left run, so
+# "2026-11-03" was drawn as "03-11-2026". Embedding them left-to-right
+# (LRE ... PDF, which the algorithm consumes) keeps them in reading order. Not
+# applied after a Latin letter: "INV-2026-0042" is already one LTR run.
+_HYPHENATED_NUMBER = re.compile(r"(?<![A-Za-z0-9\-])\d+(?:[-\u2013]\d+)+(?:\s+\d{1,2}:\d{2}(?:\s+UTC)?)?")
+
+
 def _shape(text, rtl: bool) -> str:
+    """Arabic letters joined (arabic-reshaper) and put in display order
+    (python-bidi's pure-Python UBA, which also mirrors brackets) for a PDF
+    library that draws glyphs left to right. One LINE at a time: shaping a
+    whole paragraph and letting the PDF library wrap it put the end of the
+    sentence on the first line (see _paragraph)."""
     text = "" if text is None else str(text)
     if not rtl:
         return text
     import arabic_reshaper
     from bidi.algorithm import get_display
 
+    text = _HYPHENATED_NUMBER.sub(lambda m: "\u202a" + m.group() + "\u202c", text)
     return get_display(arabic_reshaper.reshape(text), base_dir="R")
+
+
+def _paragraph(text, style, rtl: bool, width: float):
+    """A Paragraph whose right-to-left text is wrapped in LOGICAL order first
+    and each line then shaped - a pre-shaped string wrapped by the PDF library
+    shows its lines in reverse order. Markup characters are escaped (a "<" or
+    "&" in a company or product name broke the report)."""
+    from xml.sax.saxutils import escape
+
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    from reportlab.platypus import Paragraph
+
+    text = "" if text is None else str(text)
+    if not rtl:
+        return Paragraph(escape(text), style)
+    lines, current = [], ""
+    for word in text.split():
+        trial = f"{current} {word}".strip()
+        if current and stringWidth(_shape(trial, True), style.fontName, style.fontSize) > width:
+            lines.append(current)
+            current = word
+        else:
+            current = trial
+    if current:
+        lines.append(current)
+    return Paragraph("<br/>".join(escape(_shape(line, True)) for line in lines), style)
 
 
 def _money(value) -> str:
@@ -140,13 +181,15 @@ def render_pdf(data: dict, lang: str = "en") -> bytes:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import mm
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import SimpleDocTemplate, Spacer, Table, TableStyle
 
     _register_fonts()
     text = TEXT.get(lang, TEXT["en"])
     rtl = lang == "ar"
     align = TA_RIGHT if rtl else TA_LEFT
     s = lambda value: _shape(value, rtl)  # noqa: E731
+    frame_width = A4[0] - 30 * mm  # left + right margins below
+    p = lambda value, style: _paragraph(value, style, rtl, frame_width)  # noqa: E731
     title_style = ParagraphStyle("title", fontName="KeelSans-Bold", fontSize=18, leading=22, alignment=align)
     h_style = ParagraphStyle("h", fontName="KeelSans-Bold", fontSize=12, leading=16, alignment=align, spaceBefore=10, spaceAfter=4)
     body = ParagraphStyle("body", fontName="KeelSans", fontSize=9, leading=12, alignment=align, textColor=colors.HexColor("#3c4150"))
@@ -179,14 +222,14 @@ def render_pdf(data: dict, lang: str = "en") -> bytes:
         end = data["end_date"].date().isoformat() if data["end_date"] else "…"
         period = f"{start} – {end}"
     story = [
-        Paragraph(s(f"{data['company']} · {text['title']}"), title_style), Spacer(1, 3 * mm),
-        Paragraph(s(f"{text['period']}: {period}"), body),
-        Paragraph(s(f"{text['generated']}: {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC"), body),
+        p(f"{data['company']} · {text['title']}", title_style), Spacer(1, 3 * mm),
+        p(f"{text['period']}: {period}", body),
+        p(f"{text['generated']}: {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC", body),
     ]
     if not data["totals"]:
-        story += [Spacer(1, 8 * mm), Paragraph(s(text["empty"]), body)]
+        story += [Spacer(1, 8 * mm), p(text["empty"], body)]
     else:
-        story.append(Paragraph(s(text["summary"]), h_style))
+        story.append(p(text["summary"], h_style))
         story.append(table(
             [text["currency"], text["lines"], text["units"], text["revenue"], text["gross_profit"], text["margin"]],
             [[t["currency"], _number(t["lines"]), _number(t["units"]), _money(t["revenue"]), _money(t["gross_profit"]),
@@ -195,18 +238,18 @@ def render_pdf(data: dict, lang: str = "en") -> bytes:
         covered = sum(float(t["revenue_with_cost"] or 0) for t in data["totals"])
         revenue = sum(float(t["revenue"] or 0) for t in data["totals"])
         if revenue and covered < revenue:
-            story.append(Paragraph(s(text["profit_note"].format(covered=round(covered / revenue * 100))), body))
-        story.append(Paragraph(s(text["monthly"]), h_style))
+            story.append(p(text["profit_note"].format(covered=round(covered / revenue * 100)), body))
+        story.append(p(text["monthly"], h_style))
         story.append(table([text["month"], text["currency"], text["lines"], text["revenue"], text["gross_profit"]],
                            [[m["month"], m["currency"], _number(m["lines"]), _money(m["revenue"]), _money(m["gross_profit"])]
                             for m in data["monthly"]], [30, 24, 30, 45, 45], 2))
-        story.append(Paragraph(s(text["top"]), h_style))
+        story.append(p(text["top"], h_style))
         story.append(table([text["product"], text["currency"], text["qty"], text["revenue"], text["gross_profit"]],
                            [[p["product"], p["currency"], _number(p["units"]), _money(p["revenue"]), _money(p["gross_profit"])]
                             for p in data["top"]], [72, 20, 22, 30, 30], 2))
-        story.append(Paragraph(s(text["recent"]), h_style))
+        story.append(p(text["recent"], h_style))
         if data["total_lines"] > len(data["recent"]):
-            story.append(Paragraph(s(text["recent_note"].format(shown=len(data["recent"]), total=f"{data['total_lines']:,}")), body))
+            story.append(p(text["recent_note"].format(shown=len(data["recent"]), total=f"{data['total_lines']:,}"), body))
         story.append(table(
             [text["date"], text["invoice"], text["product"], text["qty"], text["unit_price"], text["total"], text["gross_profit"]],
             [[r["issue_date"][:10], r["invoice_number"] or "", r["product_name"], _number(r["quantity"]), _money(r["unit_price"]),

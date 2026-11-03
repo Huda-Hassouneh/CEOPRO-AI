@@ -846,7 +846,7 @@ def set_reference_selection_endpoint(
 
 def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict, *,
                     image_format: str = image_generation.DEFAULT_IMAGE_FORMAT, prompt: Optional[str] = None,
-                    channel: Optional[str] = None, attach: bool = True) -> dict:
+                    channel: Optional[str] = None, attach: bool = True, text_overlay: bool = False) -> dict:
     """Generate through the shared gallery/service path while retaining durable
     pre-upload storage accounting and stale-object recovery.
     """
@@ -869,7 +869,7 @@ def _generate_image(conn, ctx: TenantContext, campaign_id: str, campaign: dict, 
         return image_service.generate_and_store(
             conn, ctx.tenant_id, ctx.user_id, campaign_id, campaign,
             image_format=image_format, prompt=prompt, channel=channel, attach=attach,
-            on_pre_upload=on_pre_upload,
+            text_overlay=text_overlay, on_pre_upload=on_pre_upload,
         )
     except image_service.ReferenceImageError as err:
         raise HTTPException(status_code=502, detail="Could not read the selected reference image. Please try again.") from err
@@ -891,6 +891,9 @@ class GenerateImageRequest(BaseModel):
     prompt: Optional[str] = Field(default=None, max_length=2000)
     channel: Optional[str] = None
     attach: bool = True
+    # Draw the campaign's headline + CTA on the AI image as a shaped text layer
+    # (marketing/typography.py) - the reliable way to get correct Arabic text.
+    text_overlay: bool = False
 
     @field_validator("image_format")
     @classmethod
@@ -931,7 +934,8 @@ def generate_campaign_image_endpoint(
             raise HTTPException(status_code=409, detail="Campaign content must be generated successfully before an image can be generated.")
         body = body or GenerateImageRequest()
         return _generate_image(conn, ctx, campaign_id, campaign, image_format=body.image_format,
-                               prompt=body.prompt, channel=body.channel, attach=body.attach)
+                               prompt=body.prompt, channel=body.channel, attach=body.attach,
+                               text_overlay=body.text_overlay)
     except HTTPException:
         conn.rollback()
         raise

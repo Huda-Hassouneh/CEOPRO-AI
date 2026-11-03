@@ -11,6 +11,7 @@ from typing import List, Tuple
 
 from rank_bm25 import BM25Plus
 
+from src.ai.core.arabic_text import fold_for_search
 from src.ai.rag.retrieval_types import ScoredChunk
 
 _TOKEN_PATTERN = re.compile(r"\w+", re.UNICODE)
@@ -23,7 +24,7 @@ def _normalize(token: str) -> str:
     """Light, conservative stemming so "returns" finds "return" and
     "التوصيل" finds "توصيل" - never so aggressive that unrelated words merge."""
     if _ARABIC.search(token):
-        for prefix in ("وال", "بال", "فال", "كال", "لل", "ال"):
+        for prefix in ("وال", "بال", "فال", "كال", "لل", "ال"):  # tokens are already folded (أ/إ/آ -> ا)
             if token.startswith(prefix) and len(token) - len(prefix) >= 3:
                 return token[len(prefix):]
         return token
@@ -37,7 +38,9 @@ def _normalize(token: str) -> str:
 
 
 def tokenize(text: str) -> List[str]:
-    return [_normalize(token) for token in _TOKEN_PATTERN.findall(text.lower())]
+    # fold_for_search() first: diacritics removed (else \w splits "إِنَّ" into
+    # "إ" and "ن"), alef/yaa/taa-marbuta variants and Arabic-Indic digits unified.
+    return [_normalize(token) for token in _TOKEN_PATTERN.findall(fold_for_search(text))]
 
 
 class BM25Index:

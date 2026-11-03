@@ -39,10 +39,11 @@ from typing import List, Optional, Tuple
 import docx
 import numpy as np
 import openpyxl
-import pdfplumber
+import pdfplumber  # noqa: F401 - pdf_text.py opens PDFs with it (tests patch pdfplumber.open here)
 from psycopg2.extras import execute_values
 
 from src.ai.core.office_files import ensure_safe_office_archive
+from src.ai.extraction import pdf_text
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {".txt", ".md", ".pdf", ".docx", ".xlsx"}
 
@@ -112,7 +113,7 @@ def fetch_document_text(minio_client, bucket: str, object_key: str) -> str:
         response.release_conn()
 
     if ext in (".txt", ".md"):
-        return raw.decode("utf-8")
+        return _decode_text(raw)
     if ext == ".pdf":
         return _extract_pdf_text(raw)
     if ext == ".docx":
@@ -120,22 +121,61 @@ def fetch_document_text(minio_client, bucket: str, object_key: str) -> str:
     return _extract_xlsx_text(raw)
 
 
-PAGE_BREAK = "\f"
+PAGE_BREAK = pdf_text.PAGE_BREAK
+
+
+def _decode_text(raw: bytes) -> str:
+    """UTF-8 (BOM stripped), else the legacy encodings Arabic text files are
+    still saved in (Windows-1256 from older Arabic Windows/Notepad, UTF-16) -
+    the same fallback the CSV import already uses. A strict UTF-8 decode
+    failed every such file, marking the document 'Failed'."""
+    from src.ai.extraction.adapters.csv_adapter import _decode
+
+    text = _decode(raw, None)
+    return text[1:] if text.startswith("\ufeff") else text
 
 
 def _extract_pdf_text(raw: bytes) -> str:
-    """Page texts separated by a form feed, so passages can name their page
-    (chunking.chunk_pages()); blank pages keep their place in the count."""
-    with pdfplumber.open(io.BytesIO(raw)) as pdf:
-        pages = [page.extract_text() or "" for page in pdf.pages]
-    return PAGE_BREAK.join(pages) if any(page.strip() for page in pages) else ""
+    """Page texts in Unicode logical order separated by a form feed, so
+    passages can name their page (chunking.chunk_pages()); blank pages keep
+    their place in the count. Scanned pages are OCR'd when tesseract is
+    installed. See extraction/pdf_text.py for why plain pdfplumber text was
+    not usable for Arabic (reversed letters, presentation-form glyphs)."""
+    text, _stats = pdf_text.extract_text(raw)
+    return text if text.replace(PAGE_BREAK, "").strip() else ""
 
 
 def _extract_docx_text(raw: bytes) -> str:
+    """Paragraphs AND tables, in document order. Tables used to be skipped
+    entirely (python-docx's document.paragraphs excludes table cells), so a
+    price list or contract schedule in a Word file was never searchable.
+    One line per table row, cells separated by tabs (a merged cell once)."""
     ensure_safe_office_archive(raw)
     document = docx.Document(io.BytesIO(raw))
-    paragraphs = [p.text for p in document.paragraphs if p.text.strip()]
-    return "\n\n".join(paragraphs)
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    blocks = []
+    for element in document.element.body.iterchildren():
+        tag = element.tag.rsplit("}", 1)[-1]
+        if tag == "p":
+            text = Paragraph(element, document).text
+            if text.strip():
+                blocks.append(text)
+        elif tag == "tbl":
+            rows = []
+            for row in Table(element, document).rows:
+                cells, seen = [], set()
+                for cell in row.cells:
+                    if id(cell._tc) in seen:
+                        continue
+                    seen.add(id(cell._tc))
+                    cells.append(" ".join(p.text for p in cell.paragraphs if p.text.strip()))
+                if any(c.strip() for c in cells):
+                    rows.append("\t".join(cells))
+            if rows:
+                blocks.append("\n".join(rows))
+    return "\n\n".join(blocks)
 
 
 def _extract_xlsx_text(raw: bytes) -> str:

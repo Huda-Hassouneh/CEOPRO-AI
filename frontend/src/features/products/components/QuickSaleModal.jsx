@@ -45,7 +45,7 @@ export function QuickSaleModal({ open, product, onClose, currencyFormatter, t, o
     <Button onClick={submit} loading={mutation.isPending} loadingLabel={t('products.common.saving')}>{t('products.quickSale.record')}</Button>
   </>}>
     <form className="products-quick-sale-form" onSubmit={submit}>
-      <p className="products-quick-sale-product"><strong>{product.product_name}</strong><span>{currencyFormatter(product.current_price, product.currency)}</span></p>
+      <p className="products-quick-sale-product"><strong><bdi>{product.product_name}</bdi></strong><span>{currencyFormatter(product.current_price, product.currency)}</span></p>
       <Input type="number" min="0" step="any" label={t('products.quickSale.quantity')} value={quantity} onChange={(event) => setQuantity(event.target.value)} disabled={mutation.isPending} />
       <Input type="number" min="0" step="any" label={t('products.quickSale.unitPrice')} value={unitPrice} onChange={(event) => setUnitPrice(event.target.value)} hint={t('products.quickSale.unitPriceHint')} disabled={mutation.isPending} />
     </form>
