@@ -61,6 +61,7 @@ _VARIANTS_PER_PLATFORM_DEFAULT = 2
 _MAX_TOKENS = 2200
 
 _SYSTEM_PROMPT = """You are a marketing copywriter working inside KEEL, a business intelligence platform for small and medium businesses. You write ad copy for a specific product based ONLY on the product information given to you - you never invent facts (origins, manufacturing/bottling locations, ingredients, certifications, health benefits, prices, discounts, stock levels, statistics, awards, customer counts) that were not provided. Style, focus, campaign geography, visual themes and market positioning are creative instructions, NOT evidence of product origin or other factual attributes. An Amman audience or harvest theme does not mean the product was grown or bottled in Amman. Preserve vivid hooks, mood and invitations without inventing factual claims. This rule applies to hashtags and visual briefs too.
+Product performance/quality attributes require explicit product evidence even without numbers: precision, accuracy, durability, reliability, waterproofing, premium materials and comfortable fit are not generic creative praise. An analog watch does not establish precision; an adjustable strap does not establish comfort. Use subjective mood/style instead when these attributes are not supplied.
 
 You must respond with ONLY a single valid JSON object, no markdown code fences, no commentary before or after it, matching exactly this shape:
 
@@ -286,6 +287,68 @@ _SENSITIVE_FACTS = {
 }
 
 
+# Narrow product-attribute checks supplement, rather than replace, semantic
+# review. Each attribute needs its own affirmative fact and a matching review
+# citation: "adjustable" must not authorize "comfortable", nor "accurate"
+# authorize "waterproof". Audiences/artwork are deliberately outside this check.
+_PRODUCT_ATTRIBUTES = {
+    'precision/accuracy': r'\b(?:precision|precise|precisely|accuracy|accurate|accurately)\b|(?<!\w)[وبف]?(?:ال)?دقة(?!\w)|(?:ساعة|توقيت|قياس)\s+دقيق(?:ة)?\b',
+    'durability': r'\b(?:durable|durability|sturdy|robust|long[- ]lasting|built to last|hard[- ]wearing)\b|(?<!\w)[وبف]?(?:ال)?(?:متانة|متين(?:ة|ا)?)(?!\w)|يدوم\s+طويلا',
+    'reliability': r'\b(?:reliable|reliability|dependable)\b|(?<!\w)[وبف]?(?:ال)?(?:موثوق(?:ة)?|موثوقية)(?!\w)',
+    'waterproofing': r'\bwater[- ]?proof(?:ing)?\b|(?:مقاوم(?:ة)?|ضد)\s+(?:للماء|الماء)',
+    'water resistance': r'\bwater[- ]resistan(?:t|ce)\b|(?:مقاوم(?:ة)?|مقاومة)\s+للمياه',
+    'premium materials': r'\b(?:premium|high[- ]quality|superior|luxury)\s+(?:materials?|leather|(?:stainless\s+)?steel|fabric|construction)\b|(?:مواد|خامات)\s+(?:فاخرة|عالية\s+الجودة)',
+    'comfort': r'\b(?:comfort|comfortable|comfortably|ergonomic|ergonomics)\b|(?<!\w)[وبف]?(?:ال)?(?:راحة|مريح(?:ة|ا)?)(?!\w)',
+}
+
+
+def _attribute_text(value: str) -> str:
+    value = _evidence_text(value).replace('ـ', '')
+    value = re.sub(r'[\u064b-\u065f\u0670]', '', value)
+    return value.translate(str.maketrans('أإآى', 'اااي'))
+
+
+def _attribute_spans(value: str, pattern: str):
+    text = _attribute_text(value)
+    # These refer to the customer's setting, not product fit/performance.
+    text = re.sub(r'\b(?:from|in) the comfort of (?:your|their|a|the) (?:own )?home\b'
+                  r'|\b(?:comfort food|comfort zone|precisely (?:your|their|my) (?:style|vibe|taste))\b'
+                  r'|\blong[- ]lasting (?:memories|impressions)\b|من راحة منزلك',
+                  lambda match: ' ' * len(match.group()), text)
+    return list(re.finditer(pattern, text, re.IGNORECASE))
+
+
+def _affirmative_attribute(value: str, pattern: str) -> bool:
+    text = _attribute_text(value)
+    for match in _attribute_spans(value, pattern):
+        # Never turn negated/hypothetical source wording into an attribute.
+        start = max(text.rfind(sep, 0, match.start()) for sep in '.!؟?;؛\n') + 1
+        ends = [text.find(sep, match.end()) for sep in '.!؟?;؛\n']
+        end = min([pos for pos in ends if pos >= 0], default=len(text))
+        if not _NOT_A_FACT.search(text[start:end]):
+            return True
+    return False
+
+
+def _check_product_attributes(copy: dict, source: str, claims: list) -> None:
+    fields = [field for variants in copy.values() for variant in variants
+              for field in [variant['headline'], variant['body_copy'], variant['cta'], *variant['hashtags']]
+              if isinstance(field, str)]
+    for category, pattern in _PRODUCT_ATTRIBUTES.items():
+        if not any(_attribute_spans(field, pattern) for field in fields):
+            continue
+        if not _affirmative_attribute(source, pattern):
+            raise MarketingGenerationError(f'Remove unsupported product {category} claims; '
+                                           'style or product type does not establish this attribute.')
+        if not any(isinstance(claim, dict)
+                   and isinstance(claim.get('claim'), str) and _attribute_spans(claim['claim'], pattern)
+                   and isinstance(claim.get('source_quote'), str)
+                   and _affirmative_attribute(claim['source_quote'], pattern)
+                   for claim in claims):
+            raise _ReviewEvidenceError(f'Reviewer must cite explicit product {category} evidence '
+                                       'for the CURRENT DRAFT attribute, not an unrelated source fact.')
+
+
 _GROUNDING_PROMPT = """Audit customer-facing ad copy against SOURCE product information only.
 Source-grounded means consistent with SOURCE, NOT independently verified in
 the outside world. Accept supplied facts even when SOURCE describes a synthetic
@@ -298,6 +361,16 @@ best friend", "Elevate your meals", "rich flavor", "Explore today", "رفيق م
 and "أضف لمسة إلى مائدتك". Do not demand source quotations for these opinions.
 REJECT unsupported origin/manufacturing locations ("bottled in Amman"), ingredients,
 organic/certification/health claims, prices, discounts, stock or measured performance.
+Product performance and quality claims require explicit support even WITHOUT
+numbers: precision/accuracy, durability, reliability, waterproofing, premium materials and
+comfort/ergonomic fit. "Simplicity and precision" about a watch asserts precision;
+"comfortable strap" asserts comfort. Neither analog timekeeping nor an adjustable
+strap proves those attributes. Arabic equivalents (الدقة، المتانة، مقاوم للماء،
+خامات فاخرة، مريح) have the same rule. Cite each such attribute using affirmative
+SOURCE evidence for that attribute, not a quote about another feature. A source
+denying an attribute does not support an affirmative claim. Subjective "simplicity",
+"understated elegance", "step into confidence" and "shop from the comfort of your
+home" do not assert measurable product performance or fit; keep these allowed.
 An Amman campaign setting is NOT proof of Amman-grown olives. Brand/name/size
 and other actual product facts require source support; cite only the factual
 span, not a whole creative sentence. A paraphrase or Arabic translation is OK
@@ -410,6 +483,7 @@ def _check_grounding(campaign: GeneratedCampaign, source: str, usage_out: Option
         for category, pattern in _SENSITIVE_FACTS.items():
             if re.search(pattern, draft, re.IGNORECASE) and not re.search(pattern, source, re.IGNORECASE):
                 raise MarketingGenerationError(f'Remove unsupported {category} assertions; no such fact was supplied.')
+        _check_product_attributes(copy, source, claims or [])
         if (_percentages(draft) - _percentages(source)
                 or _percentages(draft, offers_only=True) - _percentages(source, offers_only=True)):
             raise MarketingGenerationError('Remove unsupported percentages; preserve only the supplied discount values.')

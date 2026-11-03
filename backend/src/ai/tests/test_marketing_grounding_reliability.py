@@ -208,3 +208,98 @@ def test_malformed_review_still_fails_closed(monkeypatch, response):
     monkeypatch.setattr(cg.llm_client, 'chat_completion', lambda *a, **k: next(answers))
     with pytest.raises(cg.MarketingGenerationError):
         cg.generate_campaign_content('NovaCup.', platforms=['INSTAGRAM'])
+
+
+WATCH = 'Demo Wrist Watch: analog wrist watch, round white dial, adjustable black strap.'
+
+
+@pytest.mark.parametrize('copy', [
+    'Discover simplicity and precision with the Demo Wrist Watch.',
+    'Accurate timekeeping for every day.', 'A durable watch.', 'A waterproof watch.',
+    'Reliable timekeeping.',
+    'A water-resistant watch.', 'Made with premium materials.', 'A comfortable black strap.',
+    'اكتشف بساطة التصميم والدقة مع ساعة اليد.', 'ساعة متينة.', 'ساعة مقاومة للماء.',
+    'خامات فاخرة.', 'سوار أسود مريح.',
+])
+def test_optimistic_reviewer_cannot_authorize_unsupported_product_attributes(monkeypatch, copy):
+    answers = iter([draft(copy), review(), draft(copy), review()])
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', lambda *a, **k: next(answers))
+    with pytest.raises(cg.MarketingGenerationError, match='unsupported product'):
+        cg.generate_campaign_content(WATCH, platforms=['INSTAGRAM'])
+
+
+def test_unsupported_precision_is_repaired_even_when_reviewer_approves(monkeypatch):
+    good = 'Demo Wrist Watch: understated elegance with an adjustable black strap.'
+    answers = iter([draft('Demo Wrist Watch blends simplicity and precision.'), review(),
+                    draft(good), review([{'claim':'adjustable black strap','source_quote':'adjustable black strap'}])])
+    calls = []
+    def completion(messages, **kwargs):
+        calls.append(messages)
+        return next(answers)
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', completion)
+    result = cg.generate_campaign_content(WATCH, platforms=['INSTAGRAM'])
+    assert result.variants_by_platform['INSTAGRAM'][0].body_copy == good
+    assert len(calls) == 4
+    assert 'precision/accuracy' in calls[2][-1]['content']
+    assert 'precision/accuracy' not in calls[3][-1]['content']
+
+
+@pytest.mark.parametrize('attribute', [
+    'precision', 'accurate', 'durable', 'reliable', 'waterproof', 'water-resistant',
+    'premium materials', 'comfortable', 'الدقة', 'متينة', 'مقاومة للماء', 'خامات فاخرة', 'مريح',
+])
+def test_explicit_product_attributes_remain_allowed_with_matching_evidence(monkeypatch, attribute):
+    result = run(monkeypatch, WATCH + ' Product attribute: ' + attribute + '.',
+                 'Demo Wrist Watch: ' + attribute + '.',
+                 review([{'claim':attribute, 'source_quote':attribute}]))
+    assert attribute in result.variants_by_platform['INSTAGRAM'][0].body_copy
+
+
+@pytest.mark.parametrize('source,copy', [('precision', 'الدقة'), ('comfortable', 'مريح'),
+                                      ('accurate', 'precise')])
+def test_equivalent_attribute_or_translation_can_cite_supplied_evidence(monkeypatch, source, copy):
+    result = run(monkeypatch, WATCH + ' Product attribute: ' + source + '.', copy,
+                 review([{'claim':copy, 'source_quote':source}]))
+    assert result.variants_by_platform['INSTAGRAM'][0].body_copy == copy
+
+
+@pytest.mark.parametrize('source', [WATCH + ' Not waterproof.', WATCH + ' Do not claim precision.',
+                                    WATCH + ' The strap is not comfortable.',
+                                    WATCH + ' Precision is not established.'])
+def test_negative_attribute_evidence_never_authorizes_positive_claim(monkeypatch, source):
+    attribute = 'waterproof' if 'waterproof' in source else 'precision' if 'precision' in source else 'comfortable'
+    answers = iter([draft('This watch is '+attribute+'.'), review([{'claim':attribute,'source_quote':attribute}])]*2)
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', lambda *a, **k: next(answers))
+    with pytest.raises(cg.MarketingGenerationError, match='unsupported product'):
+        cg.generate_campaign_content(source, platforms=['INSTAGRAM'])
+
+
+def test_supported_attribute_cannot_be_approved_with_unrelated_or_missing_citation(monkeypatch):
+    answers = iter([draft('A waterproof watch.'), review([{'claim':'watch','source_quote':'watch'}]), review()])
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', lambda *a, **k: next(answers))
+    with pytest.raises(cg.MarketingGenerationError, match='cite explicit product waterproofing evidence'):
+        cg.generate_campaign_content(WATCH + ' It is waterproof.', platforms=['INSTAGRAM'])
+
+
+@pytest.mark.parametrize('copy', [
+    'Demo Wrist Watch: simplicity and understated elegance. Step into confidence.',
+    'Shop from the comfort of your own home.',
+    'Your daily companion. Imagine a moment of calm.',
+    'Precisely your style. Make long-lasting memories.',
+    'ساعة اليد: بساطة وأناقة. أضف لمسة إلى إطلالتك.',
+    'تسوق من راحة منزلك.',
+    'ساعة اليد: لحظة استراحة من ضجيج اليوم.',
+])
+def test_subjective_creative_wording_does_not_require_quality_evidence(monkeypatch, copy):
+    result = run(monkeypatch, WATCH, copy, review())
+    assert result.variants_by_platform['INSTAGRAM'][0].body_copy == copy
+
+
+@pytest.mark.parametrize('field', ['headline', 'hashtags', 'cta'])
+def test_quality_guard_covers_all_customer_copy_fields(monkeypatch, field):
+    payload = json.loads(draft('Explore the white dial.'))
+    payload['platforms']['INSTAGRAM'][0][field] = ['#Precision'] if field == 'hashtags' else 'Discover precision'
+    answers = iter([json.dumps(payload), review()]*2)
+    monkeypatch.setattr(cg.llm_client, 'chat_completion', lambda *a, **k: next(answers))
+    with pytest.raises(cg.MarketingGenerationError, match='unsupported product precision/accuracy'):
+        cg.generate_campaign_content(WATCH, platforms=['INSTAGRAM'])

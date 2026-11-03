@@ -35,6 +35,33 @@ Repository: `Huda-Hassouneh/CEOPRO-AI` (verified as the KEEL repository; `360-Ra
 - Hashtags are optional in the current output/edit contract. Instagram/TikTok
   counts remain prompt guidance; Google Ads always has none. Empty hashtag sets
   remain valid, and any supplied hashtags undergo the same factual review as copy.
+- Product-quality follow-up: unquantified performance/quality language is still
+  factual when it describes the product. Writer/reviewer instructions now require
+  evidence for precision/accuracy, durability/reliability, waterproofing, premium
+  materials and comfortable/ergonomic fit. An analog watch is not evidence of
+  precision; an adjustable strap is not evidence of comfort. A narrow independent
+  guard checks captions, headlines, CTAs and hashtags for these attributes even
+  when a reviewer approves or omits them. Each attribute needs affirmative product
+  evidence and a matching review citation. Negated evidence cannot authorize a
+  positive claim. Subjective style/mood and customer-setting wording remain
+  allowed, including "understated elegance", "precisely your style" and shopping
+  "from the comfort of your home". Arabic normalization and word boundaries avoid
+  interpreting ordinary creative words such as "استراحة" as comfort claims.
+  The existing one-repair/two-review budget and fail-closed behavior are unchanged.
+- Verification for this follow-up: **184 focused backend tests passed**, including
+  English/Arabic, optimistic-review rejection, supported/translated attributes,
+  subjective wording, negation and repair. Installed Chrome completed exactly two
+  normal-local My Product requests against the saved Demo Wrist Watch: Sell more,
+  then Write new copy once. Both completed and persisted source-supported watch
+  facts with subjective style language; neither asserted unsupported performance
+  or comfort. The final guard was also rechecked against both saved drafts after
+  the Arabic word-boundary refinement. The usage ledger confirms Groq
+  `openai/gpt-oss-20b` calls for both operations. Image requests were intercepted at
+  the browser boundary: zero image jobs/assets were created, and no image suites
+  ran. API-only reload used launcher process controls; no schema/plan/provider
+  configuration changes or historical campaign rewrites were performed. Evidence
+  stays private under `.dev/evidence/marketing-watch-quality/`; automated test
+  evidence is `.dev/marketing-reliability/watch-final-tests.log`.
 - Product Link failures return a generic 422 plus `X-Marketing-Diagnostic-ID`.
   Find that ID in `CEOPRO_AI_MARKETING` logs for `reason` and `remote_status`.
   Reasons distinguish DNS, blocked addresses, remote HTTP status, redirect
