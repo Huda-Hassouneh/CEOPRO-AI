@@ -178,15 +178,26 @@ def test_checkout_reuses_the_customer_and_sends_the_expected_session(sys_conn, s
     tenant = _company(sys_conn)
     calls = {"customers": 0}
 
-    def fake_customer(email, name, tenant_id, idempotency_key):
+    def fake_customer(email, name, tenant_id, idempotency_key, *, frozen):
         calls["customers"] += 1
-        return {"id": calls.setdefault("cid", f"cus_{uuid.uuid4().hex[:10]}")}
+        assert frozen['params']['metadata']['tenant_id'] == tenant_id
+        assert frozen['params']['email'] == email and frozen['params']['name'] == name
+        return {"id": calls.setdefault("cid", f"cus_{uuid.uuid4().hex[:10]}"), 'metadata': frozen['params']['metadata']}
 
     def fake_session(params, idempotency_key):
         calls["params"], calls["key"] = params, idempotency_key
         calls["sessions"] = calls.get("sessions", 0) + 1
         return {"id": "cs_" + tenant, "url": "https://checkout.stripe.com/c/cs_" + tenant}
 
+    monkeypatch.setattr(stripe_api, "prepare_customer_create", lambda email, name, tenant, operation: {
+        'namespace': {'account': 'acct_offline', 'livemode': False}, 'api_version': 'offline',
+        'params': {'email': email, 'name': name, 'metadata': {'tenant_id': tenant, 'keel_customer_operation_id': operation}},
+    })
+    monkeypatch.setattr(stripe_api, "retrieve_customer", lambda reference: {'id': reference, 'metadata': {'tenant_id': tenant}})
+    monkeypatch.setattr(stripe_api, "customer_subscriptions", lambda *a: [])
+    monkeypatch.setattr(stripe_api, "open_customer_checkouts", lambda *a: [])
+    monkeypatch.setattr(stripe_api, "customer_clock_time", lambda *a, **kw: None)
+    monkeypatch.setattr(stripe_api, "_client", lambda: pytest.fail("Unexpected external Stripe request"))
     monkeypatch.setattr(stripe_api, "create_customer", fake_customer)
     monkeypatch.setattr(stripe_api, "create_checkout_session", fake_session)
     monkeypatch.setattr(stripe_api, "retrieve_checkout_session", lambda sid: {

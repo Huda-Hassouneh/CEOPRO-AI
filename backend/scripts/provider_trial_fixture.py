@@ -54,10 +54,22 @@ def confirm_trial(client, plan='growth'):
             request.update(params)
             return {'id':session,'status':'open','url':'https://checkout.stripe.test/offline-ci'}
         live = {}
+        customer_object = {'id': customer}
+        def prepare_customer(email, name, tenant, operation):
+            metadata = {'tenant_id': tenant, 'keel_customer_operation_id': operation}
+            customer_object['metadata'] = metadata
+            return {'namespace': {'account': 'acct_offline_ci_fixture', 'livemode': False},
+                    'api_version': 'offline', 'params': {'email': email, 'name': name, 'metadata': metadata}}
+        def unexpected_transport(*args, **kwargs):
+            raise AssertionError('Unexpected external Stripe transport in offline CI fixture')
         with ExitStack() as stack:
             stack.enter_context(patch.dict(os.environ,{'STRIPE_SECRET_KEY':'sk_test_offline_ci_fixture','STRIPE_WEBHOOK_SECRET':secret,'PUBLIC_FRONTEND_ORIGIN':'http://127.0.0.1:15173','STRIPE_TEST_CLOCK_ENABLED':'false'}))
             for name, function in {
-                'create_customer':lambda *a,**k:{'id':customer},
+                'prepare_customer_create':prepare_customer,
+                'create_customer':lambda *a,**k:dict(customer_object),
+                'retrieve_customer':lambda reference:dict(customer_object),
+                'recover_customer_create':lambda *a,**k:None,
+                '_client':unexpected_transport,
                 'customer_subscriptions':lambda *a,**k:[],
                 'open_customer_checkouts':lambda *a,**k:[],
                 'customer_clock_time':lambda *a,**k:None,
