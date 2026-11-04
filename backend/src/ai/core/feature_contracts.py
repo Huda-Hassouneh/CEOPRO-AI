@@ -28,3 +28,9 @@ QUANTITATIVE_FEATURES = (
 )
 MODULE_FEATURES = (MARKET_INTELLIGENCE, DEMAND_PREDICTION, COMPETITOR_MANAGEMENT)
 BASELINE_ENTITLEMENTS = ("dashboard_analytics", "product_management", "data_integration")
+
+# Preserve historical identifiers while closing new commercial authoring.
+RETIRED_COMMERCIAL_FEATURES = frozenset({WEB_SEARCHES})
+COMMERCIAL_QUANTITATIVE_FEATURES = tuple(
+    code for code in QUANTITATIVE_FEATURES if code not in RETIRED_COMMERCIAL_FEATURES
+)

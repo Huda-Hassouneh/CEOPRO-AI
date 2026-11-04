@@ -76,19 +76,27 @@ def _apify_records(json_body) -> int:
     return max(1, places + int(body.get("maxReviews") or 0))
 
 
-def metered_request(url: str, send: Callable[[], object], *, json_body=None):
+def metered_request(url: str, send: Callable[[], object], *, json_body=None, request_key=None):
     """send() performs the HTTP request and returns its parsed payload. A paid
     request is reserved from the company's Data Credits first (refused - never
     sent - when the budget, the provider's price or its controls don't allow
     it) and settled after: per request, or per record returned for providers
     that bill by record. A request that left this server and then failed is
     charged if that provider bills failed requests."""
+    from src.market_scraper.search_safety import admission
+
     paid = classify(url)
     if paid is None:
-        return send()
+        parsed = urlparse(url)
+        provider = _free_hosts().get(parsed.hostname) or next(
+            (name for (host, path), name in _FREE_PATHS.items()
+             if parsed.hostname == host and parsed.path.startswith(path)), "public_data")
+        with admission(provider, "request", free=True, request_key=request_key):
+            return send()
     provider, operation, unit = paid
     estimate = _apify_records(json_body) if unit == "record" else 1
-    with credits.provider_call(credits.DATA, provider, operation, {unit: estimate}) as call:
+    with admission(provider, operation, free=False, request_key=request_key), \
+            credits.provider_call(credits.DATA, provider, operation, {unit: estimate}) as call:
         call.sent()
         payload = send()
         measured = len(payload) if unit == "record" and isinstance(payload, list) else (estimate if unit == "record" else 1)

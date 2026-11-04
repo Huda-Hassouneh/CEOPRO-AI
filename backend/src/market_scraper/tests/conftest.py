@@ -9,6 +9,16 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def _offline_capacity(request, monkeypatch):
+    """Transport unit tests are offline; real Redis admission has native coverage."""
+    if request.module.__name__.endswith('_integration_db'):
+        return
+    from contextlib import nullcontext
+    from src.market_scraper import search_safety
+    monkeypatch.setattr(search_safety, 'admission', lambda *a, **kw: nullcontext())
+
+
+@pytest.fixture(autouse=True)
 def _connector_hosts_are_mocked(monkeypatch):
     """Connector tests use made-up hostnames with the network mocked; the
     public-address check (network_security.assert_connector_target) has

@@ -31,7 +31,7 @@ DEFAULT_OVERPASS_URLS = (
 def overpass_urls():
     configured = os.getenv("OVERPASS_API_URLS") or os.getenv("OVERPASS_API_URL") or ""
     urls = [u.strip() for u in configured.split(",") if u.strip()]
-    return urls or list(DEFAULT_OVERPASS_URLS)
+    return list(dict.fromkeys(urls or DEFAULT_OVERPASS_URLS))[:3]
 MAX_RADIUS_KM = 30.0
 
 

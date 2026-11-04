@@ -21,7 +21,7 @@ const checkpoint=async()=>execFileSync('powershell.exe',['-NoProfile','-File',pr
 try{
  await page.goto(base+'/onboarding/plan');await page.locator('.ceopro-custom-plan-callout button').click();await page.getByRole('button',{name:t.onboarding.common.continue,exact:true}).click();
  await page.waitForURL(u=>u.pathname==='/onboarding/plan/custom');await page.locator('.ceopro-custom-feature-card').first().waitFor();
- const quantities={data_credits:100,ai_credits:50,connected_data_sources:2,tracked_products:10,rag_assistant:1000,web_searches:5,tracked_competitors:2,document_storage_mb:64,document_extraction:8,team_seats:2,monthly_reports:1,marketing_image_generation:1,sentiment_analysis:10};
+ const quantities={data_credits:100,ai_credits:50,connected_data_sources:2,tracked_products:10,rag_assistant:1000,tracked_competitors:2,document_storage_mb:64,document_extraction:8,team_seats:2,monthly_reports:1,marketing_image_generation:1,sentiment_analysis:10};
  for(const code of ['market_intelligence','demand_prediction','competitor_management'])await page.getByRole('checkbox',{name:t.billing.modules[code],exact:true}).check();
  for(const [code,value] of Object.entries(quantities)){
    const label=t.billing.customPlan.featureNames[code];assert.ok(label,'Real catalog label '+code);

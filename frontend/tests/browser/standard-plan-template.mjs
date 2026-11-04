@@ -65,7 +65,7 @@ try {
   const listed=await (await context.request.get(process.env.API_URL+'/platform/billing/standard-plans')).json();
   const plan=listed.plans.find(p=>p.plan_key===key);
   assert.equal(plan.is_active,false);
-  assert.equal(plan.feature_limits.length,13);assert.equal(plan.entitlements.length,6);
+  assert.equal(plan.feature_limits.length,12);assert.equal(plan.entitlements.length,6);
   assert.equal(plan.feature_limits.find(f=>f.feature_code==='ai_credits').limit_value,702);
   assert.equal(plan.feature_limits.find(f=>f.feature_code==='data_credits').limit_value,1111);
   assert.equal(plan.monthly_price,87.21);assert.equal(plan.stripe_setup_required,true);

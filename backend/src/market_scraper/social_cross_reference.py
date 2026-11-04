@@ -65,7 +65,8 @@ def _get(params: dict) -> Optional[dict]:
                 return json.loads(resp.read().decode("utf-8", errors="ignore"))
 
         # Paid from the company's Data Credits; refused (never sent) when they don't allow it.
-        return metered_request(_CUSTOM_SEARCH_URL, send)
+        from src.market_scraper.search_safety import fingerprint
+        return metered_request(_CUSTOM_SEARCH_URL, send, request_key=fingerprint(_CUSTOM_SEARCH_URL, params))
     except Exception as e:  # noqa: BLE001 - any failure here means "no data", not a crash
         logger.warning("Custom Search request failed: %s", e)
         return None

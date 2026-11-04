@@ -85,8 +85,8 @@ def refresh_once(system_connection=None, tenant_connection=None, now: Optional[d
 
     result = {"due": len(tenants), "refreshed": 0, "busy": 0, "failed": 0, "no_budget": 0}
     for tenant_id, user_id, radius_km in tenants:
-        try:  # a company whose Data Credits are used up isn't refreshed on a schedule
-            credits.ensure_available(tenant_id, credits.DATA)
+        try:  # Free sources remain useful at zero Credits; subscription access is mandatory.
+            credits.ensure_access(tenant_id)
         except credits.BudgetError:
             result["no_budget"] += 1
             continue

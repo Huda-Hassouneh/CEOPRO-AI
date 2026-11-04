@@ -1,5 +1,17 @@
 # Environment configuration
 
+## Shared outbound search/data capacity
+
+`SEARCH_TENANT_PER_MINUTE` (30), `SEARCH_TENANT_PER_DAY` (500),
+`SEARCH_PROVIDER_PER_MINUTE` (60), `SEARCH_PROVIDER_PER_DAY` (5000),
+`SEARCH_TENANT_CONCURRENCY` (3), and `SEARCH_PROVIDER_CONCURRENCY` (8) are
+positive integer operational limits. They never grant subscription access or
+replace Data Credits. Invalid/zero settings and unavailable Redis fail closed.
+All API/workers must use the same Redis authority. Provider counters aggregate
+across tenants and configured credentials; respect vendor-specific limits when
+choosing deployment values. See the Web search retirement section in
+`SUBSCRIPTIONS_AND_CREDITS.md` for telemetry, lease/cache and rollout behavior.
+
 ## Two workflows
 
 The root developer command generates required local configuration in private `.dev/config.json` and derives application environment variables at launch. It **never reads or changes** root/backend/frontend `.env` files. Existing `backend/.env.example` remains untouched for manual/deployment users.

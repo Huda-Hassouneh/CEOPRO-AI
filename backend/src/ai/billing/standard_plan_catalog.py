@@ -43,7 +43,7 @@ def validate_catalog(data, usage_features=None):
             raise CatalogInvalid("Unsupported catalog version")
         categories = _unique(data["categories"], "key")
         keys = _unique(data["features"], "key")
-        expected = set(usage.QUANTITATIVE_FEATURES + usage.MODULE_FEATURES + usage.BASELINE_ENTITLEMENTS)
+        expected = set(usage.COMMERCIAL_QUANTITATIVE_FEATURES + usage.MODULE_FEATURES + usage.BASELINE_ENTITLEMENTS)
         if keys != expected:
             raise CatalogInvalid(f"Unknown, platform-only or missing canonical features: {sorted(keys ^ expected)}")
         for row in data["categories"] + data["features"]:
@@ -55,7 +55,7 @@ def validate_catalog(data, usage_features=None):
             _fields(f, 'key category label_en label_ar description_en description_ar display_order entitlement_type usage_feature unit aggregation_type reset_cycle')
             if f["category"] not in categories:
                 raise CatalogInvalid("Unknown category")
-            numeric = f["key"] in usage.QUANTITATIVE_FEATURES
+            numeric = f["key"] in usage.COMMERCIAL_QUANTITATIVE_FEATURES
             kind = f["entitlement_type"]
             if (numeric and kind not in {"max", "consumable", "credits", "storage"}) or (not numeric and kind != "boolean"):
                 raise CatalogInvalid("Invalid entitlement type")
@@ -81,7 +81,7 @@ def validate_catalog(data, usage_features=None):
                 raise CatalogInvalid("Duplicate, unknown or missing all-features assignment")
             if not _integer(p["tier_level"]) or not 1 <= p["tier_level"] or not _integer(p["trial_days"]) or p["trial_days"] > 365:
                 raise CatalogInvalid("Invalid plan terms")
-            if _unique(p["allowances"], "feature_key") != set(usage.QUANTITATIVE_FEATURES):
+            if _unique(p["allowances"], "feature_key") != set(usage.COMMERCIAL_QUANTITATIVE_FEATURES):
                 raise CatalogInvalid("Invalid allowance reference or missing allowance state")
             for a in p["allowances"]:
                 _fields(a, 'feature_key state value trial_value')

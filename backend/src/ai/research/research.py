@@ -207,8 +207,8 @@ def _tenant_budget_ok(tenant_id: str) -> bool:
         used = client.incr(key)
         client.expire(key, 2 * 86400)
         return used <= TENANT_DAILY_SEARCH_LIMIT
-    except Exception:  # noqa: BLE001 - the server-wide database budget still applies
-        return True
+    except Exception:  # noqa: BLE001 - never bypass fairness when storage fails
+        return False
 
 
 def _search(conn, tenant_id: str, query: str, country: Optional[str], search_fn) -> List[dict]:

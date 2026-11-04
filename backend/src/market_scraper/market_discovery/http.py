@@ -45,7 +45,7 @@ def request_json(method: str, url: str, *, json_body=None, data=None, params=Non
     merged = {"User-Agent": USER_AGENT, "Accept": "application/json", **(headers or {})}
 
     def send():
-        with httpx.Client(timeout=timeout, follow_redirects=True) as http:
+        with httpx.Client(timeout=min(30.0, max(1.0, timeout)), follow_redirects=True) as http:
             response = http.request(method, url, json=json_body, data=data, params=params, headers=merged)
             response.raise_for_status()
             return response.json()
@@ -54,7 +54,9 @@ def request_json(method: str, url: str, *, json_body=None, data=None, params=Non
     # company's Data Credits (refused, never sent, when they don't allow it).
     from src.market_scraper.provider_billing import metered_request
 
-    payload = metered_request(url, send, json_body=json_body)
+    from src.market_scraper.search_safety import fingerprint
+    payload = metered_request(url, send, json_body=json_body,
+                             request_key=fingerprint(method, url, json_body, data, params))
     if client is not None and (cache_if is None or cache_if(payload)):
         try:
             client.setex(key, CACHE_TTL_SECONDS, json.dumps(payload))
