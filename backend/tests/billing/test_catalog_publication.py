@@ -16,7 +16,7 @@ def rows(conn, query, args=()):
 
 def test_launch_templates_have_explicit_undiscounted_terms():
     c = standard_plan_catalog.load_catalog()
-    assert c['catalog_version'] == 'standard-plans-launch-v3'
+    assert c['catalog_version'] == 'standard-plans-lean-v1'
     assert [(p['plan_key'], p['bootstrap_commercial_defaults']['monthly_price']) for p in c['plans']] == [
         ('starter', '29.00'), ('growth', '59.00'), ('enterprise', '99.00')]
     for p in c['plans']:

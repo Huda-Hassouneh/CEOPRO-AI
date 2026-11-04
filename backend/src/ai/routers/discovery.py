@@ -300,6 +300,8 @@ def refresh_market_analysis(ctx: TenantContext = Depends(get_tenant_context)) ->
 def _set_tracked(competitor_id: str, tracked: bool, ctx: TenantContext) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        if tracked:
+            usage.ensure_capacity(conn, ctx.tenant_id, usage.TRACKED_COMPETITORS, 0)
         try:
             changed = discovered_competitors.set_tracked(conn, ctx.tenant_id, competitor_id, tracked)
         except Exception:  # noqa: BLE001 - malformed id

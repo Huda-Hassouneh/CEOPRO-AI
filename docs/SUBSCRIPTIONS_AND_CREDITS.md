@@ -67,6 +67,110 @@ display what `/billing/*` returns.
 
 ## 1. Plans
 
+### Lean future-customer catalog (owner-approved design, not a normal-DB publication)
+
+`backend/config/billing/standard_plan_catalog.json`, version
+`standard-plans-lean-v1`, supplies these future-assignment/template terms:
+
+| Capacity | Standard | Plus | Pro |
+|---|---:|---:|---:|
+| Document storage (GB) | 1 | 5 | 20 |
+| Extraction (MB per billing period) | 50 | 200 | 750 |
+| Sentiment records per billing period | 3,000 | 12,000 | 40,000 |
+| Active connected sources | 1 | 3 | 8 |
+| Tracked competitors | 5 | 15 | 40 |
+
+Storage retains 1 GB = 1024 MB, 1 MB = 1,048,576 bytes. Extraction retains
+1 MB = 1024 KB and charges ceil(input bytes / 1024) KB. Counts are not
+multiplied by the purchased 1/3/6-month period: the metered allowance applies
+once per provider billing period; storage, sources and competitors are live
+capacity. New provider-confirmed trials inherit these capacities; their
+existing separate trial Credit allowances and 14/14/7-day durations do not change.
+Prices, other feature limits, AI/Data Credits, RAG tokens and economic policies
+are unchanged. Fresh installations bootstrap the new definitions. Installing
+the version on an initialized database only adds templates; it does not update
+existing published plan definitions or assignments.
+
+Existing assignments and trials keep their captured catalog snapshot on renewal
+and same-plan period updates. Custom contracts/overrides, quote revisions and
+saved Pricing Studio analyses are not rewritten. Explicit cross-plan changes
+compare the actual snapshot with proposed rights. Mixed gains/losses require
+support review before any provider write; pure losses retain the existing
+end-of-period schedule. Unlimited historical competitors are a real right, not
+equivalent to the new finite allowance. Over-limit data is never removed.
+
+Generated images check their actual byte size under the tenant storage lock
+before upload; display rounding is not used for enforcement. Manual and
+automatic competitor registration take the same capacity lock before row
+locks. Price-matching evidence commits before its separate capacity-checked
+tracking phase; evidence alone does not start tracking. Image providers,
+formats and retry policy are unchanged.
+
+**Publication gate:** code/template installation is not authorization to publish
+new selling terms. Before an approved rollout, back up and verify recovery,
+inventory legacy snapshots and pending/accepted Checkout/Custom offers, and
+drain or honor them. Checkout reservations freeze price/trial terms but do not
+freeze the complete entitlement vector. Do not change live definitions while
+an earlier accepted Checkout could activate against different allowances.
+Use existing audited owner plan-feature authoring in one transaction only after
+this gate and separate owner authorization. Do not run a bulk tenant update or
+rewrite an applied migration. No new schema migration is needed here.
+
+Pricing Studio must be recalibrated separately: analyze the new version with
+documented expected/stress utilization and measured worker/DB/storage demand;
+keep external-provider Credit costs separate from internal infrastructure,
+support and operations. Lower caps are not measured savings. Preserve old
+analyses and do not automatically change internal allocations or prices.
+
+#### Final review evidence and integration dependencies
+
+Review base: `870b6e9a9864ba27b53f292676b10c2cd08ce357`. The scope is
+26 source/catalog/test/documentation files; there are no new migrations,
+pricing-policy changes, provider-rate changes or Credit allocation changes.
+
+- The earlier combined regression recorded 854 passes and one 10-second
+  Chrome timeout waiting for Pricing Studio's initial "Billing setup" heading
+  in `test_browser_pricing_studio[owner-en-legacy]`. The unchanged Studio and
+  catalog browser rerun passed all 10 cases. An exact tracked-source export of
+  the review base, using its original catalog in a fresh disposable database,
+  also passed that Chrome case. The timeout's cause was not established; it
+  must not be represented as a proven product defect or a proven base defect.
+  No timeout or assertion was relaxed.
+- `test_subscription_exposes_versioned_established_rights_without_changing_existing_fields`
+  fails at `assert app_conn.closed and system_conn.closed` on both the exact
+  base and the candidate. Its fixture already has an assigned active plan, so
+  the handler does not acquire the privileged trial-eligibility connection.
+  The fake `system_conn` therefore remains unused/unclosed. The subscription
+  handler and this legacy test are unchanged; the known assertion is recorded,
+  not suppressed or counted as a pass.
+- Final candidate regression: 855 passed, including all 16 Chrome cases; the
+  only failure was that same independently reproduced base assertion. The
+  complete frontend suite passed 297 tests. Fresh disposable migration/repeat
+  execution and restricted-role checks verified 166 migrations and 130 FORCE
+  RLS tables. No normal database or published catalog was changed.
+- Historical snapshot/trial renewal, selected-plan provider-confirmed trials
+  across 1/3/6-month periods, existing-trial Checkout cutoff preservation,
+  pending Checkout idempotency, Custom offers and saved analyses are covered
+  by the native billing regression. Pending Checkout publication safety still
+  requires the separate drain/honor gate above; reservations do not freeze
+  the complete entitlement vector.
+
+The branch is stacked on the billing/RAG prerequisites through the review base,
+not independently ready to target `main` with its whole ancestry. Integrate
+those prerequisites, coordinate with `fix/deprecate-web-search-entitlement`,
+then reconcile this lean catalog without reintroducing numeric `web_searches`.
+Preserve the deprecation branch's migration
+`20261129000000_retire_web_search_commercial_allowance.sql` and its narrowly
+scoped legacy-rights comparison exception. Recheck the combined catalog and
+regressions before any separately approved publication. Private review exports,
+credentials, screenshots and test evidence stay under ignored `.dev/` paths.
+
+### Historical reference
+
+The table and earlier rollout notes below describe historical terms, not the
+new template or current published pricing authority. Read live prices from
+`billing_plan_prices` and existing customer rights from assignment snapshots.
+
 | | Standard | Plus | Pro | Custom |
 |---|---:|---:|---:|---|
 | Plan key (database, Stripe) | `starter` | `growth` | `enterprise` | `custom` |

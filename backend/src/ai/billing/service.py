@@ -150,6 +150,16 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
             raise BillingError(409, 'subscription_exists', 'Your company already has a subscription. Use its plan-change or recovery action.')
         if store.has_custom_contract(conn, tenant_id):
             raise BillingError(409, 'plan_transition_conflict', 'Review the existing Custom contract before starting another subscription.')
+        if not trial_requested:
+            issued_trial = store.trial(conn, tenant_id)
+            if issued_trial and issued_trial.get('plan_key') and issued_trial['plan_key'] != plan_key:
+                current_rights = usage.get_plan(conn, tenant_id)
+                if current_rights.get('source') == 'trial' and current_rights['status'] == 'trialing':
+                    target_rights = store.configured_plan_rights(conn, tenant_id, plan_key, trialing=True)
+                    transition, _ = _classify_rights_change(current_rights, target_rights)
+                    if transition in ('loss', 'mixed', 'unclassified'):
+                        raise BillingError(409, 'plan_transition_mixed_rights',
+                            'Review the existing trial rights with support before selecting reduced allowances.')
         if trial_requested:
             if not actor_user_id:
                 raise BillingError(400,'trial_identity_required','An authenticated trial owner is required.')
@@ -588,6 +598,11 @@ def _plan_change_context(conn, tenant_id: str, plan_key: str, period_code: str) 
         conn, tenant_id, plan_key, trialing=sub["status"] == "trialing",
     )
     transition, _uncertain_features = _classify_rights_change(current_rights, target_rights)
+    if transition == "mixed":
+        raise BillingError(
+            409, "plan_transition_mixed_rights",
+            "This change adds some allowances and reduces others. Contact support to review the terms before changing plan.",
+        )
     if transition == "unclassified":
         raise BillingError(
             409, "plan_transition_unclassified",
@@ -614,7 +629,7 @@ def preview_plan_change(conn, tenant_id: str, plan_key: str, period_code: str) -
     used = {item['feature_code']: item['current_usage'] for item in usage.current_usage(conn, tenant_id, current)}
     changes = []
     for code in sorted(set(current['features']) | set(target['features'])):
-        if code in ('web_searches','rag_assistant','tracked_competitors'):
+        if code in ('web_searches','rag_assistant'):
             continue
         before = current['features'].get(code, {}).get('limit', 'not_included')
         after = target['features'].get(code, {}).get('limit', 'not_included')
