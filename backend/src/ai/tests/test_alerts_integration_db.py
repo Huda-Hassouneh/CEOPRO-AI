@@ -8,7 +8,7 @@ import psycopg2
 import pytest
 from fastapi.testclient import TestClient
 
-from src.ai.tests.signup_helpers import create_verified_test_account
+from src.ai.tests.signup_helpers import create_verified_test_account, install_historical_trial_fixture
 
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not ADMIN_DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
@@ -35,6 +35,7 @@ def test_alerts_from_live_data_are_read_per_company():
 
     client = TestClient(app)
     owner, email = _signup(client)
+    install_historical_trial_fixture(owner, 'growth')
     other, other_email = _signup(client)
     headers = {"Authorization": f"Bearer {owner['access_token']}"}
     try:
