@@ -30,7 +30,23 @@ from src.ai.forecasting import generation as forecasting_generation
 from src.ai.forecasting.authorization import require_forecast_authorization
 from src.ai.routers.products import get_product
 
-router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+def _require_dashboard_access(ctx: TenantContext = Depends(get_tenant_context)) -> None:
+    """Navigation cannot substitute for the tenant's durable setup/access state."""
+    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT onboarding_completed_at FROM companies WHERE tenant_id=%s", (ctx.tenant_id,))
+            company = cursor.fetchone()
+        if not company or company[0] is None:
+            raise HTTPException(409, detail={"reason": "ONBOARDING_REQUIRED", "message": "Complete onboarding before opening the dashboard."})
+        plan = usage.get_plan(conn, ctx.tenant_id)
+        if not plan["assigned"] or plan["status"] not in usage.ACCESS_GRANTING_STATUSES:
+            raise usage.PlanLimitReached("SUBSCRIPTION_INACTIVE", "dashboard_analytics").as_http()
+    finally:
+        conn.close()
+
+
+router = APIRouter(prefix="/dashboard", tags=["dashboard"], dependencies=[Depends(_require_dashboard_access)])
 
 
 @router.get("/sales-trend", dependencies=[permissions.require_capabilities(access.SALES)])

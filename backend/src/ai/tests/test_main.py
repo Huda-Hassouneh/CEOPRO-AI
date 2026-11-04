@@ -43,6 +43,27 @@ def _auth():
     return {"Authorization": f"Bearer {_token()}"}
 
 
+@pytest.fixture(autouse=True)
+def authorized_dashboard_handler_fixture():
+    """Handler-shape unit tests use an explicitly authorized dashboard tenant.
+
+    Authentication stays real. The commercial/setup DB boundary is exercised
+    without overrides in test_ci_smoke_onboarding_integration_db.py.
+    """
+    from fastapi import Depends
+    from src.ai.core.security import get_tenant_context
+    from src.ai.routers.dashboard import _require_dashboard_access
+
+    def authorized(ctx=Depends(get_tenant_context)):
+        return None
+
+    app.dependency_overrides[_require_dashboard_access] = authorized
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(_require_dashboard_access, None)
+
+
 def test_health_requires_no_auth():
     response = client.get("/health")
     assert response.status_code == 200

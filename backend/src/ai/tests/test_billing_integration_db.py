@@ -508,7 +508,7 @@ def test_subscription_effective_rights_are_tenant_isolated_and_read_only(billing
             "billingPeriod", "periodStart", "periodEnd", "trialEndsAt", "trialUsed", "renewsAt",
             "endsAt", "cancelAtPeriodEnd", "scheduledChange", "hasSubscription", "hasBillingAccount",
             "canManageBilling", "paymentsEnabled", "limits", "usage", "features", "entitlements",
-            "credits", "trialAvailable", "trialEndsAtExact",
+            "credits", "trialAvailable", "trialEligiblePlanIds", "trialEndsAtExact",
         }
         expected_top_level = legacy_fields | {"effectiveRights", "currentPrice", "checkoutTrialEndsAt"}
         for response in (response_a.json(), response_b.json()):
@@ -554,7 +554,7 @@ def test_two_simultaneous_deliveries_of_one_event_process_it_once(sys_conn, stri
     event = StripeWebhookDecoder(WEBHOOK_SECRET).decode(payload, _signed(payload))
     runs, results, errors = [], [], []
 
-    def slow_sync(conn, subscription_id, created, hint=None):
+    def slow_sync(conn, subscription_id, created, hint=None, **kwargs):
         runs.append(subscription_id)
         time.sleep(1.0)  # long enough for the second delivery to arrive mid-processing
         return tenant
@@ -583,7 +583,7 @@ def test_a_failed_event_is_retried_not_swallowed_as_a_duplicate(sys_conn, monkey
     event = StripeWebhookDecoder(WEBHOOK_SECRET).decode(payload, _signed(payload))
     attempts = []
 
-    def flaky(conn, subscription_id, created, hint=None):
+    def flaky(conn, subscription_id, created, hint=None, **kwargs):
         attempts.append(1)
         if len(attempts) == 1:
             raise RuntimeError("temporary")

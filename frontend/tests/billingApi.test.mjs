@@ -47,6 +47,6 @@ test('trial selection uses the Python trial endpoint and sends no client-control
     const { billingApi } = await import('../src/features/billing/api/billingApi.js');
     await billingApi.startTrial({ planId: 'growth' });
     assert.equal(calls[0].url, '/billing/trial');
-    assert.deepEqual(JSON.parse(calls[0].data), { plan_key: 'growth' });
+    assert.deepEqual(JSON.parse(calls[0].data), { plan_key: 'growth', period_code: 'monthly' });
   } finally { httpClient.defaults.adapter = original; }
 });

@@ -25,7 +25,10 @@ def connect():
 
 def runtime_connection():
     conn=connect()
-    with conn.cursor()as cur:cur.execute('SET ROLE ceopro_app')
+    with conn.cursor()as cur:
+        cur.execute('SET ROLE ceopro_app')
+        cur.execute("SELECT set_config('app.auth_lookup','on',false)")
+    conn.commit()
     return conn
 
 
@@ -417,7 +420,8 @@ def test_native_http_signup_verification_reuses_python_trial_and_jwt(monkeypatch
     conn=connect()
     try:
         with conn.cursor()as cur:
-            cur.execute('SELECT count(*)FROM billing_trials WHERE tenant_id=%s',(claims['tenant_id'],));assert cur.fetchone()[0]==1
+            cur.execute('SELECT count(*)FROM billing_trials WHERE tenant_id=%s',(claims['tenant_id'],));assert cur.fetchone()[0]==0
+            cur.execute('SELECT count(*)FROM tenant_plan_assignments WHERE tenant_id=%s',(claims['tenant_id'],));assert cur.fetchone()[0]==0
     finally:conn.close()
 
 
@@ -588,9 +592,15 @@ def test_native_http_customer_invitation_reuses_and_creates_identities(monkeypat
     monkeypatch.setattr(auth_throttle,'record_failure',lambda *a:False)
     monkeypatch.setattr(auth_throttle,'reset',lambda *a:None)
     owner_payload,existing_payload=registration(),registration()
+    existing_payload['password_hash']=security.hash_password('ExistingInvite1!')
     pending('register',owner_payload);owner=pending('verify',owner_payload)
     pending('register',existing_payload);existing=pending('verify',existing_payload)
-    auth._start_free_trial(owner['tenant_id'],owner['user_id'])
+    # Explicit historical fixture for invitation capacity, not fresh trial activation.
+    from contextlib import closing
+    from src.ai.billing import store
+    with closing(connect()) as trial_conn:
+        assert store.start_trial(trial_conn, owner['tenant_id'], started_by_user_id=owner['user_id'], plan_key='growth')
+        trial_conn.commit()
     invitations=[]
     conn=connect()
     try:
@@ -607,7 +617,7 @@ def test_native_http_customer_invitation_reuses_and_creates_identities(monkeypat
     raw_existing,existing_email=invitations[0]
     raw_new,new_email=invitations[1]
     with TestClient(app)as client:
-        reused=client.post(f'/auth/invitations/{raw_existing}/accept',json={})
+        reused=client.post(f'/auth/invitations/{raw_existing}/accept',json={'password':'ExistingInvite1!'})
         assert reused.status_code==200
         assert reused.json()['user_id']==existing['user_id']
         assert reused.json()['role_key']=='staff'

@@ -22,7 +22,8 @@ export function OriginalPlanSelector({
   onPlanSelect,
   onPeriodChange,
   onBuildCustom,
-  showCustomPlan = true
+  showCustomPlan = true,
+  showTrial = true
 }) {
   const { t } = useI18n();
   const activePlans = [...plans]
@@ -61,7 +62,7 @@ export function OriginalPlanSelector({
 
   return (
     <div>
-      {hasTrialPlans && (
+      {showTrial && hasTrialPlans && (
         <div className="ceopro-trial-banner">
           <Zap size={20} fill="currentColor" aria-hidden="true" />
           <span>
@@ -91,6 +92,7 @@ export function OriginalPlanSelector({
             plan={isFeaturedPlan(plan) ? { ...plan, featured: true } : plan}
             previousPlan={index > 0 ? activePlans[index - 1] : null}
             compactSummary
+            showTrial={showTrial}
             billingPeriod={billingPeriod}
             selected={selectedPlan === plan.id}
             onSelect={() => onPlanSelect?.(plan.id)}

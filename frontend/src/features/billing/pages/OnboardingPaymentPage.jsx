@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { useAuthStore } from '../../auth/store/authStore.js';
-import { billingApi, errorReason } from '../api/billingApi.js';
+import { errorReason } from '../api/billingApi.js';
 import { PlanSummaryCard } from '../components/PlanSummaryCard.jsx';
 import { toOriginalPlan } from '../api/originalBillingModel.js';
 import { CouponInput } from '../components/CouponInput.jsx';
@@ -12,7 +12,8 @@ import { StripePaymentMethod } from '../components/StripePaymentMethod.jsx';
 import { useBillingAction } from '../hooks/useBillingActions.js';
 import { usePlans } from '../hooks/usePlans.js';
 import { useSubscription } from '../hooks/useSubscription.js';
-import { hasActivePlanAccess } from '../utils/onboardingRouting.js';
+import { canStartPlanTrial } from '../utils/onboardingRouting.js';
+import { saveOnboardingPlan } from '../../onboarding/store/onboardingStore.js';
 import Button from '../../../shared/components/ui/Button.jsx';
 import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
@@ -36,13 +37,13 @@ export function OnboardingPaymentPage() {
   const plan = plansQuery.data?.plans.find((item) => item.id === planId);
   const price = plan?.prices?.[billingPeriod];
   const paymentsEnabled = Boolean(plansQuery.data?.paymentsEnabled);
-  const trialAvailable = Boolean(subscriptionQuery.data?.trialAvailable && plan?.trialDays > 0);
+  const trialAvailable = canStartPlanTrial(subscriptionQuery.data, plan);
   const canCheckout = Boolean(plan?.selfServe && price?.purchasable && paymentsEnabled);
 
   useEffect(() => {
     if (plansQuery.isPending || subscriptionQuery.isPending || plansQuery.isError || subscriptionQuery.isError) return;
     const validPeriod = plan?.prices?.[billingPeriod];
-    if (!plan?.selfServe || (!validPeriod?.purchasable && !(subscriptionQuery.data?.trialAvailable && plan.trialDays > 0))) {
+    if (!plan?.selfServe || (!validPeriod?.purchasable && !canStartPlanTrial(subscriptionQuery.data, plan))) {
       navigate(routePaths.onboardingPlan, { replace: true });
     }
   }, [billingPeriod, navigate, plan, plansQuery.isPending, plansQuery.isError, subscriptionQuery.data, subscriptionQuery.isPending, subscriptionQuery.isError]);
@@ -76,15 +77,12 @@ export function OnboardingPaymentPage() {
     setErrorMessage('');
     setTrialPending(true);
     try {
-      await startTrial.mutateAsync({ planId });
-      const refreshed = await billingApi.getSubscription();
-      if (hasActivePlanAccess(refreshed)) {
-        sessionStorage.removeItem('keel.onboarding.checkoutPending');
-        navigate(routePaths.onboardingConnectData, { replace: true });
-      } else {
-        setErrorMessage(t('billing.onboarding.activationPending'));
-      }
+      await saveOnboardingPlan(planId, billingPeriod);
+      sessionStorage.setItem('keel.onboarding.checkoutPending', '1');
+      const result=await startTrial.mutateAsync({ planId, billingPeriod, promotionCode:promoCode.trim()||undefined });
+      if(!result?.url)throw new Error(t('billing.errors.generic'));
     } catch (error) {
+      sessionStorage.removeItem('keel.onboarding.checkoutPending');
       const reason = errorReason(error);
       setErrorMessage(reason ? t(`billing.errors.${reason}`) : (error?.response?.data?.detail?.message || t('billing.errors.generic')));
     } finally {
@@ -115,7 +113,13 @@ export function OnboardingPaymentPage() {
           {!price?.purchasable && paymentsEnabled && <div className="billing-provider-note" role="note">{t('billing.onboarding.planUnavailable')}</div>}
           <Link className="billing-link-button" to={routePaths.onboardingPlan}>{t('billing.onboarding.backToPlans')}</Link>
         </div>
-        <PlanSummaryCard promotionEntered={Boolean(promoCode.trim())} plan={{...toOriginalPlan(plan),trialPeriodValue:subscriptionQuery.data.checkoutTrialEndsAt?Math.ceil((subscriptionQuery.data.checkoutTrialEndsAt*1000-Date.now())/86400000):0}} billingPeriod={billingPeriod} checkoutMode={subscriptionQuery.data.checkoutTrialEndsAt?'trial':'paid'}/>
+        <PlanSummaryCard
+          promotionEntered={Boolean(promoCode.trim())}
+          plan={toOriginalPlan(plan)}
+          billingPeriod={billingPeriod}
+          checkoutTrialEndsAt={subscriptionQuery.data.checkoutTrialEndsAt}
+          checkoutMode={subscriptionQuery.data.checkoutTrialEndsAt ? 'trial' : 'paid'}
+        />
       </div>
     </OnboardingPageShell>
   );

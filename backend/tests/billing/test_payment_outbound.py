@@ -141,6 +141,20 @@ def test_customer_reuse_checks_mapping_and_does_not_create_again(application, mo
     assert not application.actions
 
 
+@pytest.mark.parametrize('days',[14,7])
+def test_selected_trial_business_request_is_provider_neutral(application,monkeypatch,days):
+    from src.ai.billing import trial_checkouts
+    monkeypatch.setattr(store,'trial_eligibility',lambda *a:None)
+    monkeypatch.setattr(trial_checkouts,'reserve',lambda *a:{'trial_duration_days':days})
+    result=service.create_checkout(None,MagicMock(),'tenant-alpha','owner@example.test','Company','selected-plan','monthly',actor_user_id='actor',trial_requested=True)
+    intent=application.prepared[0]
+    assert intent.trial_duration_days==days and intent.trial_end is None
+    assert intent.require_payment_method_before_activation is True
+    assert intent.price==Ref('another','offer-alpha')
+    assert intent.subscription_metadata['keel_trial_attempt_id']
+    assert result['url']=='https://payments.example.test/hosted'
+
+
 def test_active_subscription_blocks_before_any_gateway_action(application, monkeypatch):
     monkeypatch.setattr(store, "current_subscription", lambda *a: {"status": "active"})
     with pytest.raises(service.BillingError) as error:

@@ -427,6 +427,29 @@
   font-size: 11px;
 }
 
+.billing-existing-trial {
+  display: grid;
+  gap: 8px;
+  margin-block: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--ceopro-primary-light, #f0edff);
+  color: var(--ceopro-text-primary);
+  text-align: start;
+}
+
+.billing-existing-trial p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.billing-existing-trial small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .ceopro-plan-summary__price > div {
   display: contents;
 }
