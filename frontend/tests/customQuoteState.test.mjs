@@ -18,3 +18,15 @@ test('Custom Arabic translations have readable text and matching interpolation k
     assert.deepEqual(right[key].match(/\{\{\w+\}\}/g)||[],value.match(/\{\{\w+\}\}/g)||[],key);
   });visit(en,ar);
 });
+
+test('final vendor ratio review has readable English and Arabic explanations', () => {
+  for (const locale of ['en', 'ar']) {
+    const messages = JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`, import.meta.url), 'utf8'));
+    for (const reason of ['VENDOR_COST_RATIO_EXCEEDED', 'VENDOR_COST_RATIO_UNVERIFIABLE']) {
+      const explanation = messages.billing.customPlan.reviewReasons[reason];
+      assert.ok(explanation.length > 20);
+      assert.ok(!explanation.includes(reason));
+      if (locale === 'ar') assert.match(explanation, /[\u0600-\u06ff]/);
+    }
+  }
+});

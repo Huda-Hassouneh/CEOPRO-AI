@@ -158,6 +158,23 @@ rules, price-visible review responses and automatic checkout intent.
 | Existing subscription | Current/recoverable subscriptions block new Checkout | Preserved; legacy automatic replacement is deliberately not copied |
 | Provider truth | Signed webhook reconciliation | Preserved; no redirect/session-only activation |
 
+### Final-price automatic approval safeguard — 2026-11-05
+
+When the stored vendor-cost ratio safeguard is enabled, automatic approval also
+compares exact modeled monthly vendor costs multiplied by the selected term with
+the final discounted, cent-rounded USD payment converted back to JOD using the
+frozen FX rate. Equality is allowed; exceeding the stored ratio requires Owner
+review. Display-rounded vendor costs are not used for this comparison. Prices,
+term discounts, provider rates and policy thresholds are unchanged.
+
+`20261130000000_custom_discount_approval_guard.sql` adds a narrow trigger on new
+automatic draft-to-approved transitions. This protects previously frozen,
+unapproved previews without rewriting history. Missing cost evidence fails
+closed, as does a nonpositive final payment whose ratio cannot be verified.
+Explicit Owner approval remains available; accepted quotes and existing
+subscriptions retain their frozen terms. The migration must be applied through
+the normal approved rollout before relying on the durable approval guard.
+
 ### Commercial policy and evidence
 
 `billing_custom_pricing_policies.self_service_policy` is an additive versioned
