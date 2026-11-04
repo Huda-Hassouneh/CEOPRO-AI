@@ -233,7 +233,7 @@ def test_native_automatic_checkout_and_signed_paid_activation(client, send, owne
     monkeypatch.setattr(service.config, "payments_enabled", lambda: True)
     monkeypatch.setattr(service.config, "app_base_url", lambda: "https://local.test")
     customer_id, session_id = "cus_" + uuid4().hex, "cs_test_" + uuid4().hex
-    monkeypatch.setattr(stripe_api, "create_customer", lambda *a, **k: {"id": customer_id})
+    monkeypatch.setattr(stripe_api, "create_customer", lambda *a, **k: {"id": customer_id,"metadata":{"tenant_id":a[2]}})
     captured = {}
     provider_requests = []
     def create(params, **kwargs):

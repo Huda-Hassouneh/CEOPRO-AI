@@ -15,8 +15,8 @@ def plain(value):
     return value.to_dict() if hasattr(value, "to_dict") else value
 
 
-def clock(client):
-    clock_id = os.environ["STRIPE_TEST_CLOCK_ID"].strip()
+def clock(client, *, clock_id=None):
+    clock_id = clock_id or os.environ["STRIPE_TEST_CLOCK_ID"].strip()
     try:
         balance = plain(client.Balance.retrieve())
         result = plain(client.test_helpers.TestClock.retrieve(clock_id))

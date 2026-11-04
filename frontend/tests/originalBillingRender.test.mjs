@@ -26,6 +26,26 @@ async function render(locale, file, name, props) {
 }
 for(const locale of ['en','ar']) {
   for(const days of [14,7,0]){
+    test(`selected plan highlights catalog price and eligible ${days}-day trial in ${locale}`,async()=>{
+      const name=locale==='ar'?'الخطة المختارة للاختبار':'Catalog plan';
+      const plan={id:'synthetic',name:'Catalog plan',name_ar:'الخطة المختارة للاختبار',trialDays:days,currency:'USD',
+        features:{products:{type:'limit',name:'Products',limitValue:123}},
+        pricingOptions:[{period:'quarterly',totalPrice:177,intervalCount:3,intervalUnit:'month'}]};
+      const html=await render(locale,'PlanSummaryCard.jsx','PlanSummaryCard',{plan,billingPeriod:'quarterly',selected:true,trialAvailable:days>0,children:'Checkout action fixture'});
+      const {translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
+      assert.ok(html.includes(`>${name}</h2>`));
+      assert.ok(html.includes(translate(locale,'billing.payment.selectedPlan')));
+      assert.ok(html.includes(new Intl.NumberFormat(locale==='ar'?'ar-JO':'en-US',{style:'currency',currency:'USD'}).format(177)));
+      assert.ok(html.includes(translate(locale,'billing.periods.monthCountLabel',{months:3})));
+      assert.ok(html.indexOf('Checkout action fixture')<html.indexOf('<details'));
+      assert.ok(html.includes('Products')&&html.includes(new Intl.NumberFormat(locale==='ar'?'ar-JO':'en-US').format(123)));
+      assert.equal(html.includes('ceopro-plan-summary__trial-badge'),days>0);
+      if(days)assert.ok(html.includes(translate(locale,'billing.payment.trial',{days})));
+      const existing=await render(locale,'PlanSummaryCard.jsx','PlanSummaryCard',{plan,billingPeriod:'quarterly',selected:true,checkoutMode:'trial',checkoutTrialEndsAt:1794814640});
+      assert.ok(!existing.includes('ceopro-plan-summary__trial-badge'));
+      assert.ok(!existing.includes(translate(locale,'billing.payment.trial',{days})));
+      assert.ok(existing.includes('dateTime="2026-11-16T07:37:20.000Z"'));
+    });
     test(`default ${days}-day trial is shown only without an existing issued trial in ${locale}`,async()=>{
       const configured=toOriginalPlan(mapPlan({plan_key:'starter',name:{en:'Standard',ar:'ستاندرد'},trial_days:days,self_serve:true,monthly_price:29,currency:'USD',prices:[{period_code:'monthly',interval_months:1,amount:29,currency:'USD',discount_percent:0,purchasable:true}]}));
       const {translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');

@@ -15,6 +15,8 @@ import pytest
 
 from src.ai import db
 from src.ai.billing import service,store,stripe_api
+from src.ai.billing import checkout_attempts, trial_checkouts
+from src.ai.billing.payment_contracts import PaymentProviderError, ProviderOperationOutcome
 from src.ai.core import usage
 from src.ai.core.security import create_access_token
 from .test_reconciliation_roles import restricted_runtime, send  # Explicit native password-role fixtures.
@@ -29,7 +31,7 @@ def provider(monkeypatch,owner_db,restricted_runtime):
         cur.execute("SELECT price_id,stripe_price_id FROM billing_plan_prices WHERE plan_key IN ('starter','growth','enterprise') AND retired_at IS NULL")
         original=cur.fetchall()
         cur.execute("UPDATE billing_plan_prices SET stripe_price_id='price_trial_fixture_'||price_id::text WHERE plan_key IN ('starter','growth','enterprise') AND retired_at IS NULL")
-    monkeypatch.setattr(stripe_api,'create_customer',lambda *a,**kw:{'id':'cus_trial_'+uuid.uuid4().hex})
+    monkeypatch.setattr(stripe_api,'create_customer',lambda email,name,tenant,key,**kw:{'id':'cus_trial_'+uuid.uuid4().hex,'metadata':{'tenant_id':tenant}})
     monkeypatch.setattr(stripe_api,'customer_clock_time',lambda *a,**kw:None)
     monkeypatch.setattr(stripe_api,'retrieve_subscription',lambda key:deepcopy(subscriptions[key]))
     def checkout(params,idempotency_key):
@@ -71,6 +73,173 @@ def no_access_rows(owner_db,tenant):
         for table in ('billing_trials','billing_subscriptions','tenant_plan_assignments','tenant_credit_balances'):
             cur.execute('SELECT count(*) FROM '+table+' WHERE tenant_id=%s',(tenant[0],))
             assert cur.fetchone()[0]==0,table
+
+
+def test_continue_and_repeated_trial_requests_resume_authorized_trial(client,tenant,owner_db,provider):
+    body={'plan_key':'growth','period_code':'monthly'}
+    first=client.post('/billing/trial',headers=headers(tenant),json=body)
+    assert first.status_code==200,first.text
+    for path in ['/billing/trial','/billing/checkout','/billing/trial','/billing/checkout']:
+        result=client.post(path,headers=headers(tenant),json=body)
+        assert result.status_code==200,result.text
+        assert result.json()==first.json()
+    assert len(provider['requests'])==1
+    no_access_rows(owner_db,tenant)
+
+
+def test_unsubmitted_stale_reservation_recovers_different_selection(client,tenant,owner_db,provider):
+    # A crashed request after eligibility reservation but before freeze/submit.
+    with closing(db.billing_setup_connection(*tenant)) as conn:
+        with checkout_attempts.tenant_lock(conn,tenant[0]):
+            old=checkout_attempts.reserve(conn,tenant[0],'old-pro-selection','enterprise','monthly')
+            trial_checkouts.reserve(conn,*tenant,old,'enterprise','monthly')
+    result=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    assert result.status_code==200,result.text
+    assert len(provider['requests'])==1
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT state FROM billing_trial_checkouts WHERE attempt_id=%s',(old['attempt_id'],))
+        assert cur.fetchone()[0]=='released'
+        cur.execute("SELECT plan_key FROM billing_trial_checkouts WHERE tenant_id=%s AND state='pending'",(tenant[0],))
+        assert cur.fetchall()==[('growth',)]
+    no_access_rows(owner_db,tenant)
+
+
+def test_customer_setup_failure_releases_only_unsubmitted_checkout(client,tenant,owner_db,provider,monkeypatch):
+    def unavailable(*args,**kwargs):raise PaymentProviderError(ProviderOperationOutcome.OUTCOME_UNKNOWN)
+    monkeypatch.setattr(stripe_api,'create_customer',unavailable)
+    result=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'enterprise'})
+    assert result.status_code==502,result.text
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT state FROM billing_trial_checkouts WHERE tenant_id=%s',(tenant[0],))
+        assert cur.fetchall()==[('released',)]
+        cur.execute('SELECT state FROM billing_checkout_attempts WHERE tenant_id=%s',(tenant[0],))
+        assert cur.fetchall()==[('expired',)]
+    assert not provider['requests']
+    no_access_rows(owner_db,tenant)
+
+
+@pytest.mark.parametrize('terminal',['expired','missing'])
+def test_terminal_provider_checkout_recovers_without_webhook(client,tenant,owner_db,provider,monkeypatch,terminal):
+    first=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'enterprise'})
+    sid=first.json()['session_id']
+    if terminal=='expired':provider['sessions'][sid]['status']='expired'
+    else:
+        original=service.StripeGateway.get_checkout
+        def read(gateway,reference):
+            if reference.opaque_id==sid:raise PaymentProviderError(ProviderOperationOutcome.NOT_FOUND)
+            return original(gateway,reference)
+        monkeypatch.setattr(service.StripeGateway,'get_checkout',read)
+    result=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    assert result.status_code==200,result.text
+    assert result.json()['session_id']!=sid
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT state,count(*) FROM billing_trial_checkouts WHERE tenant_id=%s GROUP BY state',(tenant[0],))
+        assert dict(cur.fetchall())=={'released':1,'pending':1}
+    no_access_rows(owner_db,tenant)
+
+
+def test_open_paid_checkout_cannot_silently_replace_requested_trial(client,tenant,owner_db,provider):
+    first=client.post('/billing/checkout',headers=headers(tenant),json={'plan_key':'growth'})
+    assert first.status_code==200,first.text
+    conflict=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    assert conflict.status_code==409 and conflict.json()['detail']['reason']=='checkout_pending'
+    assert len(provider['requests'])==1
+    no_access_rows(owner_db,tenant)
+
+
+@pytest.mark.parametrize('state',['complete','unknown'])
+def test_nonterminal_or_completed_checkout_cannot_be_released(client,tenant,owner_db,provider,state):
+    first=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    provider['sessions'][first.json()['session_id']]['status']=state
+    assert client.post('/billing/checkout/cancel-pending',headers=headers(tenant)).status_code==409
+    assert client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'}).status_code==409
+    assert len(provider['requests'])==1
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT state FROM billing_trial_checkouts WHERE tenant_id=%s',(tenant[0],))
+        assert cur.fetchone()[0]=='pending'
+    no_access_rows(owner_db,tenant)
+
+
+def test_explicit_close_then_retry_preserves_eligibility(client,tenant,owner_db,provider):
+    first=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    assert client.post('/billing/checkout/cancel-pending',headers=headers(tenant)).status_code==200
+    assert provider['sessions'][first.json()['session_id']]['status']=='expired'
+    assert client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'enterprise'}).status_code==200
+    no_access_rows(owner_db,tenant)
+
+
+def test_concurrent_identical_trial_checkouts_resume_one_session(client,tenant,owner_db,provider):
+    def start(_):return client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    with ThreadPoolExecutor(max_workers=4) as pool:results=list(pool.map(start,range(4)))
+    assert [r.status_code for r in results]==[200]*4
+    assert len({r.json()['session_id'] for r in results})==1
+    assert len(provider['requests'])==1
+    no_access_rows(owner_db,tenant)
+
+
+def test_unknown_submit_replays_frozen_request_instead_of_releasing(client,tenant,owner_db,provider,monkeypatch):
+    submit=stripe_api.create_checkout_session
+    saved={};keys=[]
+    def uncertain(params,idempotency_key):
+        keys.append(idempotency_key)
+        if not saved:
+            saved.update(submit(params,idempotency_key))
+            raise PaymentProviderError(ProviderOperationOutcome.OUTCOME_UNKNOWN)
+        return deepcopy(saved)
+    monkeypatch.setattr(stripe_api,'create_checkout_session',uncertain)
+    first=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    assert first.status_code==502,first.text
+    # Neither an incompatible request nor cancellation may free an uncertain write.
+    assert client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'enterprise'}).status_code==409
+    assert client.post('/billing/checkout/cancel-pending',headers=headers(tenant)).status_code==409
+    retry=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    assert retry.status_code==200,retry.text
+    assert retry.json()['session_id']==saved['id'] and len(set(keys))==1
+    assert len(provider['requests'])==1
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT state,count(*) FROM billing_trial_checkouts WHERE tenant_id=%s GROUP BY state',(tenant[0],))
+        assert cur.fetchall()==[('pending',1)]
+    no_access_rows(owner_db,tenant)
+
+
+def test_provider_read_failure_does_not_release_pending(client,tenant,owner_db,provider,monkeypatch):
+    assert client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'}).status_code==200
+    def unavailable(*args):raise PaymentProviderError(ProviderOperationOutcome.UNAVAILABLE)
+    monkeypatch.setattr(service.StripeGateway,'get_checkout',unavailable)
+    assert client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'}).status_code==502
+    assert client.post('/billing/checkout/cancel-pending',headers=headers(tenant)).status_code==502
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT state FROM billing_trial_checkouts WHERE tenant_id=%s',(tenant[0],))
+        assert cur.fetchone()[0]=='pending'
+    no_access_rows(owner_db,tenant)
+
+
+def test_expiry_racing_completion_does_not_release_pending(client,tenant,owner_db,provider,monkeypatch):
+    first=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    sid=first.json()['session_id']
+    def completed(reference):
+        provider['sessions'][reference]['status']='complete'
+        return deepcopy(provider['sessions'][reference])
+    monkeypatch.setattr(stripe_api,'expire_checkout_session',completed)
+    assert client.post('/billing/checkout/cancel-pending',headers=headers(tenant)).status_code==409
+    assert provider['sessions'][sid]['status']=='complete'
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT state FROM billing_trial_checkouts WHERE tenant_id=%s',(tenant[0],))
+        assert cur.fetchone()[0]=='pending'
+    no_access_rows(owner_db,tenant)
+
+
+def test_webhook_expiry_then_stale_request_expiry_is_idempotent(client,tenant,owner_db,provider,send):
+    first=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'})
+    with closing(db.billing_setup_connection(*tenant)) as conn:
+        attempt=checkout_attempts.active(conn,tenant[0])
+        session=provider['sessions'][first.json()['session_id']];session['status']='expired'
+        assert send('checkout.session.expired',session).status_code==200
+        # The verified expiry raced a caller that already read the old attempt.
+        checkout_attempts.expire(conn,attempt)
+        checkout_attempts.expire(conn,attempt)
+    assert client.post('/billing/trial',headers=headers(tenant),json={'plan_key':'growth'}).status_code==200
+    no_access_rows(owner_db,tenant)
 
 
 @pytest.mark.parametrize('plan,days',[('starter',14),('growth',14),('enterprise',7)])
@@ -274,7 +443,7 @@ def test_historical_custom_trial_remains_readable_and_unchanged(owner_db,tenant)
 
 def test_trial_policy_layers_import_no_provider_sdk():
     root=Path(__file__).resolve().parents[2]/'src/ai'
-    for file in ['onboarding_profile.py','billing/trial_checkouts.py','billing/payment_contracts.py','billing/service.py','billing/webhooks.py','core/usage.py','core/entitlements.py']:
+    for file in ['onboarding_profile.py','billing/trial_checkouts.py','billing/customer_operations.py','billing/payment_contracts.py','billing/service.py','billing/webhooks.py','core/usage.py','core/entitlements.py']:
         tree=ast.parse((root/file).read_text(encoding='utf-8'))
         for node in ast.walk(tree):
             if isinstance(node,ast.Import):assert all(n.name!='stripe' and not n.name.startswith('stripe.') for n in node.names),file

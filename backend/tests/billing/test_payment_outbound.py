@@ -13,12 +13,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.ai.billing import checkout_attempts, custom_offers, service, store, stripe_api
+from src.ai.billing import checkout_attempts, custom_offers, service, store, stripe_api, customer_operations
 from src.ai.billing.payment_contracts import (
     CheckoutIntent, CheckoutSnapshot, CheckoutState, FrozenCheckoutRequest, Money,
     PaymentProviderError, PaymentState, ProviderOperationOutcome as Outcome,
     ProviderReference as Ref, ScheduledChange, SubscriptionChangeResult,
     SubscriptionSnapshot, SubscriptionState,
+    CustomerIntent, CustomerSnapshot, FrozenCustomerRequest,
 )
 from src.ai.billing.stripe_gateway import StripeGateway
 from .test_reconciliation_roles import restricted_runtime  # noqa: F401
@@ -44,6 +45,16 @@ class OtherGateway:
     def create_customer(self, **fields):
         self.actions.append(("customer", fields))
         return Ref(self.provider, "account-alpha")
+
+    def prepare_customer(self,intent):
+        return FrozenCustomerRequest(self.provider,intent.idempotency_key,{'tenant':intent.tenant_reference},3600)
+
+    def submit_customer(self,request):
+        self.actions.append(('customer',request))
+        return CustomerSnapshot(Ref(self.provider,'account-alpha'),request.payload['tenant'])
+
+    def get_customer(self,reference,*,tenant_reference):
+        return CustomerSnapshot(reference,tenant_reference)
 
     def list_customer_subscriptions(self, customer):
         return ()
@@ -113,6 +124,16 @@ def application(monkeypatch, memory_checkout_reservations):
         "is_active": True, "self_serve": True, "stripe_price_id": "offer-alpha"})
     monkeypatch.setattr(store, "trial", lambda *a: None)
     monkeypatch.setattr(store, "save_customer", lambda *a: None)
+    # Explicit unit persistence double. Native customer-operation SQL, replay,
+    # concurrency and RLS are covered by test_customer_operations.py.
+    def resolve(conn,setup,tenant,email,name,provider):
+        mapped=store.customer_id(conn,tenant)
+        if mapped:
+            provider.get_customer(Ref(provider.provider,mapped),tenant_reference=tenant)
+            return mapped
+        request=provider.prepare_customer(CustomerIntent(tenant,email,name,'unit-operation','unit-stable-key'))
+        return provider.submit_customer(request).reference.opaque_id
+    monkeypatch.setattr(customer_operations,'resolve',resolve)
     return gateway
 
 

@@ -17,6 +17,16 @@ os.environ.setdefault("JWT_SECRET", "billing-isolated-test-secret-not-for-deploy
 def no_external_network(monkeypatch):
     """Offline provider doubles are explicit; genuine Stripe traffic is refused."""
     from src.ai.billing import stripe_api
+    from src.ai.billing.stripe_gateway import StripeGateway
+    from src.ai.billing.payment_contracts import CustomerSnapshot
+
+    # Explicit offline customer identity/namespace defaults. Dedicated customer
+    # tests exercise actual adapter translation and contradictory evidence.
+    monkeypatch.setattr(stripe_api,'prepare_customer_create',lambda email,name,tenant,operation:{
+        'namespace':{'account':'acct_offline','livemode':False},'api_version':'offline',
+        'params':{'email':email,'name':name,'metadata':{'tenant_id':tenant,'keel_customer_operation_id':operation}}})
+    monkeypatch.setattr(stripe_api,'recover_customer_create',lambda *args:None)
+    monkeypatch.setattr(StripeGateway,'get_customer',lambda self,reference,*,tenant_reference:CustomerSnapshot(reference,tenant_reference))
 
     # Baseline provider fixtures have no pre-existing remote subscriptions or legacy sessions.
     # Dedicated reconciliation tests supply actual provider-state contract responses.
