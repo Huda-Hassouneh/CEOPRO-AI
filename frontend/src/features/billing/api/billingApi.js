@@ -5,11 +5,11 @@ import { customOffersApi } from './customOffersApi.js';
 // from the backend (/billing/*); payment happens on Stripe-hosted pages.
 
 // Backend feature codes -> the keys the usage and plan screens render (the
-// same plan terms as routers/billing.py's _PAGE_KEYS). Competitors have no
-// fixed count (Data Credits limit discovery), and the assistant's token cap
-// is an internal safety limit, so neither is listed.
+// same plan terms as routers/billing.py's _PAGE_KEYS). Competitor capacity
+// is separate from external collection costs funded by Data Credits.
 export const LIMIT_KEYS = Object.freeze({
   tracked_products: ['products', 1],
+  tracked_competitors: ['competitors', 1],
   monthly_reports: ['reports', 1],
   team_seats: ['teamSeats', 1],
   data_credits: ['dataCredits', 1],

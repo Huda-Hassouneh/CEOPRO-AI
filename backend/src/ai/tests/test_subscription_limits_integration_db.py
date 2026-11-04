@@ -410,7 +410,7 @@ def test_a_downgrade_waits_for_the_end_of_the_paid_period(sys_conn, stripe_price
     assert usage.get_plan(sys_conn, tenant)["plan_key"] == "enterprise", "the paid plan stays until the period ends"
 
 
-def test_mixed_rights_change_schedules_the_entire_plan_at_period_end(sys_conn, stripe_prices, monkeypatch):
+def test_mixed_rights_change_requires_review_before_provider_mutation(sys_conn, stripe_prices, monkeypatch):
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
     with sys_conn.cursor() as cursor:
         cursor.execute(
@@ -422,6 +422,10 @@ def test_mixed_rights_change_schedules_the_entire_plan_at_period_end(sys_conn, s
         cursor.execute("UPDATE usage_plan_limits SET limit_value=20000 WHERE plan_key='growth' AND feature_code='sentiment_analysis';")
     sys_conn.commit()
 
+    with sys_conn.cursor() as cursor:
+        cursor.execute("SELECT limit_value FROM usage_plan_limits WHERE plan_key='starter' AND feature_code='sentiment_analysis';")
+        starter_sentiment_limit = cursor.fetchone()[0]
+    assert starter_sentiment_limit < 20000, "The fixture must retain an actual rights increase."
     tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
     start, end = int(time.time()), int(time.time()) + 30 * 86400
     phase = {"start_date": start, "end_date": end,
@@ -439,12 +443,15 @@ def test_mixed_rights_change_schedules_the_entire_plan_at_period_end(sys_conn, s
         target_rights = store.configured_plan_rights(sys_conn, tenant, "growth")
         assert current_rights["features"]["tracked_products"]["limit"] == 100
         assert target_rights["features"]["tracked_products"]["limit"] == 50
-        assert current_rights["features"]["sentiment_analysis"]["limit"] == 5000
+        assert current_rights["features"]["sentiment_analysis"]["limit"] == starter_sentiment_limit
         assert target_rights["features"]["sentiment_analysis"]["limit"] == 20000
         assert service._classify_rights_change(current_rights, target_rights) == ("mixed", ())
-        result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
-        assert result["state"] == "scheduled" and result["timing"] == "period_end"
-        assert modified["phases"][1]["items"][0]["price"] == stripe_prices[("growth", "monthly")]
+        # Lean catalog policy requires explicit review for simultaneous gains
+        # and losses; even a future schedule must not silently accept lost rights.
+        with pytest.raises(service.BillingError) as rejected:
+            service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
+        assert rejected.value.code == "plan_transition_mixed_rights"
+        assert not modified
         assert usage.get_plan(sys_conn, tenant)["plan_key"] == "starter"
     finally:
         with sys_conn.cursor() as cursor:

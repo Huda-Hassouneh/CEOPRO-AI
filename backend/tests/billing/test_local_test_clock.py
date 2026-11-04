@@ -216,6 +216,13 @@ def clock_runtime(sdk,monkeypatch,restricted_runtime):
 
 def test_native_checkout_mapping_reuse_conflict_and_disable(client,clock_runtime,tenant,test_price,owner_db,monkeypatch):
     sdk=clock_runtime;tid,uid=tenant;plan,_=test_price
+    # Clock identity/cutoff test: offer equivalent rights, not an empty plan
+    # that would silently remove the historical trial's allowances.
+    with owner_db.cursor() as cur:
+        cur.execute('INSERT INTO usage_plan_limits(plan_key,feature_code,limit_value,trial_limit_value) '
+                    "SELECT %s,feature_code,limit_value,trial_limit_value FROM usage_plan_limits WHERE plan_key='growth'",(plan,))
+        cur.execute('INSERT INTO usage_plan_entitlements(plan_key,feature_code) '
+                    "SELECT %s,feature_code FROM usage_plan_entitlements WHERE plan_key='growth'",(plan,))
     sdk.clock['frozen_time']-=8*3600  # Existing ready clock with a past origin.
     headers={'Authorization':'Bearer '+create_access_token(tid,uid,email_verified=True)[0]}
     monkeypatch.setenv('PUBLIC_FRONTEND_ORIGIN','http://127.0.0.1:15173')

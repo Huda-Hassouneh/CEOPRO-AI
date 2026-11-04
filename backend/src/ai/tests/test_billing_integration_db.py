@@ -97,12 +97,12 @@ def test_the_catalog_lists_self_serve_plans_with_prices_and_limits(sys_conn):
     assert plans["custom"]["self_serve"] is False and plans["custom"]["prices"] == []
     assert "standard" not in plans and "pro" not in plans, "retired packages are no longer sold"
     # KEEL's subscription terms (docs/SUBSCRIPTIONS_AND_CREDITS.md): Standard / Plus / Pro.
-    # products, reports/month, seats, competitors (None: budget-based), Data and AI Credits,
+    # products, reports/month, seats, tracked competitor capacity, Data and AI Credits,
     # reviews/month, AI token safety cap, sources, storage MB, uploads KB/month, images
     agreed = {
-        "starter": (100, 5, 5, None, 436, 436, 5000, 100000, 1, 1024, 51200, 20),
-        "growth": (250, 20, 20, None, 1111, 1111, 25000, 500000, 5, 10240, 512000, 100),
-        "enterprise": (500, 60, 50, None, 2780, 2780, 100000, 2000000, 20, 51200, 2097152, 150),
+        "starter": (100, 5, 5, 5, 436, 436, 3000, 100000, 1, 1024, 51200, 20),
+        "growth": (250, 20, 20, 15, 1111, 1111, 12000, 500000, 3, 5120, 204800, 100),
+        "enterprise": (500, 60, 50, 40, 2780, 2780, 40000, 2000000, 8, 20480, 768000, 150),
     }
     features = ("tracked_products", "monthly_reports", "team_seats", "tracked_competitors", "data_credits", "ai_credits",
                 "sentiment_analysis", "rag_assistant", "connected_data_sources", "document_storage_mb",

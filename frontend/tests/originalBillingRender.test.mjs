@@ -25,6 +25,28 @@ async function render(locale, file, name, props) {
   } finally { if(original===undefined)delete globalThis.window;else globalThis.window=original; }
 }
 for(const locale of ['en','ar']) {
+  test(`new plan cards clearly display finite competitor capacities in ${locale}`,async()=>{
+    for (const [id,competitors] of [['starter',5],['growth',15],['enterprise',40]]) {
+      const plan=mapPlan({plan_key:id,name:{en:id,ar:id},limits:{tracked_competitors:competitors},
+        trial_days:14,self_serve:true,prices:[],entitlements:[]});
+      const html=await render(locale,'OriginalPlanCard.jsx','PlanCard',{plan,billingPeriod:'monthly'});
+      const {translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
+      assert.ok(html.includes(translate(locale,'billing.plans.limits.competitors')));
+      assert.ok(html.includes(new Intl.NumberFormat(locale).format(competitors)));
+      assert.ok(!html.includes('billing.plans.limits.competitors'));
+    }
+  });
+  test(`mixed legacy rights require a localized review message in ${locale}`,async()=>{
+    const html=await render(locale,'PlanChangePreview.jsx','PlanChangePreview',{
+      subscription:{hasStripeSubscription:true},preview:{isError:true,error:{response:{data:{detail:{
+        reason:'plan_transition_mixed_rights',message:'Backend fallback text',
+      }}}}},
+    });
+    const {translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
+    assert.ok(html.includes(translate(locale,'billing.errors.plan_transition_mixed_rights')));
+    assert.ok(!html.includes('Backend fallback text'));
+    assert.ok(!html.includes('billing.errors.'));
+  });
   for(const days of [14,7,0]){
     test(`selected plan highlights catalog price and eligible ${days}-day trial in ${locale}`,async()=>{
       const name=locale==='ar'?'الخطة المختارة للاختبار':'Catalog plan';
