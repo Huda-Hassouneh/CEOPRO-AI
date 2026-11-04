@@ -560,9 +560,9 @@ def test_missing_target_limit_fails_closed_without_provider_changes(sys_conn, st
     with sys_conn.cursor() as cursor:
         cursor.execute("SELECT limit_value, trial_limit_value "
                        "FROM usage_plan_limits l JOIN usage_features f USING (feature_code) "
-                       "WHERE l.plan_key='growth' AND l.feature_code='web_searches';")
+                       "WHERE l.plan_key='growth' AND l.feature_code='monthly_reports';")
         limit_value, trial_limit = cursor.fetchone()
-        cursor.execute("DELETE FROM usage_plan_limits WHERE plan_key='growth' AND feature_code='web_searches';")
+        cursor.execute("DELETE FROM usage_plan_limits WHERE plan_key='growth' AND feature_code='monthly_reports';")
     sys_conn.commit()
 
     tenant, _sub = _subscribed(sys_conn, "starter", stripe_prices)
@@ -575,7 +575,7 @@ def test_missing_target_limit_fails_closed_without_provider_changes(sys_conn, st
         with sys_conn.cursor() as cursor:
             cursor.execute(
                 "INSERT INTO usage_plan_limits(plan_key, feature_code, limit_value, trial_limit_value) "
-                "VALUES ('growth', 'web_searches', %s, %s);", (limit_value, trial_limit),
+                "VALUES ('growth', 'monthly_reports', %s, %s);", (limit_value, trial_limit),
             )
         sys_conn.commit()
 

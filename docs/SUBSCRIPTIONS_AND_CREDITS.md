@@ -1,5 +1,64 @@
 # KEEL subscriptions, Data Credits and AI Credits
 
+## Web search commercial retirement
+
+`standard-plans-launch-v3` retires `web_searches` from new Standard templates
+and Custom selections. Web search remains part of authorized parent features;
+it is not a separate Boolean or numeric product. Historical feature rows,
+catalog versions, assignments, trial snapshots, quotes and analyses remain
+readable. Plan transition comparison ignores only this retired numeric key;
+all other missing/changed rights keep their existing checks. A legacy Custom
+revision may carry its original search quantity unchanged, but cannot increase
+it or introduce it into a new selection. The old localized label remains for
+historical quote rendering.
+Original revision retries retain their idempotent result even after a later
+revision removes the allowance; changed retry payloads still conflict.
+
+Forward migration `20261129000000_retire_web_search_commercial_allowance.sql`
+closes restricted SQL authoring bypasses. Setup installs the new immutable
+catalog version without synchronizing existing commercial rows. Apply the
+migration and run the existing catalog installer together before exposing new
+authoring; restart API/workers to load the new source. No normal database is
+migrated by tests. Existing published plan limits are retained as history and
+ignored commercially, including on renewal; new template plans omit the key.
+
+Pricing Studio retains legacy search coverage as Data-Credit-funded, with zero
+additional provider exposure. Credit pools and their actual provider operations
+must never be added a second time. Free public requests do not create monetary
+Credit charges. Paid calls still reserve/settle against Provider Accounting;
+the mixed-source workflow admission now requires subscription access rather
+than a positive Data Credit balance before provider selection.
+
+Outbound data-provider requests use `market_scraper/search_safety.py` for atomic
+tenant and shared provider capacity limits, concurrent-request leases and
+in-flight duplicate suppression. Redis failure refuses new outbound work.
+This guard is local to outbound data work: failure of its Redis admission does
+not add a global dependency to billing reads, Marketing generation, or AI Credit
+settlement. A full Redis service outage can still affect their existing queue,
+authentication, or cache dependencies independently of this search guard.
+Cached discovery responses keep their existing TTL; cache hits make no external
+call. The guard adds no new automatic retry. Web provider fallback is bounded
+to four unique entries; reference-price transient retries are bounded to two
+and accounted per attempt. Search/discovery transports cap configurable timeout
+at 30 seconds. Leases expire after 300 seconds to cover existing 180-second
+data-actor transports and recover dead workers.
+
+These are operational limits, common to all plans, never commercial allowances.
+Defaults: tenant 30/minute, 500/day, concurrency 3; provider 60/minute, 5000/day,
+concurrency 8. They are conservative launch safeguards, not a representation of
+any vendor's contractual quota. Operators must tune downward for actual vendor
+limits. Provider budgets are shared across credentials and hosts mapped to the
+same provider, so credential rotation cannot bypass them. Minute/day counters
+use fixed windows beginning on first admission, not billing periods.
+
+Redis `keel:search:safety:requests:<sha256(provider)>:<UTC-day-number>` hashes
+record operation/free-or-priced/succeeded-or-failed counts for seven days.
+Tenant window/inflight keys contain a tenant digest. Structured `search_request`
+logs provide provider/operation/outcome only, without queries, URLs or keys.
+Telemetry and capacity counters are not provider invoice or customer Credit
+ledgers. Existing crawler-specific robots/network/throttle and scheduled-job
+deduplication rules continue to apply independently.
+
 How KEEL's plans, usage budgets and billing work, what is enforced where,
 what still needs real prices before it can run, and how to deploy or roll
 back. The backend is the source of truth for every limit: the screens only

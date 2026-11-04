@@ -22,11 +22,11 @@ def rows(conn, query, args=()):
 def test_all_customer_identities_are_explicit_without_financial_or_platform_bindings():
     catalog = load_catalog()
     keys = {f['key'] for f in catalog['features']}
-    assert keys == set(economic_catalog.FEATURES)
-    assert len(keys) == 19
+    assert keys == set(economic_catalog.FEATURES) - {'web_searches'}
+    assert len(keys) == 18
     for plan in catalog['plans']:
         assert set(plan['features']) == keys
-        assert len(plan['allowances']) == 13
+        assert len(plan['allowances']) == 12
         competitors = next(a for a in plan['allowances'] if a['feature_key'] == 'tracked_competitors')
         assert competitors == dict(feature_key='tracked_competitors', state='limited', value={'starter':5,'growth':15,'enterprise':40}[plan['plan_key']], trial_value=None)
     assert not {'platform_administration','billing','pricing_studio','provider_accounting'} & keys
@@ -126,7 +126,7 @@ def test_template_owner_creation_edits_and_stripe_gating(owner_client,owner_db):
     assert client.post('/platform/billing/plans',json={**body,'plan_key':'standard'}).status_code==409
     configured=next(p for p in client.get('/platform/billing/standard-plans').json()['plans'] if p['plan_key']==key)
     assert configured['monthly_price']==87.21 and configured['is_active'] is False
-    assert len(configured['feature_limits'])==13 and len(configured['entitlements'])==6
+    assert len(configured['feature_limits'])==12 and len(configured['entitlements'])==6
     assert rows(owner_db,'SELECT trial_limit_value FROM usage_plan_limits WHERE plan_key=%s AND feature_code=%s',(key,'ai_credits'))==[(111,)]
     for code,value in [('ai_credits',700),('data_credits',800)]:
         assert client.patch(f'/platform/billing/plans/{key}/features',json=dict(feature_code=code,included=True,limit_value=value,reason='Owner template adjustment')).status_code==200
@@ -138,8 +138,8 @@ def test_template_owner_creation_edits_and_stripe_gating(owner_client,owner_db):
     assert client.patch(f'/platform/billing/plans/{key}/status',json=dict(active=False,reason='End synthetic acceptance')).status_code==200
     assert protected=={t:rows(owner_db,f'SELECT to_jsonb(r) FROM {t} r ORDER BY to_jsonb(r)::text') for t in protected}
     metadata=client.get('/platform/billing/feature-catalog').json()
-    assert len(metadata['features'])==19
-    assert {f['feature_code'] for f in metadata['features'] if f['custom_plan_supported']} == set(feature_contracts.QUANTITATIVE_FEATURES + feature_contracts.MODULE_FEATURES)
+    assert len(metadata['features'])==18
+    assert {f['feature_code'] for f in metadata['features'] if f['custom_plan_supported']} == set(feature_contracts.COMMERCIAL_QUANTITATIVE_FEATURES + feature_contracts.MODULE_FEATURES)
     assert {f['category']['key'] for f in metadata['features']}=={r['key'] for r in c['categories']}
     assert rows(owner_db,"SELECT count(*) FROM keel_platform_audit WHERE action='standard_plan_template_apply' AND subject=%s",('plan:'+key,))==[(1,)]
 

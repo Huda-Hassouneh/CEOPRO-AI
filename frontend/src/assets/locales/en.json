@@ -2210,6 +2210,7 @@
       "checkoutConfirmed": "Your subscription is confirmed and plan access is active."
     },
     "customPlan": {
+      "searchAccountingNotice": "Web search is available through included features. Paid data-provider requests use Data Credits. Free requests are subject to service capacity limits.",
       "cardTitle": "Custom — Build Your Plan",
       "cardDescription": "Choose KEEL capabilities and limits for your business.",
       "cardSummary": "KEEL reviews a tailored configuration. A request does not set a price or grant access.",

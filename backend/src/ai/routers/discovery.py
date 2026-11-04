@@ -67,7 +67,7 @@ class DiscoverRequest(BaseModel):
 
 @router.post("/runs", status_code=202)
 def start_discovery(body: DiscoverRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
-    credits.ensure_available(ctx.tenant_id, credits.DATA)  # 402 when this period's Data Credits are used
+    credits.ensure_access(ctx.tenant_id)  # Paid calls reserve Credits at provider selection.
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         run_id = pipeline.start_run(conn, ctx.tenant_id, ctx.user_id, body.radius_km)

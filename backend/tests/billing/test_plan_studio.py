@@ -77,6 +77,20 @@ def test_coverage_prevents_credit_double_counting_and_simulation_is_pure():
     assert plan == before and result['plan']['feature_limits'][0]['limit_value'] == 200
 
 
+def test_retired_search_in_legacy_plan_is_covered_once_by_data_credits():
+    from src.ai.billing.economic_catalog import coverage
+    plan, policy, sources = fixture()
+    sources['feature_economics'] = coverage()
+    before = plan_analysis.analyze(plan, policy, sources)
+    plan['feature_limits'].append(dict(feature_code='web_searches', limit_value=500,
+                                      reset_cycle='billing_period', aggregation_type='sum'))
+    legacy = plan_analysis.analyze(plan, policy, sources)
+    assert legacy['costs']['expected'] == before['costs']['expected']
+    assert legacy['costs']['stress'] == before['costs']['stress']
+    row = next(r for r in legacy['costs']['breakdown'] if r['feature'] == 'web_searches')
+    assert row['category'] == 'data_credits' and row['expected'] == 0
+
+
 def test_missing_policy_mapping_unlimited_and_fx_precision():
     plan, policy, sources = fixture()
     assert plan_analysis.analyze(plan, None, sources)['pricing'] is None

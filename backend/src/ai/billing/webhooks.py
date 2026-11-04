@@ -198,6 +198,7 @@ def _sync_custom_quote_subscription(sys_conn, subscription: SubscriptionSnapshot
         sys_conn, tenant_id=tenant_id, contract_ref=reference,
         approved_by=str(row[10]), reason=f"Verified Stripe invoice {invoice_id}; webhook {provider_event_id}",
         limits=admin.closed_quote_limits(limits),
+        legacy_quote_limits=True,  # Honor the verified immutable pre-retirement quote.
         monthly_price=Decimal(str(terms.get("monthlyPrice", terms.get("monthlyPriceUsd")))), currency=terms["currency"], trial_days=0,
         data_sources=(row[7] or {}).get("dataSources", []),
         included_features=(row[7] or {}).get("enabledFeatures", []),

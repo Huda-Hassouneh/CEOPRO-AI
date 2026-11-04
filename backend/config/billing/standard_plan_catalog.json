@@ -238,20 +238,6 @@
       "reset_cycle": "billing_period"
     },
     {
-      "key": "web_searches",
-      "category": "market",
-      "label_en": "Web Searches",
-      "label_ar": "البحث عبر الويب",
-      "description_en": "Metered searches per billing period; Data Credits also apply.",
-      "description_ar": "عمليات البحث المقاسة لكل فترة فوترة؛ تطبق أرصدة البيانات أيضاً.",
-      "display_order": 15,
-      "entitlement_type": "consumable",
-      "usage_feature": "web_searches",
-      "unit": "searches",
-      "aggregation_type": "sum",
-      "reset_cycle": "billing_period"
-    },
-    {
       "key": "rag_assistant",
       "category": "automation",
       "label_en": "RAG Assistant",
@@ -331,7 +317,6 @@
         "competitor_management",
         "tracked_competitors",
         "sentiment_analysis",
-        "web_searches",
         "rag_assistant",
         "marketing_image_generation",
         "ai_credits",
@@ -384,12 +369,6 @@
           "feature_key": "sentiment_analysis",
           "state": "limited",
           "value": 3000,
-          "trial_value": null
-        },
-        {
-          "feature_key": "web_searches",
-          "state": "limited",
-          "value": 100,
           "trial_value": null
         },
         {
@@ -456,7 +435,6 @@
         "competitor_management",
         "tracked_competitors",
         "sentiment_analysis",
-        "web_searches",
         "rag_assistant",
         "marketing_image_generation",
         "ai_credits",
@@ -509,12 +487,6 @@
           "feature_key": "sentiment_analysis",
           "state": "limited",
           "value": 12000,
-          "trial_value": null
-        },
-        {
-          "feature_key": "web_searches",
-          "state": "limited",
-          "value": 500,
           "trial_value": null
         },
         {
@@ -581,7 +553,6 @@
         "competitor_management",
         "tracked_competitors",
         "sentiment_analysis",
-        "web_searches",
         "rag_assistant",
         "marketing_image_generation",
         "ai_credits",
@@ -634,12 +605,6 @@
           "feature_key": "sentiment_analysis",
           "state": "limited",
           "value": 40000,
-          "trial_value": null
-        },
-        {
-          "feature_key": "web_searches",
-          "state": "limited",
-          "value": 500,
           "trial_value": null
         },
         {

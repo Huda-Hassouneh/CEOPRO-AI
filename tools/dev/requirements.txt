@@ -10,6 +10,8 @@ cryptography
 rank-bm25
 minio
 pytest
+# Deployment-configuration regression tests parse Compose/Render YAML.
+PyYAML>=6,<7
 pdfplumber
 openpyxl
 python-docx
