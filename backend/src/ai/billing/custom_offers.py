@@ -25,7 +25,7 @@ def module_catalog() -> list[dict]:
 
 def feature_catalog(conn) -> list[dict]:
     """Return the existing canonical feature units supported by private limits."""
-    supported = tuple(sorted(admin._NUMERIC_CONTRACT_FEATURES))
+    supported = tuple(sorted(admin.usage.COMMERCIAL_QUANTITATIVE_FEATURES))
     with conn.cursor() as cursor:
         cursor.execute(
             """
@@ -55,17 +55,22 @@ def feature_catalog(conn) -> list[dict]:
 
 
 def validate_configuration(conn, *, limits: dict, refresh_frequency: str | None,
-                           enabled_features: list[str] | None = None) -> dict:
+                           enabled_features: list[str] | None = None, legacy_limits: dict | None = None) -> dict:
     """Validate representation only; do not infer approval or price eligibility."""
     if not isinstance(limits, dict):
         raise CustomOfferError(422, "invalid_configuration", "Feature quantities must be an object.")
 
+    legacy = {code: value for code, value in limits.items()
+              if code in admin.usage.RETIRED_COMMERCIAL_FEATURES}
+    if legacy and any(code not in (legacy_limits or {}) or value != legacy_limits[code]
+                      for code, value in legacy.items()):
+        raise CustomOfferError(422, "retired_feature", "Web Search is no longer sold as a numeric allowance.")
     catalog = {item["featureCode"]: item for item in feature_catalog(conn)}
     unsupported = sorted(set(limits) - set(admin._NUMERIC_CONTRACT_FEATURES))
     if unsupported:
         raise CustomOfferError(422, "unsupported_feature", "One or more feature quantities are not supported.")
 
-    missing_catalog = sorted(set(limits) - set(catalog))
+    missing_catalog = sorted(set(limits) - set(catalog) - set(legacy))
     if missing_catalog:
         raise CustomOfferError(409, "feature_unmapped", "A requested feature has no verified Python unit mapping.")
 
@@ -247,8 +252,13 @@ def request_quote(conn, *, tenant_id: str, customer_user_id: str, idempotency_ke
 def create_revision(conn, *, quote_id: str, expected_revision: int, idempotency_key: str,
                     configuration: dict, feature_quantities: dict, commercial_terms: dict,
                     economic_inputs: dict, fx_evidence: dict, valid_until=None) -> dict:
+    # Validate representation here. The authenticated SQL revision command
+    # atomically verifies unchanged legacy quantities and original retry identities.
+    # Using only the current revision here would reject a valid historical retry
+    # after a later revision has removed the deprecated allowance.
     validate_configuration(conn, limits=feature_quantities,
                            enabled_features=configuration.get("enabledFeatures") or [],
+                           legacy_limits=feature_quantities if isinstance(feature_quantities, dict) else None,
                            refresh_frequency=(configuration.get("refreshFrequency") or configuration.get("refresh_frequency")))
     body = {
         "quote_id": quote_id, "expected_revision": expected_revision,

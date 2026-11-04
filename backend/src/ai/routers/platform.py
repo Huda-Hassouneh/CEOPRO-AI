@@ -1248,7 +1248,7 @@ def platform_feature_catalog(ctx: Ctx):
         catalog = installed_catalog(conn)
         labels = presentation(catalog)
         existing = {f['feature_code']: f for f in result['features']}
-        custom_supported = set(feature_contracts.QUANTITATIVE_FEATURES + feature_contracts.MODULE_FEATURES)
+        custom_supported = set(feature_contracts.COMMERCIAL_QUANTITATIVE_FEATURES + feature_contracts.MODULE_FEATURES)
         def stored_or_default(code, field, default):
             value = existing.get(code, {}).get(field)
             return default if value is None else value
@@ -1262,7 +1262,7 @@ def platform_feature_catalog(ctx: Ctx):
             description_ar=stored_or_default(f['key'], 'description_ar', f['description_ar']),
             metadata_editable=f['usage_feature'] is not None,
             custom_plan_supported=f['key'] in custom_supported)
-            for f in catalog['features']]
+            for f in catalog['features'] if f['key'] not in feature_contracts.RETIRED_COMMERCIAL_FEATURES]
         result['categories'] = catalog['categories']
         conn.commit()
         return result
@@ -1345,6 +1345,7 @@ def calculate_custom_quote(quote_id: UUID, ctx: TenantContext = Depends(get_tena
         else:
             preview = custom_plan_pricing_service.calculate_preview(
                 conn, limits=quantities,
+                legacy_limits=quantities,  # Loaded from the owner-authorized immutable quote revision.
                 enabled_features=configuration.get("enabledFeatures") or [],
                 refresh_frequency=configuration.get("refreshFrequency") or configuration.get("refresh_frequency"))
         if not preview.get("pricingAvailable") or not preview.get("pricingSnapshot"):

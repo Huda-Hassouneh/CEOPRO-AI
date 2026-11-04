@@ -3,6 +3,19 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createPlatformBillingCatalogApi } from '../src/features/platform/platformBillingCatalogApi.js';
 
+test('historical search allowances are not editable new commercial choices', async () => {
+  const api=createPlatformBillingCatalogApi({billing:{standardPlans:async()=>({plans:[{
+    plan_key:'growth',feature_limits:[{feature_code:'web_searches',limit_value:500},
+      {feature_code:'monthly_reports',limit_value:5}],entitlements:[],prices:[]}]})}});
+  const rows=(await api.getPlanFeatures('growth')).data;
+  assert.deepEqual(rows.map(r=>r.featureId),['monthly_reports']);
+  for(const locale of ['en','ar']) {
+    const messages=JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`,import.meta.url),'utf8'));
+    assert.ok(messages.billing.customPlan.searchAccountingNotice);
+    assert.ok(messages.billing.customPlan.featureNames.web_searches,'Historical labels remain readable');
+  }
+});
+
 test('catalog templates bind creation to the installed version without overriding commercial price', async () => {
   const catalog=JSON.parse(readFileSync(new URL('../../backend/config/billing/standard_plan_catalog.json',import.meta.url),'utf8'));
   let captured;
@@ -15,9 +28,10 @@ test('catalog templates bind creation to the installed version without overridin
     offers:{getConfigurator:async()=>({features:[],modules:[]})}});
   assert.equal((await api.getPlanTemplates()).catalog_version,catalog.catalog_version);
   const features=(await api.getFeatures()).data;
-  assert.equal(features.length,19);
+  assert.equal(features.length,18);
+  assert.equal(features.some(f=>f.code==='web_searches'),false);
   assert.equal(features.find(f=>f.code==='dashboard_analytics').type,'boolean');
-  assert.equal(features.filter(f=>f.customPlanSupported).length,16);
+  assert.equal(features.filter(f=>f.customPlanSupported).length,15);
   assert.equal(features.find(f=>f.code==='dashboard_analytics').customPlanSupported,false);
   assert.equal(features.find(f=>f.code==='ai_credits').category.key,'automation');
   await api.createPlan({plan_key:'new_identity',display_name:'New',display_name_ar:'جديد',tier_level:4,trial_days:1,

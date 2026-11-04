@@ -508,6 +508,8 @@ def _classify_rights_change(current: dict, target: dict) -> tuple[str, tuple[str
     current_features = current.get("features", {})
     target_features = target.get("features", {})
     for code in sorted(set(current_features) | set(target_features)):
+        if code in usage.RETIRED_COMMERCIAL_FEATURES:
+            continue  # Historical search counts are not commercial rights.
         old = current_features.get(code)
         new = target_features.get(code)
         if old is None or new is None:

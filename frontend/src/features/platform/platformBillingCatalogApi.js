@@ -190,7 +190,8 @@ export function createPlatformBillingCatalogApi({ billing = platformBillingApi, 
           type, unit: unit ?? item.unit, category: item.category, display_order: item.display_order,
           aggregationType: item.aggregationType, resetCycle: item.resetCycle };
       };
-      const numeric = (plan?.feature_limits || []).map((item) => ({ id: `${planId}:${item.feature_code}`, feature_id: item.feature_code, planId, featureId: item.feature_code, limit_value: item.limit_value, limitValue: item.limit_value, feature: featureLabel(item.feature_code, item.unit, 'limit') }));
+      // Historical rows stay on the backend; retired allowances are not editable offers.
+      const numeric = (plan?.feature_limits || []).filter((item) => item.feature_code !== 'web_searches').map((item) => ({ id: `${planId}:${item.feature_code}`, feature_id: item.feature_code, planId, featureId: item.feature_code, limit_value: item.limit_value, limitValue: item.limit_value, feature: featureLabel(item.feature_code, item.unit, 'limit') }));
       const modules = (plan?.entitlements || []).map((code) => ({ id: `${planId}:${code}`, feature_id: code, planId, featureId: code, limit_value: null, limitValue: null, feature: featureLabel(code, '', 'boolean') }));
       return wrap([...numeric, ...modules]);
     },

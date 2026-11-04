@@ -79,17 +79,22 @@ def _load_bindings(conn, policy_id, feature_codes: list[str], as_of: datetime) -
 
 def calculate_preview(conn, *, limits: dict, refresh_frequency: str | None,
                       enabled_features: list[str] | None = None,
-                      as_of: datetime | None = None) -> dict:
+                      as_of: datetime | None = None, legacy_limits: dict | None = None) -> dict:
     """Return public preview status; details expose no vendor costs or margins."""
     as_of = as_of or datetime.now(timezone.utc)
     if as_of.tzinfo is None:
         raise CustomPlanPricingError("quote timestamp must be timezone-aware")
     from src.ai.billing import custom_offers
     validated = custom_offers.validate_configuration(
-        conn, limits=limits, enabled_features=enabled_features or [], refresh_frequency=refresh_frequency)
+        conn, limits=limits, enabled_features=enabled_features or [], refresh_frequency=refresh_frequency,
+        legacy_limits=legacy_limits)
     quantities = {code: value for code, value in validated["configuration"]["limits"].items() if value > 0}
     included = list(validated["configuration"]["enabledFeatures"])
-    selected = {**quantities, **{code: 1 for code in included}}
+    retired = custom_offers.admin.usage.RETIRED_COMMERCIAL_FEATURES
+    # Preserve historical quote quantities in the new evidence snapshot, but
+    # never add a second search charge on top of the Data Credit pool.
+    selected = {**{code: value for code, value in quantities.items() if code not in retired},
+                **{code: 1 for code in included}}
     policy = active_policy(conn, as_of)
     if policy is None:
         return {"pricingAvailable": False, "pricingStatus": "configuration_required",
@@ -111,6 +116,8 @@ def calculate_preview(conn, *, limits: dict, refresh_frequency: str | None,
     feature_rows = []
     frequency_minutes = {"hourly": 60, "daily": 1440, "weekly": 10080, "every_12_hours": 720, "every_6_hours": 360}.get(refresh_frequency)
     for code, quantity in quantities.items():
+        if code in retired:
+            continue
         feature_rows.append({"feature_id": code, "feature_code": code, "limit_value": quantity,
                              "estimated_usage": quantity})
     for code in included:

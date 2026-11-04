@@ -316,5 +316,5 @@ def test_custom_paid_activation_and_frozen_limits_use_webhook_role(send,quote_ac
             assert "market_intelligence" in plan["entitlements"]
         with owner_db.cursor() as cur:
             cur.execute("SELECT count(*) FROM billing_custom_contract_activations WHERE tenant_id=%s",(tid,));assert cur.fetchone()[0]==1
-            cur.execute("SELECT count(*) FROM tenant_entitlement_overrides WHERE tenant_id=%s",(tid,));assert cur.fetchone()[0]==13
-            cur.execute("SELECT count(*) FROM entitlement_audit_log WHERE tenant_id=%s",(tid,));assert cur.fetchone()[0]>=14
+            cur.execute("SELECT count(*) FROM tenant_entitlement_overrides WHERE tenant_id=%s",(tid,));assert cur.fetchone()[0]==12
+            cur.execute("SELECT count(*) FROM entitlement_audit_log WHERE tenant_id=%s",(tid,));assert cur.fetchone()[0]>=13

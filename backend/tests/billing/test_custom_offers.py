@@ -36,7 +36,7 @@ class Connection:
 
 @pytest.fixture
 def connection(monkeypatch):
-    allowed = tuple(sorted(admin._NUMERIC_CONTRACT_FEATURES))
+    allowed = tuple(sorted(admin.usage.COMMERCIAL_QUANTITATIVE_FEATURES))
     rows = [(allowed[0], "records", "max", "billing_period"), (allowed[1], "MB", "sum", "billing_period")]
     monkeypatch.setattr(admin, "_NUMERIC_CONTRACT_FEATURES", allowed)
     return Connection(rows), allowed

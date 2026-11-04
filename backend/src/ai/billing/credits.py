@@ -333,6 +333,34 @@ def _budget(conn, tenant_id: str, budget_kind: str) -> dict:
     }
 
 
+def ensure_access(tenant_id: str, budget_kind: str = DATA, conn_factory: Callable = None) -> None:
+    """Access admission for mixed free/paid work; paid calls reserve separately."""
+    if _bypassed_for_tests():
+        return
+    conn = None
+    try:
+        conn = (conn_factory or (lambda: _scoped_connection(tenant_id)))()
+        if not _budget(conn, str(tenant_id), budget_kind)["has_access"]:
+            raise BudgetError("SUBSCRIPTION_INACTIVE", budget_kind)
+    except BudgetError:
+        raise
+    except Exception as exc:
+        raise BudgetError("ACCOUNTING_UNAVAILABLE", budget_kind, detail=type(exc).__name__) from exc
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def requires_access():
+    from fastapi import Depends
+    from src.ai.core.security import TenantContext, get_tenant_context
+
+    def dependency(ctx: TenantContext = Depends(get_tenant_context)) -> None:
+        ensure_access(ctx.tenant_id)
+
+    return Depends(dependency)
+
+
 def ensure_available(tenant_id: str, budget_kind: str, conn_factory: Callable = None) -> None:
     """Before starting discretionary work (a discovery run): refuses up front
     when the company has no access or no credits left this period, instead

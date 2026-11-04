@@ -32,7 +32,7 @@ import httpx
 logger = logging.getLogger("KEEL_WEB_SEARCH")
 
 DEFAULT_ORDER = "google_cse,brave,tavily,searxng"
-TIMEOUT = float(os.getenv("WEB_SEARCH_TIMEOUT_SECONDS", "15"))
+TIMEOUT = min(30.0, max(1.0, float(os.getenv("WEB_SEARCH_TIMEOUT_SECONDS", "15"))))
 from src.market_scraper.user_agent import USER_AGENT  # noqa: E402
 from src.ai.core.env_secret import secret  # noqa: E402
 
@@ -95,7 +95,9 @@ def _default_fetch(method: str, url: str, *, params=None, json=None, headers=Non
         response.raise_for_status()
         return response.json()
 
-    return metered_request(url, send, json_body=json)  # paid searches come out of Data Credits
+    from src.market_scraper.search_safety import fingerprint
+    return metered_request(url, send, json_body=json,
+                           request_key=fingerprint(method, url, params, json))
 
 
 def _results(items, url_key: str, snippet_key: str, limit: int) -> List[Result]:
@@ -260,7 +262,7 @@ PROVIDERS: Dict[str, Tuple[Tuple[str, ...], Callable]] = {
 
 def configured_providers(exclude: Tuple[str, ...] = ()) -> List[str]:
     """Configured providers in WEB_SEARCH_PROVIDERS order (unknown names ignored)."""
-    order = [p.strip() for p in os.getenv("WEB_SEARCH_PROVIDERS", DEFAULT_ORDER).split(",") if p.strip()]
+    order = list(dict.fromkeys(p.strip() for p in os.getenv("WEB_SEARCH_PROVIDERS", DEFAULT_ORDER).split(",") if p.strip()))[:4]
     return [p for p in order if p in PROVIDERS and p not in exclude and all(secret(v) for v in PROVIDERS[p][0])]
 
 

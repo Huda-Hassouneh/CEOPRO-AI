@@ -90,7 +90,7 @@ def _queue_competitor_receipts(conn, tenant_id, actor_user_id, competitor_ids, f
     return receipts
 
 
-@router.post("/competitors/enrich-failed", dependencies=[credits.requires_budget(credits.DATA)])
+@router.post("/competitors/enrich-failed", dependencies=[credits.requires_access()])
 def enrich_failed_competitors_endpoint(ctx: TenantContext = Depends(get_tenant_context)):
     """
     "Retry all failed": queues one background job that re-runs every
@@ -139,7 +139,7 @@ def competitor_data_status_endpoint(competitor_id: str, ctx: TenantContext = Dep
     return {"competitor_id": competitor_id, "queued": queued, **status[competitor_id]}
 
 
-@router.post("/competitors/{competitor_id}/enrich", dependencies=[credits.requires_budget(credits.DATA)])
+@router.post("/competitors/{competitor_id}/enrich", dependencies=[credits.requires_access()])
 def enrich_competitor_endpoint(
     competitor_id: str, body: Optional[EnrichCompetitorRequest] = None,
     background: bool = Query(default=False), ctx: TenantContext = Depends(get_tenant_context),
@@ -257,7 +257,7 @@ def market_price_coverage_endpoint(
         conn.close()
 
 
-@router.post("/pricing/market-coverage/fill", dependencies=[credits.requires_budget(credits.DATA)])
+@router.post("/pricing/market-coverage/fill", dependencies=[credits.requires_access()])
 def fill_market_price_gaps_endpoint(ctx: TenantContext = Depends(get_tenant_context)):
     """
     Looks up a market reference price for products that have none: open price
