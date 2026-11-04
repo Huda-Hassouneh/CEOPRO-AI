@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from src.ai.billing import config
+from src.ai.billing.payment_contracts import InvoiceSnapshot, SubscriptionSnapshot, SubscriptionState, VerifiedPaymentEvent
 
 # Stripe subscription status -> the status KEEL stores (same table as the
 # reference project's billing service).
@@ -347,20 +348,35 @@ def subscription_price_id(stripe_sub: dict) -> Optional[str]:
 
 
 def apply_subscription(
-    sys_conn, tenant_id: str, stripe_sub: dict, plan_key: str, period_code: str, event_created: datetime,
+    sys_conn, tenant_id: str, stripe_sub: dict | SubscriptionSnapshot, plan_key: str, period_code: str, event_created: datetime,
     *, trial_payment_verified: bool = False,
 ) -> dict:
     """Stores Stripe's current view of a subscription and makes the company's
     plan follow it. Only ever called with a subscription freshly retrieved
     from Stripe, so a late or repeated event can't roll it back."""
-    status = STATUS_FROM_STRIPE.get(stripe_sub.get("status"), "pending")
-    period_start, period_end = period_bounds(stripe_sub)
+    # Legacy administrative/test callers keep their existing dict boundary.
+    # Production reconciliation supplies normalized provider state directly.
+    if isinstance(stripe_sub, SubscriptionSnapshot):
+        status = stripe_sub.state.value if stripe_sub.state != SubscriptionState.UNKNOWN else "pending"
+        subscription_id, customer = stripe_sub.reference.opaque_id, stripe_sub.customer.opaque_id
+        price_id = stripe_sub.items[0].price.opaque_id if stripe_sub.items else None
+        period_start, period_end = stripe_sub.period_start, stripe_sub.period_end
+        provider_end = stripe_sub.trial_end
+        cancelling, cancelled_at = stripe_sub.cancel_at_period_end, stripe_sub.cancelled_at
+    else:
+        status = STATUS_FROM_STRIPE.get(stripe_sub.get("status"), "pending")
+        subscription_id = stripe_sub["id"]
+        customer = stripe_sub.get("customer")
+        customer = customer.get("id") if isinstance(customer, dict) else customer
+        price_id = subscription_price_id(stripe_sub)
+        period_start, period_end = period_bounds(stripe_sub)
+        provider_end = _ts(stripe_sub.get("trial_end"))
+        cancelling, cancelled_at = bool(stripe_sub.get("cancel_at_period_end")), _ts(stripe_sub.get("canceled_at"))
     previous = current_subscription(sys_conn, tenant_id)
-    if (previous and previous["stripe_subscription_id"] == stripe_sub["id"]
+    if (previous and previous["stripe_subscription_id"] == subscription_id
             and (previous.get("trial_end") or previous["status"] == "trialing")
             and status in config.CURRENT_STATUSES):
         approved_end = previous.get("trial_end")
-        provider_end = _ts(stripe_sub.get("trial_end"))
         if (not approved_end or provider_end != approved_end
                 or (status == "active" and (not period_start or period_start < approved_end))):
             # A schedule update is not authority to shorten/extend an existing
@@ -369,8 +385,6 @@ def apply_subscription(
             raise ValueError("trial_boundary_conflict: verified trial terms changed without an authorized transition")
         if status == "active" and previous["status"] != "active" and not trial_payment_verified:
             raise ValueError("trial_payment_unverified: a paid invoice covering the first post-trial period is required")
-    customer = stripe_sub.get("customer")
-    customer = customer.get("id") if isinstance(customer, dict) else customer
     with sys_conn.cursor() as cursor:
         # Different subscription objects share one commercial assignment.
         cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
@@ -401,9 +415,8 @@ def apply_subscription(
             RETURNING {_SUB_COLUMNS};
             """,
             (
-                tenant_id, stripe_sub["id"], customer, subscription_price_id(stripe_sub), plan_key, period_code, status,
-                period_start, period_end, _ts(stripe_sub.get("trial_end")), bool(stripe_sub.get("cancel_at_period_end")),
-                _ts(stripe_sub.get("canceled_at")), event_created,
+                tenant_id, subscription_id, customer, price_id, plan_key, period_code, status,
+                period_start, period_end, provider_end, cancelling, cancelled_at, event_created,
             ),
         )
         saved = cursor.fetchone()
@@ -413,7 +426,7 @@ def apply_subscription(
         cursor.execute(
             "SELECT 1 FROM billing_subscriptions WHERE tenant_id=%s "
             "AND stripe_subscription_id<>%s AND status=ANY(%s);",
-            (tenant_id, stripe_sub["id"], list(config.CURRENT_STATUSES)),
+            (tenant_id, subscription_id, list(config.CURRENT_STATUSES)),
         )
         if cursor.fetchone():
             # Preserve history without revoking a replacement subscription.
@@ -464,14 +477,23 @@ def _minor_to_major(amount: int, currency: str) -> float:
     return float(amount) if currency.lower() in zero_decimal else round(amount / 100.0, 2)
 
 
-def record_payment(sys_conn, tenant_id: str, invoice: dict, subscription_id: Optional[str],
+def record_payment(sys_conn, tenant_id: str, invoice: dict | InvoiceSnapshot, subscription_id: Optional[str],
                    status: str, failure_reason: Optional[str] = None) -> None:
     """One row per invoice; a later success replaces an earlier failure."""
-    currency = (invoice.get("currency") or "usd").upper()
-    amount_minor = invoice.get("amount_paid") if status == "succeeded" else invoice.get("amount_due")
-    lines = ((invoice.get("lines") or {}).get("data") or [])
-    period = (lines[0].get("period") or {}) if lines else {}
-    paid_at = (invoice.get("status_transitions") or {}).get("paid_at")
+    if isinstance(invoice, InvoiceSnapshot):
+        money = invoice.amount_paid if status == "succeeded" else invoice.amount_due
+        invoice_id, amount, currency = invoice.reference.opaque_id, money.amount, money.currency
+        paid_at, payment_url, document_url = invoice.paid_at, invoice.payment_url, invoice.document_url
+        start, end = invoice.coverage[0] if invoice.coverage else (None, None)
+    else:
+        currency = (invoice.get("currency") or "usd").upper()
+        amount_minor = invoice.get("amount_paid") if status == "succeeded" else invoice.get("amount_due")
+        amount, invoice_id = _minor_to_major(amount_minor or 0, currency), invoice["id"]
+        lines = ((invoice.get("lines") or {}).get("data") or [])
+        period = (lines[0].get("period") or {}) if lines else {}
+        start, end = _ts(period.get("start")), _ts(period.get("end"))
+        paid_at = _ts((invoice.get("status_transitions") or {}).get("paid_at"))
+        payment_url, document_url = invoice.get("hosted_invoice_url"), invoice.get("invoice_pdf")
     with sys_conn.cursor() as cursor:
         cursor.execute(
             """
@@ -487,10 +509,9 @@ def record_payment(sys_conn, tenant_id: str, invoice: dict, subscription_id: Opt
               AND (billing_payments.status <> 'succeeded' OR EXCLUDED.status = 'succeeded');
             """,
             (
-                tenant_id, invoice["id"], subscription_id, _minor_to_major(amount_minor or 0, currency), currency, status,
-                (_ts(paid_at) or datetime.now(timezone.utc)) if status == "succeeded" else None, failure_reason,
-                invoice.get("hosted_invoice_url"), invoice.get("invoice_pdf"),
-                _ts(period.get("start")), _ts(period.get("end")),
+                tenant_id, invoice_id, subscription_id, amount, currency, status,
+                (paid_at or datetime.now(timezone.utc)) if status == "succeeded" else None, failure_reason,
+                payment_url, document_url, start, end,
             ),
         )
 
@@ -519,6 +540,16 @@ def payments(conn, tenant_id: str, limit: int = 24) -> list:
 
 
 # --- webhook audit ----------------------------------------------------------
+
+
+def claim_payment_event(sys_conn, event: VerifiedPaymentEvent) -> bool:
+    """Keep original evidence/type for existing event-scoped SQL guards.
+
+    Provider event names are persistence compatibility, not reconciliation rules.
+    """
+    return claim_event(sys_conn, event.event_id, event.raw_evidence["type"],
+                       event.occurred_at, event.raw_evidence)
+
 
 def claim_event(sys_conn, event_id: str, event_type: str, created: datetime, payload: dict) -> bool:
     """True when this event still needs processing: inserted now, or stored
