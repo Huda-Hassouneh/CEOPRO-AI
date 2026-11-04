@@ -51,7 +51,7 @@ try {
   assert.equal((await response.json()).is_active,false);
   await dialog.waitFor({state:'hidden'});
   const nav=page.locator('.billing-catalog-tabs nav');
-  await nav.getByRole('link',{name:t('billing.catalog.tabs.planFeatures'),exact:true}).click();
+  await nav.getByRole('link',{name:t('billing.catalog.ownerNavigation.allowances'),exact:true}).click();
   await page.getByLabel(t('billing.catalog.fields.plan'),{exact:true}).selectOption(key);
   for(const c of catalog.categories)await page.getByRole('heading',{name:locale==='ar'?c.label_ar:c.label_en,exact:true}).waitFor();
   const ai=catalog.features.find(f=>f.key==='ai_credits');

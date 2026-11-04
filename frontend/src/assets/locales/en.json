@@ -2805,6 +2805,15 @@
       "title": "Subscription Catalog",
       "subtitle": "Manage the plans, promo codes, features, and plan limits supported by the subscription API.",
       "back": "Back to Plans & Subscription",
+      "ownerNavigation": {
+        "economics": "Economics", "sections": "Billing workspace sections", "catalog": "Catalog / terms",
+        "quotes": "Quotes", "contracts": "Contracts", "customPricing": "Pricing",
+        "capabilityCatalog": "Advanced capability catalog", "allowances": "Features & allowances",
+        "providerExplanation": "Actual external-provider cost evidence and schedules used by KEEL accounting.",
+        "studioExplanation": "Standard-plan economic analysis, expected and stress assumptions, break-even and margin decision support.",
+        "customPricingExplanation": "Pricing rules and evidence for customer-specific Custom Plan quotes.",
+        "customRateSource": "Custom pricing rate cards are versioned quote inputs; they may differ from Provider Accounting schedules. Check each rate's source and effective dates."
+      },
       "manageAction": "Manage Catalog",
       "actions": "Actions",
       "readOnly": "Read only",

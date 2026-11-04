@@ -27,6 +27,7 @@ const btn=(key,scope=page)=>scope.getByRole('button',{name:t(key),exact:true});
 try{
  await login('owner');
  await page.goto(base+'/platform/billing?tab=custom-quotes');await page.waitForURL(u=>u.pathname==='/admin/billing');
+ await page.getByRole('link',{name:t('billing.catalog.ownerNavigation.customPricing'),exact:true}).click();
  await page.getByRole('heading',{name:t('billing.catalog.customPlans.pricingPolicy.title'),exact:true}).waitFor();
  checks.push('Original shell, historical redirect and policy panel');
  await fill('billing.catalog.customPlans.targetMargin',25);await fill('billing.catalog.customPlans.pricingPolicy.fixedPlatformFee',0);await fill('billing.catalog.customPlans.pricingPolicy.monthlyInfrastructure',0);await fill('billing.catalog.customPlans.activeTenants',1);await fill('billing.catalog.customPlans.pricingPolicy.roundingIncrement','0.01');await fill('billing.catalog.legacyRestoration.approvalEvidence','SYNTHETIC TEST ONLY ? not production pricing');
@@ -45,6 +46,7 @@ try{
  await page.getByRole('dialog').waitFor({state:'hidden'});await page.getByRole('cell',{name:'synthetic-provider',exact:true}).waitFor();checks.push('Original Vendor Rate form persists and refreshes');
  await fill('billing.catalog.legacyRestoration.approvalEvidence','SYNTHETIC activation evidence');
  await btn('billing.catalog.legacyRestoration.activate').click();await request('/platform/billing/custom-plan-pricing/policies/'+policy.policy_version_id+'/activate',()=>btn('common.confirm',page.getByRole('dialog')).click());checks.push('Explicit policy activation through original section');
+ await page.getByRole('link',{name:t('billing.catalog.ownerNavigation.quotes'),exact:true}).click();
  await btn('billing.catalog.customPlans.create').click();dialog=page.getByRole('dialog');
  await dialog.locator('select').first().selectOption(fixture.customer.tenant_id);
  await dialog.locator('input[maxlength="50"]').first().fill('SYNTHETIC quote');await dialog.locator('input[maxlength="50"]').nth(1).fill('\u0639\u0631\u0636 \u062a\u062c\u0631\u064a\u0628\u064a');
