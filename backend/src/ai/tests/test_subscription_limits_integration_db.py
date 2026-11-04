@@ -293,7 +293,7 @@ def test_concurrent_trial_starts_for_one_person_grant_only_one_trial(sys_conn):
         assert cursor.fetchone()[0] == 1
 
 
-def test_the_trial_endpoint_refuses_a_second_trial(client,sys_conn,monkeypatch):
+def test_the_trial_endpoint_refuses_a_second_trial(client,sys_conn,monkeypatch,stripe_prices):
     account, headers = _signed_up(client, None)
     assert store.start_trial(sys_conn,account['tenant_id'],started_by_user_id=account['user_id'],plan_key='growth')
     sys_conn.commit()
