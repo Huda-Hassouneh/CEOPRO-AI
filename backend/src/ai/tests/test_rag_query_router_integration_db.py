@@ -11,6 +11,7 @@ from decimal import Decimal
 import psycopg2
 import pytest
 from fastapi.testclient import TestClient
+from src.ai.tests.signup_helpers import install_paid_plan_fixture
 
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -98,6 +99,7 @@ def _company_with_one_product(client):
         "code": client.app.state.test_verification_codes[email]} )
     assert session.status_code == 200, session.text
     tenant = _admin("SELECT tenant_id FROM companies WHERE business_name = %s;", (business,))[0][0]
+    install_paid_plan_fixture(session.json(), 'growth')
     _admin("INSERT INTO products (tenant_id, product_name, current_price, currency) VALUES (%s, %s, 2.5, 'JOD');",
            (tenant, json.dumps({"en": "Olive Oil 1L"})))
     return str(tenant), {"Authorization": f"Bearer {session.json()['access_token']}"}

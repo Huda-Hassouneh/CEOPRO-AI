@@ -44,7 +44,10 @@ def test_plain_gives_dicts_all_the_way_down():
 def test_every_stripe_call_wrapper_returns_plain_dicts(monkeypatch):
     class Fake:
         class Subscription:
-            retrieve = staticmethod(lambda sid: _subscription())
+            @staticmethod
+            def retrieve(sid, **kwargs):
+                assert sid == 'sub_123' and kwargs == {'expand': ['customer']}
+                return _subscription()
             modify = staticmethod(lambda sid, **kw: _subscription())
 
     monkeypatch.setattr(stripe_api, "_client", lambda: Fake)
