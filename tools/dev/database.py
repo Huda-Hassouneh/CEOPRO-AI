@@ -52,7 +52,8 @@ def check(c, *, database=None):
         assert not cur.fetchall(), "Runtime role must not own owner-bypass tables"
         for role, login in (("ceopro_billing_setup", True), ("ceopro_trial_issuer", False),
                             ("ceopro_billing_webhook", True), ("ceopro_credit_accounting", True),
-                            ("ceopro_billing_lookup", False), ("ceopro_schedule_writer", False)):
+                            ("ceopro_billing_lookup", False), ("ceopro_schedule_writer", False),
+                            ("ceopro_image_worker", True)):
             cur.execute("SELECT rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolinherit,rolreplication,rolcanlogin FROM pg_roles WHERE rolname=%s", (role,))
             assert cur.fetchone() == (False, False, False, False, False, False, login), "Unsafe billing setup identity"
             cur.execute("SELECT count(*) FROM pg_auth_members WHERE member=(SELECT oid FROM pg_roles WHERE rolname=%s)", (role,))
@@ -76,6 +77,14 @@ def check(c, *, database=None):
                 password=c["billing_setup_password"], connect_timeout=5)) as conn, conn.cursor() as cur:
             cur.execute("SELECT current_user")
             assert cur.fetchone() == ("ceopro_billing_setup",), "Billing setup password login failed"
+    if c.get('image_worker_password'):
+        import psycopg2
+        parsed = urlsplit(environment(c, external=database is None)['DATABASE_URL'])
+        with contextlib.closing(psycopg2.connect(host=parsed.hostname, port=parsed.port,
+                dbname=database or parsed.path.lstrip('/'), user='ceopro_image_worker',
+                password=c['image_worker_password'], connect_timeout=5)) as conn, conn.cursor() as cur:
+            cur.execute('SELECT current_user')
+            assert cur.fetchone() == ('ceopro_image_worker',), 'Image worker password login failed'
     print(f"OK database identity, pgvector, {len(expected)} migrations, restricted password login, {count} FORCE RLS tables")
 
 

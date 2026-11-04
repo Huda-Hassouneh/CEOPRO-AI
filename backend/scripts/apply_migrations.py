@@ -110,7 +110,8 @@ def _sync_billing_setup_password(conn) -> None:
     from psycopg2 import sql
     for role, variable in (("ceopro_billing_setup", "BILLING_SETUP_DB_PASSWORD"),
                            ("ceopro_billing_webhook", "BILLING_WEBHOOK_DB_PASSWORD"),
-                           ("ceopro_credit_accounting", "CREDIT_ACCOUNTING_DB_PASSWORD")):
+                           ("ceopro_credit_accounting", "CREDIT_ACCOUNTING_DB_PASSWORD"),
+                           ("ceopro_image_worker", "IMAGE_WORKER_DB_PASSWORD")):
         password = os.getenv(variable)
         if not password:
             continue
