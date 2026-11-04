@@ -11,6 +11,7 @@ import stripe
 from src.ai.billing import stripe_api, test_clock
 from src.ai.billing.payment_contracts import (
     CheckoutIntent, CheckoutSnapshot, CheckoutState, FrozenCheckoutRequest, InvoiceSnapshot, Money,
+    CustomerSnapshot, FrozenCustomerRequest,
     PaymentProviderError, PaymentState, ProviderOperationOutcome as Outcome,
     ProviderReference, ScheduledChange, SubscriptionChangeIntent,
     SubscriptionChangeResult, SubscriptionItem, SubscriptionSnapshot, SubscriptionState,
@@ -61,6 +62,10 @@ def _checkout(data):
         is_subscription=data.get("mode") == "subscription",
         invoice=_reference(data.get("invoice")),
     )
+
+
+def _customer(data):
+    return CustomerSnapshot(_required_reference(data['id']),(data.get('metadata') or {}).get('tenant_id'),bool(data.get('deleted')))
 
 
 def _subscription(data):
@@ -141,6 +146,8 @@ def _call(operation, *, mutating=False, completed_writes=None):
     except Exception as error:
         if completed_writes:
             outcome = Outcome.OUTCOME_UNKNOWN
+        elif isinstance(error,stripe.IdempotencyError):
+            outcome = Outcome.OUTCOME_UNKNOWN
         elif stripe_api.checkout_request_rejected(error):
             outcome = Outcome.REJECTED
         elif isinstance(error, stripe.InvalidRequestError) and error.http_status == 404:
@@ -193,6 +200,28 @@ class StripeGateway:
             raise ValueError("A durable idempotency key is required")
         return _call(lambda: _required_reference(stripe_api.create_customer(
             email, company_name, tenant_reference, idempotency_key)["id"]), mutating=True)
+
+    def prepare_customer(self,intent):
+        payload=_call(lambda:stripe_api.prepare_customer_create(intent.email,intent.company_name,intent.tenant_reference,intent.operation_id))
+        # Stripe v1 may prune keys after 24h. Leave margin; never blindly replay
+        # an unresolved write after that guarantee. The domain treats this as
+        # the provider's generic safe replay window.
+        return FrozenCustomerRequest(self.provider,intent.idempotency_key,payload,23*3600)
+
+    def submit_customer(self,request):
+        if request.provider!=self.provider:
+            raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
+        params=request.payload['params']
+        return _call(lambda:_customer(stripe_api.create_customer(params['email'],params['name'],params['metadata']['tenant_id'],request.idempotency_key,frozen=request.payload)),mutating=True)
+
+    def get_customer(self,reference,*,tenant_reference):
+        return _call(lambda:_customer(stripe_api.retrieve_customer(_identifier(reference))))
+
+    def recover_customer(self,intent):
+        def read():
+            value=stripe_api.recover_customer_create(intent.tenant_reference,intent.operation_id,intent.request.payload if intent.request else None)
+            return _customer(value) if value else None
+        return _call(read)
 
     def list_customer_subscriptions(self, customer):
         identifier = _identifier(customer)

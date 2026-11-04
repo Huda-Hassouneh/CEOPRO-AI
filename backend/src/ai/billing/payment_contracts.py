@@ -64,6 +64,40 @@ class CheckoutState(str, Enum):
     UNKNOWN = "unknown"
 
 
+@dataclass(frozen=True)
+class CustomerIntent:
+    tenant_reference: str
+    email: str
+    company_name: str
+    operation_id: str
+    idempotency_key: str
+
+
+@dataclass(frozen=True)
+class FrozenCustomerRequest:
+    """Adapter-owned transport and namespace, committed before the first write."""
+    provider: str
+    idempotency_key: str
+    payload: Mapping
+    replay_window_seconds: int
+
+
+@dataclass(frozen=True)
+class CustomerSnapshot:
+    reference: ProviderReference
+    tenant_reference: str | None
+    deleted: bool = False
+
+
+@dataclass(frozen=True)
+class CustomerRecoveryIntent:
+    tenant_reference: str
+    operation_id: str
+    idempotency_key: str
+    created_at: datetime
+    request: FrozenCustomerRequest | None
+
+
 class PaymentState(str, Enum):
     PAID = "paid"
     NOT_REQUIRED = "not_required"
@@ -264,6 +298,10 @@ class SubscriptionPaymentGateway(Protocol):
                       require_clock: bool = False) -> datetime | None: ...
     def create_customer(self, *, email: str, company_name: str, tenant_reference: str,
                         idempotency_key: str) -> ProviderReference: ...
+    def prepare_customer(self, intent: CustomerIntent) -> FrozenCustomerRequest: ...
+    def submit_customer(self, request: FrozenCustomerRequest) -> CustomerSnapshot: ...
+    def get_customer(self, reference: ProviderReference, *, tenant_reference: str) -> CustomerSnapshot: ...
+    def recover_customer(self, intent: CustomerRecoveryIntent) -> CustomerSnapshot | None: ...
     def list_customer_subscriptions(self, customer: ProviderReference) -> tuple[SubscriptionSnapshot, ...]: ...
     def list_open_checkouts(self, customer: ProviderReference) -> tuple[CheckoutSnapshot, ...]: ...
     def create_checkout(self, intent: CheckoutIntent) -> CheckoutSnapshot: ...

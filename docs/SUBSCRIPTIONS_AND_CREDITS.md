@@ -72,6 +72,38 @@ Pro does not replace a previously issued Plus trial with Pro's shorter default.
 No rounded countdown replaces configured days. Already frozen Checkout
 requests, subscriptions, credits and billing boundaries are unchanged.
 
+Pending Checkout retries reuse the original frozen request and provider session
+under the tenant's Checkout lock. Continue may also resume an already authorized
+trial Checkout for the same plan, term and promotion; Start trial cannot silently
+resume a paid Checkout. A reservation with no session and no frozen request has
+never submitted Checkout and can safely release its trial claim when changing
+selection or after a setup failure. Verified expired/missing sessions can retry;
+completed sessions wait for reconciliation. Unknown provider outcomes retain
+their reservation and original idempotency key. Incompatible submitted terms
+require an explicit close action, with provider closure verified before release.
+
+### Provider customer identity and CREATE recovery
+
+Customer creation has its own durable `billing_customer_operations` record,
+separate from Checkout attempts and commercial eligibility. One operation owns
+one stable provider key and an immutable adapter-encoded payload, namespace and
+safe replay window. Contact/name changes never rebuild that CREATE request.
+Mapped customers are verified and reused; replacing a tenant's mapping is refused.
+Any future contact update must be a separate operation, not another CREATE.
+
+Unknown outcomes first try positive provider recovery, then may replay the same
+frozen request within the provider's guaranteed window. An expired replay window
+or an unmapped legacy attempt without its original payload requires reconciliation;
+a negative search is not proof that CREATE failed. Only definitive rejection
+allows another logical operation. Customer coordination grants no trial, plan,
+entitlements or Credits. Verified payment reconciliation remains the authority.
+
+Migration `20261128000000_customer_creation_operations.sql` adds the FORCE RLS
+ledger with scoped setup-role permissions. It preserves existing mappings and
+commercial records and quarantines unmapped historical attempts instead of
+inventing their original request parameters. Apply through a verified backup and
+the normal migration procedure after isolated upgrade/restricted-role checks.
+
 ## 2. Data Credits and AI Credits
 
 Platform Owners manage accounting schedules at

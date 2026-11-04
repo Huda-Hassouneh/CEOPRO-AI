@@ -273,10 +273,13 @@ def save_customer(sys_conn, tenant_id: str, stripe_customer_id: str) -> None:
         cursor.execute(
             """
             INSERT INTO billing_customers (tenant_id, stripe_customer_id) VALUES (%s, %s)
-            ON CONFLICT (tenant_id) DO UPDATE SET stripe_customer_id = EXCLUDED.stripe_customer_id;
+            ON CONFLICT (tenant_id) DO NOTHING;
             """,
             (tenant_id, stripe_customer_id),
         )
+        cursor.execute('SELECT stripe_customer_id FROM billing_customers WHERE tenant_id=%s',(tenant_id,))
+        if cursor.fetchone() != (stripe_customer_id,):
+            raise ValueError('Provider customer mapping conflict; existing identity cannot be replaced.')
 
 
 def tenant_for_customer(sys_conn, stripe_customer_id: str) -> Optional[str]:

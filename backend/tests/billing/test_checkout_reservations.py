@@ -101,7 +101,7 @@ def test_concurrent_checkout_uses_one_provider_creation(owner_db,tenant,test_pri
     plan,price=test_price
     monkeypatch.setenv('STRIPE_SECRET_KEY','sk_test_offline')
     monkeypatch.setenv('PUBLIC_FRONTEND_ORIGIN','http://127.0.0.1:5204')
-    monkeypatch.setattr(stripe_api,'create_customer',lambda *a,**kw:{'id':'cus_synthetic_'+tid})
+    monkeypatch.setattr(stripe_api,'create_customer',lambda *a,**kw:{'id':'cus_synthetic_'+tid,'metadata':{'tenant_id':tid}})
     sessions=[]
     def create(params,idempotency_key):
         time.sleep(0.1)

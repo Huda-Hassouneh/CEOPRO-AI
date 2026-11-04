@@ -16,12 +16,12 @@ useAuthStore.setState({tenantId:'synthetic-tenant',user:{id:'synthetic-user'},is
 const entry=new URLSearchParams(window.location.search).get('entry')||'/onboarding/plan';
 createRoot(document.getElementById('root')).render(
   <QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}>
-    <I18nProvider><MemoryRouter initialEntries={[entry]}><Routes>
+    <I18nProvider><main className="ceopro-setup-main"><MemoryRouter initialEntries={[entry]}><Routes>
       <Route path="/onboarding/plan" element={<OnboardingGate step={5}><OnboardingPlanSelectionPage/></OnboardingGate>}/>
       <Route path="/onboarding/plan/payment" element={<OnboardingGate><OnboardingPaymentPage/></OnboardingGate>}/>
       <Route path="/onboarding/connect-data" element={<h1>Connections fixture</h1>}/>
       <Route path="/onboarding" element={<h1>Onboarding required</h1>}/>
       <Route path="/dashboard" element={<SetupGate><h1>Dashboard fixture</h1></SetupGate>}/>
-    </Routes></MemoryRouter></I18nProvider>
+    </Routes></MemoryRouter></main></I18nProvider>
   </QueryClientProvider>,
 );

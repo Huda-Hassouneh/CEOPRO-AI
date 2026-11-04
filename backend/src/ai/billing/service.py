@@ -21,7 +21,7 @@ import hashlib
 from datetime import datetime, timezone
 import time
 from decimal import Decimal, InvalidOperation
-from src.ai.billing import checkout_attempts, config, promotions, store, test_clock, self_service, trial_checkouts
+from src.ai.billing import checkout_attempts, config, promotions, store, test_clock, self_service, trial_checkouts, customer_operations
 from src.ai.billing.payment_contracts import (
     CheckoutIntent, CheckoutState, FrozenCheckoutRequest, Money, PaymentProviderError,
     PaymentState, ProviderOperationOutcome, ProviderReference,
@@ -89,15 +89,13 @@ def _price_or_error(conn, plan_key: str, period_code: str) -> dict:
 
 
 def _ensure_customer(conn, sys_conn, tenant_id: str, email: str, company_name: str) -> str:
-    existing = store.customer_id(conn, tenant_id)
-    if existing:
-        payment_gateway().customer_time(_provider_reference(existing), tenant_reference=tenant_id, require_clock=True)
-        return existing
-    customer = payment_gateway().create_customer(email=email, company_name=company_name,
-        tenant_reference=tenant_id, idempotency_key=f"apex-customer-{tenant_id}")
-    store.save_customer(sys_conn, tenant_id, customer.opaque_id)
-    sys_conn.commit()
-    return customer.opaque_id
+    gateway=payment_gateway()
+    try:
+        customer=customer_operations.resolve(conn,sys_conn,tenant_id,email,company_name,gateway)
+    except customer_operations.CustomerOperationError as error:
+        raise BillingError(409,str(error),'Provider customer identity needs reconciliation before Checkout can continue.') from None
+    gateway.customer_time(ProviderReference(gateway.provider,customer),tenant_reference=tenant_id,require_clock=True)
+    return customer
 
 
 def _check_clock_customer(conn, tenant_id):
@@ -140,8 +138,12 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
         raise BillingError(409, 'subscription_exists', 'Your company already has a subscription. Use Change Plan or payment recovery.')
     _price_or_error(conn, plan_key, period_code)
     request_key = hashlib.sha256(f'{plan_key}:{period_code}:{(promotion_code or "").strip().upper()}:{origin}'.encode()).hexdigest()
+    trial_request_key = hashlib.sha256((request_key + ':selected-plan-trial').encode()).hexdigest()
+    # The generic Continue action may resume an already authorized trial
+    # Checkout. Starting a trial must never resume a paid/no-trial Checkout.
+    resume_keys = {request_key, trial_request_key} if not trial_requested else {trial_request_key}
     if trial_requested:
-        request_key = hashlib.sha256((request_key + ':selected-plan-trial').encode()).hexdigest()
+        request_key = trial_request_key
     with checkout_attempts.tenant_lock(sys_conn, tenant_id):
         _check_clock_customer(conn, tenant_id)
         if store.current_subscription(conn, tenant_id):
@@ -156,9 +158,20 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
                 raise BillingError(409,reason,'This plan is not eligible for a new trial. Review your current trial or pending checkout.')
         attempt = checkout_attempts.active(sys_conn, tenant_id)
         _check_legacy_provider_contracts(conn,sys_conn,tenant_id,attempt)
+        if attempt and not attempt['session_id'] and attempt['params'] is None and attempt['request_key'] != request_key:
+            # No Checkout can have been submitted: the immutable provider
+            # request is committed before any submit. The tenant lock excludes
+            # an in-flight creator. Retain the expired row as audit evidence.
+            checkout_attempts.expire(sys_conn, attempt)
+            attempt = None
         if attempt and attempt['session_id']:
-            session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
-            if session.state == CheckoutState.EXPIRED:
+            try:
+                session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
+            except PaymentProviderError as error:
+                if error.outcome != ProviderOperationOutcome.NOT_FOUND:
+                    raise
+                session = None  # Definitively absent; transient failures stay reserved.
+            if session is None or session.state == CheckoutState.EXPIRED:
                 checkout_attempts.expire(sys_conn, attempt)
                 attempt = None
             elif session.state == CheckoutState.COMPLETE:
@@ -167,7 +180,7 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
                     attempt = None
                 else:
                     raise BillingError(409, 'checkout_reconciling', 'Payment confirmation is being reconciled. Do not start another Checkout.')
-            elif attempt['request_key'] == request_key and session.state == CheckoutState.OPEN:
+            elif attempt['request_key'] in resume_keys and session.state == CheckoutState.OPEN and session.url:
                 return {'url': session.url, 'session_id': session.reference.opaque_id}
             else:
                 raise BillingError(409, 'checkout_pending', 'Another Checkout is pending. Complete or cancel it before selecting a different contract.')
@@ -176,8 +189,18 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
         if attempt and not attempt['session_id'] and time.time()-attempt['created_at'].timestamp()>23*3600:
             raise BillingError(409, 'checkout_reconciling', 'The previous provider request needs reconciliation before it can be retried safely.')
         attempt = attempt or checkout_attempts.reserve(sys_conn, tenant_id, request_key, plan_key, period_code)
-        result = _create_checkout(conn, sys_conn, tenant_id, email, company_name, plan_key, period_code,
-                                  promotion_code, actor_user_id, _attempt=attempt, trial_requested=trial_requested)
+        try:
+            result = _create_checkout(conn, sys_conn, tenant_id, email, company_name, plan_key, period_code,
+                                      promotion_code, actor_user_id, _attempt=attempt, trial_requested=trial_requested)
+        except Exception:
+            # Failures before prepare/freeze (customer setup, promo validation)
+            # cannot leave a provider Checkout behind. Never release a frozen
+            # request after a timeout/unknown outcome: retry its original key.
+            sys_conn.rollback()
+            pending = checkout_attempts.active(sys_conn, tenant_id)
+            if pending and str(pending['attempt_id']) == str(attempt['attempt_id']) and not pending['session_id'] and pending['params'] is None:
+                checkout_attempts.expire(sys_conn, pending)
+            raise
         if result.get('session_id'):
             checkout_attempts.opened(sys_conn, attempt, {'id':result['session_id']})
         return result
@@ -385,11 +408,19 @@ def cancel_pending_checkout(conn,sys_conn,tenant_id):
                 checkout_attempts.expire(sys_conn,attempt)
                 return {'state':'checkout_cancelled'}
             raise BillingError(409,'checkout_reconciling','The previous provider request must be reconciled first.')
-        session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
+        try:
+            session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
+        except PaymentProviderError as error:
+            if error.outcome != ProviderOperationOutcome.NOT_FOUND:
+                raise
+            checkout_attempts.expire(sys_conn,attempt)
+            return {'state':'checkout_cancelled'}
         if session.state == CheckoutState.COMPLETE:
             raise BillingError(409,'checkout_reconciling','Checkout completed; verify the subscription instead of cancelling it.')
         if session.state == CheckoutState.OPEN:
-            payment_gateway().expire_checkout(_provider_reference(attempt['session_id']))
+            session = payment_gateway().expire_checkout(_provider_reference(attempt['session_id']))
+        if session.state != CheckoutState.EXPIRED:
+            raise BillingError(409,'checkout_reconciling','The previous Checkout could not be confirmed closed. Try again after reconciliation.')
         checkout_attempts.expire(sys_conn,attempt)
         return {'state':'checkout_cancelled'}
 

@@ -111,8 +111,8 @@ def test_checkout_links_existing_tenant_and_reuses_customer(
     monkeypatch.setattr(
         stripe_api,
         "create_customer",
-        lambda email, name, tenant_id, idempotency_key: (
-            calls.append((tenant_id, idempotency_key)) or {"id": "cus_test_" + tid}
+        lambda email, name, tenant_id, idempotency_key, **kwargs: (
+            calls.append((tenant_id, idempotency_key)) or {"id": "cus_test_" + tid,"metadata":{"tenant_id":tid}}
         ),
     )
     requests = []
