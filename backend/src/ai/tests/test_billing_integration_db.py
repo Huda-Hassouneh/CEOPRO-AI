@@ -97,12 +97,12 @@ def test_the_catalog_lists_self_serve_plans_with_prices_and_limits(sys_conn):
     assert plans["custom"]["self_serve"] is False and plans["custom"]["prices"] == []
     assert "standard" not in plans and "pro" not in plans, "retired packages are no longer sold"
     # KEEL's subscription terms (docs/SUBSCRIPTIONS_AND_CREDITS.md): Standard / Plus / Pro.
-    # products, reports/month, seats, competitors (None: budget-based), Data and AI Credits,
+    # products, reports/month, seats, tracked competitor capacity, Data and AI Credits,
     # reviews/month, AI token safety cap, sources, storage MB, uploads KB/month, images
     agreed = {
-        "starter": (100, 5, 5, None, 436, 436, 5000, 100000, 1, 1024, 51200, 20),
-        "growth": (250, 20, 20, None, 1111, 1111, 25000, 500000, 5, 10240, 512000, 100),
-        "enterprise": (500, 60, 50, None, 2780, 2780, 100000, 2000000, 20, 51200, 2097152, 150),
+        "starter": (100, 5, 5, 5, 436, 436, 3000, 100000, 1, 1024, 51200, 20),
+        "growth": (250, 20, 20, 15, 1111, 1111, 12000, 500000, 3, 5120, 204800, 100),
+        "enterprise": (500, 60, 50, 40, 2780, 2780, 40000, 2000000, 8, 20480, 768000, 150),
     }
     features = ("tracked_products", "monthly_reports", "team_seats", "tracked_competitors", "data_credits", "ai_credits",
                 "sentiment_analysis", "rag_assistant", "connected_data_sources", "document_storage_mb",
@@ -178,15 +178,26 @@ def test_checkout_reuses_the_customer_and_sends_the_expected_session(sys_conn, s
     tenant = _company(sys_conn)
     calls = {"customers": 0}
 
-    def fake_customer(email, name, tenant_id, idempotency_key):
+    def fake_customer(email, name, tenant_id, idempotency_key, *, frozen):
         calls["customers"] += 1
-        return {"id": calls.setdefault("cid", f"cus_{uuid.uuid4().hex[:10]}")}
+        assert frozen['params']['metadata']['tenant_id'] == tenant_id
+        assert frozen['params']['email'] == email and frozen['params']['name'] == name
+        return {"id": calls.setdefault("cid", f"cus_{uuid.uuid4().hex[:10]}"), 'metadata': frozen['params']['metadata']}
 
     def fake_session(params, idempotency_key):
         calls["params"], calls["key"] = params, idempotency_key
         calls["sessions"] = calls.get("sessions", 0) + 1
         return {"id": "cs_" + tenant, "url": "https://checkout.stripe.com/c/cs_" + tenant}
 
+    monkeypatch.setattr(stripe_api, "prepare_customer_create", lambda email, name, tenant, operation: {
+        'namespace': {'account': 'acct_offline', 'livemode': False}, 'api_version': 'offline',
+        'params': {'email': email, 'name': name, 'metadata': {'tenant_id': tenant, 'keel_customer_operation_id': operation}},
+    })
+    monkeypatch.setattr(stripe_api, "retrieve_customer", lambda reference: {'id': reference, 'metadata': {'tenant_id': tenant}})
+    monkeypatch.setattr(stripe_api, "customer_subscriptions", lambda *a: [])
+    monkeypatch.setattr(stripe_api, "open_customer_checkouts", lambda *a: [])
+    monkeypatch.setattr(stripe_api, "customer_clock_time", lambda *a, **kw: None)
+    monkeypatch.setattr(stripe_api, "_client", lambda: pytest.fail("Unexpected external Stripe request"))
     monkeypatch.setattr(stripe_api, "create_customer", fake_customer)
     monkeypatch.setattr(stripe_api, "create_checkout_session", fake_session)
     monkeypatch.setattr(stripe_api, "retrieve_checkout_session", lambda sid: {

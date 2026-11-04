@@ -133,14 +133,14 @@ def test_variable_cost_formula_follows_the_spec():
         cost_model.max_variable_cost(Decimal("100"), Decimal("1"))
 
 
-@pytest.mark.parametrize("plan_key, products, reports, seats, trial_days", [
-    ("starter", 100, 5, 5, 14), ("growth", 250, 20, 20, 14), ("enterprise", 500, 60, 50, 7)])
-def test_every_plan_has_its_entitlements(sys_conn, plan_key, products, reports, seats, trial_days):
+@pytest.mark.parametrize("plan_key, products, reports, seats, trial_days, competitors", [
+    ("starter", 100, 5, 5, 14, 5), ("growth", 250, 20, 20, 14, 15), ("enterprise", 500, 60, 50, 7, 40)])
+def test_every_plan_has_its_entitlements(sys_conn, plan_key, products, reports, seats, trial_days, competitors):
     tenant = _company(sys_conn, plan_key)
     plan = usage.get_plan(sys_conn, tenant)
     limits = {code: f["limit"] for code, f in plan["features"].items()}
     assert (limits["tracked_products"], limits["monthly_reports"], limits["team_seats"]) == (products, reports, seats)
-    assert limits["tracked_competitors"] is None  # budget-based, no fixed count
+    assert limits["tracked_competitors"] == competitors
     with sys_conn.cursor() as cursor:
         cursor.execute("SELECT trial_days FROM usage_plans WHERE plan_key = %s;", (plan_key,))
         assert cursor.fetchone()[0] == trial_days
