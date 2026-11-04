@@ -308,7 +308,8 @@ def add_competitor_endpoint(body: AddCompetitorRequest, ctx: TenantContext = Dep
     """
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
-        result = market_scraper_discovery.register_manual_competitor(conn, ctx.tenant_id, body.name, body.website_url)
+        usage.ensure_capacity(conn, ctx.tenant_id, usage.TRACKED_COMPETITORS, 0)
+        result = market_scraper_discovery.register_manual_competitor(conn, ctx.tenant_id, body.name, body.website_url, commit=False)
         # Checked after registering: re-adding a competitor that is already
         # tracked must keep working at the limit; only a new one can exceed it.
         usage.ensure_capacity(conn, ctx.tenant_id, usage.TRACKED_COMPETITORS, 0)

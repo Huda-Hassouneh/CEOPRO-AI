@@ -5,7 +5,7 @@ export function toOriginalPlan(plan) {
   const features = {};
   for (const [code, value] of Object.entries(plan.rawLimits || {})) {
     if (['web_searches', 'rag_assistant'].includes(code)) continue;
-    if (code === 'tracked_competitors' && plan.id !== 'custom') continue;
+    if (code === 'tracked_competitors' && value === null && plan.id !== 'custom') continue;
     const item = meta[code] || {};
     features[code] = { ...item, type: 'limit', limitValue: value,
       name: item.name || code.replaceAll('_', ' '), unit: item.unit || '' };
@@ -38,7 +38,7 @@ export function toOriginalUsage(raw, plans = []) {
   for (const item of raw.features || []) {
     const code = item.feature_code;
     if (['web_searches', 'rag_assistant'].includes(code)) continue;
-    if (code === 'tracked_competitors' && raw.planId !== 'custom') continue;
+    if (code === 'tracked_competitors' && item.limit === null && raw.planId !== 'custom') continue;
     usage[code] = item.current_usage; limits[code] = item.limit;
     features[code] = { ...metadata[code], ...item, type: 'limit', name: metadata[code]?.name || code.replaceAll('_', ' ') };
   }

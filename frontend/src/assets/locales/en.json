@@ -2425,7 +2425,7 @@
       "gb": " GB",
       "usageLabels": {
         "products": "Products",
-        "competitors": "Competitors",
+        "competitors": "Tracked competitors",
         "reports": "Reports",
         "storageGb": "Storage",
         "webSearches": "Web searches",
@@ -2623,7 +2623,7 @@
       "allModules": "All modules: {{modules}}",
       "trialLine": "{{days}}-day free trial with {{data}} Data and {{ai}} AI Credits",
       "seeAllLimits": "See every limit",
-      "limits": {"products": "Products", "teamSeats": "Team seats", "reports": "Reports / month", "storageGb": "Storage", "dataSources": "Data sources"},
+      "limits": {"products": "Products", "teamSeats": "Team seats", "reports": "Reports / month", "storageGb": "Storage", "dataSources": "Data sources", "competitors": "Tracked competitors"},
       "mostPopular": "Most Popular",
       "customPricing": "Custom pricing",
       "custom": {
@@ -2676,7 +2676,8 @@
       "competitorsByBudget": "Competitors found and monitored within your Data Credits - no fixed count",
       "trialCredits": "Free trial includes {{data}} Data Credits and {{ai}} AI Credits",
       "ragQueries": "{{value}} RAG tokens per billing period",
-      "everythingGrowth": "Everything in Growth"
+      "everythingGrowth": "Everything in Growth",
+      "competitorCapacityAndCredits": "Tracked competitor capacity is shown per plan. External collection also uses Data Credits."
     },
     "checkout": {
       "confirmed": "Subscription confirmed. Your plan is active in KEEL.",
@@ -2710,7 +2711,8 @@
       "trial_already_used": "Your company has already used its free trial.",
       "trial_already_used_by_person": "You've already used a free trial with another company.",
       "plan_has_no_trial": "This plan doesn't offer a free trial.",
-      "plan_already_assigned": "Your company already has a plan."
+      "plan_already_assigned": "Your company already has a plan.",
+      "plan_transition_mixed_rights": "This change may reduce allowances in your current terms. Contact support to review the terms before changing plan."
     },
     "invoices": {
       "title": "Billing History",

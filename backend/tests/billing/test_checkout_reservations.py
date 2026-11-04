@@ -26,6 +26,7 @@ def test_different_legacy_origins_are_not_silently_used(monkeypatch):
 
 
 def test_pending_checkout_blocks_another_contract_and_reuses_same_session(monkeypatch,memory_checkout_reservations):
+    monkeypatch.setattr(store,'trial',lambda *args:None)
     monkeypatch.setenv('STRIPE_SECRET_KEY','sk_test_offline')
     monkeypatch.setenv('PUBLIC_FRONTEND_ORIGIN','http://127.0.0.1:5203')
     monkeypatch.setattr(store,'current_subscription',lambda *args:None)
@@ -57,6 +58,7 @@ def test_paid_return_waits_for_matching_webhook_subscription(monkeypatch):
 
 
 def test_unreconciled_provider_subscription_prevents_another_purchase(monkeypatch,memory_checkout_reservations):
+    monkeypatch.setattr(store,'trial',lambda *args:None)
     monkeypatch.setenv('STRIPE_SECRET_KEY','sk_test_offline')
     monkeypatch.setenv('PUBLIC_FRONTEND_ORIGIN','http://127.0.0.1:5204')
     monkeypatch.setattr(store,'current_subscription',lambda *args:None)

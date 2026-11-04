@@ -28,10 +28,11 @@ _BILLING_ROLES = {"owner", "admin", "accountant"}
 
 # feature_code -> the Billing page's usage key, and a unit conversion. Only
 # plan terms customers see: web_searches and the assistant's token cap are
-# internal safety limits, and competitors have no fixed count (they depend
-# on market discovery and the Data Credit budget).
+# internal safety limits. Competitor capacity and Data Credit spending
+# are separate controls.
 _PAGE_KEYS = {
     usage.TRACKED_PRODUCTS: ("products", 1),
+    usage.TRACKED_COMPETITORS: ("competitors", 1),
     usage.MONTHLY_REPORTS: ("reports", 1),
     usage.TEAM_SEATS: ("teamSeats", 1),
     usage.DATA_CREDITS: ("dataCredits", 1),

@@ -243,15 +243,16 @@ def test_webhook_expiry_then_stale_request_expiry_is_idempotent(client,tenant,ow
 
 
 @pytest.mark.parametrize('plan,days',[('starter',14),('growth',14),('enterprise',7)])
-def test_selected_trial_only_activates_after_verified_provider_confirmation(client,tenant,owner_db,provider,send,plan,days):
-    response=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':plan})
+@pytest.mark.parametrize('period',['monthly','three-months','six-months'])
+def test_selected_trial_only_activates_after_verified_provider_confirmation(client,tenant,owner_db,provider,send,plan,days,period):
+    response=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':plan,'period_code':period})
     assert response.status_code==200,response.text
     sid=response.json()['session_id'];params=provider['requests'][0]
     assert params['mode']=='subscription' and params['payment_method_collection']=='always'
     assert params['subscription_data']['trial_period_days']==days
     assert 'trial_end' not in params['subscription_data']
     with owner_db.cursor() as cur:
-        cur.execute('SELECT stripe_price_id FROM billing_plan_prices WHERE plan_key=%s AND period_code=%s AND retired_at IS NULL',(plan,'monthly'))
+        cur.execute('SELECT stripe_price_id FROM billing_plan_prices WHERE plan_key=%s AND period_code=%s AND retired_at IS NULL',(plan,period))
         assert params['line_items'][0]['price']==cur.fetchone()[0]
     no_access_rows(owner_db,tenant)
     assert client.get('/billing/checkout-status',headers=headers(tenant),params={'session_id':sid}).json()['state']=='pending'
@@ -266,6 +267,9 @@ def test_selected_trial_only_activates_after_verified_provider_confirmation(clie
         assert trial['plan_key']==effective['plan_key']==plan
         assert trial['ends_at']-trial['started_at']==timedelta(days=days)
         assert effective['status']=='trialing' and effective['source']=='stripe'
+        assert effective['period_code']==period
+        assert effective['features']['tracked_competitors']['limit']=={'starter':5,'growth':15,'enterprise':40}[plan]
+        assert effective['features']['document_extraction']['limit']=={'starter':51200,'growth':204800,'enterprise':768000}[plan]
     with owner_db.cursor() as cur:
         cur.execute('SELECT catalog_snapshot FROM tenant_plan_assignments WHERE tenant_id=%s',(tenant[0],))
         snapshot=cur.fetchone()[0];assert snapshot['plan_key']==plan
@@ -273,7 +277,7 @@ def test_selected_trial_only_activates_after_verified_provider_confirmation(clie
         assert {code:item['limit'] for code,item in effective['features'].items()}==dict(cur.fetchall())
         for table in ('billing_trials','billing_subscriptions','tenant_plan_assignments'):
             cur.execute('SELECT count(*) FROM '+table+' WHERE tenant_id=%s',(tenant[0],));assert cur.fetchone()[0]==1
-    again=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':plan})
+    again=client.post('/billing/trial',headers=headers(tenant),json={'plan_key':plan,'period_code':period})
     assert again.status_code==409
 
 

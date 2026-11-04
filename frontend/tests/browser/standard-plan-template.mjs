@@ -18,8 +18,11 @@ try {
   page.on('console',m=>{if(['error','warning'].includes(m.type()))issues.push(m.text());});
   await page.goto(process.env.APP_URL+'/tests/browser/standard-plan-creation.html');
   const ownerCatalog = await (await context.request.get(process.env.API_URL+'/platform/billing/standard-plans')).json();
+  const lean = {starter:[1024,51200,3000,1,5],growth:[5120,204800,12000,3,15],enterprise:[20480,768000,40000,8,40]};
   for (const [key, monthly] of [['starter', 29], ['growth', 59], ['enterprise', 99]]) {
     const plan = ownerCatalog.plans.find(p => p.plan_key === key);
+    assert.deepEqual(['document_storage_mb','document_extraction','sentiment_analysis','connected_data_sources','tracked_competitors']
+      .map(code=>plan.feature_limits.find(f=>f.feature_code===code).limit_value),lean[key]);
     assert.equal(plan.monthly_price, monthly);
     assert.deepEqual(plan.prices.map(p => [p.interval_months, p.amount, p.discount_percent]),
       [[1, monthly, 0], [3, monthly * 3, 0], [6, monthly * 6, 0]]);
@@ -68,6 +71,8 @@ try {
   assert.equal(plan.feature_limits.length,13);assert.equal(plan.entitlements.length,6);
   assert.equal(plan.feature_limits.find(f=>f.feature_code==='ai_credits').limit_value,702);
   assert.equal(plan.feature_limits.find(f=>f.feature_code==='data_credits').limit_value,1111);
+  assert.deepEqual(['document_storage_mb','document_extraction','sentiment_analysis','connected_data_sources','tracked_competitors']
+    .map(code=>plan.feature_limits.find(f=>f.feature_code===code).limit_value),lean.growth);
   assert.equal(plan.monthly_price,87.21);assert.equal(plan.stripe_setup_required,true);
   await nav.getByRole('link',{name:t('billing.catalog.tabs.plans'),exact:true}).click();
   const planRow=page.getByRole('row').filter({hasText:key});
