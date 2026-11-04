@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.ai.core import entitlements, usage
-from src.ai.tests.signup_helpers import create_verified_test_account
+from src.ai.tests.signup_helpers import create_verified_test_account, install_paid_plan_fixture
 
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -50,8 +50,7 @@ def _company(client, plan_key):
     session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Plan Co", "email": email,
                                                      "country_code": "JO", "primary_currency": "JOD",
                                                      "password": "Plan!Catalog-2026"})
-    _admin("UPDATE tenant_plan_assignments SET plan_key = %s, status = 'active', source = 'manual' WHERE tenant_id = %s;",
-           (plan_key, session["tenant_id"]))
+    install_paid_plan_fixture(session, plan_key, onboarding_complete=True)
     entitlements.forget(session["tenant_id"])
     return session, {"Authorization": f"Bearer {session['access_token']}"}
 
@@ -68,18 +67,18 @@ def test_every_plan_includes_the_core_intelligence(client, plan_key):
     assert {"market_intelligence", "demand_prediction", "competitor_management"} <= set(subscription["entitlements"])
     # Only the plan terms customers see - no internal budgets under raw codes.
     assert set(subscription["limits"]) == {"products", "reports", "teamSeats", "dataCredits", "aiCredits", "imageGenerations",
-                                           "storageGb", "documentProcessingMb", "sentimentRecords", "dataSources"}
+                                           "storageGb", "documentProcessingMb", "sentimentRecords", "dataSources", "competitors"}
     assert set(subscription["credits"]) >= {"data", "ai"}
 
 
-@pytest.mark.parametrize("plan_key", ["starter", "growth", "enterprise"])
-def test_competitors_have_no_fixed_count(client, plan_key):
-    """Competitor tracking is limited by the Data Credit budget, not a count."""
+@pytest.mark.parametrize("plan_key, cap", [("starter", 5), ("growth", 15), ("enterprise", 40)])
+def test_new_catalog_competitors_respect_numeric_capacity(client, plan_key, cap):
+    """New lean plans have a tracking cap in addition to provider Credit checks."""
     session, _ = _company(client, plan_key)
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     try:
-        assert usage.get_plan(conn, session["tenant_id"])["features"]["tracked_competitors"]["limit"] is None
-        assert usage.capacity_left(conn, session["tenant_id"], usage.TRACKED_COMPETITORS) is None
+        assert usage.get_plan(conn, session["tenant_id"])["features"]["tracked_competitors"]["limit"] == cap
+        assert usage.capacity_left(conn, session["tenant_id"], usage.TRACKED_COMPETITORS) == cap
     finally:
         conn.close()
 
@@ -131,25 +130,26 @@ def test_one_companys_usage_never_reduces_anothers_allowance(client):
     a, _ = _company(client, "growth")
     b, _ = _company(client, "growth")
     _admin("INSERT INTO tenant_usage_counters (tenant_id, feature_code, period_start, used) "
-           "SELECT %s, 'sentiment_analysis', current_period_start, 25000 FROM tenant_plan_assignments WHERE tenant_id = %s;",
+           "SELECT %s, 'sentiment_analysis', current_period_start, 12000 FROM tenant_plan_assignments WHERE tenant_id = %s;",
            (a["tenant_id"], a["tenant_id"]))
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     try:
         assert usage.remaining(conn, a["tenant_id"], usage.SENTIMENT_ANALYSIS) == 0
-        assert usage.remaining(conn, b["tenant_id"], usage.SENTIMENT_ANALYSIS) == 25_000
+        assert usage.remaining(conn, b["tenant_id"], usage.SENTIMENT_ANALYSIS) == 12_000
     finally:
         conn.close()
 
 
-def test_new_companies_start_on_the_growth_trial(client):
+def test_new_companies_have_no_commercial_assignment_or_trial(client, monkeypatch):
+    monkeypatch.setenv('UNASSIGNED_PLAN_ACCESS', 'none')
     email = f"trial+{uuid.uuid4().hex[:8]}@example.com"
     session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Trial Co", "email": email,
                                                      "country_code": "JO", "primary_currency": "JOD",
                                                      "password": "Plan!Catalog-2026"})
-    [(plan_key, status, days)] = _admin(
-        "SELECT a.plan_key, a.status, (a.current_period_end - a.current_period_start) FROM tenant_plan_assignments a WHERE tenant_id = %s;",
-        (session["tenant_id"],))
-    assert (plan_key, status, days) == ("growth", "trialing", 14)
+    for table in ('tenant_plan_assignments', 'billing_trials', 'billing_subscriptions'):
+        assert _admin(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (session['tenant_id'],)) == [(0,)]
+    subscription = client.get('/billing/subscription', headers={'Authorization': 'Bearer '+session['access_token']}).json()
+    assert subscription['planId'] is None and not subscription['assigned'] and not subscription['hasAccess']
 
 
 def test_the_assistant_allowance_is_counted_in_tokens(client):
@@ -180,14 +180,14 @@ def test_review_analysis_stops_at_the_allowance(client, monkeypatch):
         _admin("INSERT INTO reviews (tenant_id, source_platform, subject_type, review_text, review_rating) VALUES (%s, 'MANUAL', 'BUSINESS', %s, 4);",
                (tenant, f"Good service number {i}"))
     _admin("INSERT INTO tenant_usage_counters (tenant_id, feature_code, period_start, used) "
-           "SELECT %s, 'sentiment_analysis', current_period_start, 24998 FROM tenant_plan_assignments WHERE tenant_id = %s;",
+           "SELECT %s, 'sentiment_analysis', current_period_start, 11998 FROM tenant_plan_assignments WHERE tenant_id = %s;",
            (tenant, tenant))
     monkeypatch.setattr(model, "classify_or_unavailable",
                         lambda texts: [model.predict_from_rating(4) for _ in texts])
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     try:
         first = pipeline.classify_and_store_reviews(conn, tenant)
-        assert first["analyzed_count"] == 2, "only the 2 records left in the Growth allowance (25,000)"
+        assert first["analyzed_count"] == 2, "only the 2 records left in the new Plus allowance (12,000)"
         assert pipeline.classify_and_store_reviews(conn, tenant)["status"] == "PLAN_LIMIT"
     finally:
         conn.close()

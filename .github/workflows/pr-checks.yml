@@ -58,7 +58,13 @@ jobs:
       # a secret protecting anything real.
       DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
       AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
+      BILLING_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
       APP_DB_PASSWORD: ci_test_app_password
+      # Synthetic least-privilege credentials for this disposable job only.
+      BILLING_SETUP_DB_PASSWORD: ci_test_billing_setup_password
+      BILLING_WEBHOOK_DB_PASSWORD: ci_test_billing_webhook_password
+      CREDIT_ACCOUNTING_DB_PASSWORD: ci_test_credit_accounting_password
+      BILLING_DATABASE_TESTS: "1"
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
       FRONTEND_BASE_URL: http://localhost:5173
       AI_TEST_REDIS_HOST: localhost
@@ -170,6 +176,10 @@ jobs:
         working-directory: backend
         run: python -m pytest src/ -q
 
+      - name: Run billing contracts and restricted-role regressions
+        working-directory: backend
+        run: python -m pytest tests/billing -q --ignore-glob='*browser.py'
+
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -214,11 +224,11 @@ jobs:
         env:
           POSTGRES_USER: ceopro_admin
           POSTGRES_PASSWORD: ci_test_admin_password
-          POSTGRES_DB: keel_ci
+          POSTGRES_DB: keel_billing_test_browser
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ceopro_admin -d keel_ci"
+          --health-cmd "pg_isready -U ceopro_admin -d keel_billing_test_browser"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -233,8 +243,16 @@ jobs:
           --health-retries 10
     env:
       # Throwaway values for this one ephemeral job, not secrets.
-      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_ci
+      DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_billing_test_browser
+      BILLING_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@localhost:5432/keel_billing_test_browser
+      SCRAPER_DATABASE_URL: postgresql://ceopro_app:ci_test_app_password@localhost:5432/keel_billing_test_browser
       APP_DB_PASSWORD: ci_test_app_password
+      # Synthetic least-privilege credentials for this disposable job only.
+      BILLING_SETUP_DB_PASSWORD: ci_test_billing_setup_password
+      BILLING_WEBHOOK_DB_PASSWORD: ci_test_billing_webhook_password
+      CREDIT_ACCOUNTING_DB_PASSWORD: ci_test_credit_accounting_password
+      BILLING_DATABASE_TESTS: "1"
+      UNASSIGNED_PLAN_ACCESS: none
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
       FRONTEND_BASE_URL: http://localhost:5173
       REDIS_URL: redis://localhost:6379/0
@@ -281,13 +299,13 @@ jobs:
         working-directory: backend
         run: |
           export CREDENTIAL_VAULT_MASTER_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-          nohup uvicorn src.ai.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/api.log" 2>&1 &
+          DATABASE_URL="$SCRAPER_DATABASE_URL" nohup uvicorn src.ai.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/api.log" 2>&1 &
           for i in $(seq 1 90); do curl -sf http://localhost:8000/health/ready && exit 0; sleep 1; done
           cat "$RUNNER_TEMP/api.log"; exit 1
 
       - name: Create the test company
         working-directory: backend
-        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD" --test-email-verification-fixture
+        run: python -m scripts.ci_smoke_account --api "$API_URL" --email "$E2E_EMAIL" --password "$E2E_PASSWORD" --test-email-verification-fixture --test-provider-trial-fixture
 
       - name: Build and serve the frontend
         working-directory: frontend

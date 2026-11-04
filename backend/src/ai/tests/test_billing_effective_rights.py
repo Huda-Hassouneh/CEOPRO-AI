@@ -71,7 +71,8 @@ def test_subscription_exposes_versioned_established_rights_without_changing_exis
     plan = _plan()
     original_plan = deepcopy(plan)
     app_conn = _Connection()
-    system_conn = _Connection()
+    def unexpected_privileged_connection(*args):
+        raise AssertionError('An assigned tenant read must not open a privileged connection')
     calls = {"plan": [], "credits": 0, "current_usage": 0}
     legacy_features = [{
         "feature_code": "tracked_products", "limit": 250, "current_usage": 7,
@@ -85,8 +86,8 @@ def test_subscription_exposes_versioned_established_rights_without_changing_exis
             else (_ for _ in ()).throw(AssertionError("wrong tenant connection"))
         ),
     )
-    monkeypatch.setattr(billing.db, "system_connection", lambda: system_conn)
-    monkeypatch.setattr(billing.db, "billing_setup_connection", lambda *_: system_conn)
+    monkeypatch.setattr(billing.db, "system_connection", unexpected_privileged_connection)
+    monkeypatch.setattr(billing.db, "billing_setup_connection", unexpected_privileged_connection)
     monkeypatch.setattr(
         billing.usage, "get_plan",
         lambda _conn, actual_tenant: calls["plan"].append(actual_tenant) or plan,
@@ -148,5 +149,5 @@ def test_subscription_exposes_versioned_established_rights_without_changing_exis
     assert calls["current_usage"] == 1
     assert calls["credits"] == 1
     assert plan == original_plan
-    assert app_conn.closed and system_conn.closed
+    assert app_conn.closed
     assert "tenant_id" not in rights
