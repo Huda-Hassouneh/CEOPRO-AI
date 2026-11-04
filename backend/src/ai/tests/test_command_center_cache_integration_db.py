@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from src.ai.dashboard import command_center
 from src.ai.core import tenant_cache
-from src.ai.tests.signup_helpers import create_verified_test_account
+from src.ai.tests.signup_helpers import create_verified_test_account, install_paid_plan_fixture
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("AI_TEST_DATABASE_URL") or not os.getenv("APP_DB_PASSWORD"),
@@ -47,6 +47,7 @@ def _company(client, name):
         "full_name": "Owner", "business_name": name, "email": f"cc+{uuid.uuid4().hex[:8]}@example.com",
         "country_code": "JO", "primary_currency": "JOD", "password": "Cache!Test-2026"})
     headers = {"Authorization": f"Bearer {session['access_token']}"}
+    install_paid_plan_fixture(session, 'growth', onboarding_complete=True)
     product = client.post("/products", headers=headers, json={
         "product_name": {"en": f"{name} Olive Oil"}, "current_price": 8.5, "currency": "JOD"})
     assert product.status_code in (200, 201), product.text
