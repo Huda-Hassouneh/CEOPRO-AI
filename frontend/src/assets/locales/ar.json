@@ -2331,6 +2331,8 @@
       "reviewReasons": {
         "QUOTA_ABOVE_AUTOMATIC_LIMIT": "الكمية تتجاوز حد الموافقة التلقائية",
         "PRICE_ABOVE_AUTOMATIC_LIMIT": "السعر الشهري يتجاوز الحد التلقائي",
+        "VENDOR_COST_RATIO_EXCEEDED": "تكلفة المزوّد تتجاوز النسبة المسموح بها من السعر النهائي",
+        "VENDOR_COST_RATIO_UNVERIFIABLE": "السعر النهائي لا يسمح بالتحقق التلقائي من نسبة تكلفة المزوّد",
         "UNVERIFIED_VENDOR_RATE": "تتطلب التكلفة التحقق",
         "COST_MAPPING_MISSING": "يلزم إعداد التسعير"
       }

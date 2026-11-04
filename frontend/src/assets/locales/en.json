@@ -2331,6 +2331,8 @@
       "reviewReasons": {
         "QUOTA_ABOVE_AUTOMATIC_LIMIT": "Quantity exceeds the automatic limit",
         "PRICE_ABOVE_AUTOMATIC_LIMIT": "Monthly price exceeds the automatic limit",
+        "VENDOR_COST_RATIO_EXCEEDED": "Vendor costs exceed the allowed share of the final price",
+        "VENDOR_COST_RATIO_UNVERIFIABLE": "The final price does not allow automatic vendor-cost verification",
         "UNVERIFIED_VENDOR_RATE": "Cost rate requires verification",
         "COST_MAPPING_MISSING": "Pricing configuration is required"
       }

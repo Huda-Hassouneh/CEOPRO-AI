@@ -19,6 +19,7 @@ try {
   await page.goto(APP_URL + '/tests/browser/custom-self-service.html');
   await page.locator('.ceopro-custom-feature-card').first().waitFor();
   const card = page.locator('.ceopro-custom-feature-card').filter({ hasText: t.featureNames.connected_data_sources });
+  if (SCENARIO === 'vendor-ratio') await page.getByLabel(t.periodLabel).selectOption('six-months');
   await card.getByRole('checkbox').check();
   const response = page.waitForResponse(r => r.url() === API_URL + '/billing/custom-offers/pricing-preview' && r.request().method() === 'POST');
   await card.getByRole('textbox').fill(SCENARIO === 'quota' ? '500001' : SCENARIO === 'price' ? '3000' : '10');
@@ -68,11 +69,21 @@ try {
     assert.equal(await page.getByRole('button', { name: t.continueCheckout, exact: true }).isDisabled(), true);
     await page.getByText(t.existingSubscription).waitFor();
   } else {
-    const reason = { quota: 'QUOTA_ABOVE_AUTOMATIC_LIMIT:connected_data_sources', price: 'PRICE_ABOVE_AUTOMATIC_LIMIT', unverified: 'UNVERIFIED_VENDOR_RATE' }[SCENARIO];
+    const reason = { quota: 'QUOTA_ABOVE_AUTOMATIC_LIMIT:connected_data_sources', price: 'PRICE_ABOVE_AUTOMATIC_LIMIT', unverified: 'UNVERIFIED_VENDOR_RATE', 'vendor-ratio': 'VENDOR_COST_RATIO_EXCEEDED' }[SCENARIO];
     assert.ok(actual.reasons.includes(reason), JSON.stringify(actual));
     assert.equal(actual.reviewRequired, true);
     assert.equal(await page.getByRole('button', { name: t.continueCheckout, exact: true }).count(), 0);
     assert.equal(await page.getByRole('button', { name: t.requestQuote, exact: true }).isEnabled(), true);
+    if (SCENARIO === 'vendor-ratio') {
+      assert.equal(actual.months, 6);
+      assert.equal(actual.price, '801.60');
+      await page.getByText(t.reviewReasons.VENDOR_COST_RATIO_EXCEEDED, { exact: true }).waitFor();
+      // A fresh term preview must reevaluate approval, not reuse stale UI state.
+      const monthly = page.waitForResponse(r => r.url() === API_URL + '/billing/custom-offers/pricing-preview' && r.request().method() === 'POST');
+      await page.getByLabel(t.periodLabel).selectOption('monthly');
+      assert.equal((await (await monthly).json()).reviewRequired, false);
+      await page.getByRole('button', { name: t.continueCheckout, exact: true }).waitFor();
+    }
   }
   assert.deepEqual(errors, []);
   assert.equal(await page.locator('.custom-plan-page').getAttribute('dir'), locale === 'ar' ? 'rtl' : 'ltr');
