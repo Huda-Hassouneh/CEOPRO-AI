@@ -171,7 +171,7 @@ export default function MarketingStudioPage() {
     try {
       const extra = [
         audience.trim() && `Audience: ${audience.trim()}.`,
-        occasion && `Occasion: ${t(`marketingApex.occasions.${occasion.key}`)}.`,
+        goal === 'seasonal' && occasion && `Occasion: ${t(`marketingApex.occasions.${occasion.key}`)}.`,
         notes.trim(),
       ].filter(Boolean).join('\n');
       const campaign = await createCampaign.mutateAsync({
@@ -180,7 +180,7 @@ export default function MarketingStudioPage() {
         text: source === 'describe' ? description.trim() : undefined,
         strategyType: GOALS[goal].strategy,
         focus: GOALS[goal].focus,
-        creativeTheme: theme || occasion?.theme || GOALS[goal].theme || undefined,
+        creativeTheme: theme || (goal === 'seasonal' ? occasion?.theme : undefined) || GOALS[goal].theme || undefined,
         customCreativePrompt: extra || undefined,
         variantsPerPlatform: 1,
         platforms: ONE_POST,
@@ -284,7 +284,7 @@ export default function MarketingStudioPage() {
                 <legend>{t('studio.goalLabel')}</legend>
                 <div className="apex-choice-grid">
                   {Object.entries(GOALS).map(([key, { icon: Icon }]) => (
-                    <button key={key} type="button" role="radio" aria-checked={goal === key} className="apex-choice" onClick={() => setGoal(key)}>
+                    <button key={key} type="button" role="radio" aria-checked={goal === key} className="apex-choice" onClick={() => { setGoal(key); if (key !== 'seasonal') setOccasion(null); }}>
                       <Icon size={20} aria-hidden="true" /><strong>{t(`studio.goals.${key}.title`)}</strong><span>{t(`studio.goals.${key}.description`)}</span>
                     </button>
                   ))}
