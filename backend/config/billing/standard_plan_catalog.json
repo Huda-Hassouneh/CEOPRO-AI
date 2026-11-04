@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": "standard-plans-lean-search-retired-v1",
+  "catalog_version": "standard-plans-lean-search-v1",
   "purpose": "Bootstrap/templates only. Persisted owner catalog, billing_plan_prices and Stripe remain commercial authorities. Categories are presentation only.",
   "categories": [
     {

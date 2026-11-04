@@ -42,7 +42,7 @@ def assign(conn, tenant, plan, period='monthly'):
 
 def test_only_approved_five_allowances_change():
     c = load_catalog()
-    assert c['catalog_version'] == 'standard-plans-lean-search-retired-v1'
+    assert c['catalog_version'] == 'standard-plans-lean-search-v1'
     for p, credits, products, seats, images, reports in zip(c['plans'], (436,1111,2780),
             (100,250,500), (5,20,50), (20,100,150), (5,20,60)):
         a = {r['feature_key']: r for r in p['allowances']}

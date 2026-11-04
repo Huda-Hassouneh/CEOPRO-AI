@@ -2,7 +2,7 @@
 
 ## Combined local integration template (not published)
 
-`standard-plans-lean-search-retired-v1` combines the reviewed lean capacities with numeric
+`standard-plans-lean-search-v1` combines the reviewed lean capacities with numeric
 web-search retirement. It is a new immutable template identity; historical catalog
 versions, customer snapshots, published prices and Credit allocations are unchanged.
 Its installation/publication is restricted to disposable tests in this preparation.
