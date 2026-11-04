@@ -4,9 +4,10 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { useAuthStore } from '../../auth/store/authStore.js';
 import { OriginalPlanSelector } from '../components/OriginalPlanSelector.jsx';
+import { ExistingTrialNotice } from '../components/ExistingTrialNotice.jsx';
 import { usePlans } from '../hooks/usePlans.js';
 import { useSubscription } from '../hooks/useSubscription.js';
-import { hasActivePlanAccess } from '../utils/onboardingRouting.js';
+import { canStartPlanTrial, hasActivePlanAccess, hasCurrentTrialAccess } from '../utils/onboardingRouting.js';
 import { toOriginalPlan } from '../api/originalBillingModel.js';
 import { useOnboardingStore, saveOnboardingPlan } from '../../onboarding/store/onboardingStore.js';
 import { OnboardingPageShell } from '../../onboarding/components/OnboardingPageShell.jsx';
@@ -25,7 +26,8 @@ export function OnboardingPlanSelectionPage(){
  if(plansQuery.isPending||subscriptionQuery.isPending)return <Skeleton height="400px"/>;
  if(plansQuery.isError||subscriptionQuery.isError)return <EmptyState title={t('billing.management.errorTitle')} description={t('billing.management.errorDescription')} action={<Button onClick={()=>{plansQuery.refetch();subscriptionQuery.refetch();}}>{t('billing.management.retry')}</Button>}/>;
  const plans=plansQuery.data.plans.filter(p=>p.selfServe),chosen=plans.find(p=>p.id===selected);
- const selectable=selected==='custom'||Boolean(chosen&&chosen.prices?.[period]&&(subscriptionQuery.data.trialAvailable||plansQuery.data.paymentsEnabled&&chosen.prices[period].purchasable));
+ const selectable=selected==='custom'||Boolean(chosen&&chosen.prices?.[period]&&(canStartPlanTrial(subscriptionQuery.data,chosen)||plansQuery.data.paymentsEnabled&&chosen.prices[period].purchasable));
+ const canContinueCurrent=hasCurrentTrialAccess(subscriptionQuery.data)||(hasActivePlanAccess(subscriptionQuery.data)&&subscriptionQuery.data.billingStatus==='active');
  const next=async(plan,term=period,destination)=>{
   setBusy(true);setError('');
   try{await saveOnboardingPlan(plan,term);navigate(destination||(plan==='custom'?routePaths.onboardingPlanCustom+'?returnTo='+encodeURIComponent(routePaths.onboardingPlan):routePaths.onboardingPlanPayment+'?'+new URLSearchParams({plan,period:term})));}
@@ -34,8 +36,9 @@ export function OnboardingPlanSelectionPage(){
  return <OnboardingPageShell step={5} title={t('billing.choose.title')} subtitle={t('billing.choose.subtitle')}>
  {error&&<p role="alert">{error}</p>}
  {!plansQuery.data.paymentsEnabled&&<p role="note">{t('billing.management.paymentsUnavailableHint')}</p>}
- <OriginalPlanSelector plans={plans.map(toOriginalPlan)} selectedPlan={selected} billingPeriod={period} onPlanSelect={setSelected} onPeriodChange={setPeriod} onBuildCustom={()=>setSelected('custom')} showCustomPlan/>
+ <ExistingTrialNotice endsAt={subscriptionQuery.data.checkoutTrialEndsAt}/>
+ <OriginalPlanSelector plans={plans.map(toOriginalPlan)} selectedPlan={selected} billingPeriod={period} onPlanSelect={setSelected} onPeriodChange={setPeriod} onBuildCustom={()=>setSelected('custom')} showCustomPlan showTrial={subscriptionQuery.data.trialAvailable}/>
  <OnboardingActions onBack={()=>navigate(routePaths.onboardingObjectives)} onContinue={()=>next(selected)} disabled={!selectable} loading={busy}/>
- {hasActivePlanAccess(subscriptionQuery.data)&&<Button variant="ghost" disabled={busy} onClick={()=>next(subscriptionQuery.data.planId,subscriptionQuery.data.billingPeriod,routePaths.onboardingConnectData)}>{t(subscriptionQuery.data.billingStatus==='trialing'?'onboarding.persistence.currentTrial':'onboarding.common.continue')}</Button>}
+ {canContinueCurrent&&<Button variant="ghost" disabled={busy} onClick={()=>next(subscriptionQuery.data.planId,subscriptionQuery.data.billingPeriod,routePaths.onboardingConnectData)}>{t(subscriptionQuery.data.billingStatus==='trialing'?'onboarding.persistence.currentTrial':'onboarding.common.continue')}</Button>}
  </OnboardingPageShell>;
 }

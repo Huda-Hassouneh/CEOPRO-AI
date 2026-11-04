@@ -69,7 +69,7 @@ def create_portal_session(customer_id: str, return_url: str):
 
 
 def retrieve_subscription(subscription_id: str):
-    return _plain(_client().Subscription.retrieve(subscription_id))
+    return _plain(_client().Subscription.retrieve(subscription_id, expand=["customer"]))
 
 
 def modify_subscription(subscription_id: str, **params):

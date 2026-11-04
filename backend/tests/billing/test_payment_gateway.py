@@ -44,6 +44,27 @@ def remote_subscription(*, trial=False, pending=False, schedule="sched_existing"
     return data
 
 
+@pytest.mark.parametrize('days',[14,7])
+def test_fresh_trial_translation_requires_method_and_preserves_duration(days):
+    request=StripeGateway().prepare_checkout(checkout_intent(trial_duration_days=days)).payload
+    assert request['mode']=='subscription' and request['payment_method_collection']=='always'
+    assert request['subscription_data']['trial_period_days']==days
+    assert 'trial_end' not in request['subscription_data']
+    assert request['subscription_data']['trial_settings']['end_behavior']['missing_payment_method']=='cancel'
+
+
+@pytest.mark.parametrize('evidence',[{}, {'default_payment_method':'pm_fixture'}, {'customer':{'id':'cus_existing','invoice_settings':{'default_payment_method':'pm_fixture'}}}])
+def test_adapter_normalizes_only_provider_recurring_method_evidence(evidence):
+    from src.ai.billing.stripe_gateway import _subscription
+    normalized=_subscription(remote_subscription(trial=True)|evidence)
+    assert normalized.recurring_payment_method_ready is bool(evidence)
+
+
+def test_fresh_trial_contract_rejects_cardless_or_conflicting_policy():
+    with pytest.raises(ValueError):checkout_intent(trial_duration_days=7,require_payment_method_before_activation=False)
+    with pytest.raises(ValueError):checkout_intent(trial_duration_days=7,trial_end=CUTOFF)
+
+
 @pytest.mark.parametrize("trial", [False, True])
 @pytest.mark.parametrize("promotion", [False, True])
 @pytest.mark.parametrize("tax", [False, True])
@@ -357,7 +378,7 @@ def test_subscription_snapshots_normalize_states_expansion_and_period_versions(m
 def test_gateway_consumes_real_sdk_objects_through_existing_plain_wrapper(monkeypatch):
     class Client:
         class Subscription:
-            retrieve = staticmethod(lambda identifier: stripe.Subscription.construct_from(
+            retrieve = staticmethod(lambda identifier, **kwargs: stripe.Subscription.construct_from(
                 remote_subscription(), "sk_test_offline"))
     monkeypatch.setattr(stripe_api, "_client", lambda: Client)
     result = StripeGateway().get_subscription(Ref("stripe", "sub_existing"))

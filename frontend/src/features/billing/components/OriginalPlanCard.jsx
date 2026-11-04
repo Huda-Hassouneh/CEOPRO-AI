@@ -75,9 +75,9 @@ export function PlanCard({
   const moduleList = new Intl.ListFormat(locale, { type: 'conjunction' }).format(modules.map((module) => t(`billing.modules.${module}`)));
   const hasLimits = plan.limits && Object.keys(plan.limits).length > 0;
   const classes = ['ceopro-plan-card', plan.featured && 'is-featured', (selected || currentPlan) && 'is-selected', currentPlan && 'is-current'].filter(Boolean).join(' ');
-  const label = actionLabel || (trialDays > 0
+  const label = actionLabel || (showTrial && trialDays > 0
     ? t('billing.plans.trialAction', { days: trialDays, plan: name })
-    : t('billing.payment.complete'));
+    : showTrial ? t('billing.payment.complete') : t('billing.plans.startWith', { plan: name }));
 
   return (
     <article className={classes} aria-label={name}>

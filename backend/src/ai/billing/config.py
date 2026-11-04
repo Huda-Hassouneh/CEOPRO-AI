@@ -4,7 +4,7 @@ import os
 
 ACCESS_STATUSES = ("active", "trialing")
 CURRENT_STATUSES = ("trialing", "active", "past_due", "pending", "payment_failed", "paused")
-TRIAL_PLAN_KEY_DEFAULT = "growth"  # plan catalog: Growth has the 14-day trial for new companies
+TRIAL_PLAN_KEY_DEFAULT = "growth"  # New-company trial duration comes from this plan's catalog row.
 
 
 def stripe_secret_key() -> str:

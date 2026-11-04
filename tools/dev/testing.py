@@ -27,6 +27,7 @@ def test_environment(c, name):
     env["AI_TEST_DATABASE_URL"] = env["DATABASE_URL"]
     env["BILLING_TEST_DATABASE_URL"] = env["DATABASE_URL"]
     env["BILLING_DATABASE_TESTS"] = "1"
+    env['PHASE1A_ISOLATED_DATABASE'] = 'YES'
     for variable, key in (("BILLING_SETUP_DB_PASSWORD", "billing_setup_password"),
                           ("BILLING_WEBHOOK_DB_PASSWORD", "billing_webhook_password"),
                           ("CREDIT_ACCOUNTING_DB_PASSWORD", "credit_accounting_password"),
@@ -154,10 +155,10 @@ def browser(c, env, target, suite):
         json.loads(dev.http(api + "/health/ready", origin)[0]).get("status") == "ok"
         and dev.http(api + "/health/ready", origin)[1].get("Access-Control-Allow-Origin") == origin))
     email, password = "ci-smoke@keel-ci.example", "Ci!Smoke-Only-2026"
-    # Existing CI auth fixture needs its explicit administrative setup DSN
-    # to bootstrap the signup trial. The running API retains ceopro_app only.
+    # CI verifies signup and exercises signed offline-provider confirmation.
+    # The running API retains ceopro_app plus narrowly scoped billing sockets.
     logged([dev.PYTHON, "-m", "scripts.ci_smoke_account", "--api", api, "--email", email,
-            "--password", password, "--test-email-verification-fixture"], target / "account.log", env)
+            "--password", password, "--test-email-verification-fixture", "--test-provider-trial-fixture"], target / "account.log", env)
     node = shutil.which("node")
     vite = dev.ROOT / "frontend/node_modules/vite/bin/vite.js"
     logged([node, vite, "build"], target / "build.log", runtime, cwd=dev.ROOT / "frontend")

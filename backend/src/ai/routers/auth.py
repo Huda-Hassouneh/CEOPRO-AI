@@ -247,28 +247,6 @@ def is_demo_email(email: str) -> bool:
     return (email or "").strip().lower().endswith(".example")
 
 
-def _start_free_trial(tenant_id: str, user_id: str) -> None:
-    """A new company starts on the plan's free trial: once per company, and
-    once per person (someone who already started a trial for another company
-    doesn't get a second one). A failure or a refused trial never blocks
-    sign-up: the company has no plan until it subscribes from Billing."""
-    from src.ai.billing import store as billing_store
-
-    try:
-        sys_conn = db.billing_setup_connection(tenant_id, user_id)
-    except Exception:  # noqa: BLE001
-        logger.exception("Could not open a system connection to start the trial (tenant=%s)", tenant_id)
-        return
-    try:
-        billing_store.start_trial(sys_conn, tenant_id, started_by_user_id=user_id)
-        sys_conn.commit()
-    except Exception:  # noqa: BLE001
-        sys_conn.rollback()
-        logger.exception("Could not start the free trial (tenant=%s)", tenant_id)
-    finally:
-        sys_conn.close()
-
-
 @router.post("/signup", status_code=202)
 def signup(body: SignupRequest) -> dict:
     """Stage a registration; permanent users/companies/memberships require the emailed code."""
@@ -356,9 +334,10 @@ class CreateWorkspaceRequest(BaseModel):
 
 @router.post("/workspaces", status_code=201)
 def create_workspace(body: CreateWorkspaceRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
-    """A new company owned by the signed-in person - its own data, plan
-    trial and setup, fully separate from their other companies. Returns a
-    session for the new company."""
+    """Create an isolated workspace and session without commercial access.
+
+    The owner explicitly chooses and activates an eligible plan in onboarding.
+    """
     business_name = (body.business_name or "").strip()
     if not business_name or len(business_name) > 200:
         raise HTTPException(status_code=422, detail="A business name of up to 200 characters is required.")
@@ -391,7 +370,6 @@ def create_workspace(body: CreateWorkspaceRequest, ctx: TenantContext = Depends(
         raise
     finally:
         conn.close()
-    _start_free_trial(tenant_id, ctx.user_id)
     return _session(tenant_id, ctx.user_id, "owner", business_name, full_name, language or "en", email,
                     credential_version=getattr(ctx, "credential_version", 0))
 
@@ -649,7 +627,6 @@ def verify_email(body: VerifyEmailRequest) -> dict:
         from src.ai.core import pending_registration
         result = pending_registration.verify(body.email, body.registration_token, body.code)
         if result.get("created"):
-            _start_free_trial(result["tenant_id"], result["user_id"])
             return {"ok": True, "email_verified": True, **_session(
                 result["tenant_id"], result["user_id"], "owner", result["business_name"],
                 result["full_name"], "en", result["email"])}
