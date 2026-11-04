@@ -59,6 +59,8 @@ jobs:
       DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
       AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
       APP_DB_PASSWORD: ci_test_app_password
+      # Dedicated restricted worker login, only for this disposable CI database.
+      IMAGE_WORKER_DB_PASSWORD: ci_test_image_worker_password
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
       FRONTEND_BASE_URL: http://localhost:5173
       AI_TEST_REDIS_HOST: localhost
