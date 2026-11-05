@@ -1,15 +1,29 @@
+import { lazy, Suspense } from "react";
 import { Navigate } from "react-router-dom";
-import { PlatformAdminLayout } from "./layout/PlatformAdminLayout.jsx";
+import { RoutePending } from "../../app/router/RoutePending.jsx";
 import { Permission, Forbidden } from "./components/AdminUI.jsx";
-import { OverviewPage } from "./pages/OverviewPage.jsx";
-import { DirectoryPage } from "./pages/DirectoryPage.jsx";
-import { DetailPage } from "./pages/DetailPage.jsx";
-import { AdminTeamPage } from "./pages/AdminTeamPage.jsx";
-import { AuditLogsPage } from "./pages/AuditLogsPage.jsx";
-import { PlatformSettingsPage } from "./pages/SettingsPage.jsx";
-import { ProfilePage, SecurityPage } from "./pages/AccountPages.jsx";
-import { BillingManagementPage } from "./pages/BillingManagementPage.jsx";
 import { PlatformAdminAccessGuard } from "./components/PlatformAdminAccessGuard.jsx";
+
+// The Platform Owner console is only for platform staff: load its layout and
+// screens on first visit instead of shipping them in every customer's initial
+// bundle, and keep them out of the customer app's idle prefetch. The access
+// guard stays eager so authorization runs before any console code is fetched.
+const named = (load, name) => {
+  const Lazy = lazy(() => load().then((m) => ({ default: m[name] })));
+  return function AdminScreen(props) {
+    return <Suspense fallback={<RoutePending />}><Lazy {...props} /></Suspense>;
+  };
+};
+const PlatformAdminLayout = named(() => import("./layout/PlatformAdminLayout.jsx"), "PlatformAdminLayout");
+const OverviewPage = named(() => import("./pages/OverviewPage.jsx"), "OverviewPage");
+const DirectoryPage = named(() => import("./pages/DirectoryPage.jsx"), "DirectoryPage");
+const DetailPage = named(() => import("./pages/DetailPage.jsx"), "DetailPage");
+const AdminTeamPage = named(() => import("./pages/AdminTeamPage.jsx"), "AdminTeamPage");
+const AuditLogsPage = named(() => import("./pages/AuditLogsPage.jsx"), "AuditLogsPage");
+const PlatformSettingsPage = named(() => import("./pages/SettingsPage.jsx"), "PlatformSettingsPage");
+const ProfilePage = named(() => import("./pages/AccountPages.jsx"), "ProfilePage");
+const SecurityPage = named(() => import("./pages/AccountPages.jsx"), "SecurityPage");
+const BillingManagementPage = named(() => import("./pages/BillingManagementPage.jsx"), "BillingManagementPage");
 
 const guarded = (permission, element) => (
   <Permission permission={permission}>{element}</Permission>
