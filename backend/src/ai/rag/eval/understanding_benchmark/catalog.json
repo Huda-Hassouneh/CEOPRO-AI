@@ -1,0 +1,8 @@
+[
+  {"product_id": "p-oil", "name": "Extra Virgin Olive Oil 1L", "name_alt": "زيت زيتون بكر ممتاز 1 لتر"},
+  {"product_id": "p-rice", "name": "Basmati Rice 5kg", "name_alt": "أرز بسمتي 5 كغ"},
+  {"product_id": "p-zaatar", "name": "Za'atar Mix 250g", "name_alt": "زعتر بلدي 250 غ"},
+  {"product_id": "p-dates", "name": "Medjool Dates 1kg", "name_alt": "تمر مجهول 1 كغ"},
+  {"product_id": "p-halloumi", "name": "Halloumi Cheese 250g", "name_alt": "جبنة حلوم 250 غ"},
+  {"product_id": "p-honey", "name": "Sidr Honey 500g", "name_alt": "عسل سدر 500 غ"}
+]

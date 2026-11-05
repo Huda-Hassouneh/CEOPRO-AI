@@ -1,0 +1,128 @@
+{
+  "split": "holdout",
+  "summary": {
+    "overall": {
+      "correct": 60,
+      "total": 73,
+      "rate": 0.8219,
+      "ci95": [
+        0.7188,
+        0.8929
+      ]
+    },
+    "intent": {
+      "correct": 69,
+      "total": 73,
+      "rate": 0.9452,
+      "ci95": [
+        0.8674,
+        0.9785
+      ]
+    },
+    "period": {
+      "correct": 21,
+      "total": 22,
+      "rate": 0.9545,
+      "ci95": [
+        0.782,
+        0.9919
+      ]
+    },
+    "product": {
+      "correct": 19,
+      "total": 28,
+      "rate": 0.6786,
+      "ci95": [
+        0.4934,
+        0.8207
+      ]
+    },
+    "groups": {
+      "dialect:egyptian": {
+        "correct": 1,
+        "total": 2,
+        "rate": 0.5,
+        "ci95": [
+          0.0945,
+          0.9055
+        ]
+      },
+      "dialect:gulf": {
+        "correct": 2,
+        "total": 3,
+        "rate": 0.6667,
+        "ci95": [
+          0.2077,
+          0.9385
+        ]
+      },
+      "dialect:levantine": {
+        "correct": 9,
+        "total": 15,
+        "rate": 0.6,
+        "ci95": [
+          0.3575,
+          0.8018
+        ]
+      },
+      "dialect:msa": {
+        "correct": 10,
+        "total": 14,
+        "rate": 0.7143,
+        "ci95": [
+          0.4535,
+          0.8828
+        ]
+      },
+      "dialect:none": {
+        "correct": 38,
+        "total": 39,
+        "rate": 0.9744,
+        "ci95": [
+          0.8682,
+          0.9955
+        ]
+      },
+      "follow_up": {
+        "correct": 4,
+        "total": 5,
+        "rate": 0.8,
+        "ci95": [
+          0.3755,
+          0.9638
+        ]
+      },
+      "lang:ar": {
+        "correct": 19,
+        "total": 31,
+        "rate": 0.6129,
+        "ci95": [
+          0.4382,
+          0.7627
+        ]
+      },
+      "lang:en": {
+        "correct": 35,
+        "total": 36,
+        "rate": 0.9722,
+        "ci95": [
+          0.8583,
+          0.9951
+        ]
+      },
+      "lang:mixed": {
+        "correct": 6,
+        "total": 6,
+        "rate": 1.0,
+        "ci95": [
+          0.6097,
+          1.0
+        ]
+      }
+    },
+    "latency_ms": {
+      "median": 1.521,
+      "p95": 2.676
+    }
+  }
+}

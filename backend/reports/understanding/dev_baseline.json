@@ -1,0 +1,1728 @@
+{
+  "split": "dev",
+  "summary": {
+    "overall": {
+      "correct": 66,
+      "total": 76,
+      "rate": 0.8684,
+      "ci95": [
+        0.7745,
+        0.9269
+      ]
+    },
+    "intent": {
+      "correct": 72,
+      "total": 76,
+      "rate": 0.9474,
+      "ci95": [
+        0.8723,
+        0.9793
+      ]
+    },
+    "period": {
+      "correct": 23,
+      "total": 23,
+      "rate": 1.0,
+      "ci95": [
+        0.8569,
+        1.0
+      ]
+    },
+    "product": {
+      "correct": 21,
+      "total": 27,
+      "rate": 0.7778,
+      "ci95": [
+        0.5924,
+        0.8939
+      ]
+    },
+    "groups": {
+      "dialect:egyptian": {
+        "correct": 2,
+        "total": 2,
+        "rate": 1.0,
+        "ci95": [
+          0.3424,
+          1.0
+        ]
+      },
+      "dialect:gulf": {
+        "correct": 2,
+        "total": 3,
+        "rate": 0.6667,
+        "ci95": [
+          0.2077,
+          0.9385
+        ]
+      },
+      "dialect:levantine": {
+        "correct": 12,
+        "total": 15,
+        "rate": 0.8,
+        "ci95": [
+          0.5481,
+          0.9295
+        ]
+      },
+      "dialect:msa": {
+        "correct": 11,
+        "total": 13,
+        "rate": 0.8462,
+        "ci95": [
+          0.5776,
+          0.9567
+        ]
+      },
+      "dialect:none": {
+        "correct": 39,
+        "total": 43,
+        "rate": 0.907,
+        "ci95": [
+          0.784,
+          0.9632
+        ]
+      },
+      "follow_up": {
+        "correct": 4,
+        "total": 5,
+        "rate": 0.8,
+        "ci95": [
+          0.3755,
+          0.9638
+        ]
+      },
+      "lang:ar": {
+        "correct": 25,
+        "total": 30,
+        "rate": 0.8333,
+        "ci95": [
+          0.6644,
+          0.9266
+        ]
+      },
+      "lang:en": {
+        "correct": 36,
+        "total": 40,
+        "rate": 0.9,
+        "ci95": [
+          0.7695,
+          0.9604
+        ]
+      },
+      "lang:mixed": {
+        "correct": 5,
+        "total": 6,
+        "rate": 0.8333,
+        "ci95": [
+          0.4365,
+          0.9699
+        ]
+      }
+    },
+    "latency_ms": {
+      "median": 1.624,
+      "p95": 3.561
+    }
+  },
+  "rows": [
+    {
+      "id": "dev-001",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [],
+      "ms": 39.39778099999103
+    },
+    {
+      "id": "dev-002",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-03-01",
+          "2026-04-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.8438249999803702
+    },
+    {
+      "id": "dev-003",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2025-04-01",
+          "2025-07-01"
+        ],
+        [
+          "2026-04-01",
+          "2026-07-01"
+        ]
+      ],
+      "products": [],
+      "ms": 7.525191000013365
+    },
+    {
+      "id": "dev-004",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2025-01-01",
+          "2026-01-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.773113000012927
+    },
+    {
+      "id": "dev-005",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-01-01",
+          "2026-11-06"
+        ]
+      ],
+      "products": [],
+      "ms": 1.491885000007187
+    },
+    {
+      "id": "dev-006",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-11-04",
+          "2026-11-05"
+        ]
+      ],
+      "products": [],
+      "ms": 1.7235800000321433
+    },
+    {
+      "id": "dev-007",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "products",
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-09-01",
+          "2026-10-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.741976000005252
+    },
+    {
+      "id": "dev-008",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-05-01",
+          "2026-06-16"
+        ]
+      ],
+      "products": [],
+      "ms": 2.3375960000180385
+    },
+    {
+      "id": "dev-009",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [
+        "p-oil"
+      ],
+      "ms": 1.7315009999947506
+    },
+    {
+      "id": "dev-010",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.579117000005681
+    },
+    {
+      "id": "dev-011",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": false,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [
+        "reviews"
+      ],
+      "forbidden_found": [],
+      "intents": [],
+      "periods": [],
+      "products": [
+        "p-dates"
+      ],
+      "ms": 2.2687089999635646
+    },
+    {
+      "id": "dev-012",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "financials"
+      ],
+      "periods": [],
+      "products": [
+        "p-halloumi"
+      ],
+      "ms": 1.6240429999925254
+    },
+    {
+      "id": "dev-013",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": false,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [
+        "financials"
+      ],
+      "forbidden_found": [],
+      "intents": [
+        "products"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.6279120000035618
+    },
+    {
+      "id": "dev-014",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "financials"
+      ],
+      "periods": [
+        [
+          "2026-07-01",
+          "2026-10-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.717148000011548
+    },
+    {
+      "id": "dev-015",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "financials"
+      ],
+      "periods": [],
+      "products": [
+        "p-rice"
+      ],
+      "ms": 1.624731999982032
+    },
+    {
+      "id": "dev-016",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "inventory",
+        "products"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.6001149999738118
+    },
+    {
+      "id": "dev-017",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "inventory"
+      ],
+      "periods": [],
+      "products": [
+        "p-honey"
+      ],
+      "ms": 1.3624760000539027
+    },
+    {
+      "id": "dev-018",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "forecast"
+      ],
+      "periods": [],
+      "products": [
+        "p-zaatar"
+      ],
+      "ms": 1.7965910000157237
+    },
+    {
+      "id": "dev-019",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "advice",
+        "inventory"
+      ],
+      "periods": [],
+      "products": [
+        "p-dates"
+      ],
+      "ms": 1.573116999963986
+    },
+    {
+      "id": "dev-020",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "forecast",
+        "sales"
+      ],
+      "periods": [],
+      "products": [
+        "p-oil"
+      ],
+      "ms": 1.4803430000256412
+    },
+    {
+      "id": "dev-021",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "competitors",
+        "pricing"
+      ],
+      "periods": [],
+      "products": [
+        "p-oil"
+      ],
+      "ms": 3.0576139999993757
+    },
+    {
+      "id": "dev-022",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "advice",
+        "pricing"
+      ],
+      "periods": [],
+      "products": [
+        "p-dates"
+      ],
+      "ms": 1.6953939999666545
+    },
+    {
+      "id": "dev-023",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "competitors"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.3981960000251092
+    },
+    {
+      "id": "dev-024",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "reviews"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 3.560712999956195
+    },
+    {
+      "id": "dev-025",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "market_research",
+        "marketing"
+      ],
+      "periods": [],
+      "products": [
+        "p-honey"
+      ],
+      "ms": 1.8067450000103236
+    },
+    {
+      "id": "dev-026",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "documents"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 3.0795330000046306
+    },
+    {
+      "id": "dev-027",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "documents",
+        "product_research"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 2.78181100003394
+    },
+    {
+      "id": "dev-028",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "trade"
+      ],
+      "periods": [],
+      "products": [
+        "p-oil"
+      ],
+      "ms": 4.0280350000330145
+    },
+    {
+      "id": "dev-029",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "regulation",
+        "sales"
+      ],
+      "periods": [],
+      "products": [
+        "p-honey"
+      ],
+      "ms": 2.250751999952172
+    },
+    {
+      "id": "dev-030",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "market_research"
+      ],
+      "periods": [],
+      "products": [
+        "p-dates"
+      ],
+      "ms": 1.6023709999899438
+    },
+    {
+      "id": "dev-031",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "product_research",
+        "sales"
+      ],
+      "periods": [],
+      "products": [
+        "p-halloumi"
+      ],
+      "ms": 1.7345690000070135
+    },
+    {
+      "id": "dev-032",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": false,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [
+        "trade"
+      ],
+      "intents": [
+        "customer_preference",
+        "trade"
+      ],
+      "periods": [],
+      "products": [
+        "p-rice"
+      ],
+      "ms": 1.6444089999936295
+    },
+    {
+      "id": "dev-033",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "landed_cost",
+        "pricing",
+        "trade"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.9758249999881627
+    },
+    {
+      "id": "dev-034",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "regulation"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.5497720000325899
+    },
+    {
+      "id": "dev-035",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "advice",
+        "market_research"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.554410000039752
+    },
+    {
+      "id": "dev-036",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "company"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.3343009999857713
+    },
+    {
+      "id": "dev-037",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": false,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [
+        "advice"
+      ],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [],
+      "products": [
+        "p-zaatar"
+      ],
+      "ms": 1.6776620000200637
+    },
+    {
+      "id": "dev-038",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": true,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-09-01",
+          "2026-10-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.372011000000839
+    },
+    {
+      "id": "dev-039",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": true,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [
+        "p-honey"
+      ],
+      "ms": 1.2087369999562725
+    },
+    {
+      "id": "dev-040",
+      "lang": "en",
+      "dialect": "none",
+      "follow_up": true,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2025-01-01",
+          "2026-01-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.3821480000046904
+    },
+    {
+      "id": "dev-041",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.5271100000404658
+    },
+    {
+      "id": "dev-042",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2025-07-01",
+          "2025-10-01"
+        ]
+      ],
+      "products": [],
+      "ms": 2.0477140000139116
+    },
+    {
+      "id": "dev-043",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "financials"
+      ],
+      "periods": [],
+      "products": [
+        "p-oil"
+      ],
+      "ms": 1.4749409999694763
+    },
+    {
+      "id": "dev-044",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "inventory",
+        "products"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.6497670000035214
+    },
+    {
+      "id": "dev-045",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": false,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "forecast"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.5119659999527357
+    },
+    {
+      "id": "dev-046",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "competitors"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.413944999967498
+    },
+    {
+      "id": "dev-047",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "trade"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.7848699999944984
+    },
+    {
+      "id": "dev-048",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": false,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "pricing",
+        "regulation",
+        "sales"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.454955000042446
+    },
+    {
+      "id": "dev-049",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "products",
+        "reviews"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 2.051800000003823
+    },
+    {
+      "id": "dev-050",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-03-01",
+          "2026-04-01"
+        ],
+        [
+          "2026-02-01",
+          "2026-03-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.705705000006219
+    },
+    {
+      "id": "dev-051",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2025-01-01",
+          "2026-01-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.7982419999498234
+    },
+    {
+      "id": "dev-052",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "marketing"
+      ],
+      "periods": [],
+      "products": [
+        "p-halloumi"
+      ],
+      "ms": 1.4662109999790118
+    },
+    {
+      "id": "dev-053",
+      "lang": "ar",
+      "dialect": "msa",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "documents"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.6668760000015936
+    },
+    {
+      "id": "dev-054",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.5245750000190128
+    },
+    {
+      "id": "dev-055",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "products",
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-09-01",
+          "2026-10-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.6516050000063842
+    },
+    {
+      "id": "dev-056",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "financials"
+      ],
+      "periods": [],
+      "products": [
+        "p-zaatar"
+      ],
+      "ms": 1.3588909999953103
+    },
+    {
+      "id": "dev-057",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "inventory",
+        "products"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.5539689999855
+    },
+    {
+      "id": "dev-058",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "competitors",
+        "sales"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.5605319999849598
+    },
+    {
+      "id": "dev-059",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "customer_preference"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.5293829999905029
+    },
+    {
+      "id": "dev-060",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": false,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "reviews",
+        "sales"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 2.53313299998581
+    },
+    {
+      "id": "dev-061",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.6157709999902181
+    },
+    {
+      "id": "dev-062",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "trade"
+      ],
+      "periods": [],
+      "products": [
+        "p-oil"
+      ],
+      "ms": 1.9796299999939038
+    },
+    {
+      "id": "dev-063",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "advice",
+        "sales"
+      ],
+      "periods": [],
+      "products": [
+        "p-halloumi"
+      ],
+      "ms": 1.8625579999707043
+    },
+    {
+      "id": "dev-064",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": true,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-09-01",
+          "2026-10-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.404339999965032
+    },
+    {
+      "id": "dev-065",
+      "lang": "ar",
+      "dialect": "levantine",
+      "follow_up": true,
+      "correct": false,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": false,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [
+        "p-oil"
+      ],
+      "ms": 1.353511000047547
+    },
+    {
+      "id": "dev-066",
+      "lang": "ar",
+      "dialect": "gulf",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-11-04",
+          "2026-11-05"
+        ]
+      ],
+      "products": [],
+      "ms": 1.4122860000043147
+    },
+    {
+      "id": "dev-067",
+      "lang": "ar",
+      "dialect": "gulf",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "inventory",
+        "products"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.5024350000203412
+    },
+    {
+      "id": "dev-068",
+      "lang": "ar",
+      "dialect": "gulf",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": false,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "competitors",
+        "pricing"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.5395689999877504
+    },
+    {
+      "id": "dev-069",
+      "lang": "ar",
+      "dialect": "egyptian",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.4013389999831816
+    },
+    {
+      "id": "dev-070",
+      "lang": "ar",
+      "dialect": "egyptian",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "products",
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-01-01",
+          "2026-11-06"
+        ]
+      ],
+      "products": [],
+      "ms": 1.4580680000335633
+    },
+    {
+      "id": "dev-071",
+      "lang": "mixed",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-10-01",
+          "2026-11-01"
+        ]
+      ],
+      "products": [],
+      "ms": 1.5769319999776599
+    },
+    {
+      "id": "dev-072",
+      "lang": "mixed",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "financials"
+      ],
+      "periods": [],
+      "products": [
+        "p-rice"
+      ],
+      "ms": 1.4495140000008178
+    },
+    {
+      "id": "dev-073",
+      "lang": "mixed",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": false,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": false,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "forecast"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.311380000004192
+    },
+    {
+      "id": "dev-074",
+      "lang": "mixed",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "reviews"
+      ],
+      "periods": [],
+      "products": [
+        "p-halloumi"
+      ],
+      "ms": 1.363594999986617
+    },
+    {
+      "id": "dev-075",
+      "lang": "mixed",
+      "dialect": "none",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": true,
+      "product_ok": true,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "sales"
+      ],
+      "periods": [
+        [
+          "2026-07-01",
+          "2026-10-01"
+        ]
+      ],
+      "products": [
+        "p-oil"
+      ],
+      "ms": 2.1177739999984624
+    },
+    {
+      "id": "dev-076",
+      "lang": "mixed",
+      "dialect": "levantine",
+      "follow_up": false,
+      "correct": true,
+      "intent_ok": true,
+      "period_ok": null,
+      "product_ok": null,
+      "missing": [],
+      "forbidden_found": [],
+      "intents": [
+        "competitors",
+        "sales"
+      ],
+      "periods": [],
+      "products": [],
+      "ms": 1.3909609999700479
+    }
+  ]
+}

@@ -46,6 +46,7 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
             # dialect: Egyptian "اتباع"/"بعنا كام", Levantine "الغلة"/"المدخول", Gulf "الدخل"
             "اتباع", "اتباعت", "الغله", "غلتنا", "المدخول", "مدخول", "مبعيات", "مبيعت"),
     FINANCIALS: ("profit", "margin", "cost", "loss", "gross", "expensive to make", "break even", "break-even",
+                 "losing money", "lose money", "lost money", "making money", "make money", "money-losing", "unprofitable",
                  "ربح", "أرباح", "ارباح", "هامش", "تكلف", "تكاليف", "خسار", "كلفة", "كسبنا", "مكسب", "مربح"),
     PRODUCTS: ("product", "item", "catalog", "catalogue", "sku", "منتج", "صنف", "اصناف", "أصناف", "سلعة", "سلع",
                "بضاعه", "بضايع", "بضائع", "برودكت"),
@@ -59,6 +60,8 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
     COMPETITORS: ("competitor", "competition", "rival", "منافس", "المنافسة", "منافسين", "المنافسين", "كومبتيتور"),
     REVIEWS: ("review", "rating", "feedback", "complain", "sentiment", "customers say", "customers think",
               "customer opinion", "satisf", "opinion of us", "think of us", "say about us",
+              "customers like", "customers love", "customers hate", "customers feel", "customers rate",
+              "customers rating", "people like", "people think",
               "تقييم", "مراجع", "آراء", "اراء", "شكاو", "شكوى", "رضا", "رأي الزبائن", "راي الزبائن", "رأي العملاء",
               "راي العملاء", "رايهم", "رأيهم", "انطباع"),
     DOCUMENTS: ("document", "file", "contract", "agreement", "policy", "uploaded", "pdf",
@@ -94,6 +97,9 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
               "ساعات العمل", "مواعيد العمل", "فروعنا", "فروعي"),
     ADVICE: ("should i", "should we", "recommend", "advice", "what can i do", "what should", "how can i improve",
              "how do i increase", "how to increase", "how to grow",
+             "how can i increase", "how can we increase", "how do we increase", "how can i boost", "how can we boost",
+             "how to boost", "how can i grow", "how can we grow", "how do i grow", "how do we grow", "how can we improve",
+             "ways to increase", "ways to boost", "ways to grow", "tips to", "tips for",
              "شو لازم", "شو بنصح", "انصح", "أنصح", "تنصح", "نصيحة", "توصية", "ماذا أفعل", "كيف ازيد", "كيف أزيد",
              "كيف بقدر"),
 }
@@ -222,9 +228,17 @@ def correct_typos(text: str) -> str:
     return re.sub(r"[a-z]+", fix, text)
 
 
+# "imported rice", "the imported honey": where a product comes from, said as an adjective, describes the
+# product; on its own it is not a question about importing it.
+_IMPORTED_ATTRIBUTE = re.compile(r"(?<![a-z])imported(?![a-z])")
+
+
 def detect_intents(text: str) -> List[str]:
     lowered = f" {_norm(text)} "
     found = [intent for intent, keywords in _KEYWORDS.items() if _has(lowered, keywords)]
+    if TRADE in found and not _has(_IMPORTED_ATTRIBUTE.sub(" ", lowered), _KEYWORDS[TRADE]) and (
+            set(found) - {TRADE}):
+        found.remove(TRADE)
     corrected = correct_typos(lowered)
     if corrected != lowered:  # "which items are low in inventroy?": products, and the misspelt stock too
         found += [intent for intent, keywords in _KEYWORDS.items()
@@ -485,7 +499,7 @@ _GENERIC_NAME_WORDS = {
     "fresh", "loose", "per", "medium", "large", "small", "mini", "new", "classic", "original", "special", "drink",
     "with", "and", "the", "for", "item", "product", "case", "cover", "service", "repair", "plus", "pro", "max",
     "علبه", "عبوه", "كيس", "مرطبان", "تنكه", "هديه", "ممتاز", "فاخر", "طازج", "صغير", "كبير", "وسط", "خلطه", "منتج",
-    "غرام", "لتر", "مل", "كيلو", "قطعه", "حبه",
+    "غرام", "لتر", "مل", "كيلو", "قطعه", "حبه", "كغ", "كجم", "كلغ", "غم", "جم", "ملل",
 }
 _ARTICLE = re.compile(r"(?<![\w])(?:وال|بال|لل|فال|كال|ال)(?=[\u0621-\u064a]{2,})")
 _SIZE_TOKEN = re.compile(r"^\d+(?:[.,]\d+)?(?:[a-z]+)?$|^(?:ml|l|g|kg|gm|gb|tb|mm|cm|m|pcs|x)$")
@@ -500,6 +514,13 @@ def _name_tokens(text: str) -> List[str]:
 
 def _core(tokens: List[str]) -> List[str]:
     return [t for t in tokens if not _SIZE_TOKEN.match(t) and t not in _GENERIC_NAME_WORDS and len(t) > 1]
+
+
+def _distinctive(word: str) -> bool:
+    """A single word long enough to name a product on its own. Arabic product nouns are often three letters
+    once the article is removed ("التمر" -> "تمر", "العسل" -> "عسل", "الزيت" -> "زيت", "الارز" -> "ارز");
+    Latin words need four ("rice", "dates"), so "tea", "mix" or "oil" alone never pick a product."""
+    return len(word) >= (3 if re.match(r"[\u0621-\u064a]", word) else 4)
 
 
 def _contains_run(haystack: List[str], needle: List[str]) -> bool:
@@ -540,7 +561,7 @@ def _products(text: str, catalog: List[dict]) -> List[dict]:
             core = _core(_name_tokens(_norm(name)))
             if len(core) >= 2 and any(_contains_run(question, core[i:i + 2]) for i in range(len(core) - 1)):
                 best = max(best, 2)
-            elif any(len(word) >= 4 and word in question for word in core):
+            elif any(_distinctive(word) and word in question for word in core):
                 best = max(best, 1)
         if best:
             partial.append((best, product))

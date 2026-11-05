@@ -1,0 +1,76 @@
+{"id": "dev-001", "lang": "en", "dialect": "none", "question": "What was our revenue last month?", "require": ["sales"], "forbid": [], "period": ["2026-10-01", "2026-11-01"]}
+{"id": "dev-002", "lang": "en", "dialect": "none", "question": "How much did we sell in March?", "require": ["sales"], "forbid": [], "period": ["2026-03-01", "2026-04-01"]}
+{"id": "dev-003", "lang": "en", "dialect": "none", "question": "Compare Q2 2025 with Q2 2026 sales", "require": ["sales"], "forbid": [], "period": [["2025-04-01", "2025-07-01"], ["2026-04-01", "2026-07-01"]]}
+{"id": "dev-004", "lang": "en", "dialect": "none", "question": "What were total sales in 2025?", "require": ["sales"], "forbid": [], "period": ["2025-01-01", "2026-01-01"]}
+{"id": "dev-005", "lang": "en", "dialect": "none", "question": "Show me sales by month for this year", "require": ["sales"], "forbid": []}
+{"id": "dev-006", "lang": "en", "dialect": "none", "question": "How many orders did we get yesterday?", "require": ["sales"], "forbid": [], "period": ["2026-11-04", "2026-11-05"]}
+{"id": "dev-007", "lang": "en", "dialect": "none", "question": "Which product sold the most units in September?", "require": ["sales"], "forbid": [], "period": ["2026-09-01", "2026-10-01"]}
+{"id": "dev-008", "lang": "en", "dialect": "none", "question": "What was revenue between 1 May and 15 June?", "require": ["sales"], "forbid": [], "period": ["2026-05-01", "2026-06-16"]}
+{"id": "dev-009", "lang": "en", "dialect": "none", "question": "How much olive oil did we sell last month?", "require": ["sales"], "forbid": [], "period": ["2026-10-01", "2026-11-01"], "products": ["p-oil"]}
+{"id": "dev-010", "lang": "en", "dialect": "none", "question": "Who are our top customers by revenue?", "require": ["sales"], "forbid": ["trade"]}
+{"id": "dev-011", "lang": "en", "dialect": "none", "question": "Do our customers like the new dates?", "require": ["reviews"], "forbid": ["trade"], "products": ["p-dates"]}
+{"id": "dev-012", "lang": "en", "dialect": "none", "question": "What is our gross margin on halloumi?", "require": ["financials"], "forbid": [], "products": ["p-halloumi"]}
+{"id": "dev-013", "lang": "en", "dialect": "none", "question": "Which products are losing money?", "require": ["financials"], "forbid": []}
+{"id": "dev-014", "lang": "en", "dialect": "none", "question": "What was our profit in Q3?", "require": ["financials"], "forbid": [], "period": ["2026-07-01", "2026-10-01"]}
+{"id": "dev-015", "lang": "en", "dialect": "none", "question": "How much does the basmati rice cost us per bag?", "require": ["financials"], "forbid": [], "products": ["p-rice"]}
+{"id": "dev-016", "lang": "en", "dialect": "none", "question": "Which items are running low on stock?", "require": ["inventory"], "forbid": []}
+{"id": "dev-017", "lang": "en", "dialect": "none", "question": "When will we run out of honey?", "require": ["inventory"], "forbid": [], "products": ["p-honey"]}
+{"id": "dev-018", "lang": "en", "dialect": "none", "question": "What is the demand forecast for za'atar next month?", "require": ["forecast"], "forbid": [], "products": ["p-zaatar"]}
+{"id": "dev-019", "lang": "en", "dialect": "none", "question": "How many dates should I reorder?", "require": ["inventory"], "forbid": [], "products": ["p-dates"]}
+{"id": "dev-020", "lang": "en", "dialect": "none", "question": "Predict next week's sales of olive oil", "require": ["forecast"], "forbid": [], "products": ["p-oil"]}
+{"id": "dev-021", "lang": "en", "dialect": "none", "question": "Is our olive oil priced higher than competitors?", "require": ["pricing", "competitors"], "forbid": [], "products": ["p-oil"]}
+{"id": "dev-022", "lang": "en", "dialect": "none", "question": "What price should I set for the medjool dates?", "require": ["pricing"], "forbid": [], "products": ["p-dates"]}
+{"id": "dev-023", "lang": "en", "dialect": "none", "question": "Who are my main competitors?", "require": ["competitors"], "forbid": []}
+{"id": "dev-024", "lang": "en", "dialect": "none", "question": "What are customers complaining about in reviews?", "require": ["reviews"], "forbid": ["trade"]}
+{"id": "dev-025", "lang": "en", "dialect": "none", "question": "Create a marketing campaign for our honey", "require": ["marketing"], "forbid": [], "products": ["p-honey"]}
+{"id": "dev-026", "lang": "en", "dialect": "none", "question": "What does our return policy document say about refunds?", "require": ["documents"], "forbid": []}
+{"id": "dev-027", "lang": "en", "dialect": "none", "question": "Summarize the supplier contract I uploaded", "require": ["documents"], "forbid": []}
+{"id": "dev-028", "lang": "en", "dialect": "none", "question": "What are the customs duties to import olive oil from Turkey to Jordan?", "require": ["trade"], "forbid": []}
+{"id": "dev-029", "lang": "en", "dialect": "none", "question": "Do I need a license to sell honey in Saudi Arabia?", "require": ["regulation"], "forbid": []}
+{"id": "dev-030", "lang": "en", "dialect": "none", "question": "Is the dates market growing in the Gulf?", "require": ["market_research"], "forbid": []}
+{"id": "dev-031", "lang": "en", "dialect": "none", "question": "Who sells halloumi wholesale in Amman?", "require": ["product_research"], "forbid": []}
+{"id": "dev-032", "lang": "en", "dialect": "none", "question": "Why do customers prefer imported rice?", "require": ["customer_preference"], "forbid": ["trade"]}
+{"id": "dev-033", "lang": "en", "dialect": "none", "question": "Is it cheaper to import 500 cartons via Aqaba port or by land?", "require": ["trade", "landed_cost"], "forbid": []}
+{"id": "dev-034", "lang": "en", "dialect": "none", "question": "What is the VAT rate on food in Jordan?", "require": ["regulation"], "forbid": []}
+{"id": "dev-035", "lang": "en", "dialect": "none", "question": "Should I open a new branch in Irbid?", "require": ["market_research"], "forbid": []}
+{"id": "dev-036", "lang": "en", "dialect": "none", "question": "Tell me about my company", "require": ["company"], "forbid": []}
+{"id": "dev-037", "lang": "en", "dialect": "none", "question": "How can I increase sales of za'atar?", "require": ["sales", "advice"], "forbid": [], "products": ["p-zaatar"]}
+{"id": "dev-038", "lang": "en", "dialect": "none", "question": "and the month before?", "require": ["sales"], "forbid": [], "period": ["2026-09-01", "2026-10-01"], "previous": "What was our revenue last month?"}
+{"id": "dev-039", "lang": "en", "dialect": "none", "question": "what about honey?", "require": ["sales"], "forbid": [], "products": ["p-honey"], "previous": "How much olive oil did we sell last month?"}
+{"id": "dev-040", "lang": "en", "dialect": "none", "question": "And for 2025?", "require": ["sales"], "forbid": [], "period": ["2025-01-01", "2026-01-01"], "previous": "What were total sales in 2024?"}
+{"id": "dev-041", "lang": "ar", "dialect": "msa", "question": "ما هي إيرادات الشهر الماضي؟", "require": ["sales"], "forbid": [], "period": ["2026-10-01", "2026-11-01"]}
+{"id": "dev-042", "lang": "ar", "dialect": "msa", "question": "كم بلغت المبيعات في الربع الثالث من عام 2025؟", "require": ["sales"], "forbid": [], "period": ["2025-07-01", "2025-10-01"]}
+{"id": "dev-043", "lang": "ar", "dialect": "msa", "question": "ما هو هامش الربح على زيت الزيتون؟", "require": ["financials"], "forbid": [], "products": ["p-oil"]}
+{"id": "dev-044", "lang": "ar", "dialect": "msa", "question": "ما المنتجات التي أوشكت على النفاد من المخزون؟", "require": ["inventory"], "forbid": []}
+{"id": "dev-045", "lang": "ar", "dialect": "msa", "question": "ما توقعات الطلب على التمر الشهر القادم؟", "require": ["forecast"], "forbid": [], "products": ["p-dates"]}
+{"id": "dev-046", "lang": "ar", "dialect": "msa", "question": "من هم أبرز المنافسين لنا؟", "require": ["competitors"], "forbid": []}
+{"id": "dev-047", "lang": "ar", "dialect": "msa", "question": "ما هي الرسوم الجمركية على استيراد الأرز من الهند؟", "require": ["trade"], "forbid": []}
+{"id": "dev-048", "lang": "ar", "dialect": "msa", "question": "هل أحتاج إلى ترخيص لبيع العسل؟", "require": ["regulation"], "forbid": [], "products": ["p-honey"]}
+{"id": "dev-049", "lang": "ar", "dialect": "msa", "question": "ماذا يقول العملاء عن منتجاتنا في التقييمات؟", "require": ["reviews"], "forbid": ["trade"]}
+{"id": "dev-050", "lang": "ar", "dialect": "msa", "question": "قارن مبيعات آذار مع شباط", "require": ["sales"], "forbid": [], "period": [["2026-03-01", "2026-04-01"], ["2026-02-01", "2026-03-01"]]}
+{"id": "dev-051", "lang": "ar", "dialect": "msa", "question": "ما إجمالي المبيعات في عام ٢٠٢٥؟", "require": ["sales"], "forbid": [], "period": ["2025-01-01", "2026-01-01"]}
+{"id": "dev-052", "lang": "ar", "dialect": "msa", "question": "أنشئ حملة تسويقية لجبنة الحلوم", "require": ["marketing"], "forbid": [], "products": ["p-halloumi"]}
+{"id": "dev-053", "lang": "ar", "dialect": "msa", "question": "ماذا يقول العقد المرفوع عن مدة التوريد؟", "require": ["documents"], "forbid": []}
+{"id": "dev-054", "lang": "ar", "dialect": "levantine", "question": "قديش بعنا الشهر الماضي؟", "require": ["sales"], "forbid": [], "period": ["2026-10-01", "2026-11-01"]}
+{"id": "dev-055", "lang": "ar", "dialect": "levantine", "question": "شو أكثر صنف انباع بشهر 9؟", "require": ["sales"], "forbid": [], "period": ["2026-09-01", "2026-10-01"]}
+{"id": "dev-056", "lang": "ar", "dialect": "levantine", "question": "قديش ربحنا من الزعتر؟", "require": ["financials"], "forbid": [], "products": ["p-zaatar"]}
+{"id": "dev-057", "lang": "ar", "dialect": "levantine", "question": "شو الأصناف اللي قربت تخلص من الستوك؟", "require": ["inventory"], "forbid": []}
+{"id": "dev-058", "lang": "ar", "dialect": "levantine", "question": "مين المنافسين اللي بيبيعوا أرخص مننا؟", "require": ["competitors"], "forbid": []}
+{"id": "dev-059", "lang": "ar", "dialect": "levantine", "question": "ليش الزبائن بيفضلوا العسل المستورد؟", "require": ["customer_preference"], "forbid": ["trade"]}
+{"id": "dev-060", "lang": "ar", "dialect": "levantine", "question": "شو رأي الزبائن بالتمر تبعنا؟", "require": ["reviews"], "forbid": ["trade"], "products": ["p-dates"]}
+{"id": "dev-061", "lang": "ar", "dialect": "levantine", "question": "بدي اعرف كم كانت الغلة بتشرين الأول", "require": ["sales"], "forbid": [], "period": ["2026-10-01", "2026-11-01"]}
+{"id": "dev-062", "lang": "ar", "dialect": "levantine", "question": "قديش جمرك زيت الزيتون اذا استوردته من تركيا عبر جابر؟", "require": ["trade"], "forbid": [], "products": ["p-oil"]}
+{"id": "dev-063", "lang": "ar", "dialect": "levantine", "question": "شو بتنصحني أعمل عشان أزيد مبيعات الحلوم؟", "require": ["sales", "advice"], "forbid": [], "products": ["p-halloumi"]}
+{"id": "dev-064", "lang": "ar", "dialect": "levantine", "question": "وبالشهر اللي قبله؟", "require": ["sales"], "forbid": [], "period": ["2026-09-01", "2026-10-01"], "previous": "قديش بعنا الشهر الماضي؟"}
+{"id": "dev-065", "lang": "ar", "dialect": "levantine", "question": "طيب والعسل؟", "require": ["sales"], "forbid": [], "products": ["p-honey"], "previous": "قديش بعنا زيت زيتون الشهر الماضي؟"}
+{"id": "dev-066", "lang": "ar", "dialect": "gulf", "question": "كم الدخل حق أمس؟", "require": ["sales"], "forbid": [], "period": ["2026-11-04", "2026-11-05"]}
+{"id": "dev-067", "lang": "ar", "dialect": "gulf", "question": "وش المنتجات اللي ناقصة في المستودع؟", "require": ["inventory"], "forbid": []}
+{"id": "dev-068", "lang": "ar", "dialect": "gulf", "question": "أبي أعرف أسعار المنافسين على التمر", "require": ["pricing", "competitors"], "forbid": [], "products": ["p-dates"]}
+{"id": "dev-069", "lang": "ar", "dialect": "egyptian", "question": "بعنا كام الشهر اللي فات؟", "require": ["sales"], "forbid": [], "period": ["2026-10-01", "2026-11-01"]}
+{"id": "dev-070", "lang": "ar", "dialect": "egyptian", "question": "إيه أكتر منتج اتباع السنة دي؟", "require": ["sales"], "forbid": []}
+{"id": "dev-071", "lang": "mixed", "dialect": "levantine", "question": "شو كان الـ revenue بشهر 10؟", "require": ["sales"], "forbid": [], "period": ["2026-10-01", "2026-11-01"]}
+{"id": "dev-072", "lang": "mixed", "dialect": "none", "question": "كم الـ profit margin على Basmati Rice؟", "require": ["financials"], "forbid": [], "products": ["p-rice"]}
+{"id": "dev-073", "lang": "mixed", "dialect": "levantine", "question": "بدي forecast للـ demand على العسل", "require": ["forecast"], "forbid": [], "products": ["p-honey"]}
+{"id": "dev-074", "lang": "mixed", "dialect": "none", "question": "What do customers say عن الحلوم؟", "require": ["reviews"], "forbid": ["trade"], "products": ["p-halloumi"]}
+{"id": "dev-075", "lang": "mixed", "dialect": "none", "question": "how much زيت زيتون did we sell in Q3?", "require": ["sales"], "forbid": [], "period": ["2026-07-01", "2026-10-01"], "products": ["p-oil"]}
+{"id": "dev-076", "lang": "mixed", "dialect": "levantine", "question": "مين الـ competitors تبعنا بعمان؟", "require": ["competitors"], "forbid": []}

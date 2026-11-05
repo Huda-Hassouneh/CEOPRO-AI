@@ -1,0 +1,73 @@
+{"id": "hold-001", "lang": "en", "dialect": "none", "question": "How much revenue did we make in August?", "require": ["sales"], "forbid": [], "period": ["2026-08-01", "2026-09-01"]}
+{"id": "hold-002", "lang": "en", "dialect": "none", "question": "Total turnover for last year please", "require": ["sales"], "forbid": [], "period": ["2025-01-01", "2026-01-01"]}
+{"id": "hold-003", "lang": "en", "dialect": "none", "question": "Sales in Q1 2026 versus Q1 2025", "require": ["sales"], "forbid": [], "period": [["2026-01-01", "2026-04-01"], ["2025-01-01", "2025-04-01"]]}
+{"id": "hold-004", "lang": "en", "dialect": "none", "question": "What did we earn on November 4th?", "require": ["sales"], "forbid": [], "period": ["2026-11-04", "2026-11-05"]}
+{"id": "hold-005", "lang": "en", "dialect": "none", "question": "Best selling product in October?", "require": ["sales"], "forbid": [], "period": ["2026-10-01", "2026-11-01"]}
+{"id": "hold-006", "lang": "en", "dialect": "none", "question": "How many bottles of olive oil were sold in July?", "require": ["sales"], "forbid": [], "period": ["2026-07-01", "2026-08-01"], "products": ["p-oil"]}
+{"id": "hold-007", "lang": "en", "dialect": "none", "question": "List our biggest customers this year", "require": ["sales"], "forbid": ["trade"]}
+{"id": "hold-008", "lang": "en", "dialect": "none", "question": "How are customers rating our honey?", "require": ["reviews"], "forbid": ["trade"], "products": ["p-honey"]}
+{"id": "hold-009", "lang": "en", "dialect": "none", "question": "Show monthly revenue trend for 2025", "require": ["sales"], "forbid": [], "period": ["2025-01-01", "2026-01-01"]}
+{"id": "hold-010", "lang": "en", "dialect": "none", "question": "What's the profit on each bag of basmati rice?", "require": ["financials"], "forbid": [], "products": ["p-rice"]}
+{"id": "hold-011", "lang": "en", "dialect": "none", "question": "Which items have the lowest margin?", "require": ["financials"], "forbid": []}
+{"id": "hold-012", "lang": "en", "dialect": "none", "question": "What were our costs last month?", "require": ["financials"], "forbid": [], "period": ["2026-10-01", "2026-11-01"]}
+{"id": "hold-013", "lang": "en", "dialect": "none", "question": "Do we have enough halloumi in stock?", "require": ["inventory"], "forbid": [], "products": ["p-halloumi"]}
+{"id": "hold-014", "lang": "en", "dialect": "none", "question": "What should I restock this week?", "require": ["inventory"], "forbid": []}
+{"id": "hold-015", "lang": "en", "dialect": "none", "question": "How much za'atar will we sell next month?", "require": ["forecast"], "forbid": [], "products": ["p-zaatar"]}
+{"id": "hold-016", "lang": "en", "dialect": "none", "question": "Expected demand for dates during Ramadan", "require": ["forecast"], "forbid": [], "products": ["p-dates"]}
+{"id": "hold-017", "lang": "en", "dialect": "none", "question": "Are competitors charging less for honey?", "require": ["pricing", "competitors"], "forbid": [], "products": ["p-honey"]}
+{"id": "hold-018", "lang": "en", "dialect": "none", "question": "Recommend a price for halloumi", "require": ["pricing"], "forbid": [], "products": ["p-halloumi"]}
+{"id": "hold-019", "lang": "en", "dialect": "none", "question": "Which rival stores are near us?", "require": ["competitors"], "forbid": []}
+{"id": "hold-020", "lang": "en", "dialect": "none", "question": "Summarize the negative feedback from customers", "require": ["reviews"], "forbid": ["trade"]}
+{"id": "hold-021", "lang": "en", "dialect": "none", "question": "Write an ad for our medjool dates", "require": ["marketing"], "forbid": [], "products": ["p-dates"]}
+{"id": "hold-022", "lang": "en", "dialect": "none", "question": "What does the lease agreement say about renewal?", "require": ["documents"], "forbid": []}
+{"id": "hold-023", "lang": "en", "dialect": "none", "question": "Find the delivery terms in the uploaded PDF", "require": ["documents"], "forbid": []}
+{"id": "hold-024", "lang": "en", "dialect": "none", "question": "What tariff applies when exporting dates to the UAE?", "require": ["trade"], "forbid": [], "products": ["p-dates"]}
+{"id": "hold-025", "lang": "en", "dialect": "none", "question": "What labeling requirements apply to honey in Jordan?", "require": ["regulation"], "forbid": [], "products": ["p-honey"]}
+{"id": "hold-026", "lang": "en", "dialect": "none", "question": "What are the trends in the olive oil market?", "require": ["market_research"], "forbid": []}
+{"id": "hold-027", "lang": "en", "dialect": "none", "question": "Where can I buy basmati rice wholesale?", "require": ["product_research"], "forbid": []}
+{"id": "hold-028", "lang": "en", "dialect": "none", "question": "Why do people choose our competitors' za'atar?", "require": ["customer_preference"], "forbid": ["trade"]}
+{"id": "hold-029", "lang": "en", "dialect": "none", "question": "Landed cost of 200 cartons of rice from India, CIF Aqaba", "require": ["trade", "landed_cost"], "forbid": []}
+{"id": "hold-030", "lang": "en", "dialect": "none", "question": "Do I need to register my shop for sales tax?", "require": ["regulation"], "forbid": []}
+{"id": "hold-031", "lang": "en", "dialect": "none", "question": "Is expanding to Zarqa worth it?", "require": ["market_research"], "forbid": []}
+{"id": "hold-032", "lang": "en", "dialect": "none", "question": "What do we sell as a company?", "require": ["company"], "forbid": []}
+{"id": "hold-033", "lang": "en", "dialect": "none", "question": "What should we do to grow honey sales?", "require": ["sales", "advice"], "forbid": [], "products": ["p-honey"]}
+{"id": "hold-034", "lang": "en", "dialect": "none", "question": "and the same period last year?", "require": ["sales"], "forbid": [], "period": ["2025-10-01", "2025-11-01"], "previous": "How much revenue did we make in October?"}
+{"id": "hold-035", "lang": "en", "dialect": "none", "question": "what about the rice?", "require": ["sales"], "forbid": [], "products": ["p-rice"], "previous": "How many bottles of olive oil were sold in July?"}
+{"id": "hold-036", "lang": "en", "dialect": "none", "question": "and in September?", "require": ["sales"], "forbid": [], "period": ["2026-09-01", "2026-10-01"], "previous": "How much revenue did we make in August?"}
+{"id": "hold-037", "lang": "ar", "dialect": "msa", "question": "كم كانت المبيعات في شهر أغسطس؟", "require": ["sales"], "forbid": [], "period": ["2026-08-01", "2026-09-01"]}
+{"id": "hold-038", "lang": "ar", "dialect": "msa", "question": "ما إجمالي الإيرادات في الربع الأول؟", "require": ["sales"], "forbid": [], "period": ["2026-01-01", "2026-04-01"]}
+{"id": "hold-039", "lang": "ar", "dialect": "msa", "question": "ما تكلفة جبنة الحلوم علينا؟", "require": ["financials"], "forbid": [], "products": ["p-halloumi"]}
+{"id": "hold-040", "lang": "ar", "dialect": "msa", "question": "هل يوجد مخزون كافٍ من الأرز؟", "require": ["inventory"], "forbid": [], "products": ["p-rice"]}
+{"id": "hold-041", "lang": "ar", "dialect": "msa", "question": "ما هو الطلب المتوقع على الزعتر؟", "require": ["forecast"], "forbid": [], "products": ["p-zaatar"]}
+{"id": "hold-042", "lang": "ar", "dialect": "msa", "question": "ما أسعار المنافسين للعسل؟", "require": ["pricing", "competitors"], "forbid": [], "products": ["p-honey"]}
+{"id": "hold-043", "lang": "ar", "dialect": "msa", "question": "ما الرسوم الجمركية لتصدير التمر إلى السعودية؟", "require": ["trade"], "forbid": [], "products": ["p-dates"]}
+{"id": "hold-044", "lang": "ar", "dialect": "msa", "question": "ما متطلبات بطاقة البيان للزيت في الأردن؟", "require": ["regulation"], "forbid": []}
+{"id": "hold-045", "lang": "ar", "dialect": "msa", "question": "ما هي شكاوى العملاء الأكثر تكراراً؟", "require": ["reviews"], "forbid": ["trade"]}
+{"id": "hold-046", "lang": "ar", "dialect": "msa", "question": "قارن إيرادات نيسان مع أيار", "require": ["sales"], "forbid": [], "period": [["2026-04-01", "2026-05-01"], ["2026-05-01", "2026-06-01"]]}
+{"id": "hold-047", "lang": "ar", "dialect": "msa", "question": "ما المبيعات خلال عام ٢٠٢٤؟", "require": ["sales"], "forbid": [], "period": ["2024-01-01", "2025-01-01"]}
+{"id": "hold-048", "lang": "ar", "dialect": "msa", "question": "اكتب إعلاناً ترويجياً لعسل السدر", "require": ["marketing"], "forbid": [], "products": ["p-honey"]}
+{"id": "hold-049", "lang": "ar", "dialect": "msa", "question": "ماذا تنص سياسة الإرجاع في الملف المرفوع؟", "require": ["documents"], "forbid": []}
+{"id": "hold-050", "lang": "ar", "dialect": "msa", "question": "هل السوق مناسب لافتتاح فرع جديد في الزرقاء؟", "require": ["market_research"], "forbid": []}
+{"id": "hold-051", "lang": "ar", "dialect": "levantine", "question": "قديش كانت المبيعات بآب؟", "require": ["sales"], "forbid": [], "period": ["2026-08-01", "2026-09-01"]}
+{"id": "hold-052", "lang": "ar", "dialect": "levantine", "question": "شو أكتر منتج بعناه السنة الماضية؟", "require": ["sales"], "forbid": [], "period": ["2025-01-01", "2026-01-01"]}
+{"id": "hold-053", "lang": "ar", "dialect": "levantine", "question": "قديش الكلفة على كيس الأرز؟", "require": ["financials"], "forbid": [], "products": ["p-rice"]}
+{"id": "hold-054", "lang": "ar", "dialect": "levantine", "question": "في عنا ستوك كافي من العسل؟", "require": ["inventory"], "forbid": [], "products": ["p-honey"]}
+{"id": "hold-055", "lang": "ar", "dialect": "levantine", "question": "مين بيبيع زعتر بالجملة بإربد؟", "require": ["product_research"], "forbid": []}
+{"id": "hold-056", "lang": "ar", "dialect": "levantine", "question": "ليش الناس بيشتروا من المنافس أكثر؟", "require": ["customer_preference"], "forbid": ["trade"]}
+{"id": "hold-057", "lang": "ar", "dialect": "levantine", "question": "شو بيحكوا الزبائن عن الحلوم؟", "require": ["reviews"], "forbid": ["trade"], "products": ["p-halloumi"]}
+{"id": "hold-058", "lang": "ar", "dialect": "levantine", "question": "كم كان المدخول بكانون الأول الماضي؟", "require": ["sales"], "forbid": [], "period": ["2025-12-01", "2026-01-01"]}
+{"id": "hold-059", "lang": "ar", "dialect": "levantine", "question": "قديش بتكلفني شحنة تمر من السعودية لعمان؟", "require": ["trade"], "forbid": [], "products": ["p-dates"]}
+{"id": "hold-060", "lang": "ar", "dialect": "levantine", "question": "شو لازم أعمل عشان أبيع زيت أكثر؟", "require": ["sales", "advice"], "forbid": []}
+{"id": "hold-061", "lang": "ar", "dialect": "levantine", "question": "وبشهر 7؟", "require": ["sales"], "forbid": [], "period": ["2026-07-01", "2026-08-01"], "previous": "قديش كانت المبيعات بآب؟"}
+{"id": "hold-062", "lang": "ar", "dialect": "levantine", "question": "طيب والتمر؟", "require": ["sales"], "forbid": [], "products": ["p-dates"], "previous": "قديش بعنا عسل الشهر الماضي؟"}
+{"id": "hold-063", "lang": "ar", "dialect": "gulf", "question": "كم بعنا اليوم؟", "require": ["sales"], "forbid": [], "period": ["2026-11-05", "2026-11-06"]}
+{"id": "hold-064", "lang": "ar", "dialect": "gulf", "question": "وش أكثر صنف عليه طلب؟", "require": ["sales"], "forbid": []}
+{"id": "hold-065", "lang": "ar", "dialect": "gulf", "question": "أبي توقعات المبيعات للشهر الجاي", "require": ["forecast"], "forbid": []}
+{"id": "hold-066", "lang": "ar", "dialect": "egyptian", "question": "المبيعات عاملة إيه الشهر ده؟", "require": ["sales"], "forbid": [], "period": ["2026-11-01", "2026-11-06"]}
+{"id": "hold-067", "lang": "ar", "dialect": "egyptian", "question": "الزباين بيقولوا إيه على العسل؟", "require": ["reviews"], "forbid": ["trade"], "products": ["p-honey"]}
+{"id": "hold-068", "lang": "mixed", "dialect": "levantine", "question": "قديش الـ sales تبعت شهر 8؟", "require": ["sales"], "forbid": [], "period": ["2026-08-01", "2026-09-01"]}
+{"id": "hold-069", "lang": "mixed", "dialect": "none", "question": "ما هو الـ stock المتبقي من Medjool Dates؟", "require": ["inventory"], "forbid": [], "products": ["p-dates"]}
+{"id": "hold-070", "lang": "mixed", "dialect": "levantine", "question": "بدي campaign على الإنستغرام للزعتر", "require": ["marketing"], "forbid": [], "products": ["p-zaatar"]}
+{"id": "hold-071", "lang": "mixed", "dialect": "none", "question": "What is the هامش ربح on halloumi?", "require": ["financials"], "forbid": [], "products": ["p-halloumi"]}
+{"id": "hold-072", "lang": "mixed", "dialect": "none", "question": "revenue تبع Q2 2026", "require": ["sales"], "forbid": [], "period": ["2026-04-01", "2026-07-01"]}
+{"id": "hold-073", "lang": "mixed", "dialect": "levantine", "question": "مين الـ suppliers للعسل بالأردن؟", "require": ["product_research"], "forbid": []}
