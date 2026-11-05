@@ -392,6 +392,20 @@ reported as failed sources. The run continues with the free ones.
 
 ## 8. Custom plans
 
+The customer quote-status page shows pending Owner review without changing
+subscription rights or redirecting existing subscribers away from the dashboard.
+It announces status changes politely and respects reduced-motion preferences.
+Expired offers cannot be accepted or checked out; refreshing retrieves the
+authoritative quote state. Existing subscriptions suppress replacement Checkout,
+and eligibility is rechecked before submitting a Checkout request. The backend
+remains authoritative; approval/acceptance alone never activates requested rights.
+Numeric quote features use the English/Arabic Custom Plan feature labels.
+
+Focused offline Chrome regression (from `frontend`):
+`node tests/browser/custom-quote.mjs`. It serves the production quote page and
+dashboard setup guard with synthetic HTTP fixtures. It does not contact a payment
+provider or database and does not replace backend payment/RLS acceptance evidence.
+
 ```bash
 python -m scripts.billing_admin set-contract --tenant <id> --contract-ref C-2026-001 \
   --by "<approver>" --reason "Signed order form" --monthly-price 900 --refresh daily --support priority \
