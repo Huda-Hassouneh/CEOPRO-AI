@@ -67,9 +67,12 @@ entrypoint applies migrations before starting the API, so it would stop at boot.
 create it. Commented out, with the deployment guide updated; the API, frontend and Redis remain
 free. `yaml.safe_load` parses; `test_market_discovery.py` reads only the API service.
 
-### 3.4 Tenant isolation - NOT TESTED
-To run: two companies, every ID-taking endpoint as the other company, and a database probe as
-`ceopro_app` over every table with `tenant_id`.
+### 3.4 Tenant isolation - PASS (local, 2026-11-05)
+Live API probe with two freshly signed-up companies on a disposable database: the second company got
+404 on GET/PATCH/inventory PATCH/DELETE of the first company's product, the record stayed intact, its
+product list did not contain it, and a spoofed `X-Tenant-ID` header was ignored. The automated
+`test_cross_tenant_isolation_integration_db.py` suite passes. Not repeated on staging (Render
+blocked). See `docs/ENGINEERING_REPORT_2026-11-05.md` section I.
 
 ## 4. Next steps (resume here)
 1. Render access -> read `keel-ai-staging` events and logs, confirm 3.2, fix, redeploy.

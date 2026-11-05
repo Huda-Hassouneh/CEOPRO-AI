@@ -52,6 +52,9 @@ verdicts are not current setup instructions.
   [customer acceptance findings](DEMO_PHASE2_ACCEPTANCE.md) and
   [confirmed-defect remediation](DEMO_PHASE3_REMEDIATION.md) describe the existing
   meeting fixture; they are not required for ordinary development.
+- [Engineering report, 2026-11-05](ENGINEERING_REPORT_2026-11-05.md) (measured AI
+  benchmarks, forecast calibration, browser journey, security probes, blockers) and the
+  [demonstration guide for evaluators](PRESENTATION_DEMO_GUIDE.md).
 - [Codespaces](../CODESPACES_DEVELOPMENT.md),
   [earlier local harness](../RUNNING_LOCALLY.md) and
   [staging deployment](../STAGING_DEPLOYMENT.md) are environment-specific
