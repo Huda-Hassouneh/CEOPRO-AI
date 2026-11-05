@@ -289,3 +289,37 @@ def render_designed_poster(campaign: dict, reference_image: Optional[bytes] = No
     buffer = io.BytesIO()
     canvas.convert("RGB").save(buffer, format="PNG", optimize=True)
     return buffer.getvalue()
+
+
+def overlay_headline(content: bytes, text: str, position: str = "top") -> bytes:
+    """PNG bytes of `content` with `text` written on it exactly as given, in a real font (Arabic shaped and
+    right-to-left), on a soft shade so it reads on any picture. Image models misspell words - and cannot
+    write Arabic at all - so words in a picture are added here, never asked of the model."""
+    picture = Image.open(io.BytesIO(content)).convert("RGBA")
+    width, height = picture.size
+    unit = min(width, height)
+    margin = int(unit * 0.06)
+    draw = ImageDraw.Draw(picture)
+    font, lines = _fit(draw, " ".join(text.split()), int(unit * 0.085), width - 2 * margin, 3)
+    line_h = int(font.size * 1.2)
+    block = len(lines) * line_h
+    top = margin if position == "top" else height - margin - block
+    # A shade that fades out, darkest behind the text: white text stays readable on light or busy scenes.
+    shade = Image.new("L", (1, height), 0)
+    reach = block + 2 * margin
+    for y in range(height):
+        distance = (y - (top - margin)) if position == "top" else ((top + block + margin) - y)
+        inside = 0 <= distance <= reach
+        shade.putpixel((0, y), int(150 * (1 - distance / reach)) if inside else 0)
+    dark = Image.new("RGBA", picture.size, (0, 0, 0, 255))
+    dark.putalpha(shade.resize(picture.size))
+    picture = Image.alpha_composite(picture, dark)
+    draw = ImageDraw.Draw(picture)
+    y = top
+    for line in lines:
+        draw.text((width / 2, y), _shape(line), font=font, fill=(255, 255, 255), anchor="ma",
+                  stroke_width=max(1, font.size // 30), stroke_fill=(0, 0, 0))
+        y += line_h
+    buffer = io.BytesIO()
+    picture.convert("RGB").save(buffer, format="PNG", optimize=True)
+    return buffer.getvalue()

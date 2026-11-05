@@ -45,6 +45,12 @@ def load_reference_image(client, campaign: dict) -> tuple:
     return None, None
 
 
+def _with_headline(campaign: dict, text: str) -> dict:
+    """The campaign with `text` as the headline the designed poster draws (its call to action kept)."""
+    _headline, cta = designed_poster.pick_copy(campaign)
+    return {**campaign, "content": {"INSTAGRAM": [{"headline": text.strip(), "cta": cta or ""}]}}
+
+
 def uses_plan_allowance() -> bool:
     if os.getenv("MARKETING_SELF_HOSTED_IMAGES_USE_PLAN_ALLOWANCE", "false").strip().lower() in ("1", "true", "yes"):
         return True
@@ -55,7 +61,8 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
                        image_format: str = image_generation.DEFAULT_IMAGE_FORMAT, prompt: Optional[str] = None,
                        channel: Optional[str] = None, attach: bool = True, seed: Optional[int] = None,
                        fallback_to_designed: bool = True,
-                       on_pre_upload: Optional[Callable[[str, str, int], None]] = None) -> dict:
+                       on_pre_upload: Optional[Callable[[str, str, int], None]] = None,
+                       text: Optional[str] = None) -> dict:
     """Makes a campaign image in `image_format` with the provider chain and
     adds it to the campaign's gallery (campaign_image_assets); with attach
     (or when the campaign has no image yet) it becomes the image the campaign
@@ -91,7 +98,7 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
                                   actor_user_id=user_id):
                 generated = image_generation.generate_campaign_image(
                     prompt, reference_image=reference_content, reference_content_type=reference_content_type,
-                    image_format=image_format, **({"seed": seed} if seed is not None else {}),
+                    image_format=image_format, text=text, **({"seed": seed} if seed is not None else {}),
                 )
         except image_generation.ImageGenerationError as err:
             if not fallback_to_designed:
@@ -104,7 +111,8 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
             try:
                 poster_size = image_generation.IMAGE_FORMATS[image_format]["poster"]
                 generated = image_generation.GeneratedImage(
-                    content=designed_poster.render_designed_poster(campaign, reference_content, poster_size),
+                    content=designed_poster.render_designed_poster(
+                        _with_headline(campaign, text) if (text or "").strip() else campaign, reference_content, poster_size),
                     content_type="image/png", provider="designed", mode="designed",
                     used_reference=bool(reference_content), width=poster_size[0], height=poster_size[1],
                     image_format=image_format,

@@ -89,9 +89,11 @@ export const marketingApi = {
   // 'LANDSCAPE' | 'WIDE'), prompt (the owner's edited image prompt), channel,
   // attach (false keeps the current image and only adds to the gallery).
   // The response's `asset` is the new gallery entry.
-  generateImage: async (campaignId, { imageFormat, prompt, channel, attach } = {}) => {
+  generateImage: async (campaignId, { imageFormat, prompt, channel, attach, text } = {}) => {
     const payload = {
       image_format: imageFormat || undefined,
+      // Words to show in the picture, written onto it exactly (Arabic included).
+      text: text?.trim() ? text.trim() : undefined,
       prompt: prompt?.trim() ? prompt.trim() : undefined,
       channel: channel || undefined,
       attach: attach === false ? false : undefined,

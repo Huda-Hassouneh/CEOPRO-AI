@@ -19,7 +19,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import psycopg2
 import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
+
+from src.ai.tests._images import scene
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = [
@@ -52,7 +53,7 @@ class _Server:
                     return
                 width, height = (int(v) for v in body["size"].split("x"))
                 buffer = io.BytesIO()
-                Image.new("RGB", (width, height), (body.get("seed", 0) % 255, 80, 120)).save(buffer, format="JPEG")
+                scene(width, height, (body.get("seed", 0) % 255, 80, 120)).save(buffer, format="JPEG")
                 payload = json.dumps({"data": [{"b64_json": base64.b64encode(buffer.getvalue()).decode()}]}).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

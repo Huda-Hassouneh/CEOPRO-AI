@@ -22,9 +22,20 @@ from src.ai.marketing.image_generation import (
 )
 
 
+def _scene(width, height):
+    """A picture with contrast and detail - what the quality gate accepts (a flat colour is rejected)."""
+    from PIL import ImageDraw
+    image = Image.new("RGB", (width, height), (200, 120, 40))
+    draw = ImageDraw.Draw(image)
+    for i in range(0, max(width, height), max(8, min(width, height) // 24)):
+        draw.ellipse((i % width, (i * 7) % height, i % width + width // 6, (i * 7) % height + height // 6),
+                     fill=((i * 3) % 255, (i * 5) % 255, (i * 11) % 255), outline=(20, 20, 20), width=3)
+    return image
+
+
 def _picture(size=1024, fmt="PNG"):
     buffer = io.BytesIO()
-    Image.new("RGB", (size, size), (200, 120, 40)).save(buffer, format=fmt)
+    _scene(size, size).save(buffer, format=fmt)
     return buffer.getvalue()
 
 
@@ -201,8 +212,9 @@ def test_a_failing_or_busy_provider_falls_back_to_the_next(monkeypatch, _clean_e
          patch("src.ai.marketing.image_generation.httpx.get", return_value=_response(content=JPEG, content_type="image/jpeg")):
         image = generate_campaign_image("x")
     assert image.provider == "pollinations"
-    assert [(a["provider"], a["reason"]) for a in image.attempts] == [
-        ("cloudflare#1", "busy"), ("huggingface#1", "busy")]
+    # Best models first; an account out of its allowance is busy for every one of its models.
+    assert {a["provider"].split("@")[0] for a in image.attempts} == {"cloudflare#1", "huggingface#1"}
+    assert all(a["reason"] == "busy" for a in image.attempts)
     assert _clean_env == {"cloudflare#1", "huggingface#1"}  # set aside until their Retry-After
     # Next time the busy ones are skipped without a call.
     with patch("src.ai.marketing.image_generation.httpx.post") as post, \
@@ -220,9 +232,11 @@ def test_every_provider_failing_is_one_honest_error(monkeypatch):
         with pytest.raises(ImageGenerationError) as exc:
             generate_campaign_image("x")
     assert exc.value.status == "PROVIDER_ERROR"
-    names = [a["provider"] for a in exc.value.attempts]
-    assert sorted(names[:2]) == ["huggingface#1", "pollinations#1"] and names[2:] == ["aihorde"]
-    assert all(a["reason"] == "failed" for a in exc.value.attempts)
+    attempts = [(a["provider"].split("@")[0], a["reason"]) for a in exc.value.attempts]
+    assert {p for p, _ in attempts[:-1]} == {"huggingface#1", "pollinations#1"}
+    assert all(reason == "failed" for _, reason in attempts[:-1])
+    # AI Horde's free queue cannot answer within the 10 s limit, so it is not even tried.
+    assert attempts[-1] == ("aihorde", "out_of_time")
 
 
 # --- capability -------------------------------------------------------
@@ -351,7 +365,7 @@ def test_cloudflare_tries_the_next_model_and_accepts_raw_image_bytes(monkeypatch
     with patch("src.ai.marketing.image_generation.httpx.post", side_effect=replies) as post:
         image = generate_campaign_image("x", provider="cloudflare#1")
     urls = [c.args[0] for c in post.call_args_list]
-    assert "flux-1-schnell" in urls[0] and "stable-diffusion-xl-lightning" in urls[1] and image.content == PNG
+    assert "flux-1-schnell" in urls[0] and "lucid-origin" in urls[1] and image.content == PNG  # next best model
 
 
 def test_cloudflare_quota_stops_instead_of_burning_the_next_model(monkeypatch):
@@ -373,7 +387,7 @@ def test_huggingface_falls_through_to_the_second_model(monkeypatch):
 
 def _rect(width, height, fmt="PNG"):
     buffer = io.BytesIO()
-    Image.new("RGB", (width, height), (10, 20, 30)).save(buffer, format=fmt)
+    _scene(width, height).save(buffer, format=fmt)
     return buffer.getvalue()
 
 

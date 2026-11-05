@@ -1,4 +1,4 @@
-# AI model accuracy: business assistant (RAG) and demand forecasting
+# AI model accuracy: business assistant (RAG), image generation and demand forecasting
 
 Date: 2026-11-05. Measured on a disposable local stack (Postgres 16 + pgvector with FORCE RLS, Redis, an
 S3 stand-in) with the synthetic demo companies from `backend/scripts/demo_companies` (Zaytouna Fine Foods
@@ -9,8 +9,9 @@ Goal: at least 95% accuracy, starting with the assistant, then forecasting. Summ
 
 | Model | Measure | Before | After | 95% reached? |
 |---|---|---|---|---|
-| Assistant | 121-case regression suite (SQL ground truth) | 97 of 121 would have passed* | **121/121 (100%)** | Yes, on the tested wordings |
-| Assistant | First run of a held-out set (wordings never tuned against) | 18/25 (72%) on held-out set 1 | 17/20 (85%) on held-out set 2 | **No**: about 85% on new wordings |
+| Assistant | Regression suite against the live API (SQL ground truth) | 69/74* | **121/121 (100%)** | Yes, on the tested wordings |
+| Assistant | Live API, first run of a held-out set (wordings never tuned against) | 18/25 (72%) on held-out set 1 | 17/20 (85%) on held-out set 2 | **No**: about 85% on new wordings |
+| Assistant | Question understanding, offline benchmark, held-out set (65 wordings) | 55/65 (84.6%) | **59/65 (90.8%)** on its one first run | **No**: about 91% on new wordings |
 | Forecasting | 30-day totals, volume-weighted (1 − WAPE), 588 backtests | 90.9% | 90.9% (unchanged) | **No**: the ceiling on this data is 94.5% |
 
 \* Core 28/29 plus extended 41/45, measured before the fixes; the held-out sets did not exist yet.
@@ -63,6 +64,38 @@ Unit tests for each fix are in `test_rag_understanding.py`, `test_rag_periods.py
 - Tenant isolation and role checks are unchanged and still pass (ByteFix cases in EN/AR, staff can't see
   revenue).
 
+### Question understanding: offline benchmark (second round)
+
+`backend/src/ai/rag/eval/understanding_benchmark.py` scores the reading of the question alone: intent,
+calendar period (exact start and end dates), product, and whether a ranking is asked. It needs no database
+or model and runs in about a second, so it can be used while changing the rules. A unit test
+(`test_rag_understanding_benchmark.py`) keeps every case passing in CI.
+
+Its two sets were written together, before any fix: **DEV** (113 wordings) for development, and
+**HOLDOUT** (65 wordings) scored only once, at the end.
+
+| Set | Before this round | After |
+|---|---|---|
+| DEV | 101/113 (89.4%) | 113/113 (100%) |
+| HOLDOUT, first run | 55/65 (84.6%) | **59/65 (90.8%)** |
+
+The six holdout misses were then fixed too, so HOLDOUT is now 65/65 but **spent**. Its first-run 90.8% is
+the honest estimate; add new wordings before using it again.
+
+Fixed in this round:
+- "since June" / "منذ حزيران" (June to today, not June only); "من بداية السنة" / "since the start of the year".
+- Levantine/Egyptian "التاني"/"التالت" for second/third (quarters, halves).
+- Stock: Egyptian "فاضل", "do we have X" / "فيه عندنا X", "كم X عندنا", reorder ("لازم نطلب").
+- Price: "How much is the X?", "كم حق X", "what's X selling for?", "cost the customer".
+- Profit: "losing money", "خسرانين"; revenue: "made the most money", "بيجيب فلوس".
+- Reviews: "happy with", "بيقولوا ايه عننا"; delivery and fee questions to policy documents; Egyptian "أكتر"
+  in rankings.
+- English greetings ("good morning") are small talk.
+- Arabic fee words (رسوم، أجرة، تكلفة) also search English documents as "fee, price, charge". This fixed a
+  regression the live suite caught: "كم رسوم التوصيل للزرقاء؟".
+
+Live API suite after this round: 121/121 (see Verification).
+
 ### Limits: why this is not "95% everywhere"
 
 - **New wordings: about 85%.** Question understanding is rule-based (keywords, periods, product names).
@@ -78,6 +111,39 @@ Unit tests for each fix are in `test_rag_understanding.py`, `test_rag_periods.py
   The Arabic-to-English search terms cover common policy words and catalogue names only.
 - The suite covers two demo companies. Questions outside its categories (marketing, landed cost, public
   research quality) aren't scored here.
+
+## Marketing image generation
+
+Requested: at most 10 seconds per image, more than 10 models, no unacceptable pictures, correct words in the
+picture when needed, and when the best model reaches its limit, the next image goes to another model.
+
+What changed (`backend/src/ai/marketing/image_generation.py`):
+
+| Requirement | Implementation |
+|---|---|
+| More than 10 models | `MODEL_CATALOG`: 14 hosted models (Gemini 2.5 Flash Image and 2.0 Flash image; FLUX.1 [schnell] on Together free and paid, Cloudflare and Hugging Face; Cloudflare Leonardo Lucid Origin and Phoenix, SDXL, SDXL Lightning, DreamShaper 8 LCM; Hugging Face SDXL; Pollinations flux and turbo), plus self-hosted servers and AI Horde. Each provider's list can be overridden (`*_IMAGE_MODELS`). |
+| Best first, then the next when one hits its limit | Every account × model is a candidate, tried in quality-rank order. Equal ranks keep the existing account rotation. A rate limit or used-up allowance puts that model (or the whole account, for shared allowances such as Cloudflare's) in a Redis cooldown for its Retry-After, so the next image skips it without a call. |
+| 10 seconds maximum | `MARKETING_IMAGE_TOTAL_SECONDS` defaults to 10. Every HTTP call is cut to the time left, and no attempt starts after the deadline. AI Horde (30 s to minutes) is skipped within that budget. A deployment with only a self-hosted server keeps that server's limit: a CPU server needs about 140 s per image. |
+| No unacceptable pictures | `quality_problems()` rejects images that are almost black (a provider's safety-filter frame), almost white, flat or one colour, or without visible detail. The next model is tried within the time left. Thresholds are loose: every designed-poster style, minimal and dark ones included, passes (tested). |
+| Words in the picture | The optional `text` on `POST /marketing/campaigns/{id}/generate-image`, and a "Words in the picture" field in the Studio. The model is told to leave space and draw no letters. The words are then written on with a real font (`designed_poster.overlay_headline`): exact spelling, Arabic joined and right to left. The designed fallback poster uses the same words as its headline. |
+
+Tests: `test_marketing_image_quality.py` (20 new) and the updated `test_marketing_image_generation.py`; all
+226 marketing tests pass, including the live-DB gallery, jobs and lifecycle suites.
+
+### Not verified here: what still needs checking with real keys
+
+- **Speed and picture quality were not measured.** This environment has no keys for any image provider, and
+  its network blocks Pollinations, AI Horde, Cloudflare and Together. All tests use simulated providers.
+  Whether a real image arrives within 10 s depends on the provider: FLUX.1 [schnell] and SDXL Lightning are
+  built to answer in a few seconds, and Gemini usually does. Measure with real keys before relying on it.
+- **The new model IDs need a live call.** Cloudflare Lucid Origin / Phoenix, Gemini 2.0 Flash image and
+  Together's paid FLUX are taken from the providers' public catalogues and were not called. A wrong or
+  retired ID fails fast and the next model is used, but it should be confirmed or removed.
+- **The quality gate catches broken images, not ugly ones.** Judging whether a picture matches the prompt,
+  or has a deformed product, needs a vision model (for example CLIP or a multimodal LLM). None could be
+  downloaded here.
+- **Queued batches carry no words yet.** The Studio sends images with words through the direct path. Words
+  in queued batches need a column on `image_generation_jobs` (a migration).
 
 ## Demand forecasting
 
@@ -96,6 +162,9 @@ that no model can remove.
 cd backend && python -m scripts.forecast_accuracy_benchmark --origins 6 --report out.json
 ```
 
+About a minute on 4 cores (`--workers`; each worker's XGBoost runs on one thread). The 2026-11-05 re-run
+reproduced the figures below exactly.
+
 ### Results (1 − WAPE on 30-day totals)
 
 | Segment (avg units/day over the prior 90 days) | Forecasts | Accuracy | Oracle ceiling |
@@ -104,7 +173,7 @@ cd backend && python -m scripts.forecast_accuracy_benchmark --origins 6 --report
 | Fast (≥ 5/day) | 193 | 91.2% | 94.7% |
 | Medium (1–5/day) | 212 | 84.3% | 90.3% |
 | Slow (< 1/day) | 183 | 54.9% | 68.7% |
-| Company totals (all products summed) | 42 | 92.3% | — |
+| Company totals (all products summed) | 42 | 92.3% | 96.7% |
 
 The current model gets 96% of the way to the ceiling (90.9 / 94.5). **95% is not reachable on this data at
 product level**: even a perfect knowledge of true demand scores 94.5%, and much lower for slow sellers.

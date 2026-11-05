@@ -93,6 +93,7 @@ import io
 import logging
 import os
 import random
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -132,6 +133,24 @@ _HUGGINGFACE_API_URL = os.getenv(
 _DEFAULT_HUGGINGFACE_MODEL = "black-forest-labs/FLUX.1-schnell"
 
 _TIMEOUT_SECONDS = float(os.getenv("MARKETING_IMAGE_TIMEOUT_SECONDS", "60"))
+
+# The attempt in progress: its deadline (every HTTP call is cut to the time left, so one slow model can
+# never use up the whole budget) and the model it is pinned to. Thread-local: the image worker runs one
+# thread per server.
+_ATTEMPT = threading.local()
+
+
+def _timeout(limit: float = None) -> float:
+    """Seconds an HTTP call may take now: the provider's own limit, cut to what is left of the deadline."""
+    limit = _TIMEOUT_SECONDS if limit is None else limit
+    deadline = getattr(_ATTEMPT, "deadline", None)
+    if deadline is None:
+        return limit
+    return max(0.5, min(limit, deadline - time.monotonic()))
+
+
+def _pinned_model() -> Optional[str]:
+    return getattr(_ATTEMPT, "model", None)
 _MAX_PROMPT_CHARS = 2000
 
 _SUPPORTED_IMAGE_CONTENT_TYPES = ("image/png", "image/jpeg", "image/webp")
@@ -209,6 +228,10 @@ class GeneratedImage:
     # The provider's model, when it names one (stored for operators only).
     model: Optional[str] = None
     image_format: str = DEFAULT_IMAGE_FORMAT
+    # The headline written onto the image (exactly as given), when one was asked for.
+    text: Optional[str] = None
+    # Seconds from the first attempt to this image.
+    seconds: Optional[float] = None
 
 
 def build_image_prompt(campaign: dict) -> str:
@@ -291,8 +314,8 @@ def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = N
             url,
             headers={"Authorization": f"Bearer {credential}"} if credential else None,
             params={"width": width, "height": height, "nologo": "true", "private": "true",
-                    "model": os.getenv("POLLINATIONS_MODEL", "flux"), "seed": int(time.time()) % 1_000_000},
-            timeout=_TIMEOUT_SECONDS,
+                    "model": _pinned_model() or os.getenv("POLLINATIONS_MODEL", "flux"), "seed": int(time.time()) % 1_000_000},
+            timeout=_timeout(),
         )
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Pollinations request failed: {err}") from err
@@ -306,7 +329,7 @@ def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = N
 
     return GeneratedImage(
         content=response.content, content_type=content_type, provider="pollinations",
-        model=os.getenv("POLLINATIONS_MODEL", "flux"), used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
+        model=_pinned_model() or os.getenv("POLLINATIONS_MODEL", "flux"), used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
     )
 
 
@@ -317,7 +340,8 @@ def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = No
             "NOT_CONFIGURED",
             "MARKETING_IMAGE_PROVIDER is 'huggingface' but HUGGINGFACE_API_TOKEN is not set.",
         )
-    models = _csv("HUGGINGFACE_IMAGE_MODELS", "HUGGINGFACE_IMAGE_MODEL") or [_DEFAULT_HUGGINGFACE_MODEL, "stabilityai/stable-diffusion-xl-base-1.0"]  # both commercially usable licences
+    models = [_pinned_model()] if _pinned_model() else (
+        _csv("HUGGINGFACE_IMAGE_MODELS", "HUGGINGFACE_IMAGE_MODEL") or [_DEFAULT_HUGGINGFACE_MODEL, "stabilityai/stable-diffusion-xl-base-1.0"])  # both commercially usable licences
     response = None
     for model in models:  # the next model is tried if one is unavailable; a quota error stops (shared credit)
         try:
@@ -325,7 +349,7 @@ def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = No
                 _HUGGINGFACE_API_URL.format(model=model),
                 headers={"Authorization": f"Bearer {token}"},
                 json={"inputs": prompt, **({"parameters": {"width": size[0], "height": size[1]}} if size else {})},
-                timeout=_TIMEOUT_SECONDS,
+                timeout=_timeout(),
             )
         except httpx.HTTPError as err:
             if model == models[-1]:
@@ -384,7 +408,7 @@ def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = Non
     if not (account and token):
         raise ImageGenerationError("NOT_CONFIGURED", "CLOUDFLARE_ACCOUNTS (account_id:token) is needed for Cloudflare.")
     last_error = None
-    for model in _cloudflare_models():  # the next model is tried if one fails; a quota error stops (same account allowance)
+    for model in ([_pinned_model()] if _pinned_model() else _cloudflare_models()):  # a quota error stops (same account allowance)
         body = {"prompt": prompt[:2048]}
         # FLUX.1 [schnell] on Workers AI takes no size (always 1024x1024; cropped afterwards).
         width, height = size or (1024, 1024)
@@ -392,7 +416,7 @@ def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = Non
         try:
             response = httpx.post(
                 _CLOUDFLARE_URL.format(account=account, model=model),
-                headers={"Authorization": f"Bearer {token}"}, json=body, timeout=_TIMEOUT_SECONDS,
+                headers={"Authorization": f"Bearer {token}"}, json=body, timeout=_timeout(),
             )
         except httpx.HTTPError as err:
             last_error = ImageGenerationError("PROVIDER_ERROR", f"Cloudflare request failed: {type(err).__name__}")
@@ -432,7 +456,7 @@ def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, r
     Google's invisible SynthID mark, never a visible one."""
     if not credential:
         raise ImageGenerationError("NOT_CONFIGURED", "GEMINI_API_KEYS is not set.")
-    model = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
+    model = _pinned_model() or os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
     try:
         response = httpx.post(
             _GEMINI_URL.format(model=model), headers={"x-goog-api-key": credential},
@@ -440,12 +464,14 @@ def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, r
                 "responseModalities": ["IMAGE"],
                 **({"imageConfig": {"aspectRatio": min(_GEMINI_RATIOS, key=lambda r: abs(_GEMINI_RATIOS[r] - size[0] / size[1]))}}
                    if size else {})}},
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_timeout(),
         )
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Gemini request failed: {type(err).__name__}") from err
     if response.status_code in (402, 429):
-        raise ProviderBusy(f"Gemini free allowance or rate limit reached (HTTP {response.status_code})", _retry_after(response))
+        # Gemini's free limits are per model: the account's other image model may still answer.
+        raise ProviderBusy(f"Gemini free allowance or rate limit reached (HTTP {response.status_code})", _retry_after(response),
+                           scope="model" if response.status_code == 429 else "account")
     try:
         parts = response.json()["candidates"][0]["content"]["parts"]
         inline = next(p["inlineData"] for p in parts if "inlineData" in p)
@@ -471,22 +497,25 @@ def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None,
     try:
         response = httpx.post(
             _TOGETHER_URL, headers={"Authorization": f"Bearer {credential}"},
-            json={"model": os.getenv("TOGETHER_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell-Free"),
+            json={"model": _pinned_model() or os.getenv("TOGETHER_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell-Free"),
                   "prompt": prompt[:1500], "width": (size or (1024, 1024))[0], "height": (size or (1024, 1024))[1],
                   "steps": 4, "n": 1,
                   "response_format": "b64_json"},
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_timeout(),
         )
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Together request failed: {type(err).__name__}") from err
     if response.status_code in (402, 429):
-        raise ProviderBusy(f"Together free allowance or rate limit reached (HTTP {response.status_code})", _retry_after(response))
+        # The free FLUX endpoint has its own rate limit; the account's paid one (if enabled) does not share it.
+        raise ProviderBusy(f"Together free allowance or rate limit reached (HTTP {response.status_code})", _retry_after(response),
+                           scope="model" if response.status_code == 429 else "account")
     try:
         content = base64.b64decode(response.json()["data"][0]["b64_json"])
     except (ValueError, KeyError, IndexError, TypeError) as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Together did not return an image (HTTP {response.status_code}).") from err
     return GeneratedImage(
         content=content, content_type="image/png", provider="together",
+        model=_pinned_model() or os.getenv("TOGETHER_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell-Free"),
         used_reference=False, reference_note=_NO_REFERENCE_SUPPORT_NOTE if reference_image else None,
     )
 
@@ -511,7 +540,7 @@ def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, 
             "params": {"width": _horde_size(size)[0], "height": _horde_size(size)[1], "steps": 25, "n": 1, "cfg_scale": 6}}
     job = None
     try:
-        submitted = httpx.post(f"{_HORDE_URL}/generate/async", headers=headers, json=body, timeout=_TIMEOUT_SECONDS)
+        submitted = httpx.post(f"{_HORDE_URL}/generate/async", headers=headers, json=body, timeout=_timeout())
         if submitted.status_code == 429:
             raise ProviderBusy("AI Horde rate limit reached", _retry_after(submitted))
         if submitted.status_code >= 400:
@@ -519,18 +548,18 @@ def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, 
         job = submitted.json().get("id")
         if not job:
             raise ImageGenerationError("PROVIDER_ERROR", "AI Horde returned no job id.")
-        deadline = time.monotonic() + _HORDE_MAX_WAIT
+        deadline = time.monotonic() + min(_HORDE_MAX_WAIT, _timeout(_HORDE_MAX_WAIT))
         while time.monotonic() < deadline:
             time.sleep(min(5.0, max(0.0, deadline - time.monotonic())))
-            check = httpx.get(f"{_HORDE_URL}/generate/check/{job}", headers=headers, timeout=_TIMEOUT_SECONDS).json()
+            check = httpx.get(f"{_HORDE_URL}/generate/check/{job}", headers=headers, timeout=_timeout()).json()
             if check.get("faulted"):
                 raise ImageGenerationError("PROVIDER_ERROR", "AI Horde job failed.")
             if check.get("done"):
-                generations = httpx.get(f"{_HORDE_URL}/generate/status/{job}", headers=headers, timeout=_TIMEOUT_SECONDS).json().get("generations")
+                generations = httpx.get(f"{_HORDE_URL}/generate/status/{job}", headers=headers, timeout=_timeout()).json().get("generations")
                 url = (generations or [{}])[0].get("img")
                 if not url:
                     raise ImageGenerationError("PROVIDER_ERROR", "AI Horde returned no image.")
-                image = httpx.get(url, timeout=_TIMEOUT_SECONDS, follow_redirects=True)
+                image = httpx.get(url, timeout=_timeout(), follow_redirects=True)
                 content_type = image.headers.get("content-type", "").split(";")[0].strip().lower()
                 if image.status_code != 200 or content_type not in _SUPPORTED_IMAGE_CONTENT_TYPES:
                     raise ImageGenerationError("PROVIDER_ERROR", "AI Horde image download failed.")
@@ -617,7 +646,7 @@ def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, re
         raise ImageGenerationError("NOT_CONFIGURED", f"LOCAL_IMAGE_API must be 'openai' or 'a1111', not {api!r}.")
     try:
         response = httpx.post(url, json=body, headers={"Authorization": f"Bearer {key}"} if key else None,
-                              timeout=_LOCAL_IMAGE_TIMEOUT_SECONDS)
+                              timeout=_timeout(_LOCAL_IMAGE_TIMEOUT_SECONDS))
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Local image server request failed: {type(err).__name__}") from err
     if response.status_code in (429, 503):  # busy with another image
@@ -638,11 +667,13 @@ def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, re
 
 
 class ProviderBusy(ImageGenerationError):
-    """The provider is rate limited or out of its free allowance right now."""
+    """The provider is rate limited or out of its free allowance right now. `scope` says what is used up:
+    the whole account ("account": a shared daily allowance) or only the model just tried ("model")."""
 
-    def __init__(self, message: str, retry_after: float):
+    def __init__(self, message: str, retry_after: float, scope: str = "account"):
         super().__init__("PROVIDER_ERROR", message)
         self.retry_after = retry_after
+        self.scope = scope
 
 
 def _retry_after(response) -> float:
@@ -717,7 +748,6 @@ _PROVIDERS = {
     "aihorde": _generate_via_aihorde,
 }
 _KEYED = {name: (lambda n=name: bool(_credentials(n))) for name in ("cloudflare", "huggingface", "together", "gemini", "pollinations")}
-_TOTAL_BUDGET_SECONDS = float(os.getenv("MARKETING_IMAGE_TOTAL_SECONDS", "120"))
 # Spending-policy refusals about one provider (its price, switch or cap):
 # the next provider may still be tried.
 _PROVIDER_SPECIFIC_REFUSALS = ("COST_NOT_CONFIGURED", "PROVIDER_DISABLED", "PROVIDER_CAP_REACHED")
@@ -807,19 +837,115 @@ def get_reference_image_capability() -> dict:
     return dict(REFERENCE_IMAGE_CAPABILITY)
 
 
+# Every model the chain can use, best first: (model, quality rank). Higher ranks are tried first; when a
+# model reaches its limit it cools down and the next generation goes to the next one. Ranks are a judgement
+# of prompt-following and image quality for product advertising (text-to-image only), not measured here.
+# Each list is overridable per provider (CLOUDFLARE_IMAGE_MODELS, HUGGINGFACE_IMAGE_MODELS,
+# GEMINI_IMAGE_MODELS, TOGETHER_IMAGE_MODELS, POLLINATIONS_MODELS).
+MODEL_CATALOG = {
+    "local": ((None, 1000),),  # the operator's own server first: free, and the prompt stays there
+    "gemini": (("gemini-2.5-flash-image", 100), ("gemini-2.0-flash-preview-image-generation", 80)),
+    "together": (("black-forest-labs/FLUX.1-schnell-Free", 90), ("black-forest-labs/FLUX.1-schnell", 89)),
+    "cloudflare": (("@cf/black-forest-labs/flux-1-schnell", 90), ("@cf/leonardo/lucid-origin", 88),
+                   ("@cf/leonardo/phoenix-1.0", 85), ("@cf/stabilityai/stable-diffusion-xl-base-1.0", 72),
+                   ("@cf/bytedance/stable-diffusion-xl-lightning", 70), ("@cf/lykon/dreamshaper-8-lcm", 55)),
+    "huggingface": (("black-forest-labs/FLUX.1-schnell", 90), ("stabilityai/stable-diffusion-xl-base-1.0", 72)),
+    "pollinations": (("flux", 85), ("turbo", 60)),
+    "aihorde": ((None, 10),),
+}
+_MODEL_ENV = {"cloudflare": ("CLOUDFLARE_IMAGE_MODELS", "CLOUDFLARE_IMAGE_MODEL"),
+              "huggingface": ("HUGGINGFACE_IMAGE_MODELS", "HUGGINGFACE_IMAGE_MODEL"),
+              "gemini": ("GEMINI_IMAGE_MODELS", "GEMINI_IMAGE_MODEL"),
+              "together": ("TOGETHER_IMAGE_MODELS", "TOGETHER_IMAGE_MODEL"),
+              "pollinations": ("POLLINATIONS_MODELS", "POLLINATIONS_MODEL")}
+# A provider this slow cannot answer within a short budget: AI Horde's free queue takes 30 s to minutes.
+_MIN_SECONDS = {"aihorde": 30.0}
+DEFAULT_TOTAL_SECONDS = 10.0
+
+
+def models_for(base: str) -> List[tuple]:
+    """(model, rank) for a provider: its MODEL_CATALOG list, or the operator's own list (ranked in the order
+    given, just below the catalogue's best)."""
+    listed = _csv(*_MODEL_ENV[base]) if base in _MODEL_ENV else []
+    if listed:
+        known = dict(MODEL_CATALOG.get(base, ()))
+        return [(m, known.get(m, 50 - i)) for i, m in enumerate(listed)]
+    return list(MODEL_CATALOG.get(base, ((None, 50),)))
+
+
+def total_seconds() -> float:
+    """The most one image may take, all attempts included (MARKETING_IMAGE_TOTAL_SECONDS, default 10). A
+    deployment with only a self-hosted server keeps that server's own time limit: a CPU diffusion server
+    takes minutes per image and would otherwise never deliver one."""
+    configured = os.getenv("MARKETING_IMAGE_TOTAL_SECONDS", "").strip()
+    if configured:
+        return float(configured)
+    return _LOCAL_IMAGE_TIMEOUT_SECONDS if only_self_hosted() else DEFAULT_TOTAL_SECONDS
+
+
+def _candidates(names: List[str], ranked: bool) -> List[tuple]:
+    """(chain entry, model, rank) for every model of every entry. `ranked` (the automatic chain) puts the best
+    models first across providers; the order of equal ranks is the chain's own (accounts rotated)."""
+    out = [(entry, model, rank) for entry in names for model, rank in models_for(_split(entry)[0])]
+    return sorted(out, key=lambda c: -c[2]) if ranked else out
+
+
+# --- quality gate ---------------------------------------------------------------
+# A provider's image is used only if it looks like a picture: providers return a black frame when their
+# safety filter fires, a blank or washed-out one on some errors, and smeared noise on others. Thresholds
+# are deliberately loose: a minimal light studio backdrop or a dark luxury scene must pass.
+QUALITY_MIN_CONTRAST = float(os.getenv("MARKETING_IMAGE_MIN_CONTRAST", "8"))   # grey-level standard deviation
+QUALITY_MIN_DETAIL = float(os.getenv("MARKETING_IMAGE_MIN_DETAIL", "2.0"))     # mean edge strength, 256 px
+QUALITY_MAX_ONE_COLOUR = float(os.getenv("MARKETING_IMAGE_MAX_ONE_COLOUR", "0.92"))
+
+
+def quality_problems(content: bytes) -> List[str]:
+    """Why an image is not acceptable (empty when it is)."""
+    import numpy as np
+    from PIL import ImageFilter
+
+    try:
+        picture = Image.open(io.BytesIO(content)).convert("RGB")
+    except Exception:  # noqa: BLE001
+        return ["not a readable image"]
+    small = picture.copy()
+    small.thumbnail((256, 256))
+    grey = np.asarray(small.convert("L"), dtype=float)
+    problems = []
+    if grey.mean() < 12:
+        problems.append("almost entirely black")
+    elif grey.mean() > 248:
+        problems.append("almost entirely white")
+    if grey.std() < QUALITY_MIN_CONTRAST:
+        problems.append("no contrast (a blank or single-colour image)")
+    edges = np.asarray(small.convert("L").filter(ImageFilter.FIND_EDGES), dtype=float)[1:-1, 1:-1]
+    if edges.mean() < QUALITY_MIN_DETAIL:
+        problems.append("no visible detail (blurred or empty)")
+    colours = small.quantize(colors=16).histogram()[:16]
+    if max(colours) / max(1, sum(colours)) > QUALITY_MAX_ONE_COLOUR:
+        problems.append("one colour fills almost the whole image")
+    return problems
+
+
+_TEXT_SPACE = (" Leave a clean, uncluttered area in the upper third of the picture for a headline that will be "
+               "added afterwards. Absolutely no text, letters, words, numbers, logos or watermarks in the image.")
+
+
 def generate_campaign_image(
     prompt: str, provider: Optional[str] = None,
     reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None,
-    image_format: str = DEFAULT_IMAGE_FORMAT, seed: Optional[int] = None,
+    image_format: str = DEFAULT_IMAGE_FORMAT, seed: Optional[int] = None, text: Optional[str] = None,
 ) -> GeneratedImage:
     """
-    Tries each provider in provider_chain() (or only `provider`, which tests
-    use) until one returns a real image, within MARKETING_IMAGE_TOTAL_SECONDS.
-    A provider that fails moves on to the next; one that is rate limited or
-    out of its free allowance is also set aside for its Retry-After. Returns
-    real image bytes (checked to be an image) or raises
-    ImageGenerationError - never a placeholder. The image is asked for in
-    image_format's shape and cropped to its exact ratio (fit_to_format).
+    Tries the models of every provider in provider_chain() (or only `provider`, which tests use), best
+    first, until one returns an acceptable image, all within total_seconds() (10 s by default): each HTTP
+    call is cut to the time left. A model or account that is rate limited or out of its free allowance is
+    set aside for its Retry-After, so the next image goes straight to the next model. An image that fails
+    the quality gate (quality_problems) is discarded and the next model tried. `text` (a headline) is
+    written onto the image afterwards in a real font, exactly as given - Arabic included - and the model is
+    asked to leave room for it and draw no lettering of its own. Returns real image bytes or raises
+    ImageGenerationError - never a placeholder. The image is asked for in image_format's shape and cropped
+    to its exact ratio (fit_to_format).
     """
     if image_format not in IMAGE_FORMATS:
         raise ImageGenerationError("PROVIDER_ERROR", f"Unknown image format {image_format!r} (expected one of {sorted(IMAGE_FORMATS)}).")
@@ -834,52 +960,81 @@ def generate_campaign_image(
         )
     if not (prompt or "").strip():
         raise ImageGenerationError("PROVIDER_ERROR", "No creative direction/brief available to build an image prompt from.")
+    text = (text or "").strip() or None
+    if text:
+        prompt = prompt.rstrip()[:_MAX_PROMPT_CHARS - len(_TEXT_SPACE)] + _TEXT_SPACE
 
-    attempts, started = [], time.monotonic()
-    for name in names:
-        if provider is None and _cooling_down(name):
-            attempts.append({"provider": name, "reason": "busy"})
-            continue
-        if attempts and time.monotonic() - started > _TOTAL_BUDGET_SECONDS:
-            attempts.append({"provider": name, "reason": "out_of_time"})
-            break
-        logger.info("Generating marketing image via %s (reference_image=%s)", name, bool(reference_image))
-        try:
-            # Paid from the company's AI Credits (billed per BASE provider, never per
-            # account entry); an image the provider returned is billed even if it
-            # then fails our checks.
-            base, credential = _split(name)
-            with credits.provider_call(credits.AI, base, "image_generation", {"image": 1}) as call:
-                raw = _PROVIDERS[base](
-                    prompt, reference_image=reference_image, reference_content_type=reference_content_type,
-                    credential=credential, size=size, seed=seed,
-                )
-                call.measured({"image": 1})
-            image = fit_to_format(verify_image(raw), image_format)
-        except credits.BudgetError as err:
-            if err.reason not in _PROVIDER_SPECIFIC_REFUSALS:
-                raise  # the company's budget or access: no other provider may run either
-            attempts.append({"provider": name, "reason": "not_configured"})
-            logger.warning("image provider %s refused by spending policy: %s", name, err.reason)
-            continue
-        except ProviderBusy as err:
-            _cool_down(name, err.retry_after)
-            attempts.append({"provider": name, "reason": "busy"})
-            logger.warning("image provider %s busy: %s", name, err.message)
-            continue
-        except ImageGenerationError as err:
-            attempts.append({"provider": name, "reason": "not_configured" if err.status == "NOT_CONFIGURED" else "failed"})
-            logger.warning("image provider %s failed: %s", name, err.message)
-            if len(names) == 1:  # nothing to fall back to: keep the provider's own explanation
-                err.attempts = attempts
-                raise
-            continue
-        image.attempts = attempts
-        return image
-    if all(a["reason"] == "not_configured" for a in attempts):
+    explicit = provider is not None or os.getenv("MARKETING_IMAGE_PROVIDERS", "").strip().lower() not in ("", "auto")
+    budget = total_seconds()
+    attempts, started, last_error = [], time.monotonic(), None
+    deadline = started + budget
+    try:
+        for entry, model, _rank in _candidates(names, ranked=not explicit):
+            label = f"{entry}@{model}" if model else entry
+            base, credential = _split(entry)
+            if provider is None and (_cooling_down(entry) or (model and _cooling_down(label))):
+                attempts.append({"provider": label, "reason": "busy"})
+                continue
+            remaining = deadline - time.monotonic()
+            if attempts and remaining < max(0.5, _MIN_SECONDS.get(base, 0.0)):
+                attempts.append({"provider": label, "reason": "out_of_time"})
+                if remaining < 0.5:
+                    break
+                continue
+            if not attempts and budget < _MIN_SECONDS.get(base, 0.0) and len(names) > 1:
+                attempts.append({"provider": label, "reason": "out_of_time"})
+                continue
+            _ATTEMPT.deadline, _ATTEMPT.model = deadline, model
+            logger.info("Generating marketing image via %s (reference_image=%s)", label, bool(reference_image))
+            try:
+                # Paid from the company's AI Credits (billed per BASE provider, never per account or model
+                # entry); an image the provider returned is billed even if it then fails our checks.
+                with credits.provider_call(credits.AI, base, "image_generation", {"image": 1}) as call:
+                    raw = _PROVIDERS[base](
+                        prompt, reference_image=reference_image, reference_content_type=reference_content_type,
+                        credential=credential, size=size, seed=seed,
+                    )
+                    call.measured({"image": 1})
+                image = fit_to_format(verify_image(raw), image_format)
+            except credits.BudgetError as err:
+                if err.reason not in _PROVIDER_SPECIFIC_REFUSALS:
+                    raise  # the company's budget or access: no other provider may run either
+                attempts.append({"provider": label, "reason": "not_configured"})
+                logger.warning("image provider %s refused by spending policy: %s", label, err.reason)
+                continue
+            except ProviderBusy as err:
+                _cool_down(label if err.scope == "model" and model else entry, err.retry_after)
+                attempts.append({"provider": label, "reason": "busy"})
+                logger.warning("image provider %s busy: %s", label, err.message)
+                continue
+            except ImageGenerationError as err:
+                attempts.append({"provider": label, "reason": "not_configured" if err.status == "NOT_CONFIGURED" else "failed"})
+                logger.warning("image provider %s failed: %s", label, err.message)
+                last_error = err
+                if err.status == "NOT_CONFIGURED" and len(names) == 1:
+                    break  # the account itself is unusable: its other models are too
+                continue
+            problems = quality_problems(image.content)
+            if problems:
+                attempts.append({"provider": label, "reason": "rejected", "problems": problems})
+                logger.warning("image from %s rejected: %s", label, "; ".join(problems))
+                continue
+            if text:
+                from src.ai.marketing import designed_poster
+                image.content, image.content_type = designed_poster.overlay_headline(image.content, text), "image/png"
+                image.text = text
+            image.attempts = attempts
+            image.seconds = round(time.monotonic() - started, 2)
+            return image
+    finally:
+        _ATTEMPT.deadline = _ATTEMPT.model = None
+    if len(names) == 1 and last_error is not None and all(a["reason"] in ("failed", "not_configured") for a in attempts):
+        last_error.attempts = attempts  # one provider and nothing to fall back to: keep its own explanation
+        raise last_error
+    if attempts and all(a["reason"] == "not_configured" for a in attempts):
         raise ImageGenerationError("NOT_CONFIGURED", _NOT_CONFIGURED_MESSAGE)
     summary = ", ".join(f"{a['provider']}: {a['reason']}" for a in attempts)
-    error = ImageGenerationError("PROVIDER_ERROR", f"No image provider produced an image ({summary}).")
+    error = ImageGenerationError("PROVIDER_ERROR", f"No image provider produced an acceptable image within {budget:g} s ({summary}).")
     error.attempts = attempts
     raise error
 

@@ -167,6 +167,8 @@ export function ImageStudio({ campaign, capability, formats, channels, t }) {
   const [format, setFormat] = useState('SQUARE');
   const [channel, setChannel] = useState('');
   const [prompt, setPrompt] = useState(campaign.image_prompt_default || '');
+  // Words to show in the picture: written onto it exactly, in a real font (never drawn by the model).
+  const [imageText, setImageText] = useState('');
   const [attach, setAttach] = useState(true);
 
   useEffect(() => {
@@ -191,10 +193,11 @@ export function ImageStudio({ campaign, capability, formats, channels, t }) {
   const counts = jobs.data?.counts;
   const making = counts ? counts.QUEUED + counts.RUNNING : 0;
 
-  const create = () => (queued
+  // Words in the picture go through the direct path (queued batches carry no text).
+  const create = () => (queued && !imageText.trim()
     ? queueOne.mutate({ campaignId: id, formats: [format], variations: 1, prompt, channel: channel || undefined, attachFirst: attach || !list.length })
     : generate.mutate(
-      { campaignId: id, imageFormat: format, prompt, channel: channel || undefined, attach },
+      { campaignId: id, imageFormat: format, prompt, channel: channel || undefined, attach, text: imageText },
       { onSuccess: (data) => { if (data?.asset?.asset_id) setSelectedId(data.asset.asset_id); } },
     ));
 
@@ -258,6 +261,10 @@ export function ImageStudio({ campaign, capability, formats, channels, t }) {
             )}
           </label>
         ) : <p className="apex-muted studio-note">{t('studio.gallery.designedOnly')}</p>}
+        <label className="apex-field"><span>{t('studio.gallery.textLabel')}</span>
+          <input className="apex-input" dir="auto" maxLength={120} value={imageText} onChange={(e) => setImageText(e.target.value)} />
+          <small className="apex-muted">{t('studio.gallery.textHint')}</small>
+        </label>
         {list.length > 0 && (
           <label className="studio-check"><input type="checkbox" checked={attach} onChange={(e) => setAttach(e.target.checked)} />{t('studio.gallery.attachNew')}</label>
         )}

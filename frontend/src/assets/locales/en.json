@@ -6117,6 +6117,8 @@
       },
       "promptLabel": "What the image should show",
       "promptHint": "Suggested from your campaign. Edit it to change the picture; English gives the image model the best results.",
+      "textLabel": "Words in the picture (optional)",
+      "textHint": "Written onto the image exactly as typed, in a clear font. Leave empty for no text.",
       "resetPrompt": "Use the suggested description",
       "attachNew": "Use the new image for this campaign",
       "create": "Create image",

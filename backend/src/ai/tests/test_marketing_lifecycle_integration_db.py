@@ -14,7 +14,8 @@ import jwt
 import psycopg2
 import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
+
+from src.ai.tests._images import scene
 
 from src.ai.tests.signup_helpers import create_verified_test_account
 
@@ -31,7 +32,7 @@ requires_minio = pytest.mark.skipif(
 
 def _png():
     buffer = io.BytesIO()
-    Image.new("RGB", (512, 512), (180, 110, 60)).save(buffer, format="PNG")
+    scene(512, 512, (180, 110, 60)).save(buffer, format="PNG")
     return buffer.getvalue()
 
 
