@@ -99,7 +99,7 @@ from typing import List, Optional
 from urllib.parse import quote
 
 import httpx
-from PIL import Image
+from PIL import Image, ImageStat
 
 from src.ai.billing import credits
 from src.ai.core.env_secret import secret
@@ -239,6 +239,49 @@ def build_image_prompt(campaign: dict) -> str:
     return prompt[:_MAX_PROMPT_CHARS]
 
 
+# What each format needs from the picture itself. Several models cannot be
+# asked for a shape (Workers AI's FLUX.1 [schnell] always draws a square)
+# and every result is centre-cropped to the format, so the subject must sit
+# in the middle, whole, with room around it - otherwise a Story crop of a
+# square image cuts the product off at the sides.
+_FORMAT_COMPOSITION = {
+    "SQUARE": "Square 1:1 social media photo.",
+    "PORTRAIT": "Vertical 4:5 portrait social media photo.",
+    "STORY": "Tall vertical 9:16 full-screen phone story photo.",
+    "LANDSCAPE": "Wide horizontal 16:9 landscape photo.",
+    "WIDE": "Very wide horizontal 1.91:1 banner photo.",
+}
+_FORMAT_FRAMING = {
+    "SQUARE": "The whole product is clearly visible in the centre of the frame, not cut off.",
+    "PORTRAIT": "The whole product is clearly visible in the centre of the frame, not cut off, with some space above and below it.",
+    "STORY": "The whole product is clearly visible in the middle of the frame, not cut off, with empty space above and below it and a little space on both sides.",
+    "LANDSCAPE": "The whole product is clearly visible in the centre of the frame, not cut off, with background space on the left and right.",
+    "WIDE": "The whole product is clearly visible in the centre of the frame, not cut off, with background space on the left and right.",
+}
+_NO_TEXT = "No text, letters, words, numbers, logos or watermarks anywhere in the image."
+# The shortest prompt any provider accepts (AI Horde keeps 1200 characters);
+# the format guidance must survive every provider's own truncation.
+_SHAPED_PROMPT_CHARS = 1200
+
+
+def shape_prompt(prompt: str, image_format: str = DEFAULT_IMAGE_FORMAT) -> str:
+    """The prompt every provider receives: the campaign's (or owner's) image
+    description, framed for the chosen format and with the no-text rule
+    image models need to be told explicitly. Kept within the shortest limit
+    of any provider so the format guidance is never cut off."""
+    image_format = image_format if image_format in IMAGE_FORMATS else DEFAULT_IMAGE_FORMAT
+    lead = _FORMAT_COMPOSITION[image_format]
+    tail = " ".join(part for part in (
+        _FORMAT_FRAMING[image_format],
+        "" if "no text" in (prompt or "").lower() else _NO_TEXT,
+    ) if part)
+    room = _SHAPED_PROMPT_CHARS - len(lead) - len(tail) - 3  # two spaces and a full stop
+    body = " ".join((prompt or "").split())[:room].rstrip()
+    if body and body[-1] not in ".!?":
+        body += "."
+    return f"{lead} {body} {tail}".strip()
+
+
 _NO_REFERENCE_SUPPORT_NOTE = (
     "A product reference image was provided, but this provider does not support reference-image "
     "generation - this image was generated from the text brief only, not from your uploaded photo. "
@@ -291,7 +334,8 @@ def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = N
             url,
             headers={"Authorization": f"Bearer {credential}"} if credential else None,
             params={"width": width, "height": height, "nologo": "true", "private": "true",
-                    "model": os.getenv("POLLINATIONS_MODEL", "flux"), "seed": int(time.time()) % 1_000_000},
+                    "model": os.getenv("POLLINATIONS_MODEL", "flux"),
+                    "seed": seed if seed is not None else int(time.time()) % 1_000_000},
             timeout=_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as err:
@@ -310,6 +354,19 @@ def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = N
     )
 
 
+def _hf_parameters(model: str, size: Optional[tuple], seed: Optional[int]) -> dict:
+    """The size (and seed) for a text-to-image call; FLUX models take no
+    negative prompt, Stable Diffusion ones are told what not to draw."""
+    parameters = {}
+    if size:
+        parameters.update({"width": size[0], "height": size[1]})
+    if seed is not None:
+        parameters["seed"] = seed
+    if "flux" not in model.lower():
+        parameters["negative_prompt"] = _NEGATIVE_PROMPT
+    return parameters
+
+
 def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = None, reference_content_type: Optional[str] = None, credential: Optional[str] = None, size: Optional[tuple] = None, seed: Optional[int] = None) -> GeneratedImage:
     token = credential or secret("HUGGINGFACE_API_TOKEN")
     if not token:
@@ -324,7 +381,7 @@ def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = No
             response = httpx.post(
                 _HUGGINGFACE_API_URL.format(model=model),
                 headers={"Authorization": f"Bearer {token}"},
-                json={"inputs": prompt, **({"parameters": {"width": size[0], "height": size[1]}} if size else {})},
+                json={"inputs": prompt, **({"parameters": parameters} if (parameters := _hf_parameters(model, size, seed)) else {})},
                 timeout=_TIMEOUT_SECONDS,
             )
         except httpx.HTTPError as err:
@@ -388,7 +445,10 @@ def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = Non
         body = {"prompt": prompt[:2048]}
         # FLUX.1 [schnell] on Workers AI takes no size (always 1024x1024; cropped afterwards).
         width, height = size or (1024, 1024)
-        body.update({"steps": 4} if "flux" in model else {"num_steps": 8, "width": width, "height": height})
+        body.update({"steps": 4} if "flux" in model else {"num_steps": 8, "width": width, "height": height,
+                                                             "negative_prompt": _NEGATIVE_PROMPT})
+        if seed is not None:
+            body["seed"] = seed
         try:
             response = httpx.post(
                 _CLOUDFLARE_URL.format(account=account, model=model),
@@ -473,7 +533,7 @@ def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None,
             _TOGETHER_URL, headers={"Authorization": f"Bearer {credential}"},
             json={"model": os.getenv("TOGETHER_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell-Free"),
                   "prompt": prompt[:1500], "width": (size or (1024, 1024))[0], "height": (size or (1024, 1024))[1],
-                  "steps": 4, "n": 1,
+                  "steps": 4, "n": 1, **({"seed": seed} if seed is not None else {}),
                   "response_format": "b64_json"},
             timeout=_TIMEOUT_SECONDS,
         )
@@ -505,10 +565,11 @@ def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, 
     queue for minutes, so it sits last in the chain; a free registered key
     (HORDE_API_KEYS) is served much sooner. Verified live 2026-10-17."""
     headers = {"apikey": credential or _ANON_HORDE_KEY, "Client-Agent": "keel-marketing:1:contact"}
-    body = {"prompt": f"{prompt[:1200]} ### text, letters, watermark, logo, blurry, low quality, deformed",
+    body = {"prompt": f"{prompt[:1200]} ### {_NEGATIVE_PROMPT}",
             "nsfw": False, "censor_nsfw": True, "r2": True,
             # Horde rejects sizes that are not multiples of 64 (HTTP 400).
-            "params": {"width": _horde_size(size)[0], "height": _horde_size(size)[1], "steps": 25, "n": 1, "cfg_scale": 6}}
+            "params": {"width": _horde_size(size)[0], "height": _horde_size(size)[1], "steps": 25, "n": 1, "cfg_scale": 6,
+                       **({"seed": str(seed)} if seed is not None else {})}}
     job = None
     try:
         submitted = httpx.post(f"{_HORDE_URL}/generate/async", headers=headers, json=body, timeout=_TIMEOUT_SECONDS)
@@ -558,7 +619,7 @@ def _generate_via_aihorde(prompt: str, reference_image: Optional[bytes] = None, 
 # several GB of RAM and tens of seconds per image on CPU, so this is for a
 # machine that can run one - never the 512 MB free web service.
 _LOCAL_IMAGE_TIMEOUT_SECONDS = float(os.getenv("LOCAL_IMAGE_TIMEOUT_SECONDS", "300"))
-_NEGATIVE_PROMPT = "text, letters, watermark, logo, blurry, low quality, deformed"
+_NEGATIVE_PROMPT = "text, letters, words, watermark, logo, cropped product, cut off, blurry, low quality, deformed"
 
 
 def _local_image_base_urls() -> List[str]:
@@ -656,6 +717,16 @@ _MIN_IMAGE_SIDE = 256
 _RATIO_TOLERANCE = 0.02
 
 
+_BLANK_STDDEV = 3.0
+
+
+def _is_blank(content: bytes) -> bool:
+    """True for a picture that is (almost) one flat colour - nothing drawn."""
+    with Image.open(io.BytesIO(content)) as picture:
+        small = picture.convert("RGB").resize((64, 64))
+    return max(ImageStat.Stat(small).stddev) < _BLANK_STDDEV
+
+
 def verify_image(image: GeneratedImage) -> GeneratedImage:
     """A provider's bytes are kept only if they really are an image of a
     usable size (an error page served as image/jpeg is not)."""
@@ -668,6 +739,10 @@ def verify_image(image: GeneratedImage) -> GeneratedImage:
         raise ImageGenerationError("PROVIDER_ERROR", f"{image.provider} returned bytes that are not an image.") from err
     if min(width, height) < _MIN_IMAGE_SIDE:
         raise ImageGenerationError("PROVIDER_ERROR", f"{image.provider} returned a {width}x{height} image, too small to use.")
+    if _is_blank(image.content):
+        # Safety filters (Stable Diffusion's checker, Workers AI) answer with
+        # an all-black or single-colour picture instead of an error.
+        raise ImageGenerationError("PROVIDER_ERROR", f"{image.provider} returned a blank (single-colour) image.")
     image.content_type = {"jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}.get(kind, image.content_type)
     image.width, image.height = width, height
     return image
@@ -835,6 +910,7 @@ def generate_campaign_image(
     if not (prompt or "").strip():
         raise ImageGenerationError("PROVIDER_ERROR", "No creative direction/brief available to build an image prompt from.")
 
+    shaped = shape_prompt(prompt, image_format)
     attempts, started = [], time.monotonic()
     for name in names:
         if provider is None and _cooling_down(name):
@@ -851,7 +927,7 @@ def generate_campaign_image(
             base, credential = _split(name)
             with credits.provider_call(credits.AI, base, "image_generation", {"image": 1}) as call:
                 raw = _PROVIDERS[base](
-                    prompt, reference_image=reference_image, reference_content_type=reference_content_type,
+                    shaped, reference_image=reference_image, reference_content_type=reference_content_type,
                     credential=credential, size=size, seed=seed,
                 )
                 call.measured({"image": 1})

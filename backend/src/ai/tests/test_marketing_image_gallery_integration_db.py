@@ -31,6 +31,15 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+
+def _with_subject(picture):
+    """Draws a "product" so the fake provider image is not rejected as blank."""
+    from PIL import ImageDraw
+    w, h = picture.size
+    ImageDraw.Draw(picture).ellipse((w // 4, h // 4, w * 3 // 4, h * 3 // 4), fill=(245, 245, 235))
+    return picture
+
+
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = [
     pytest.mark.skipif(not DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
@@ -66,7 +75,7 @@ class _ImageServer:
                 if server.square_only:
                     width = height = 1024
                 buffer = io.BytesIO()
-                Image.new("RGB", (width, height), (30, 90, 160)).save(buffer, format="PNG")
+                _with_subject(Image.new("RGB", (width, height), (30, 90, 160))).save(buffer, format="PNG")
                 encoded = base64.b64encode(buffer.getvalue()).decode()
                 answer = {"data": [{"b64_json": encoded}]} if self.path.startswith("/v1") else {"images": [encoded]}
                 payload = json.dumps(answer).encode()
