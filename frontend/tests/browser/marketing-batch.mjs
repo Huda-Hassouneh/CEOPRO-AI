@@ -60,7 +60,7 @@ await page.locator('.studio-generate button').click();
 await page.locator('.studio-editor').waitFor({ timeout: 15 * 60000 });
 const campaignId = new URL(page.url()).searchParams.get('campaign');
 check(Boolean(campaignId), 'campaign created with its copy');
-const headline = await page.locator('.studio-post input.apex-input').first().inputValue();
+const headline = (await page.locator('.studio-post__headline').first().textContent()) || '';
 check(locale === 'ar' ? /[؀-ۿ]/.test(headline) : /[A-Za-z]/.test(headline), `copy in ${locale}: "${headline.slice(0, 50)}"`);
 
 async function previewShape(timeout) {
@@ -75,6 +75,7 @@ check(Math.abs(first.w / first.h - 0.8) < 0.02, `first image arrived from the qu
 await shot('batch-first');
 
 // 2. "Make many images": Square + Landscape, one each.
+await page.locator('.studio-image__more summary').click();
 const panel = page.locator('.studio-batch');
 await panel.waitFor({ timeout: 30000 });
 const boxes = panel.locator('.studio-batch__formats input[type="checkbox"]');

@@ -75,7 +75,7 @@ const campaignId = new URL(page.url()).searchParams.get('campaign');
 check(Boolean(campaignId), 'campaign created and opened');
 const story = await previewShape();
 check(near(story, 9 / 16), `story image previewed at 9:16 (${story.w}x${story.h})`);
-const headline = await page.locator('.studio-post input.apex-input').first().inputValue();
+const headline = (await page.locator('.studio-post__headline').first().textContent()) || '';
 check(locale === 'ar' ? /[؀-ۿ]/.test(headline) : /[A-Za-z]/.test(headline), `copy written in ${locale}: "${headline.slice(0, 40)}"`);
 await page.locator('.studio-gallery__item').first().waitFor();
 check(await page.locator('.studio-gallery__item').count() === 1, 'gallery shows the one image');
@@ -85,6 +85,7 @@ if (expectMode) check(assets[0].mode === expectMode, `image mode is ${expectMode
 await shot('marketing-story');
 
 // 2. A landscape image for Facebook, kept in the gallery without replacing the campaign's image.
+await page.locator('.studio-image__more summary').click();
 await page.locator('.studio-formats [role="radio"]').nth(3).click();
 await page.locator('.studio-image__options select').first().selectOption('FACEBOOK');
 const promptBox = page.locator('.studio-image__options textarea');

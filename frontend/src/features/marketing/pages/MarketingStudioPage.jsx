@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  CalendarHeart, Check, FileText, ImageIcon, Link2, Megaphone, Package, Search, Sparkles, Tag, Target, Trash2,
+  ArrowLeft, ArrowRight, CalendarHeart, Check, FileText, FolderOpen, ImageIcon, Link2, Megaphone, Package, Plus, Search, Sparkles, Tag, Target, Trash2,
 } from 'lucide-react';
 import { DashboardLayout } from '../../../app/layouts/DashboardLayout.jsx';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -58,7 +58,7 @@ function CampaignHistory({ t, locale, dir, openId, onOpen, onDeleted }) {
   return (
     <Panel
       eyebrow={t('marketingApex.history.eyebrow')}
-      title={t('studio.historyTitle')}
+      title={t('studio.simple.myCampaigns')}
       subtitle={data ? t('studio.historyCount', { count: data.total }) : null}
       actions={<label className="apex-search"><Search size={15} aria-hidden="true" /><input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('studio.searchHistory')} aria-label={t('studio.searchHistory')} /></label>}
     >
@@ -120,6 +120,7 @@ export default function MarketingStudioPage() {
   const [photo, setPhoto] = useState(null);
   const [imageFormat, setImageFormat] = useState('SQUARE');
   const [openId, setOpenId] = useState(params.get('campaign'));
+  const [view, setView] = useState('create'); // 'create' | 'campaigns' while no campaign is open
   const [progress, setProgress] = useState(null); // 'copy' | 'image' while generating
   const [elapsed, setElapsed] = useState(0);
   const requestKey = useRef(null);
@@ -234,79 +235,99 @@ export default function MarketingStudioPage() {
     }).catch(() => {});
   };
 
+  const BackIcon = dir === 'rtl' ? ArrowRight : ArrowLeft;
   const productLabel = source === 'product' ? (productName(chosen.data?.product) || (products.data?.products ?? []).find((p) => p.product_id === productId)?.product_name) : null;
+
+  const showCampaign = Boolean(openId);
+  const showHistory = !showCampaign && view === 'campaigns';
+  const goNew = () => { open(null); setView('create'); };
+  const goHistory = () => { open(null); setView('campaigns'); };
+  const summaryWhat = source === 'product' ? (productLabel || '') : source === 'link' ? url.trim() : t('studio.yourDescription');
 
   return (
     <DashboardLayout>
       <BusinessPageContainer>
         <PageHeader title={t('marketingApex.title')} subtitle={t('studio.subtitle')} />
-        <div className="apex-page" dir={dir}>
-          <ol className="mk-stepper studio-stepper" aria-label={t('marketingApex.progress')}>
-            {STEPS.map((key, index) => (
-              <li key={key} className={index === step ? 'is-current' : index < step ? 'is-done' : ''} aria-current={index === step ? 'step' : undefined}>
-                <span className="studio-stepper__item"><span className="mk-stepper__dot">{index < step ? <Check size={13} /> : index + 1}</span><span className="studio-stepper__label">{t(`studio.steps.${key}`)}</span></span>
-              </li>
-            ))}
-          </ol>
+        <div className="apex-page studio-page" dir={dir}>
+          <nav className="studio-switch" aria-label={t('marketingApex.title')}>
+            <button type="button" className="studio-switch__btn" aria-pressed={!showCampaign && !showHistory} onClick={goNew}><Plus size={16} aria-hidden="true" />{t('studio.simple.newCampaign')}</button>
+            <button type="button" className="studio-switch__btn" aria-pressed={showHistory} onClick={goHistory}><FolderOpen size={16} aria-hidden="true" />{t('studio.simple.myCampaigns')}</button>
+          </nav>
 
-          <Panel eyebrow={t('studio.step1Eyebrow')} title={t('studio.step1Title')} subtitle={t('studio.step1Hint')}>
-            <div className="mk-step">
-              <div className="apex-segmented" role="tablist" aria-label={t('marketingApex.what.source')}>
-                {[['product', Package], ['link', Link2], ['describe', FileText]].map(([key, Icon]) => (
-                  <button key={key} type="button" role="tab" aria-selected={source === key} onClick={() => setSource(key)}><Icon size={14} aria-hidden="true" style={{ marginInlineEnd: 6, verticalAlign: '-2px' }} />{t(`marketingApex.what.${key}`)}</button>
-                ))}
-              </div>
-              {source === 'product' && (
-                <div className="mk-products">
-                  <label className="apex-search apex-search--block"><Search size={15} aria-hidden="true" /><input type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder={t('products.list.searchPlaceholder')} aria-label={t('products.list.searchPlaceholder')} /></label>
-                  <div className="mk-product-grid">
-                    {productId && chosen.data?.product && !(products.data?.products ?? []).some((p) => p.product_id === productId) && (
-                      <button type="button" className="mk-product is-on" aria-pressed="true"><Package size={16} /><span>{productName(chosen.data.product)}</span></button>
-                    )}
-                    {(products.data?.products ?? []).map((p) => (
-                      <button key={p.product_id} type="button" className={`mk-product${productId === p.product_id ? ' is-on' : ''}`} aria-pressed={productId === p.product_id} onClick={() => setProductId(p.product_id)}>
-                        <Package size={16} aria-hidden="true" /><span>{p.product_name}</span>{p.category && <small>{p.category}</small>}
-                      </button>
-                    ))}
-                  </div>
-                  {products.isSuccess && products.data.products.length === 0 && <p className="apex-muted">{t('studio.noProducts')}</p>}
-                  <p className="apex-muted mk-note">{t('studio.productKnown')}</p>
+          {!showHistory && (
+            <ol className="studio-steps" aria-label={t('marketingApex.progress')}>
+              {STEPS.map((key, index) => (
+                <li key={key} className={index === step ? 'is-current' : index < step ? 'is-done' : ''} aria-current={index === step ? 'step' : undefined}>
+                  <span className="studio-steps__dot" aria-hidden="true">{index < step ? <Check size={14} /> : index + 1}</span>
+                  <span className="studio-steps__label">{t(`studio.steps.${key}`)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {!showCampaign && !showHistory && (
+            <Panel className="studio-create" title={t('studio.simple.createTitle')} subtitle={t('studio.simple.createHint')}>
+              <section className="studio-q">
+                <h3 className="studio-q__title"><span className="studio-q__num" aria-hidden="true">1</span>{t('studio.simple.q1')}</h3>
+                <div className="studio-sources" role="tablist" aria-label={t('marketingApex.what.source')}>
+                  {[['product', Package], ['link', Link2], ['describe', FileText]].map(([key, Icon]) => (
+                    <button key={key} type="button" role="tab" aria-selected={source === key} className="studio-source" onClick={() => setSource(key)}>
+                      <Icon size={20} aria-hidden="true" />
+                      <strong>{t(`marketingApex.what.${key}`)}</strong>
+                      <span>{t(`studio.simple.sourceHints.${key}`)}</span>
+                    </button>
+                  ))}
                 </div>
-              )}
-              {source === 'link' && (
-                <label className="apex-field"><span>{t('marketingApex.what.linkLabel')}</span><input className="apex-input" dir="ltr" type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://yourshop.com/product" /><small className="apex-muted">{t('marketingApex.what.linkHint')}</small></label>
-              )}
-              {source === 'describe' && (
-                <label className="apex-field"><span>{t('marketingApex.what.describeLabel')}</span><textarea className="apex-input mk-textarea" rows={3} maxLength={1500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('marketingApex.what.describePlaceholder')} /></label>
-              )}
+                {source === 'product' && (
+                  <div className="mk-products">
+                    <label className="apex-search apex-search--block"><Search size={15} aria-hidden="true" /><input type="search" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder={t('products.list.searchPlaceholder')} aria-label={t('products.list.searchPlaceholder')} /></label>
+                    <div className="mk-product-grid">
+                      {productId && chosen.data?.product && !(products.data?.products ?? []).some((p) => p.product_id === productId) && (
+                        <button type="button" className="mk-product is-on" aria-pressed="true"><Package size={16} /><span>{productName(chosen.data.product)}</span></button>
+                      )}
+                      {(products.data?.products ?? []).map((p) => (
+                        <button key={p.product_id} type="button" className={`mk-product${productId === p.product_id ? ' is-on' : ''}`} aria-pressed={productId === p.product_id} onClick={() => setProductId(p.product_id)}>
+                          {productId === p.product_id ? <Check size={16} aria-hidden="true" /> : <Package size={16} aria-hidden="true" />}<span>{p.product_name}</span>{p.category && <small>{p.category}</small>}
+                        </button>
+                      ))}
+                    </div>
+                    {products.isSuccess && products.data.products.length === 0 && <p className="apex-muted">{t('studio.noProducts')}</p>}
+                  </div>
+                )}
+                {source === 'link' && (
+                  <label className="apex-field"><span>{t('marketingApex.what.linkLabel')}</span><input className="apex-input" dir="ltr" type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://yourshop.com/product" /><small className="apex-muted">{t('marketingApex.what.linkHint')}</small></label>
+                )}
+                {source === 'describe' && (
+                  <label className="apex-field"><span>{t('marketingApex.what.describeLabel')}</span><textarea className="apex-input mk-textarea" rows={3} maxLength={1500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('marketingApex.what.describePlaceholder')} /></label>
+                )}
+              </section>
 
-              <fieldset className="studio-goals">
-                <legend>{t('studio.goalLabel')}</legend>
-                <div className="apex-choice-grid">
+              <section className="studio-q">
+                <h3 className="studio-q__title" id="studio-goal-title"><span className="studio-q__num" aria-hidden="true">2</span>{t('studio.simple.q2')}</h3>
+                <div className="studio-goal-grid" role="radiogroup" aria-labelledby="studio-goal-title">
                   {Object.entries(GOALS).map(([key, { icon: Icon }]) => (
-                    <button key={key} type="button" role="radio" aria-checked={goal === key} className="apex-choice" onClick={() => setGoal(key)}>
+                    <button key={key} type="button" role="radio" aria-checked={goal === key} className="apex-choice studio-goal" onClick={() => setGoal(key)}>
                       <Icon size={20} aria-hidden="true" /><strong>{t(`studio.goals.${key}.title`)}</strong><span>{t(`studio.goals.${key}.description`)}</span>
                     </button>
                   ))}
                 </div>
-              </fieldset>
+                {goal === 'seasonal' && suggestions.isSuccess && suggestions.data.occasions?.length > 0 && (
+                  <div className="mk-chips" role="group" aria-label={t('marketingApex.season.upcoming')}>
+                    {suggestions.data.occasions.slice(0, 6).map((o) => (
+                      <button key={`${o.key}-${o.starts}`} type="button" className="apex-chip" aria-pressed={occasion?.key === o.key} onClick={() => setOccasion(occasion?.key === o.key ? null : o)}>
+                        {t(`marketingApex.occasions.${o.key}`)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
 
-              {goal === 'seasonal' && suggestions.isSuccess && suggestions.data.occasions?.length > 0 && (
-                <div className="mk-chips" role="group" aria-label={t('marketingApex.season.upcoming')}>
-                  {suggestions.data.occasions.slice(0, 6).map((o) => (
-                    <button key={`${o.key}-${o.starts}`} type="button" className="apex-chip" aria-pressed={occasion?.key === o.key} onClick={() => setOccasion(occasion?.key === o.key ? null : o)}>
-                      {t(`marketingApex.occasions.${o.key}`)}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="studio-language" role="group" aria-label={t('studio.language')}>
-                <span>{t('studio.language')}</span>
-                <div className="apex-segmented">
+              <section className="studio-q">
+                <h3 className="studio-q__title" id="studio-language-title"><span className="studio-q__num" aria-hidden="true">3</span>{t('studio.simple.q3')}</h3>
+                <div className="apex-segmented studio-language" role="group" aria-labelledby="studio-language-title">
                   {['en', 'ar'].map((code) => <button key={code} type="button" aria-pressed={language === code} onClick={() => setLanguage(code)}>{t(`studio.languages.${code}`)}</button>)}
                 </div>
-              </div>
+              </section>
 
               <details className="studio-more">
                 <summary>{t('studio.options')}</summary>
@@ -330,39 +351,51 @@ export default function MarketingStudioPage() {
                   </div>
                 </div>
               </details>
-            </div>
-          </Panel>
 
-          <Panel eyebrow={t('studio.step2Eyebrow')} title={t('studio.step2Title')} subtitle={capability?.available ? t('studio.step2Hint') : t('studio.step2HintNoImage')}>
-            {progress ? (
-              <div className="studio-progress" role="status" aria-live="polite">
-                <span className="apex-spinner" aria-hidden="true" />
-                <div>
-                  <strong>{progress === 'copy' ? t('studio.writing') : t('studio.creatingImage')}</strong>
-                  <p className="apex-muted">{t('studio.elapsed', { seconds: elapsed })} · {t('studio.keepOpen')}</p>
+              <div className="studio-footer">
+                {progress ? (
+                  <div className="studio-progress" role="status" aria-live="polite">
+                    <span className="apex-spinner" aria-hidden="true" />
+                    <div>
+                      <strong>{progress === 'copy' ? t('studio.writing') : t('studio.creatingImage')}</strong>
+                      <p className="apex-muted">{t('studio.elapsed', { seconds: elapsed })} · {t('studio.keepOpen')}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="studio-generate">
+                    <p className={ready ? 'studio-generate__summary' : 'apex-muted'}>{ready ? t('studio.summary', { what: summaryWhat, goal: t(`studio.goals.${goal}.title`), language: t(`studio.languages.${language}`) }) : t('studio.chooseFirst')}</p>
+                    <ApexButton size="lg" icon={Sparkles} disabled={!ready} loading={createCampaign.isPending} onClick={generate}>{t('studio.generate')}</ApexButton>
+                  </div>
+                )}
+                {!progress && <p className="apex-muted studio-note">{capability?.available ? t('studio.step2Hint') : t('studio.step2HintNoImage')}{capability?.external ? ` ${t('studio.imagePrivacy')}` : ''}</p>}
+                {createCampaign.isError && !progress && <MarketingErrorMessage error={createCampaign.error} action="write" source={source} t={t} className="apex-notice apex-notice--danger" />}
+              </div>
+            </Panel>
+          )}
+
+          {showCampaign && (
+            <div ref={reviewRef} className="studio-result">
+              <button type="button" className="studio-back" onClick={goNew}><BackIcon size={16} aria-hidden="true" />{t('studio.simple.backToNew')}</button>
+              {progress && (
+                <div className="studio-progress apex-panel" role="status" aria-live="polite">
+                  <span className="apex-spinner" aria-hidden="true" />
+                  <div><strong>{progress === 'copy' ? t('studio.writing') : t('studio.creatingImage')}</strong><p className="apex-muted">{t('studio.elapsed', { seconds: elapsed })} · {t('studio.keepOpen')}</p></div>
                 </div>
-              </div>
-            ) : (
-              <div className="studio-generate">
-                <p className="apex-muted">{ready ? t('studio.summary', { what: source === 'product' ? (productLabel || '') : source === 'link' ? url.trim() : t('studio.yourDescription'), goal: t(`studio.goals.${goal}.title`), language: t(`studio.languages.${language}`) }) : t('studio.chooseFirst')}</p>
-                <ApexButton size="lg" icon={Sparkles} disabled={!ready} loading={createCampaign.isPending} onClick={generate}>{t('studio.generate')}</ApexButton>
-              </div>
-            )}
-            {capability?.external && !progress && <p className="apex-muted studio-note">{t('studio.imagePrivacy')}</p>}
-            {createCampaign.isError && !progress && <MarketingErrorMessage error={createCampaign.error} action="write" source={source} t={t} className="apex-notice apex-notice--danger" />}
-          </Panel>
+              )}
+              {openCampaign.isPending && <Panel><StateBlock kind="loading" title={t('common.loading')} /></Panel>}
+              {openCampaign.isError && <Panel><StateBlock kind="error" title={t('studio.openFailed')} onRetry={() => openCampaign.refetch()} retryLabel={t('demandApex.actions.retry')} /></Panel>}
+              {openCampaign.data && (openCampaign.data.status === 'FAILED'
+                ? <Panel><StateBlock kind="error" compact title={t('marketingApex.result.failedCampaign')} description={t('marketingApex.errors.failed')} /></Panel>
+                : <CampaignEditor campaign={openCampaign.data} capability={capability} t={t} locale={locale}
+                    imageFormats={options.data?.image_formats} assetChannels={options.data?.asset_channels}
+                    onDeleted={goNew} onRewrite={rewrite} rewriting={Boolean(progress)} />)}
+              {createCampaign.isError && !progress && <MarketingErrorMessage error={createCampaign.error} action="write" t={t} className="apex-notice apex-notice--danger" />}
+            </div>
+          )}
 
-          <div ref={reviewRef}>
-            {openId && openCampaign.isPending && <Panel><StateBlock kind="loading" title={t('common.loading')} /></Panel>}
-            {openId && openCampaign.isError && <Panel><StateBlock kind="error" title={t('studio.openFailed')} onRetry={() => openCampaign.refetch()} retryLabel={t('demandApex.actions.retry')} /></Panel>}
-            {openCampaign.data && (openCampaign.data.status === 'FAILED'
-              ? <Panel><StateBlock kind="error" compact title={t('marketingApex.result.failedCampaign')} description={t('marketingApex.errors.failed')} /></Panel>
-              : <CampaignEditor campaign={openCampaign.data} capability={capability} t={t} locale={locale}
-                  imageFormats={options.data?.image_formats} assetChannels={options.data?.asset_channels}
-                  onDeleted={() => open(null)} onRewrite={rewrite} rewriting={Boolean(progress)} />)}
-          </div>
-
-          <CampaignHistory t={t} locale={locale} dir={dir} openId={openId} onOpen={open} onDeleted={(id) => { if (id === openId) open(null); }} />
+          {showHistory && (
+            <CampaignHistory t={t} locale={locale} dir={dir} openId={openId} onOpen={(id) => { setView('create'); open(id); }} onDeleted={(id) => { if (id === openId) open(null); }} />
+          )}
         </div>
       </BusinessPageContainer>
     </DashboardLayout>

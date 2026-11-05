@@ -6048,11 +6048,36 @@
     }
   },
   "studio": {
-    "subtitle": "Pick what to promote and KEEL creates one marketing image with its matching caption. Preview, edit, regenerate and save.",
+    "subtitle": "Create a ready-to-post image and caption in three quick steps.",
     "steps": {
-      "what": "What and why",
+      "what": "Choose",
       "create": "Create",
-      "review": "Review and save"
+      "review": "Copy and post"
+    },
+    "simple": {
+      "newCampaign": "New campaign",
+      "myCampaigns": "My campaigns",
+      "backToNew": "Start a new campaign",
+      "createTitle": "Create a new campaign",
+      "createHint": "Answer three quick questions. KEEL writes the post and makes the image for you.",
+      "q1": "What do you want to promote?",
+      "q2": "What is the goal?",
+      "q3": "Which language?",
+      "sourceHints": {
+        "product": "Pick one of your saved products",
+        "link": "Paste a link to the product page",
+        "describe": "Write a few words about it"
+      },
+      "readyTitle": "Your post is ready",
+      "readyHint": "Download the image, copy the text, then paste both into Instagram, Facebook or any app.",
+      "copyText": "Copy text",
+      "editText": "Edit text",
+      "doneEditing": "Done editing",
+      "unsaved": "You have unsaved changes.",
+      "moreDetails": "More details (optional)",
+      "newImage": "Make a different image",
+      "otherImages": "All images for this campaign",
+      "emptyField": "Nothing here yet - press \"Edit text\" to add it."
     },
     "step1Eyebrow": "Step 1",
     "step1Title": "What are we marketing?",

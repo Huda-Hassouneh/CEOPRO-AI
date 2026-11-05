@@ -170,3 +170,95 @@
 .studio-batch__progress { display: grid; gap: 6px; font-size: 13px; }
 .studio-batch__progress p { margin: 0; }
 .studio-batch__progress progress { width: 100%; height: 8px; accent-color: var(--apex-accent, currentColor); }
+
+/* Simplified studio: one switch (new / my campaigns), a numbered three-question
+   form with one big button, and a "ready to post" result with copy + download. */
+.studio-page { gap: 18px; }
+.studio-switch { display: flex; flex-wrap: wrap; gap: 8px; }
+.studio-switch__btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 18px;
+  border: 1px solid var(--apex-glass-border-strong); border-radius: 999px; background: var(--apex-glass);
+  color: var(--apex-text-2); font: 600 14px/1 var(--apex-font); cursor: pointer;
+}
+.studio-switch__btn:hover { color: var(--apex-text); }
+.studio-switch__btn[aria-pressed='true'] { background: var(--apex-gradient); border-color: transparent; color: #fff; }
+.studio-switch__btn:focus-visible, .studio-source:focus-visible, .studio-back:focus-visible, .studio-image__more > summary:focus-visible, .studio-more > summary:focus-visible {
+  outline: 2px solid var(--apex-accent); outline-offset: 2px;
+}
+
+.studio-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.studio-steps li { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 6px; border-radius: 12px; color: var(--apex-text-3); font-size: 13px; min-width: 0; }
+.studio-steps li.is-current { color: var(--apex-text); font-weight: 700; background: var(--apex-glass); }
+.studio-steps li.is-done { color: var(--apex-success); }
+.studio-steps__dot { display: grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 50%; border: 1.5px solid currentColor; font-size: 12.5px; font-weight: 700; }
+.studio-steps li.is-current .studio-steps__dot { background: var(--apex-accent); border-color: var(--apex-accent); color: #fff; }
+.studio-steps li.is-done .studio-steps__dot { background: var(--apex-success); border-color: var(--apex-success); color: #fff; }
+.studio-steps__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.studio-create .apex-panel__body { display: grid; gap: 26px; }
+.studio-q { display: grid; gap: 12px; min-width: 0; }
+.studio-q__title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; font-weight: 700; color: var(--apex-text); }
+.studio-q__num { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--apex-gradient); color: #fff; font-size: 13.5px; }
+.studio-sources { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.studio-source {
+  display: grid; justify-items: start; gap: 4px; padding: 14px 16px; min-width: 0;
+  border: 1px solid var(--apex-glass-border-strong); border-radius: 14px; background: var(--apex-glass);
+  color: var(--apex-text-2); font: 400 12.5px/1.45 var(--apex-font); text-align: start; cursor: pointer;
+}
+.studio-source svg { color: var(--apex-accent); margin-bottom: 2px; }
+.studio-source strong { color: var(--apex-text); font-size: 14.5px; }
+.studio-source[aria-selected='true'] { border-color: var(--apex-accent); box-shadow: 0 0 0 1.5px var(--apex-accent) inset; background: var(--apex-gradient-soft, var(--apex-glass)); }
+.studio-goal-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.studio-goal { padding: 14px; }
+.studio-goal span { font-size: 12.5px; }
+.studio-language { justify-self: start; }
+.studio-language button { min-height: 36px; padding: 0 20px; font-size: 13.5px; }
+.studio-footer { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--ceopro-border-soft); }
+.studio-generate__summary { font-weight: 600; color: var(--apex-text); }
+.studio-footer .studio-note { margin: 0; }
+
+.studio-result { display: grid; gap: 14px; }
+.studio-back { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 0; border-radius: 10px; background: none; color: var(--apex-accent); font: 600 13.5px var(--apex-font); cursor: pointer; }
+.studio-back:hover { background: var(--apex-glass); }
+.studio-result > .studio-progress { padding: 16px 18px; }
+.studio-ready { display: flex; align-items: flex-start; gap: 12px; margin: 0 0 16px; padding: 14px 16px; border-radius: 14px; background: var(--apex-glass); border: 1px solid var(--ceopro-border-soft); }
+.studio-ready svg { color: var(--apex-success); flex: none; margin-top: 1px; }
+.studio-ready strong { display: block; color: var(--apex-text); font-size: 15px; }
+.studio-ready p { margin: 2px 0 0; color: var(--apex-text-2); font-size: 13px; }
+.studio-download, .studio-copy-btn { width: 100%; justify-content: center; min-height: 42px; gap: 8px; font-size: 14px; }
+.studio-post { gap: 12px; padding: 16px; }
+.studio-post__preview { display: grid; gap: 10px; color: var(--apex-text); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.studio-post__preview p { margin: 0; white-space: pre-line; }
+.studio-post__headline { margin: 0; font-size: 17px; line-height: 1.35; }
+.studio-post__tags { color: var(--apex-accent); font-size: 13px; }
+.studio-post__cta { font-weight: 700; }
+.studio-unsaved { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 12px; border: 1px dashed var(--apex-warning, currentColor); font-size: 13px; }
+.studio-details { margin-top: 18px; }
+.studio-details .studio-audience { margin-top: 4px; }
+.studio-image__more { border: 1px solid var(--ceopro-border-soft); border-radius: 12px; padding: 10px 12px; }
+.studio-image__more > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--apex-text-2); }
+.studio-image__more[open] > summary { margin-bottom: 10px; }
+.studio-image__more .studio-image__options { margin: 0; }
+.studio-image__more .studio-batch { margin-top: 10px; }
+
+@media (max-width: 960px) {
+  .studio-goal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .studio-sources { grid-template-columns: minmax(0, 1fr); }
+  .studio-source { grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; align-items: center; }
+  .studio-source svg { grid-row: span 2; margin: 0; }
+  .studio-goal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .studio-goal { padding: 12px; }
+  .studio-steps li { flex-direction: column; gap: 4px; font-size: 11.5px; padding: 8px 2px; }
+  .studio-generate .apex-btn { width: 100%; justify-content: center; }
+  .studio-switch__btn { flex: 1 1 0; justify-content: center; padding: 0 10px; }
+}
+/* Phones: the post (image, download, caption, copy) first; extra image tools after it. */
+@media (max-width: 760px) {
+  .studio-layout { display: flex; flex-direction: column; gap: 12px; }
+  .studio-image { display: contents; }
+  .studio-image > * { order: 1; }
+  .studio-copy { order: 2; }
+  .studio-image > .studio-image__more, .studio-image > .studio-gallery { order: 3; width: 100%; }
+}

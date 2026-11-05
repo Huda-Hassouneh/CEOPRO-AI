@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Download, ImageIcon, Layers, RefreshCw, RotateCcw, Trash2, XCircle } from 'lucide-react';
+import { Check, Download, ImageIcon, Layers, RefreshCw, RotateCcw, Trash2, Wand2, XCircle } from 'lucide-react';
 import { ApexButton, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
 import { useCampaignImage } from '../hooks/useCampaignImage.js';
 import { useGenerateCampaignImage } from '../hooks/useGenerateCampaignImage.js';
@@ -224,69 +224,70 @@ export function ImageStudio({ campaign, capability, formats, channels, t }) {
         <p className="studio-image__note" role="status">{t('studio.gallery.fellBackToDesigned')}</p>
       )}
       {image.url && (
-        <div className="studio-image__actions">
-          <a className="apex-btn apex-btn--secondary apex-btn--sm" href={image.url} download={fileName(campaign, shown, image.type)}>
-            <Download size={14} aria-hidden="true" />{t('marketing.results.downloadImage')}
-          </a>
-        </div>
+        <a className="apex-btn apex-btn--secondary studio-download" href={image.url} download={fileName(campaign, shown, image.type)}>
+          <Download size={16} aria-hidden="true" />{t('marketing.results.downloadImage')}
+        </a>
       )}
 
-      <fieldset className="studio-image__options">
-        <legend>{t('studio.gallery.newImage')}</legend>
-        <div className="studio-formats" role="radiogroup" aria-label={t('studio.gallery.formatLabel')}>
-          {formatList.map((f) => (
-            <button key={f.key} type="button" role="radio" aria-checked={format === f.key} className="studio-format" onClick={() => setFormat(f.key)}>
-              <span className="studio-format__shape" style={{ aspectRatio: `${f.width} / ${f.height}` }} aria-hidden="true" />
-              <span>{t(`studio.gallery.formats.${f.key}`)}</span>
-            </button>
-          ))}
-        </div>
-        <label className="apex-field"><span>{t('studio.gallery.channelLabel')}</span>
-          <select className="apex-input" value={channel} onChange={(e) => setChannel(e.target.value)}>
-            <option value="">{t('studio.gallery.channelNone')}</option>
-            {channelList.map((c) => <option key={c} value={c}>{t(`studio.gallery.channels.${c}`)}</option>)}
-          </select>
-        </label>
-        {aiAvailable ? (
-          <label className="apex-field"><span>{t('studio.gallery.promptLabel')}</span>
-            <textarea className="apex-input" dir="ltr" rows={3} maxLength={2000} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-            <small className="apex-muted">{t('studio.gallery.promptHint')}</small>
-            {prompt !== (campaign.image_prompt_default || '') && (
-              <button type="button" className="marketing-copy-button" onClick={() => setPrompt(campaign.image_prompt_default || '')}>
-                <RotateCcw size={13} aria-hidden="true" />{t('studio.gallery.resetPrompt')}
+      <details className="studio-image__more">
+        <summary><Wand2 size={15} aria-hidden="true" />{t('studio.simple.newImage')}</summary>
+        <fieldset className="studio-image__options">
+          <legend className="sr-only">{t('studio.gallery.newImage')}</legend>
+          <div className="studio-formats" role="radiogroup" aria-label={t('studio.gallery.formatLabel')}>
+            {formatList.map((f) => (
+              <button key={f.key} type="button" role="radio" aria-checked={format === f.key} className="studio-format" onClick={() => setFormat(f.key)}>
+                <span className="studio-format__shape" style={{ aspectRatio: `${f.width} / ${f.height}` }} aria-hidden="true" />
+                <span>{t(`studio.gallery.formats.${f.key}`)}</span>
               </button>
-            )}
+            ))}
+          </div>
+          <label className="apex-field"><span>{t('studio.gallery.channelLabel')}</span>
+            <select className="apex-input" value={channel} onChange={(e) => setChannel(e.target.value)}>
+              <option value="">{t('studio.gallery.channelNone')}</option>
+              {channelList.map((c) => <option key={c} value={c}>{t(`studio.gallery.channels.${c}`)}</option>)}
+            </select>
           </label>
-        ) : <p className="apex-muted studio-note">{t('studio.gallery.designedOnly')}</p>}
-        {list.length > 0 && (
-          <label className="studio-check"><input type="checkbox" checked={attach} onChange={(e) => setAttach(e.target.checked)} />{t('studio.gallery.attachNew')}</label>
-        )}
-        <ApexButton size="sm" icon={RefreshCw} loading={generate.isPending || queueOne.isPending} onClick={create}>
-          {aiAvailable ? t('studio.gallery.create') : t('studio.gallery.createDesigned')}
-        </ApexButton>
-        {queued && making > 0 && <p className="apex-muted studio-note" role="status">{t('studio.batch.making', { count: making })}</p>}
-        {queueOne.isError && <MarketingErrorMessage error={queueOne.error} action="image" t={t} />}
-        {capability?.external && <p className="apex-muted studio-note">{t('studio.imagePrivacy')}</p>}
-      </fieldset>
-
-      {queued && aiAvailable && (
-        <BatchPanel campaign={campaign} formatList={formatList} channel={channel} prompt={prompt} capacity={capacity.data} jobs={jobs} t={t} />
-      )}
-
-      <section className="studio-gallery" aria-label={t('studio.gallery.title')}>
-        <h3>{t('studio.gallery.title')}{list.length > 0 && <small className="apex-muted"> · {t('studio.gallery.count', { count: list.length })}</small>}</h3>
-        {assets.isPending ? <StateBlock kind="loading" compact title={t('common.loading')} />
-          : assets.isError ? <StateBlock kind="error" compact title={t('studio.gallery.loadError')} onRetry={() => assets.refetch()} retryLabel={t('demandApex.actions.retry')} />
-            : list.length === 0 ? <p className="apex-muted">{t('studio.gallery.empty')}</p>
-              : (
-                <ul className="studio-gallery__list">
-                  {list.map((asset) => (
-                    <GalleryItem key={asset.asset_id} campaign={campaign} asset={asset} channels={channelList} t={t}
-                      selected={shown?.asset_id === asset.asset_id} onSelect={() => setSelectedId(asset.asset_id)} />
-                  ))}
-                </ul>
+          {aiAvailable ? (
+            <label className="apex-field"><span>{t('studio.gallery.promptLabel')}</span>
+              <textarea className="apex-input" dir="ltr" rows={3} maxLength={2000} value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+              <small className="apex-muted">{t('studio.gallery.promptHint')}</small>
+              {prompt !== (campaign.image_prompt_default || '') && (
+                <button type="button" className="marketing-copy-button" onClick={() => setPrompt(campaign.image_prompt_default || '')}>
+                  <RotateCcw size={13} aria-hidden="true" />{t('studio.gallery.resetPrompt')}
+                </button>
               )}
-      </section>
+            </label>
+          ) : <p className="apex-muted studio-note">{t('studio.gallery.designedOnly')}</p>}
+          {list.length > 0 && (
+            <label className="studio-check"><input type="checkbox" checked={attach} onChange={(e) => setAttach(e.target.checked)} />{t('studio.gallery.attachNew')}</label>
+          )}
+          <ApexButton size="sm" icon={RefreshCw} loading={generate.isPending || queueOne.isPending} onClick={create}>
+            {aiAvailable ? t('studio.gallery.create') : t('studio.gallery.createDesigned')}
+          </ApexButton>
+          {queued && making > 0 && <p className="apex-muted studio-note" role="status">{t('studio.batch.making', { count: making })}</p>}
+          {queueOne.isError && <MarketingErrorMessage error={queueOne.error} action="image" t={t} />}
+          {capability?.external && <p className="apex-muted studio-note">{t('studio.imagePrivacy')}</p>}
+        </fieldset>
+
+        {queued && aiAvailable && (
+          <BatchPanel campaign={campaign} formatList={formatList} channel={channel} prompt={prompt} capacity={capacity.data} jobs={jobs} t={t} />
+        )}
+      </details>
+
+      {(assets.isError || list.length > 0) && (
+        <section className="studio-gallery" aria-label={t('studio.gallery.title')}>
+          <h3>{t('studio.simple.otherImages')}{list.length > 0 && <small className="apex-muted"> · {t('studio.gallery.count', { count: list.length })}</small>}</h3>
+          {assets.isError ? <StateBlock kind="error" compact title={t('studio.gallery.loadError')} onRetry={() => assets.refetch()} retryLabel={t('demandApex.actions.retry')} />
+                : (
+                  <ul className="studio-gallery__list">
+                    {list.map((asset) => (
+                      <GalleryItem key={asset.asset_id} campaign={campaign} asset={asset} channels={channelList} t={t}
+                        selected={shown?.asset_id === asset.asset_id} onSelect={() => setSelectedId(asset.asset_id)} />
+                    ))}
+                  </ul>
+                )}
+        </section>
+      )}
     </div>
   );
 }

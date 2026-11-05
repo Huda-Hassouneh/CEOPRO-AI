@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, PenLine, Save, Sparkles, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, Copy, PenLine, Save, Sparkles, Trash2 } from 'lucide-react';
 import { ApexButton, Panel, Pill, StateBlock } from '../../../shared/components/apex/Apex.jsx';
 import { useDeleteCampaign, useUpdateCampaign } from '../hooks/useCampaignActions.js';
 import { MarketingErrorMessage } from './MarketingErrorMessage.jsx';
@@ -15,7 +15,7 @@ export function postText(platform, v) {
   return [v.headline, v.body_copy, (v.hashtags || []).join(' '), v.cta].filter(Boolean).join('\n\n');
 }
 
-function CopyText({ text, t }) {
+function CopyText({ text, t, big = false }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -24,6 +24,13 @@ function CopyText({ text, t }) {
       globalThis.setTimeout(() => setCopied(false), 1800);
     } catch { /* clipboard refused: the text stays selectable */ }
   };
+  if (big) {
+    return (
+      <button type="button" className="apex-btn apex-btn--primary studio-copy-btn" onClick={copy}>
+        {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}{copied ? t('studio.copied') : t('studio.simple.copyText')}
+      </button>
+    );
+  }
   return (
     <button type="button" className="marketing-copy-button" onClick={copy}>
       {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}{copied ? t('studio.copied') : t('studio.copyPost')}
@@ -47,6 +54,7 @@ export function CampaignEditor({ campaign, capability, imageFormats, assetChanne
   const [audience, setAudience] = useState(campaign.audience_summary || '');
   const [edits, setEdits] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
   const update = useUpdateCampaign();
   const remove = useDeleteCampaign();
   const when = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }), [locale]);
@@ -56,6 +64,7 @@ export function CampaignEditor({ campaign, capability, imageFormats, assetChanne
     setAudience(campaign.audience_summary || '');
     setEdits({});
     setConfirmDelete(false);
+    setEditing(false);
     setPlatform((current) => (campaign.content?.[current] ? current : Object.keys(campaign.content || {})[0]));
   }, [campaign]);
 
@@ -72,13 +81,12 @@ export function CampaignEditor({ campaign, capability, imageFormats, assetChanne
       const [p, index] = key.split(':');
       return { platform: p, variant_index: Number(index), ...fields };
     }),
-  }, { onSuccess: () => setEdits({}) });
+  }, { onSuccess: () => { setEdits({}); setEditing(false); } });
 
   const variants = campaign.content?.[platform] || [];
   return (
     <Panel
       className="studio-editor"
-      eyebrow={t('studio.reviewEyebrow')}
       title={(
         <label className="studio-title">
           <PenLine size={15} aria-hidden="true" />
@@ -88,7 +96,7 @@ export function CampaignEditor({ campaign, capability, imageFormats, assetChanne
       subtitle={t('studio.savedAt', { date: when.format(new Date(campaign.updated_at || campaign.completed_at || campaign.requested_at)) })}
       actions={(
         <div className="studio-editor__actions">
-          <ApexButton size="sm" icon={Save} disabled={!dirty} loading={update.isPending} onClick={save}>{dirty ? t('studio.save') : t('studio.saved')}</ApexButton>
+          {dirty && <ApexButton size="sm" icon={Save} loading={update.isPending} onClick={save}>{t('studio.save')}</ApexButton>}
           {onRewrite && <ApexButton size="sm" variant="ghost" icon={Sparkles} loading={rewriting} onClick={onRewrite}>{t('studio.rewrite')}</ApexButton>}
           {confirmDelete ? (
             <>
@@ -103,6 +111,11 @@ export function CampaignEditor({ campaign, capability, imageFormats, assetChanne
       {update.isSuccess && !dirty && <p className="studio-saved" role="status"><Check size={14} aria-hidden="true" /> {t('studio.savedNote')}</p>}
       {remove.isError && <MarketingErrorMessage error={remove.error} action="write" t={t} />}
 
+      <div className="studio-ready" role="note">
+        <CheckCircle2 size={22} aria-hidden="true" />
+        <div><strong>{t('studio.simple.readyTitle')}</strong><p>{t('studio.simple.readyHint')}</p></div>
+      </div>
+
       <div className="studio-layout">
         <ImageStudio campaign={campaign} capability={capability} formats={imageFormats} channels={assetChannels} t={t} />
         <div className="studio-copy">
@@ -114,43 +127,64 @@ export function CampaignEditor({ campaign, capability, imageFormats, assetChanne
           {variants.map((original) => {
             const v = current(platform, original);
             const limits = LIMITS[platform] || {};
+            const label = platforms.length === 1 && variants.length === 1 ? t('studio.post') : t('studio.option', { n: original.variant_index });
             return (
               <article key={original.variant_index} className="studio-post">
                 <header>
-                  <strong>{platforms.length === 1 && variants.length === 1 ? t('studio.post') : t('studio.option', { n: original.variant_index })}</strong>
-                  <CopyText text={postText(platform, v)} t={t} />
+                  <strong>{label}</strong>
+                  <button type="button" className="marketing-copy-button studio-post__edit" aria-pressed={editing} onClick={() => setEditing((on) => !on)}>
+                    {editing ? <Check size={14} aria-hidden="true" /> : <PenLine size={14} aria-hidden="true" />}{editing ? t('studio.simple.doneEditing') : t('studio.simple.editText')}
+                  </button>
                 </header>
-                <label className="apex-field"><span>{t('studio.headline')}</span>
-                  <input className="apex-input" dir="auto" value={v.headline || ''} maxLength={limits.headline || 300} onChange={(e) => setField(platform, original, 'headline', e.target.value)} />
-                </label>
-                <label className="apex-field"><span>{platform === 'GOOGLE_ADS' ? t('studio.description') : t('studio.caption')}</span>
-                  <textarea className="apex-input" dir="auto" rows={platform === 'GOOGLE_ADS' ? 2 : 4} value={v.body_copy || ''} maxLength={limits.body_copy || 5000} onChange={(e) => setField(platform, original, 'body_copy', e.target.value)} />
-                  {limits.body_copy && <small className="apex-muted">{t('studio.charsLeft', { count: limits.body_copy - (v.body_copy || '').length })}</small>}
-                </label>
-                <div className="studio-post__row">
-                  {platform !== 'GOOGLE_ADS' && (
-                    <label className="apex-field"><span>{t('studio.hashtags')}</span>
-                      <input className="apex-input" dir="auto" value={(v.hashtags || []).join(' ')} onChange={(e) => setField(platform, original, 'hashtags', hashtagsFromText(e.target.value))} />
+                {editing ? (
+                  <>
+                    <label className="apex-field"><span>{t('studio.headline')}</span>
+                      <input className="apex-input" dir="auto" value={v.headline || ''} maxLength={limits.headline || 300} onChange={(e) => setField(platform, original, 'headline', e.target.value)} />
                     </label>
-                  )}
-                  <label className="apex-field"><span>{t('studio.cta')}</span>
-                    <input className="apex-input" dir="auto" value={v.cta || ''} maxLength={120} onChange={(e) => setField(platform, original, 'cta', e.target.value)} />
-                  </label>
-                </div>
+                    <label className="apex-field"><span>{platform === 'GOOGLE_ADS' ? t('studio.description') : t('studio.caption')}</span>
+                      <textarea className="apex-input" dir="auto" rows={platform === 'GOOGLE_ADS' ? 2 : 5} value={v.body_copy || ''} maxLength={limits.body_copy || 5000} onChange={(e) => setField(platform, original, 'body_copy', e.target.value)} />
+                      {limits.body_copy && <small className="apex-muted">{t('studio.charsLeft', { count: limits.body_copy - (v.body_copy || '').length })}</small>}
+                    </label>
+                    <div className="studio-post__row">
+                      {platform !== 'GOOGLE_ADS' && (
+                        <label className="apex-field"><span>{t('studio.hashtags')}</span>
+                          <input className="apex-input" dir="auto" value={(v.hashtags || []).join(' ')} onChange={(e) => setField(platform, original, 'hashtags', hashtagsFromText(e.target.value))} />
+                        </label>
+                      )}
+                      <label className="apex-field"><span>{t('studio.cta')}</span>
+                        <input className="apex-input" dir="auto" value={v.cta || ''} maxLength={120} onChange={(e) => setField(platform, original, 'cta', e.target.value)} />
+                      </label>
+                    </div>
+                  </>
+                ) : (
+                  <div className="studio-post__preview" dir="auto">
+                    {v.headline && <h3 className="studio-post__headline" dir="auto">{v.headline}</h3>}
+                    {v.body_copy && <p className="studio-post__body" dir="auto">{v.body_copy}</p>}
+                    {platform !== 'GOOGLE_ADS' && v.hashtags?.length > 0 && <p className="studio-post__tags" dir="auto">{v.hashtags.join(' ')}</p>}
+                    {v.cta && <p className="studio-post__cta" dir="auto">{v.cta}</p>}
+                    {!v.headline && !v.body_copy && <p className="apex-muted">{t('studio.simple.emptyField')}</p>}
+                  </div>
+                )}
+                <CopyText text={postText(platform, v)} t={t} big />
               </article>
             );
           })}
+          {dirty && (
+            <div className="studio-unsaved" role="status">
+              <span>{t('studio.simple.unsaved')}</span>
+              <ApexButton size="sm" icon={Save} loading={update.isPending} onClick={save}>{t('studio.save')}</ApexButton>
+            </div>
+          )}
         </div>
       </div>
 
-      <section className="studio-audience">
-        <h3>{t('marketing.results.audienceTitle')} <Pill>{t('studio.aiSuggestion')}</Pill></h3>
-        <p className="marketing-form-hint">{t('marketing.results.audienceNote')}</p>
-        <textarea className="apex-input" dir="auto" rows={2} maxLength={2000} value={audience} onChange={(e) => setAudience(e.target.value)} aria-label={t('marketing.results.audienceTitle')} />
-      </section>
-
-      <details className="studio-more">
-        <summary>{t('studio.more')}</summary>
+      <details className="studio-more studio-details">
+        <summary>{t('studio.simple.moreDetails')}</summary>
+        <section className="studio-audience">
+          <h3>{t('marketing.results.audienceTitle')} <Pill>{t('studio.aiSuggestion')}</Pill></h3>
+          <p className="marketing-form-hint">{t('marketing.results.audienceNote')}</p>
+          <textarea className="apex-input" dir="auto" rows={2} maxLength={2000} value={audience} onChange={(e) => setAudience(e.target.value)} aria-label={t('marketing.results.audienceTitle')} />
+        </section>
         {campaign.creative_direction && (
           <section><h3>{t('marketing.results.creativeDirectionTitle')}</h3><p className="marketing-form-hint">{t('marketing.results.creativeDirectionNote')}</p><p dir="auto">{campaign.creative_direction}</p></section>
         )}
