@@ -219,6 +219,50 @@ def choose_forecast(daily: pd.DataFrame, sufficiency, current_price, current_sto
     return result
 
 
+def forecast_interval(choice: dict, history: pd.Series, expected_demand: float, horizon_days: int) -> tuple:
+    """The (lower, upper) range around the horizon total stored with a forecast."""
+    if choice["source"] == "xgboost":
+        spread = max(choice["metrics"]["rmse"], 1.0)
+    else:
+        recent_std = float(history.tail(14).std()) if len(history) > 1 else 0.0
+        if not recent_std > 0:
+            # A quiet or perfectly flat fortnight says nothing about how much
+            # sales vary: a product that sold 1-20 units on scattered days and
+            # nothing in the last 14 days must not get a zero-width range.
+            recent_std = float(history.tail(90).std()) if len(history) > 1 else 0.0
+        spread = recent_std if recent_std == recent_std else 0.0
+    # `spread` is a one-day error; over a horizon of independent-ish days the
+    # total's error grows with sqrt(horizon), not linearly.
+    half_width = 1.28 * spread * float(np.sqrt(max(horizon_days, 1)))
+    # Days are not independent: a trend, a promotion or a slow month moves the
+    # whole horizon together, and the range above alone held the actual total
+    # only ~59% of the time in backtests (scripts/evaluate_forecast_pipeline.py)
+    # while being labelled 80%. Widen it to what past horizon totals actually
+    # missed by, when there is enough history to measure that.
+    errors = _horizon_total_errors(history, choice.get("baseline_name") or choice["name"], horizon_days)
+    if len(errors) >= _INTERVAL_MIN_WINDOWS:
+        half_width = max(half_width, float(np.quantile(errors, 0.8)))
+    return max(0.0, expected_demand - half_width), expected_demand + half_width
+
+
+_INTERVAL_STEP_DAYS = 7
+_INTERVAL_MAX_WINDOWS = 12
+_INTERVAL_MIN_WINDOWS = 4
+
+
+def _horizon_total_errors(history: pd.Series, baseline_name: str, horizon_days: int) -> list:
+    """Absolute errors of the given baseline's horizon total at past origins a week apart (most recent first)."""
+    fn = baselines.BASELINE_FUNCTIONS.get(baseline_name, baselines.recent_blend_forecast)
+    errors = []
+    for k in range(_INTERVAL_MAX_WINDOWS):
+        origin = len(history) - horizon_days - k * _INTERVAL_STEP_DAYS
+        if origin < max(28, horizon_days):
+            break
+        predicted = float(np.sum(fn(history.iloc[:origin], horizon_days)))
+        errors.append(abs(predicted - float(history.iloc[origin:origin + horizon_days].sum())))
+    return errors
+
+
 # Every screen and the restock logic read a forecast as "demand over the next
 # 30 days" - see the expected_demand note in run_forecast().
 DEFAULT_HORIZON_DAYS = 30
@@ -275,8 +319,8 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
     # was "94% below stock" and to reduce orders.
     expected_demand = float(np.sum(forecast_values)) if len(forecast_values) else 0.0
 
+    lower_bound, upper_bound = forecast_interval(choice, history, expected_demand, horizon_days)
     if chosen_source == "xgboost":
-        spread = max(metrics["rmse"], 1.0)
         mase_is_valid = metrics["mase"] == metrics["mase"]  # False for NaN
         confidence_score = round(max(0.3, min(0.95, 1 - min(metrics["mase"], 1.0))), 2) if mase_is_valid else 0.5
         baseline_summary = ", ".join(f"{k}={v:.2f}" for k, v in metrics["baseline_scores"].items() if k != "model")
@@ -286,13 +330,6 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
             f"(MAE={metrics['mae']:.2f}, MASE={metrics['mase']:.2f})."
         )
     else:
-        recent_std = float(history.tail(14).std()) if len(history) > 1 else 0.0
-        if not recent_std > 0:
-            # A quiet or perfectly flat fortnight says nothing about how much
-            # sales vary: a product that sold 1-20 units on scattered days and
-            # nothing in the last 14 days must not get a zero-width range.
-            recent_std = float(history.tail(90).std()) if len(history) > 1 else 0.0
-        spread = recent_std if recent_std == recent_std else 0.0
         confidence_score = 0.4 if sufficiency.sufficient else 0.2
         reason = (
             "sales are intermittent (no sales on most recent days)" if intermittent
@@ -311,11 +348,7 @@ def run_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = DEFA
             f"instead ({listed}) - check them for a typing error or a one-off bulk order."
         )
 
-    # `spread` is a one-day error; over a horizon of independent-ish days the
-    # total's error grows with sqrt(horizon), not linearly.
-    total_spread = spread * float(np.sqrt(max(horizon_days, 1)))
-    confidence_range_lower = max(0.0, expected_demand - 1.28 * total_spread)
-    confidence_range_upper = expected_demand + 1.28 * total_spread
+    confidence_range_lower, confidence_range_upper = lower_bound, upper_bound
 
     forecast_start_date = daily["date"].iloc[-1].date() + timedelta(days=1)
     demand_forecasts_id = evidence.insert_demand_forecast(
