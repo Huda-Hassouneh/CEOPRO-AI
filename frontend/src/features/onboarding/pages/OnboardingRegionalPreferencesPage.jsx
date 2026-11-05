@@ -22,9 +22,16 @@ export function OnboardingRegionalPreferencesPage() {
   const cityIsValid = isSupportedCountryCity(country, city);
   const languageIsValid = applicationLanguages.some((item) => item.value === locale);
 
+  const suggestedCountry = useOnboardingStore((state) => state.suggestedCountry);
   useEffect(() => {
     if (city && !cityIsValid) setRegionalPreferences({ city: '' });
   }, [city, cityIsValid, setRegionalPreferences]);
+  // Start from the country given at sign-up when KEEL supports it there; the owner still confirms it.
+  useEffect(() => {
+    if (!country && ORANGE_COUNTRIES.some((item) => item.value === suggestedCountry)) {
+      setRegionalPreferences({ country: suggestedCountry, city: '' });
+    }
+  }, [country, suggestedCountry, setRegionalPreferences]);
 
   const requiredLabel = (key) => <>{t(key)} <span className="ceopro-required-mark" aria-hidden="true">*</span></>;
 
@@ -39,6 +46,7 @@ export function OnboardingRegionalPreferencesPage() {
             value={country}
             required
             aria-required="true"
+            placeholder={t('onboarding.region.countryPlaceholder')}
             options={ORANGE_COUNTRIES.map((item) => ({ value: item.value, label: t(item.labelKey) }))}
             onChange={(event) => setRegionalPreferences({ country: event.target.value, city: '' })}
           />

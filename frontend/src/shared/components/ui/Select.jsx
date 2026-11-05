@@ -1,4 +1,5 @@
 import { forwardRef, useId } from 'react';
+import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 
 const Select = forwardRef(({ 
   label,
@@ -8,8 +9,10 @@ const Select = forwardRef(({
   className = '',
   id,
   disabled = false,
+  placeholder,
   ...props 
 }, ref) => {
+  const { t } = useI18n();
   const generatedId = useId();
   const fallbackId = `ceopro-select-${generatedId.replace(/:/g, '')}`;
   const selectId = id || fallbackId;
@@ -17,6 +20,8 @@ const Select = forwardRef(({
   const hintId = `${selectId}-hint`;
   const describedBy = [error ? errorId : '', hint && !error ? hintId : ''].filter(Boolean).join(' ') || undefined;
 
+  const needsPlaceholder = 'value' in props && (props.value === '' || props.value == null)
+    && !options.some((option) => option.value === '' || option.value == null);
   const selectStyle = {
     width: '100%',
     minHeight: '44px',
@@ -47,7 +52,11 @@ const Select = forwardRef(({
         aria-describedby={describedBy}
         style={selectStyle}
         {...props}
+        value={needsPlaceholder ? '' : props.value}
       >
+        {/* A controlled select with no value would otherwise show its first option as if chosen, and that
+            option could then never be picked (choosing it fires no change). */}
+        {needsPlaceholder && <option value="" disabled hidden>{placeholder || t('common.selectPlaceholder')}</option>}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

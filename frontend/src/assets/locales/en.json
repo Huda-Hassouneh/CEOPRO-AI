@@ -1,5 +1,6 @@
 {
   "common": {
+    "selectPlaceholder": "Select…",
     "noData": "No data available yet.",
     "dataTable": "Data table",
     "brand": "KEEL",
@@ -6882,6 +6883,7 @@
       "countryHint": "Select your country or business location",
       "cityLabel": "City",
       "cityHint": "Select your city",
+      "countryPlaceholder": "Select your country",
       "cityPlaceholder": "Select a city",
       "languageLabel": "Language",
       "languageHint": "Choose the language for your KEEL application",

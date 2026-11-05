@@ -1,5 +1,6 @@
 {
   "common": {
+    "selectPlaceholder": "اختر…",
     "noData": "لا توجد بيانات متاحة بعد.",
     "dataTable": "جدول بيانات",
     "brand": "KEEL",
@@ -6882,6 +6883,7 @@
       "countryHint": "اختر دولة أو موقع منشأتك",
       "cityLabel": "المدينة",
       "cityHint": "اختر مدينتك",
+      "countryPlaceholder": "اختر دولتك",
       "cityPlaceholder": "اختر مدينة",
       "languageLabel": "اللغة",
       "languageHint": "اختر لغة تطبيق KEEL",

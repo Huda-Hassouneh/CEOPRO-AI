@@ -34,12 +34,16 @@ class StepRequest(BaseModel):
 
 def state(conn, tenant_id, *, lock=False):
     with conn.cursor() as cur:
-        cur.execute("SELECT onboarding_profile,onboarding_completed_at FROM companies WHERE tenant_id=%s" + (" FOR UPDATE" if lock else ""), (tenant_id,))
+        cur.execute("SELECT onboarding_profile,onboarding_completed_at,country_code FROM companies WHERE tenant_id=%s" + (" FOR UPDATE" if lock else ""), (tenant_id,))
         row=cur.fetchone()
     if not row: raise HTTPException(404,"Company not found.")
     profile=row[0] or {}
     highest=int(profile.get("highestCompletedStep",0))
-    return {**profile,"revision":int(profile.get("revision",0)),"highestCompletedStep":highest,"currentStep":min(highest+1,6),"isComplete":row[1] is not None}
+    result={**profile,"revision":int(profile.get("revision",0)),"highestCompletedStep":highest,"currentStep":min(highest+1,6),"isComplete":row[1] is not None}
+    # The country given at sign-up, offered as the first step's starting choice (never saved until confirmed).
+    if not profile.get("country") and row[2]:
+        result["suggestedCountry"]=row[2]
+    return result
 
 def _audit(conn,tenant_id,user_id,action,changed):
     with conn.cursor() as cur:
@@ -61,7 +65,7 @@ def save(conn,tenant_id,user_id,body):
             if body.selectedPlan != 'custom':
                 cur.execute("SELECT 1 FROM billing_plan_prices WHERE plan_key=%s AND period_code=%s",(body.selectedPlan,body.billingPeriod))
                 if not cur.fetchone(): raise HTTPException(422,"Choose an available billing term.")
-    updated={k:v for k,v in current.items() if k not in {'currentStep','isComplete'}}
+    updated={k:v for k,v in current.items() if k not in {'currentStep','isComplete','suggestedCountry'}}
     updated.update(values,revision=current['revision']+1,highestCompletedStep=max(current['highestCompletedStep'],body.step))
     with conn.cursor() as cur:
         cur.execute("UPDATE companies SET onboarding_profile=%s::jsonb WHERE tenant_id=%s",(json.dumps(updated),tenant_id))
