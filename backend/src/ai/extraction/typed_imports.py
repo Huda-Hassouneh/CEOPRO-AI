@@ -12,6 +12,8 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping, Sequence
 
+from src.ai.core.money import minor_units
+
 
 class TypedImportError(ValueError):
     pass
@@ -99,6 +101,12 @@ def validate_typed_import_row(category: str, values: Mapping[str, Any], *, sourc
         except (ValueError, TypeError):
             findings.append({"field": "observed_at", "code": "invalid_timestamp"})
 
+    if category in {"sales", "invoice"} and not any(f["field"] in {"quantity", "unit_price", "amount_raw", "currency"}
+                                                    for f in findings):
+        conflict = _paid_total_conflict(safe)
+        if conflict:
+            findings.append({"field": "amount_raw", "code": conflict})
+
     candidate = None
     if safe.get("product_id") is not None or safe.get("provider_product_id") is not None or safe.get("product_name") is not None:
         candidate = {k: safe[k] for k in ("product_id", "provider_product_id", "product_name", "sku") if safe.get(k) is not None}
@@ -120,6 +128,20 @@ def validate_typed_import_row(category: str, values: Mapping[str, Any], *, sourc
         "ambiguity_code": next((f["code"] for f in findings if f["code"].endswith("requires_review")), None),
         "source_provenance": dict(source_provenance or {}),
     }
+
+
+def _paid_total_conflict(safe: Mapping[str, Any]) -> str | None:
+    """A stated paid line total above quantity x unit price can't be a discount: one of the three figures was
+    misread or mistyped (an OCR digit, a whole-order total in a line column). Promotion would otherwise fall
+    back to quantity x price without telling anyone; a person must confirm which figure is right."""
+    if safe.get("amount_raw") in (None, "") or safe.get("quantity") in (None, "") or safe.get("unit_price") in (None, ""):
+        return None
+    try:
+        paid, quantity, price = (Decimal(str(safe[k])) for k in ("amount_raw", "quantity", "unit_price"))
+        tolerance = Decimal(5).scaleb(-(minor_units(safe.get("currency")) + 1))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return "paid_total_exceeds_quantity_times_price_requires_review" if paid > quantity * price + tolerance else None
 
 
 def _fingerprint(rows: Sequence[Mapping[str, Any]]) -> str:

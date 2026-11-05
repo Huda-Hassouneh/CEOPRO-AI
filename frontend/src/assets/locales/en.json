@@ -3919,6 +3919,7 @@
         "required": "Required value is missing.",
         "must_be_positive_number": "Enter a number greater than zero.",
         "must_be_nonnegative_number": "Enter zero or a positive amount.",
+        "paid_total_exceeds_quantity_times_price_requires_review": "The line total is higher than quantity × unit price. Check which figure was read wrongly before importing.",
         "invalid_currency_code": "Currency code is not valid.",
         "invalid_date": "Date is not valid.",
         "invalid_timestamp": "Timestamp is not valid.",

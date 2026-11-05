@@ -3919,6 +3919,7 @@
         "required": "هذه القيمة مطلوبة.",
         "must_be_positive_number": "أدخل رقماً أكبر من صفر.",
         "must_be_nonnegative_number": "أدخل صفراً أو مبلغاً موجباً.",
+        "paid_total_exceeds_quantity_times_price_requires_review": "إجمالي السطر أعلى من الكمية × سعر الوحدة. تحقق من الرقم الذي قُرئ بشكل خاطئ قبل الاستيراد.",
         "invalid_currency_code": "رمز العملة غير صالح.",
         "invalid_date": "التاريخ غير صالح.",
         "invalid_timestamp": "الطابع الزمني غير صالح.",
