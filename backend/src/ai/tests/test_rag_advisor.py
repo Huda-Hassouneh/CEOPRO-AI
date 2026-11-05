@@ -716,3 +716,11 @@ def test_an_arabic_question_searches_documents_with_english_names_and_policy_wor
     catalog = [{"product_id": "p1", "name": "Fresh Labneh (per kg)", "name_alt": "لبنة طازجة (كيلو)"}]
     terms = advisor._english_search_terms(understanding.understand("هل يمكن استرجاع اللبنة؟", catalog=catalog))
     assert "Fresh Labneh (per kg)" in terms and "refund" in terms
+
+
+def test_an_arabic_fee_question_searches_with_the_english_fee_words():
+    from src.ai.rag import understanding
+    terms = advisor._english_search_terms(understanding.understand("كم رسوم التوصيل للزرقاء؟"))
+    assert "delivery" in terms and "fee" in terms
+    chunk = "Zarqa and Russeifa: next-day delivery, fee 3.500 JOD."
+    assert advisor._relevant("كم رسوم التوصيل للزرقاء؟" + terms, chunk)

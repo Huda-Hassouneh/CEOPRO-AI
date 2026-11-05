@@ -318,6 +318,8 @@ _ARABIC_DOCUMENT_TERMS = (
     (("استبدال", "تبديل"), "exchange replace"),
     (("كفاله", "ضمان"), "warranty guarantee"),
     (("توصيل", "ديليفري"), "delivery"),
+    (("رسوم", "اجره", "اجرة", "تكلفه", "تكلفة", "سعر", "كلفه"), "fee price charge cost"),
+    (("مده", "مدة", "كم يوم", "متى يوصل"), "days time"),
     (("شحن",), "shipping delivery"),
     (("دفع", "الدفع"), "payment"),
     (("اجازه", "اجازات", "اجازة"), "leave holiday"),
@@ -593,7 +595,7 @@ def _sales_periods(u: understanding.Understanding, today) -> List[dict]:
 _NAMED_RECORD_TITLES = ("Stock of ", "Demand forecast for ", "Sales of the products asked about")
 _HEADLINE_TITLES = ("Sales for ",)
 _RANKING = re.compile(r"(?<![a-z])(top|best|worst|most|least|rank|ranking|which products?|what sold|bestsell)|"
-                      r"اكثر|افضل|اقل|اسوا|ترتيب|اي منتج|شو المنتج")  # a period's own total, the first thing an answer about it says
+                      r"اكثر|اكتر|افضل|اقل|اسوا|ترتيب|اي منتج|شو المنتج")  # a period's own total, the first thing an answer about it says
 
 
 def _records(conn, tenant_id: str, u: understanding.Understanding, access: acl.Access,

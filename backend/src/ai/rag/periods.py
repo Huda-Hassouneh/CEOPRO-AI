@@ -39,7 +39,7 @@ _AMBIGUOUS = {"may", "اب", "mar", "jun", "jul"}
 # Arabic letters only: Arabic punctuation (؟ ، ؛) shares the block and must still end a word.
 _ARABIC = "ء-يٱ-ۓ"
 _ORDINAL_QUARTER = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4,
-                    "last": None, "الاول": 1, "الثاني": 2, "الثالث": 3, "الرابع": 4}
+                    "last": None, "الاول": 1, "الثاني": 2, "الثالث": 3, "الرابع": 4, "التاني": 2, "التالت": 3}
 _RANGE_JOINERS = r"(?:to|until|till|through|and|-|–|الي|الى|حتى|لغايه|لغايت|ل|و)"
 
 
@@ -151,13 +151,17 @@ _RELATIVE = (
     (("this week", "هالاسبوع", "هذا الاسبوع", "الاسبوع الحالي", "الاسبوع ده", "هالجمعه"), "this_week"),
     (("last week", "previous week", "الاسبوع الماضي", "الاسبوع اللي فات", "الاسبوع السابق"), "last_week"),
     (("this month", "current month", "month to date", "month-to-date", "mtd", "هالشهر", "هذا الشهر", "الشهر الحالي",
-      "الشهر ده", "هاد الشهر", "هذا الشهر الحالي"),
+      "الشهر ده", "هاد الشهر", "هذا الشهر الحالي", "since the start of the month", "since the beginning of the month",
+      "from the start of the month", "من بدايه الشهر", "من اول الشهر", "منذ بدايه الشهر"),
      "this_month"),
     (("last month", "previous month", "الشهر الماضي", "الشهر اللي فات", "الشهر السابق", "الشهر المنصرم"), "last_month"),
     (("this quarter", "current quarter", "الربع الحالي", "هذا الربع"), "this_quarter"),
     (("last quarter", "previous quarter", "الربع الماضي", "الربع السابق"), "last_quarter"),
     (("this year", "current year", "year to date", "year-to-date", "ytd", "هالسنه", "هذه السنه", "هذا العام",
-      "السنه الحاليه", "العام الحالي", "السنه دي", "هاي السنه", "هالعام"), "this_year"),
+      "السنه الحاليه", "العام الحالي", "السنه دي", "هاي السنه", "هالعام", "since the start of the year",
+      "since the beginning of the year", "from the start of the year", "so far this year",
+      "من بدايه السنه", "من اول السنه", "من بدايه العام", "منذ بدايه العام", "منذ بدايه السنه", "من اول العام"),
+     "this_year"),
     (("last year", "previous year", "السنه الماضيه", "العام الماضي", "السنه اللي فاتت", "السنه السابقه",
       "العام السابق", "العام اللي فات", "السنه اللي فاتت دي"), "last_year"),
 )
@@ -232,11 +236,11 @@ _MONTH_YEAR = re.compile(rf"(?:(?:شهر|month(?:\s+of)?)\s+)?({_MONTH_ALTERNATI
 _NUMERIC_MONTH = re.compile(r"(?:شهر|month)\s+(\d{1,2})(?!\d)(?:\s*(?:/|-|سنه|عام|of)?\s*" + _YEAR + ")?")
 _QUARTER = re.compile(r"(?<![a-z])q([1-4])(?:\s*(?:of\s+)?" + _YEAR + r")?|"
                       r"(first|second|third|fourth|1st|2nd|3rd|4th)\s+quarter(?:\s+(?:of\s+)?" + _YEAR + r")?|"
-                      r"الربع\s+(الاول|الثاني|الثالث|الرابع)(?:\s+(?:من\s+)?(?:سنه|عام)?\s*" + _YEAR + r")?")
+                      r"الربع\s+(الاول|الثاني|الثالث|الرابع|التاني|التالت)(?:\s+(?:من\s+)?(?:سنه|عام)?\s*" + _YEAR + r")?")
 _HALF = re.compile(r"(?<![a-z])h([12])(?:\s*(?:of\s+)?" + _YEAR + r")?(?![a-z0-9])|"
                    r"(first|second|1st|2nd)\s+half(?:\s+(?:of\s+)?(?:the\s+year\s+)?" + _YEAR + r")?|"
-                   r"النصف\s+(الاول|الثاني)(?:\s+(?:من\s+)?(?:سنه|عام|السنه|العام)?\s*" + _YEAR + r")?")
-_ORDINAL_HALF = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "الاول": 1, "الثاني": 2}
+                   r"النصف\s+(الاول|الثاني|التاني)(?:\s+(?:من\s+)?(?:سنه|عام|السنه|العام)?\s*" + _YEAR + r")?")
+_ORDINAL_HALF = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "الاول": 1, "الثاني": 2, "التاني": 2}
 _STANDALONE_YEAR = re.compile(_YEAR)
 
 
@@ -388,6 +392,12 @@ def resolve_periods(text: str, today: date) -> List[dict]:
             i += 1  # the year qualifies the months around it, it isn't a period of its own
             continue
         period = _close(kind, value, today, year_hint)
+        if period and kind in ("day", "day_open", "month", "quarter", "half") and re.search(
+                r"(?<![a-z])(since|starting|starting from|ever since)\s*$|(?<![" + _ARABIC + r"])(منذ|من وقت|من بدايه)\s*$",
+                text[max(0, start - 16):start]):
+            # "since June", "منذ حزيران": from the start of that period up to today.
+            begin = date.fromisoformat(period["start"])
+            period = _period(begin, today + timedelta(days=1), f"{begin.isoformat()} to {today.isoformat()}", "days")
         if period:
             periods.append((start, period))
         i += 1
