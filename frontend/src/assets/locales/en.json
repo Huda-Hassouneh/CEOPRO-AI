@@ -1546,6 +1546,7 @@
     "verifyEmail": {
       "title": "Confirm your email",
       "subtitlePrefix": "We sent a 6-digit code to",
+      "subtitleUndeliveredPrefix": "Enter the 6-digit code we email to",
       "subtitleGeneric": "We sent a 6-digit code to your email address.",
       "required": "Enter it to start using KEEL.",
       "inputLabel": "Confirmation code",

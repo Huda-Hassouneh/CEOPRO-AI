@@ -178,7 +178,7 @@ Requires configuration on the demo server first: assistant answers and marketing
 6. **Medium** — Remove the hosted `DATABASE_URL` from the agent environment (see I).
 7. **Low** — New understanding holdout for future tuning; more Gulf/Egyptian items.
 8. **Low** — Make `test_standard_plan_creation_contract.py` re-runnable on a reused database.
-9. **Low** — Verify-email copy says "We sent a code" while also showing "could not deliver" when SMTP is off.
+9. ~~**Low** — Verify-email copy said "We sent a code" while also showing "could not deliver"~~ — fixed in this session.
 
 ## M. Git status
 

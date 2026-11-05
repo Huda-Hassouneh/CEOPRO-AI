@@ -1546,6 +1546,7 @@
     "verifyEmail": {
       "title": "أكّد بريدك الإلكتروني",
       "subtitlePrefix": "أرسلنا رمزًا من 6 أرقام إلى",
+      "subtitleUndeliveredPrefix": "أدخل الرمز المكوّن من 6 أرقام الذي نرسله إلى",
       "subtitleGeneric": "أرسلنا رمزًا من 6 أرقام إلى بريدك الإلكتروني.",
       "required": "أدخله لتبدأ باستخدام KEEL.",
       "inputLabel": "رمز التأكيد",

@@ -110,7 +110,10 @@ export function VerifyEmailPage() {
   return (
     <AuthPanel
       title={t('auth.verifyEmail.title')}
-      subtitle={<>{email ? <>{t('auth.verifyEmail.subtitlePrefix')} <bdi dir="ltr">{email}</bdi>.</> : t('auth.verifyEmail.subtitleGeneric')}{required ? <><br />{t('auth.verifyEmail.required')}</> : null}</>}
+      subtitle={<>{pending?.delivery === 'unavailable' && !requestMessage
+        // The code could not be sent: don't claim it was; the error below says what to do.
+        ? (email ? <>{t('auth.verifyEmail.subtitleUndeliveredPrefix')} <bdi dir="ltr">{email}</bdi>.</> : null)
+        : email ? <>{t('auth.verifyEmail.subtitlePrefix')} <bdi dir="ltr">{email}</bdi>.</> : t('auth.verifyEmail.subtitleGeneric')}{required ? <><br />{t('auth.verifyEmail.required')}</> : null}</>}
       className="ceopro-auth-body--narrow"
     >
       {pending?.delivery === 'unavailable' && !requestMessage ? <AuthStatusMessage tone="error">{t('auth.errors.deliveryUnavailable')}</AuthStatusMessage> : null}
