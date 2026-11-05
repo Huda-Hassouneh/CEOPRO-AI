@@ -107,7 +107,9 @@ export default function MarketingStudioPage() {
   const runLocked = useSubmitLock();
   const queryClient = useQueryClient();
 
-  const [source, setSource] = useState('product');
+  const [source, setSourceState] = useState('product');
+  const sourceChosen = useRef(false);
+  const setSource = (value) => { sourceChosen.current = true; setSourceState(value); };
   const [productId, setProductId] = useState(params.get('product') || '');
   const [productSearch, setProductSearch] = useState('');
   const [url, setUrl] = useState('');
@@ -123,10 +125,17 @@ export default function MarketingStudioPage() {
   const [progress, setProgress] = useState(null); // 'copy' | 'image' while generating
   const [elapsed, setElapsed] = useState(0);
   const requestKey = useRef(null);
+  const imageInline = useRef(false);
   const reviewRef = useRef(null);
 
   const term = useDebounce(productSearch.trim(), 250);
   const products = useQuery({ queryKey: ['products', 'marketing', term], queryFn: () => productsApi.list({ limit: 12, search: term || undefined }) });
+  // A company with no products yet starts on "Describe it", so the first post is one sentence away,
+  // instead of an empty product list. Once the owner picks a tab themselves, that choice stands.
+  const catalogEmpty = products.isSuccess && !term && (products.data?.products ?? []).length === 0;
+  useEffect(() => {
+    if (catalogEmpty && !productId && !sourceChosen.current) setSourceState('describe');
+  }, [catalogEmpty, productId]);
   const chosen = useQuery({ queryKey: ['products', 'one', productId], queryFn: () => productsApi.getById(productId), enabled: Boolean(productId) });
   const suggestions = useQuery({
     queryKey: ['marketing-suggestions', source === 'product' ? productId : null],
@@ -146,7 +155,8 @@ export default function MarketingStudioPage() {
     const timer = setInterval(() => {
       const seconds = Math.round((Date.now() - started) / 1000);
       setElapsed(seconds);
-      if (seconds >= 6) setProgress('image');
+      // Only say an image is being made when this request is making one.
+      if (seconds >= 6 && imageInline.current) setProgress('image');
     }, 1000);
     return () => clearInterval(timer);
   }, [progress === null]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -166,6 +176,7 @@ export default function MarketingStudioPage() {
 
   const generate = () => runLocked(async () => {
     if (!requestKey.current) requestKey.current = newRequestKey();
+    imageInline.current = Boolean(capability?.available) && !queueImages;
     setProgress('copy');
     setElapsed(0);
     try {
@@ -213,6 +224,7 @@ export default function MarketingStudioPage() {
     const draft = openCampaign.data;
     if (!draft) return;
     runLocked(async () => {
+      imageInline.current = Boolean(capability?.available) && !queueImages;
       setProgress('copy');
       try {
         const campaign = await createCampaign.mutateAsync({
