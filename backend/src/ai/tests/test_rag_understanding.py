@@ -170,3 +170,36 @@ def test_a_pronoun_question_naming_another_product_is_not_a_follow_up():
 def test_a_pronoun_without_a_product_before_it_is_not_a_follow_up():
     first = u.understand("How are sales this month?", catalog=TWO_PRODUCTS)
     assert not u.understand("what is its price?", previous=first.state(), catalog=TWO_PRODUCTS).follow_up
+
+
+# --- Wordings found by the extended and held-out assistant regression sets (2026-11-05) ---
+
+@pytest.mark.parametrize("question,expected", [
+    ("How much Premium Za'atar Blend 250g do we have left?", {u.INVENTORY}),
+    ("Are we running low on Freekeh 1kg?", {u.INVENTORY}),
+    ("كم باقي عندنا عسل سدر؟", {u.INVENTORY}),
+    ("ما هي الكمية المتوفرة من الطحينة؟", {u.INVENTORY}),
+    ("How many units of Sumac 200g are available?", {u.INVENTORY}),
+    ("Projected sales of Sumac 200g in the coming month", {u.FORECAST}),
+    ("Can customers return labneh?", {u.DOCUMENTS}),
+    ("هل يمكن استرجاع اللبنة؟", {u.DOCUMENTS}),
+])
+def test_everyday_wordings_of_stock_forecast_and_policy_questions(question, expected):
+    assert expected <= set(u.detect_intents(question))
+
+
+@pytest.mark.parametrize("question", ["بكم نبيع السماق؟", "what do we sell tahini for?",
+                                      "what do we charge Sidr Honey 500g for?"])
+def test_asking_what_we_sell_something_for_is_a_price_question(question):
+    intents = u.detect_intents(question)
+    assert u.PRICING in intents and u.SALES not in intents
+
+
+@pytest.mark.parametrize("question", ["كم بعنا من السماق؟", "How much sumac did we sell for 2 JOD?", "what do we sell?"])
+def test_sales_questions_that_mention_selling_stay_sales(question):
+    assert u.SALES in u.detect_intents(question)
+
+
+@pytest.mark.parametrize("message", ["مبيعات تموز", "stock?", "sales"])
+def test_a_short_message_naming_a_business_need_is_a_question(message):
+    assert u.is_answerable(message)

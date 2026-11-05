@@ -84,6 +84,13 @@ def _quarter_period(year: int, quarter: int, today: Optional[date] = None) -> di
     return _period(date(year, first, 1), _month_end(year, first + 2), f"Q{quarter} {year}", "quarter")
 
 
+def _half_period(year: int, half: int, today: Optional[date] = None) -> dict:
+    first = 1 if half == 1 else 7
+    if today and year == today.year and (1 if today.month <= 6 else 2) == half:
+        return _period(date(year, first, 1), today + timedelta(days=1), f"H{half} {year} to date", "half_to_date")
+    return _period(date(year, first, 1), _month_end(year, first + 5), f"H{half} {year}", "half")
+
+
 def _year_period(year: int, today: date) -> dict:
     if year == today.year:
         return _period(date(year, 1, 1), today + timedelta(days=1), f"{year} to date", "year_to_date")
@@ -106,6 +113,9 @@ def previous_period(period: dict) -> dict:
     if kind == "quarter":
         before = start - timedelta(days=1)
         return _quarter_period(before.year, (before.month - 1) // 3 + 1)
+    if kind == "half":
+        before = start - timedelta(days=1)
+        return _half_period(before.year, 1 if before.month <= 6 else 2)
     if kind == "year":
         return _period(date(start.year - 1, 1, 1), start, str(start.year - 1), "year")
     days = (end - start).days
@@ -214,6 +224,7 @@ def rolling_days(text: str) -> Optional[int]:
 # --- explicit dates --------------------------------------------------------------
 
 _ISO_DATE = re.compile(r"(?<!\d)(20\d{2})-(\d{1,2})-(\d{1,2})(?!\d)")
+_MONTH_SLASH_YEAR = re.compile(r"(?<![\d/])(\d{1,2})[/-](20\d{2})(?![\d/])")  # 06/2026, 6-2026
 _SLASH_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(20\d{2})(?![\d/])")  # day/month/year, as written locally
 _DAY_MONTH = re.compile(rf"(?<!\d)(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:of\s+)?({_MONTH_ALTERNATION})(?:\s*,?\s*{_YEAR})?")
 _MONTH_DAY = re.compile(rf"({_MONTH_ALTERNATION})\s+(\d{{1,2}})(?:st|nd|rd|th)?(?!\d)(?:\s*,?\s*{_YEAR})?")
@@ -222,6 +233,10 @@ _NUMERIC_MONTH = re.compile(r"(?:شهر|month)\s+(\d{1,2})(?!\d)(?:\s*(?:/|-|س�
 _QUARTER = re.compile(r"(?<![a-z])q([1-4])(?:\s*(?:of\s+)?" + _YEAR + r")?|"
                       r"(first|second|third|fourth|1st|2nd|3rd|4th)\s+quarter(?:\s+(?:of\s+)?" + _YEAR + r")?|"
                       r"الربع\s+(الاول|الثاني|الثالث|الرابع)(?:\s+(?:من\s+)?(?:سنه|عام)?\s*" + _YEAR + r")?")
+_HALF = re.compile(r"(?<![a-z])h([12])(?:\s*(?:of\s+)?" + _YEAR + r")?(?![a-z0-9])|"
+                   r"(first|second|1st|2nd)\s+half(?:\s+(?:of\s+)?(?:the\s+year\s+)?" + _YEAR + r")?|"
+                   r"النصف\s+(الاول|الثاني)(?:\s+(?:من\s+)?(?:سنه|عام|السنه|العام)?\s*" + _YEAR + r")?")
+_ORDINAL_HALF = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "الاول": 1, "الثاني": 2}
 _STANDALONE_YEAR = re.compile(_YEAR)
 
 
@@ -256,6 +271,9 @@ def _mentions(text: str, today: date) -> List[Tuple[int, int, str, object]]:
         add(match.start(), match.end(), "day", _safe_date(int(match[1]), int(match[2]), int(match[3])))
     for match in _SLASH_DATE.finditer(text):
         add(match.start(), match.end(), "day", _safe_date(int(match[3]), int(match[2]), int(match[1])))
+    for match in _MONTH_SLASH_YEAR.finditer(text):
+        if 1 <= int(match[1]) <= 12:
+            add(match.start(), match.end(), "month", (int(match[2]), int(match[1])))
     for match in _DAY_MONTH.finditer(text):
         month = _month_number(match[2])
         year = int(match[3]) if match[3] else None
@@ -270,6 +288,10 @@ def _mentions(text: str, today: date) -> List[Tuple[int, int, str, object]]:
         number = int(match[1]) if match[1] else _ORDINAL_QUARTER.get(match[3] or match[5])
         year = match[2] or match[4] or match[6]
         add(match.start(), match.end(), "quarter", (int(year) if year else None, number))
+    for match in _HALF.finditer(text):
+        number = int(match[1]) if match[1] else _ORDINAL_HALF.get(match[3] or match[5])
+        year = match[2] or match[4] or match[6]
+        add(match.start(), match.end(), "half", (int(year) if year else None, number))
     for match in _NUMERIC_MONTH.finditer(text):
         month = int(match[1])
         if 1 <= month <= 12:
@@ -278,7 +300,9 @@ def _mentions(text: str, today: date) -> List[Tuple[int, int, str, object]]:
         name = match[1] if match[1] in _MONTH_BY_NAME else match[1][1:]
         lead = text[max(0, match.start() - 10):match.start()]
         cued = (match.group(0).startswith(("شهر", "month")) or match[2]
-                or re.search(r"(?<![a-z])(in|during|for|of|since|from|between|and|vs|versus|to)\s+$", lead))
+                or re.search(r"(?<![a-z])(in|during|for|of|since|from|between|and|vs|versus|to)\s+$", lead)
+                # Arabic: "في آب", "خلال آب", "منذ آب" - "آب" alone is also "father"
+                or re.search(r"(?<![" + _ARABIC + r"])(في|خلال|منذ|من|لشهر|بشهر)\s+$", lead))
         if name in _AMBIGUOUS and not cued:
             continue
         add(match.start(), match.end(), "month", (int(match[2]) if match[2] else None, _MONTH_BY_NAME[name]))
@@ -312,6 +336,10 @@ def _close(kind: str, value, today: date, year_hint: Optional[int] = None) -> Op
         if number is None:
             return None
         return _quarter_period(year or year_hint or (today.year if number <= current else today.year - 1), number, today)
+    if kind == "half":
+        year, number = value
+        current = 1 if today.month <= 6 else 2
+        return _half_period(year or year_hint or (today.year if number <= current else today.year - 1), number, today)
     if kind == "year":
         return _year_period(value, today)
     return None
