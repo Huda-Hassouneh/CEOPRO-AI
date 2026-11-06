@@ -19,6 +19,91 @@ Entrypoints above are run as `python -m <entrypoint>` from `backend/`. `DATABASE
 
 The frontend/API process and workers are intentionally separate. A worker readiness check is initialization evidence, not proof that a real model or merchant job succeeded. Native job failures remain visible and follow the existing retry/accounting rules.
 
+## Forecast consumer authorization
+
+The Redis forecast consumer requires an explicit `AI_SERVICE_ACTOR_USER_ID` equal
+to KEEL's built-in nil UUID system actor. It must not use a tenant Owner's user
+ID or a fabricated service membership. The existing Redis contract contains no
+requester identity. HTTP/UI forecasting retains its separate active-human
+principal check; `keel_active_principal` still rejects nil.
+
+The consumer's forecast-specific guard verifies both login and effective DB
+roles are `ceopro_app`, without SUPERUSER/BYPASSRLS, with row security enabled.
+The connection's actor, event tenant and transaction tenant must agree, and
+`get_current_tenant()` must resolve that active tenant. The guard then checks
+the existing demand-prediction entitlement and a non-deleted product belonging
+to that tenant. The generation callback repeats these checks before persistence.
+System execution logs identify the actor, tenant, product and result IDs;
+acknowledgement logs associate the stream message ID with that system context.
+These logs do not claim requester attribution or introduce a new DB audit table.
+
+### Focused regression verification
+
+From `backend/`, using the existing compatible Python runtime:
+
+```text
+python -m pytest -q src/ai/tests/test_forecast_consumer_authorization_integration_db.py src/ai/tests/test_consumer.py src/ai/tests/test_pipeline.py src/ai/tests/test_cold_start.py src/ai/tests/test_apex_forecast_selection.py
+```
+
+The new file has explicit contract/double tests and opt-in, real restricted-role
+checks. For the latter, pass `AI_TEST_FORECAST_AUTH_DATABASE_URL` in memory and
+set `AI_TEST_FORECAST_AUTH_TENANT_ID`, `AI_TEST_FORECAST_AUTH_PRODUCT_ID`,
+`AI_TEST_FORECAST_AUTH_USER_ID`, and `AI_TEST_FORECAST_AUTH_OTHER_TENANT_ID` to
+existing synthetic fixtures (entitled B, its product/owner, and no-plan A).
+Connections enforce `default_transaction_read_only=on`; these tests do not seed,
+migrate, calculate/persist forecasts, regenerate summaries, or connect Redis.
+Do not point the legacy mutating `AI_TEST_DATABASE_URL`/`AI_TEST_REDIS_HOST`
+suites at the preserved E2E application database or Redis.
+
+Phase 3D Fix B verification on 2026-11-06: **65 passed, 16 skipped**. This includes
+35 explicit contract/double cases, 11 real read-only cases and 19 existing
+pipeline/cold-start/selection cases. The 16 legacy live-Redis cases were skipped
+because stream job submission was outside this implementation task. Retry,
+dead-letter, success acknowledgement and attribution were checked in memory.
+The actual consumer handler and existing product API handler were exercised with
+real authorization and no-write generation stubs; this is authorization/wiring
+acceptance, not fresh calculation or running-worker acceptance.
+
+Real checks covered B's system grant and human grant, nil rejection on the human
+path, missing/mismatched context, event-tenant mismatch, unknown product/tenant,
+nonmember denial, no-plan A, and B -> A -> B reuse of one pooled socket across
+commit/rollback. B's product was invisible under A's RLS context. Suspended/deleted
+tenant resolver results, expired/excluded plans and revoked-human results were
+tested with explicit DB/plan answers, without changing those states in E2E.
+Two entitled tenants and actual state-revocation transitions remain additional
+live-fixture coverage. Existing products, invoices, forecasts, evidence, contract,
+assignment, usage and Credit row fingerprints were unchanged; all runtime
+process records and the empty forecast queue were preserved. Local detailed
+results are under the isolated fix checkout's `.dev/evidence/phase3d-fix-b/`.
+
+### Proposed integration and live acceptance (separate approval required)
+
+1. Recheck clean integration/fix/disposable checkouts, ancestry, approved diff,
+   disposable DB/project identity and recoverable backup. Fast-forward integration
+   to the approved fix commit, then update the disposable checkout to that commit.
+2. Inspect the forecast stream's lag, pending entries and dead letters plus any
+   active forecast execution. Preserve diagnostics; do not discard or acknowledge
+   existing work. Verify all process ownership records before stopping anything.
+3. Reload **only forecast**, using the existing `tools/dev/dev.py` primitives:
+   `stop_processes({"forecast"})`, then `start_process("forecast", ...)` with
+   `[PYTHON, "-m", WORKERS["forecast"]]` and the launcher's existing worker
+   environment (`environment(c)` plus `CREDIT_ACCOUNTING_DB_PASSWORD`). Use the
+   exact disposable config and its configured Python runtime; retain nil actor.
+   Verify source revision, cwd, DB/Redis targets and `worker_ready("forecast", c)`.
+   Do not use the public `restart --service forecast` command: it stops the full
+   stack and runs migrations. No API/frontend/other-worker restart is needed for
+   this consumer-only change and unchanged human guard.
+4. Under separate job authorization, submit one synthetic event using the existing
+   event schema and B's existing product, normally horizon 30. Correlate message
+   delivery, system-actor logs, forecast/evidence IDs, persisted tenant ownership,
+   acknowledgement and empty pending state. Check arithmetic/provenance and
+   before/after allowances without provider calls or report exports.
+5. A reused forecast proves delivery/authorization/reuse, not fresh calculation.
+   Check reuse eligibility first; do not alter history, TTLs or delete results to
+   force computation. Fresh calculation requires natural expiry or an explicitly
+   approved dedicated test fixture. If validation fails, preserve queue/logs and
+   stop for diagnosis; do not reset data, relax authorization or retry indefinitely.
+
 ## In-process work
 
 `src.ai.main._lifespan` starts:
