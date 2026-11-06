@@ -18,6 +18,51 @@ Render service, `keel-workers-staging`, which is commented out in
 the bottom. Render has no free background workers; everything else here is
 free.
 
+## Production (keelai.net) - current state
+
+Render workspace "CEOPRO's workspace", Project **KEEL**, environment
+`production`. Only these resources belong to KEEL; other services in the
+workspace (including every service built from the `360-Radar` repository
+and `ceopro-redis-staging`) are not KEEL's and must not be changed.
+
+| Piece | Resource | Notes |
+|---|---|---|
+| API | Render web service `ceopro-ai-new` (free) | `backend/Dockerfile.ai`, health check `/health`, auto-deploy **off** (deploy a reviewed commit explicitly), custom domain `api.keelai.net` |
+| Frontend | Render static site `keel-web` (free) | `cd frontend && npm ci && npm run build`, publish `frontend/dist`, `VITE_API_BASE_URL=https://api.keelai.net`, security headers + SPA rewrite set on the service, domains `keelai.net` and `www.keelai.net` (redirects to the apex) |
+| Database | Neon project (PostgreSQL 18) | `DATABASE_URL` = the **direct** (not `-pooler`) owner connection string with `sslmode=require` - migrations rely on one session; the API itself connects as the restricted `ceopro_app` role derived from it with `APP_DB_PASSWORD` |
+| Redis | Upstash (free), `rediss://` URL in `REDIS_URL` | Render allows one free Key Value per workspace and that slot is not KEEL's |
+| DNS | Cloudflare zone `keelai.net` | `@` and `www` -> `keel-web-uxrq.onrender.com`, `api` -> `ceopro-ai-new.onrender.com`; keep these DNS-only until Render has issued certificates, then SSL/TLS mode Full (strict) |
+
+The API container applies migrations on every start
+(`docker-entrypoint.sh`); a start with nothing new applies 0. Neon's owner
+role has CREATEROLE but not SUPERUSER - `scripts/apply_migrations.py`
+handles that on PostgreSQL 16+ (it enables `createrole_self_grant` for its
+own session), verified against PostgreSQL 16 and 18.6.
+
+Settings still to provide in `ceopro-ai-new` -> Environment (the start-up
+log lists each missing one): `SMTP_*` + `EMAIL_FROM_ADDRESS` (required:
+`REQUIRE_EMAIL_VERIFICATION=true`, so sign-up cannot finish without email),
+`GROQ_API_KEY` (assistant), `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`
+(webhook URL `https://api.keelai.net/billing/webhook`), `MINIO_*` (file
+storage, e.g. Cloudflare R2 below), `OPERATOR_EMAILS`, optional
+`SENTRY_DSN` and the market-data provider keys.
+
+**Backups and recovery.** Neon keeps a point-in-time restore history (its
+length depends on the Neon plan): to recover, create a branch from a time
+before the incident in the Neon console, check it, then point
+`DATABASE_URL` at it (or restore it over the main branch) and redeploy.
+Take a logical copy before any risky change with
+`pg_dump --format=custom "$DATABASE_URL" > keel-$(date +%F).dump`
+(restore with `pg_restore --no-owner --dbname=...`). Redis holds only
+caches, rate-limit counters and sign-out lists - losing it signs nobody
+out of data and loses no business records.
+
+**Rolling back the API**: Render -> `ceopro-ai-new` -> Events -> pick the
+last good deploy -> Rollback. Migrations are forward-only, so a rollback
+never undoes schema; fix forward with a new migration.
+
+---
+
 Every step below that needs YOU to create an account, generate a key, or
 enter payment/billing info is marked **[ACTION NEEDED]**. Nothing on
 this list charges money if you stay within the stated free-tier limits -
@@ -54,7 +99,9 @@ requirement).
    syncs its password from this exact env var.
 
 You do **not** need to run any SQL by hand beyond step 3 - the first
-deploy applies `Final_schema.sql` and all 33 migrations automatically.
+deploy applies `Final_schema.sql` and every migration (160 as of
+November 2026) automatically. Use Neon's **direct** connection string
+(connection pooling off) for `DATABASE_URL`.
 
 ## 2. Redis - fully automatic, no action needed
 
