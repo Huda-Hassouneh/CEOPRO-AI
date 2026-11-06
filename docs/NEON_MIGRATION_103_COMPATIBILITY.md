@@ -1,7 +1,11 @@
-# Managed PostgreSQL installer compatibility: migrations 103 and 141
+# Managed PostgreSQL installer compatibility
 
 This is an installer-only correction. It does not change runtime authorization,
 RLS policies, billing, or any historical SQL migration.
+
+The consolidated follow-up below covers migrations 142, 143, 144 and 165.
+Earlier test counts and cloud observations in this document retain their
+original scope; the latest local remaining-sequence results are recorded there.
 
 ## Cause and correction
 
@@ -198,3 +202,173 @@ applied. Later risks above remain separate work; all 168 have not been verified.
 References: [PostgreSQL 17 ALTER ROLE](https://www.postgresql.org/docs/17/sql-alterrole.html),
 [PostgreSQL role privileges](https://www.postgresql.org/docs/17/ddl-priv.html),
 [Neon roles](https://neon.com/docs/manage/roles).
+
+## Consolidated follow-up: migrations 142, 143, 144 and 165
+
+Starting revision: `59736091595e753eaa869045745c0424c1163a95`.
+Isolated branch: `fix/neon-remaining-migration-compatibility`.
+Neon project `damp-river-41978380` remains at **141/168**. No cloud migration,
+integration, publication or Render provisioning is part of this correction.
+
+### Root causes and exact scope
+
+| Migration | Cause | Restricted owner / permitted caller |
+|---|---|---|
+| 142 `20261112000100_billing_setup_command_guards.sql` | `CREATE OR REPLACE billing_setup_trial` replaces the issuer-owned function from 141; the installer lacks inherited owner authority | `ceopro_trial_issuer` / `ceopro_billing_setup` |
+| 143 `20261113000000_billing_reconciliation_roles.sql` | Four `OWNER TO` operations need installer SET authority and schema CREATE for the new owner; subsequent ACL statements need inherited owner authority | Three lookup functions: `ceopro_billing_lookup` / webhook or accounting; schedule function: `ceopro_schedule_writer` / setup |
+| 144 `20261113000100_billing_context_guards.sql` | The same transfer/ACL requirements for `billing_accounting_principal` | `ceopro_schedule_writer` / `ceopro_credit_accounting` |
+| 165 `20261127000000_provider_backed_trials.sql` | Replaces the issuer-owned eligibility function, then transfers four checkout functions and restricts execution | `ceopro_trial_issuer` / setup for reserve/release, webhook for expire/confirm |
+
+The original migration-142 ownership error and the other three migrations'
+unassisted permission failures are reproduced on real PostgreSQL 17. Migration
+165's replacement must continue rejecting local trial activation; only its
+original provider-confirmation functions may activate a trial.
+
+`scripts/migration_remaining_compat.py` pins the four exact filenames and
+newline-normalized UTF-8 SHA-256 values:
+
+| Migration | SHA-256 |
+|---|---|
+| 142 | `d051bc881dd30b538e5238879846958cebffd1aac21f996659c7a2161c68c07e` |
+| 143 | `3259aefc1155c0b227f1b8abfa54bbafa51879081ec2edfeaac5d2c35c9c53a7` |
+| 144 | `e005e44a285047413c7d5ce3ecc674b5ee7f6a4b5aa727a8e45394fcc47b6bbe` |
+| 165 | `2094b613bd025cbd2230f98e12faa75ae515fa80cb35406e78ab0d2b3a0b9ded` |
+
+Only fixed reviewed function-replacement statements and three-statement
+OWNER/REVOKE/GRANT spans receive compatibility handling. Other statements run
+unchanged as the installer. The dispatcher adds only these four filenames;
+the existing migration-103 and migration-141 implementations are unchanged.
+
+Replacement uses temporary installer inheritance of the existing restricted
+owner; it does not require SET ROLE or schema CREATE. Transfers temporarily
+provide installer inheritance/SET and new-owner schema CREATE. These grants
+are uncommitted, restricted to each reviewed span, and removed before any
+migration commit. The installer must already have PostgreSQL ADMIN authority;
+the helper cannot manufacture it. No role receives SUPERUSER or BYPASSRLS.
+There is no arbitrary SQL callback, role impersonation or general migration
+privilege override.
+
+### Security and rollback guarantees
+
+- A changed source hash, unknown filename or autocommit connection is rejected.
+- Owners must be NOLOGIN and have all six elevation/inheritance flags false.
+  Callers retain only their expected LOGIN flag. Outbound memberships,
+  unexpected incoming grantees, table/schema/database ownership and effective
+  schema/database CREATE are rejected. Incoming installation grants are limited
+  to the active installer/database owner, accommodating superuser verification
+  of a baseline created by the restricted installer.
+- Each target function must have the reviewed owner, SECURITY DEFINER, no
+  LEAKPROOF flag and exactly `search_path=pg_catalog, public, pg_temp`.
+  Replacement also verifies the exact previous function-body hash before any
+  grant. New transfers must start installer-owned.
+- Final execution ACLs must contain exactly owner and intended caller EXECUTE,
+  issued by the owner, without delegation or PUBLIC/application access. A
+  transfer preserves the original body; replacement verifies the new body hash.
+- Every privilege window has a savepoint. SQL errors and verification failures
+  roll back that window and propagate. The runner then rolls back the whole
+  migration, including policies, new roles/functions and its ledger entry.
+  Exact memberships (grantor, member, ADMIN, INHERIT, SET), schema ACL and
+  current/session user, role setting and search path are compared after success.
+- Existing FORCE RLS is checked on the relevant tenant, subscription, checkout,
+  receipt, ledger and balance tables. The functions' original policies, receipt
+  association, active-principal checks and payment gates remain unchanged.
+
+### Focused local verification
+
+Use a new task-only, loopback-bound PostgreSQL 17 cluster, not an application
+database. Initialize dedicated `keel_m103_test` and `keel_m141_test` baselines
+for the existing suites. Then clone the 140 baseline to `keel_remaining_test`
+and apply 141. The installer owns the databases and has the installation-only
+CREATEROLE/CREATEDB/REPLICATION/BYPASSRLS attributes observed for the Neon
+installer, **not SUPERUSER**. Runtime logins have none of those attributes.
+The local superuser preinstalls vector to model managed-extension installation.
+
+Provide guarded DSNs through a protected operator process:
+
+```text
+KEEL_M103_TEST_ADMIN_DSN / KEEL_M103_TEST_INSTALLER_DSN
+KEEL_M141_TEST_ADMIN_DSN / KEEL_M141_TEST_INSTALLER_DSN
+KEEL_MREMAINING_TEST_ADMIN_DSN / KEEL_MREMAINING_TEST_INSTALLER_DSN
+```
+
+Run each suite in order from `backend` (the cluster-wide role fixtures are
+deliberately separate; do not run these suites concurrently):
+
+```text
+python -m pytest -q --tb=short tests/migrations/test_notification_installer.py src/ai/tests/test_migration_filenames.py
+python -m pytest -q --tb=short tests/migrations/test_billing_setup_installer.py
+python -m pytest -q --tb=short tests/migrations/test_remaining_installer.py
+```
+
+The remaining suite uses real superuser and restricted installer connections.
+It covers all four unassisted failures, all four corrected migrations, exact
+SQL-body preservation, source/transaction guards, role/owner/ACL/body/search-path
+and RLS rejection, existing ADMIN/INHERIT/SET grant restoration, missing installer
+ADMIN authority, and injected failures while temporary authority is active.
+Runner failure leaves the ledger at 141 and restores the old function body.
+
+Two separate committed clones execute **all 27 migrations from 142 through 168**,
+one under each installation authority, reaching **168/168**. Re-running the
+runner applies zero migrations. The original first-141 ledger is retained.
+Original intermediate migrations run through the standard unchanged path.
+
+Fresh actual `ceopro_app`, setup, webhook and accounting connections verify:
+tenant-scoped product/invoice reads and denied cross-tenant updates; denied
+application access to trusted functions; setup eligibility without activation;
+rejection of cardless activation, mismatched principals and direct subscription
+writes; webhook receipt-bound confirmation denial without a verified receipt;
+valid accounting principal row-lock checks, mismatched-context rejection and
+denied membership writes. Product/invoice amounts and JOD currency survive the
+sequence. No trials, subscriptions, plan assignments or usage-ledger rows are
+created by these checks. Restricted image-worker attributes, vector/pg_trgm,
+function ownership/ACLs, memberships and FORCE RLS are checked after 168.
+
+This is local PostgreSQL compatibility evidence, **not a successful Neon
+142–168 execution claim**. No provider requests or existing fixture writes occur.
+
+Final results on 2026-11-06: existing 103/filename checks **26 passed**, existing
+141 checks **28 passed**, consolidated checks **55 passed in 14.81 seconds**:
+**109 focused tests passed**, with no skipped database cases. Intermediate
+test-development failures were corrected invalid test setup/expectations
+(including the unchanged ceopro_app INHERIT flag); the final run above is the
+acceptance result. No security attributes or historical SQL were changed to
+satisfy a test. The temporary container uses cached `pgvector/pgvector:0.8.6-pg17`,
+loopback-only networking and no existing volumes. Redacted operator logs are
+retained locally in the protected `.keel-competition/20261109` directory as
+`remaining-test103.log`, `remaining-test141.log`, and `remaining-newtests.log`.
+
+### Remaining sequence assessment
+
+Inspection of all migrations 142–168 found no additional owner-transfer boundary
+requiring this helper. Other function replacements, renames, grants and policies
+operate on installer-owned objects, including provider accounting (152), billing
+catalog wrappers (159/167), image-worker functions (164), and discount validation
+(168). Migration 145's grant to the schedule writer remains unchanged and passes.
+The complete local sequence provides execution evidence for these observations.
+Managed-service-specific differences remain possible until Neon is resumed;
+stop on any failure rather than adding privileges or marking files applied.
+
+### Safest Neon continuation — separate approval required
+
+1. Review this isolated commit and clean worktree; verify ancestry from `5973609`.
+   Fast-forward integration and only the demo branch, then publish that exact
+   approved demo revision. Do not change main or Marketing PRs.
+2. Reconfirm Free project `damp-river-41978380`, its dedicated database and installer,
+   the exact first-141 ledger, absence of 142, and restricted role conditions.
+   Leave the other Neon project named KEEL untouched.
+3. Create a fresh protected custom-format backup; inspect its TOC and database
+   identity. Keep migration-owner credentials only in the operator process.
+4. From the reviewed backend checkout, use the existing command with the NEW
+   demo database's installation DSN and protected restricted-role passwords:
+   `python scripts/apply_migrations.py`. No manual grants or SQL rewrites. It
+   skips 141 entries and handles only the four pinned migration files specially.
+5. Stop immediately at any unexpected error. Each preceding successful migration
+   remains committed; the failed file and temporary privileges roll back.
+6. After success, verify 168 exact ledger filenames, extensions, restricted role
+   attributes/memberships, function owners/ACLs/search paths, FORCE RLS and no
+   retained temporary CREATE/INHERIT/SET. Verify restricted application connections
+   before declaring the database initialized or proceeding to Render Free.
+
+References: [PostgreSQL 17 CREATE FUNCTION](https://www.postgresql.org/docs/17/sql-createfunction.html),
+[ALTER FUNCTION](https://www.postgresql.org/docs/17/sql-alterfunction.html),
+[GRANT](https://www.postgresql.org/docs/17/sql-grant.html).

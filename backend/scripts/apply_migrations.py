@@ -81,11 +81,13 @@ def _already_applied(conn) -> set:
 def _apply_sql_file(conn, path: Path) -> None:
     sql = path.read_text(encoding="utf-8")
     with conn.cursor() as cursor:
-        from scripts import migration_103_compat, migration_141_compat
+        from scripts import migration_103_compat, migration_141_compat, migration_remaining_compat
         if path.name == migration_103_compat.FILENAME:
             migration_103_compat.apply(cursor, sql)
         elif path.name == migration_141_compat.FILENAME:
             migration_141_compat.apply(cursor, sql)
+        elif path.name in migration_remaining_compat.MIGRATIONS:
+            migration_remaining_compat.apply(cursor, path.name, sql)
         else:
             cursor.execute(sql)
 
