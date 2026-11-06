@@ -125,3 +125,22 @@ def test_creating_a_company_validates_input(client):
         assert client.post("/auth/workspaces", json={"business_name": "X", "country_code": "JO", "primary_currency": "JOD"}).status_code == 401
     finally:
         _cleanup([email])
+
+
+def test_setup_suggests_the_sign_up_country_without_saving_a_step(client):
+    """Step 1 starts on the country chosen at sign-up (a company created as
+    Jordanian must not open on another country); nothing counts as done until
+    the owner confirms it with a city."""
+    email = f"setup+{uuid.uuid4().hex[:8]}@example.com"
+    try:
+        owner = _signup(client, email, "Amman Pantry", country="JO", currency="JOD")
+        state = client.get("/onboarding/state", headers=_auth(owner)).json()
+        assert state["country"] == "JO"
+        assert state["highestCompletedStep"] == 0 and state["currentStep"] == 1 and state.get("city") in (None, "")
+        saved = client.put("/onboarding/state", headers=_auth(owner),
+                           json=dict(step=1, expected_revision=state["revision"], country="AE", city="dubai", language="en"))
+        assert saved.status_code == 200, saved.text
+        # A choice the owner saved wins over the sign-up suggestion.
+        assert client.get("/onboarding/state", headers=_auth(owner)).json()["country"] == "AE"
+    finally:
+        _cleanup([email])
