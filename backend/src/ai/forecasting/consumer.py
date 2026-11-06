@@ -20,7 +20,7 @@ import redis
 
 from src.ai.core.redis_client import get_redis_client
 from src.ai.db import app_role_connection, minio_client
-from src.ai.forecasting.authorization import require_forecast_authorization
+from src.ai.forecasting.authorization import SYSTEM_ACTOR_USER_ID, require_forecast_service_authorization
 from src.ai.forecasting.pipeline import DEFAULT_HORIZON_DAYS
 from src.ai.forecasting.generation import generate_or_reuse_forecast
 from src.ai.rag.structured_summaries import regenerate_all_structured_summaries
@@ -53,14 +53,13 @@ class ForecastRequestConsumer:
         self.stream_key = "ceopro:stream:demand_forecast_requested"
         self.consumer_name = f"ai-forecast-node-{os.getpid()}"
 
-        # A UUID for an active tenant service principal, required by RLS -
-        # mirrors src/market_scraper/data_access.py::get_tenant_connection()'s
-        # SCRAPER_ACTOR_USER_ID for this consumer's own background-worker
-        # identity (there's no live end user behind an async forecast
-        # request, just this service acting on the tenant's behalf).
+        # Explicitly configured built-in system identity, not a tenant user.
+        # The Redis contract has no requester; never impersonate an Owner.
         self.actor_user_id = os.getenv("AI_SERVICE_ACTOR_USER_ID")
         if not self.actor_user_id:
             raise RuntimeError("AI_SERVICE_ACTOR_USER_ID environment variable is not set.")
+        if self.actor_user_id != SYSTEM_ACTOR_USER_ID:
+            raise RuntimeError("AI_SERVICE_ACTOR_USER_ID must be KEEL's trusted system actor.")
 
         # core/redis_client.py's get_redis_client() prefers REDIS_URL
         # (render.yaml auto-wires this from its own Key Value resource)
@@ -101,9 +100,14 @@ class ForecastRequestConsumer:
 
         conn = app_role_connection(tenant_id, self.actor_user_id)
         try:
-            check = lambda: require_forecast_authorization(conn, tenant_id, self.actor_user_id)
+            check = lambda: require_forecast_service_authorization(conn, tenant_id, self.actor_user_id, product_id)
             check()
-            generate_or_reuse_forecast(conn, tenant_id, product_id, horizon_days, authorization_check=check)
+            result = generate_or_reuse_forecast(conn, tenant_id, product_id, horizon_days, authorization_check=check)
+            logger.info(
+                "Forecast system execution actor=%s tenant=%s product=%s forecast_id=%s evidence_id=%s reused=%s",
+                self.actor_user_id, tenant_id, product_id, result.get("forecast_id"),
+                result.get("evidence_id"), result.get("reused"),
+            )
 
             # The real fix for "forecasts never reach the chatbot": nothing
             # else in the platform ever refreshed the demand_forecast/
@@ -163,7 +167,8 @@ class ForecastRequestConsumer:
             self._handle_message(payload)
             self.client.xack(self.stream_key, self.group_id, message_id)
             self.client.hdel(attempts_key, message_id)
-            logger.info(f"Message {message_id} processed and acknowledged.")
+            logger.info("Message %s processed and acknowledged actor=%s tenant=%s product=%s.",
+                        message_id, self.actor_user_id, payload.get("tenant_id"), payload.get("product_id"))
         except Exception as exc:
             attempts = int(self.client.hincrby(attempts_key, message_id, 1))
             logger.error(f"Failed to process message {message_id} (attempt {attempts}): {exc}")
