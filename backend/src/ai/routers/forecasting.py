@@ -64,7 +64,10 @@ def refresh_forecasts(
         )
     finally:
         conn.close()
-    started = bool(product_ids) and forecast_refresh.start_refresh(ctx.tenant_id, ctx.user_id, product_ids)
+    # "Refresh forecasts" (all_products) must really recompute: the stored ones
+    # can be stale while looking fresh (see generate_or_reuse_forecast).
+    started = bool(product_ids) and forecast_refresh.start_refresh(ctx.tenant_id, ctx.user_id, product_ids,
+                                                                   force=all_products)
     return _refresh_payload(ctx.tenant_id, len(product_ids), started)
 
 
