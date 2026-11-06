@@ -5183,9 +5183,11 @@
       "evening": "Good evening, {{name}}"
     },
     "summary": "You made {{revenue}} in the last {{days}} days. {{attention}} things need your attention today.",
+    "summaryOne": "You made {{revenue}} in the last {{days}} days. 1 thing needs your attention today.",
     "today": {
       "label": "Today so far",
-      "orders": "{{count}} orders"
+      "orders": "{{count}} orders",
+      "ordersOne": "1 order"
     },
     "window": {
       "label": "Period",
