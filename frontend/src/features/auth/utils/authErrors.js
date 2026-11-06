@@ -4,7 +4,15 @@ const ERROR_CODE_TRANSLATIONS = Object.freeze({
   INVALID_CODE: 'auth.errors.invalidCode',
   CODE_EXPIRED: 'auth.errors.expiredCode',
   TOO_MANY_ATTEMPTS: 'auth.errors.tooManyAttempts',
+  ACCOUNT_NOT_FOUND: 'auth.errors.accountNotFound',
+  EMAIL_DELIVERY_FAILED: 'auth.errors.emailDeliveryFailed',
 });
+
+// A code email counts as sent only when the API says the provider accepted it
+// (backend routers/auth.py: {"status": "sent"}); anything else is not a send.
+export function codeEmailWasSent(response) {
+  return response?.status === 'sent';
+}
 
 export function getAuthErrorTranslationKey(error, { unauthorizedKey, fallbackKey = 'auth.errors.generic' } = {}) {
   const response = error?.response;

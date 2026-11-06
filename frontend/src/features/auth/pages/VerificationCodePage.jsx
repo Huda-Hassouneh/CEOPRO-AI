@@ -7,7 +7,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useForgotPasswordMutation } from '../hooks/useForgotPasswordMutation.js';
 import { useVerifyCodeMutation } from '../hooks/useVerifyCodeMutation.js';
 import { useResendCooldown } from '../hooks/useResendCooldown.js';
-import { getAuthErrorTranslationKey } from '../utils/authErrors.js';
+import { codeEmailWasSent, getAuthErrorTranslationKey } from '../utils/authErrors.js';
 import { firstValidationError, validateVerificationCode } from '../validation/authValidation.js';
 import { AuthBackLink, AuthPanel } from '../components/AuthPanel.jsx';
 import { AuthStatusMessage } from '../components/AuthStatusMessage.jsx';
@@ -30,7 +30,11 @@ export function VerificationCodePage() {
     }),
   });
   const resendMutation = useForgotPasswordMutation({
-    onSuccess: () => {
+    onSuccess: (response) => {
+      if (!codeEmailWasSent(response)) {
+        setRequestMessage({ tone: 'error', key: 'auth.errors.emailDeliveryFailed' });
+        return;
+      }
       startCooldown();
       setRequestMessage({ tone: 'success', key: 'auth.success.codeResent' });
     },

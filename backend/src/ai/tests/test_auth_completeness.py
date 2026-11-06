@@ -172,34 +172,32 @@ def test_forgot_password_sends_a_code_for_a_registered_email():
         response = client.post("/auth/password/forgot", json={"email": "jane@example.com"})
 
     assert response.status_code == 200
+    assert response.json()["status"] == "sent"
     send_code.assert_called_once()
     assert send_code.call_args.args[1:4] == ("jane@example.com", "u1", "PASSWORD_RESET")
     mock_send.assert_called_once_with("jane@example.com", "123456")
 
 
-def test_forgot_password_never_reveals_whether_the_email_exists():
-    """Same generic response, and no token/email attempt at all, for an
-    unregistered email - never lets a caller distinguish the two."""
+def test_forgot_password_tells_an_unregistered_address_to_sign_up_without_issuing_a_code():
+    """404 ACCOUNT_NOT_FOUND (the fact signup's 409 already discloses), no
+    token and no email attempt; still counted against the send throttle."""
     from src.ai.core import auth_throttle
 
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
          patch("src.ai.routers.auth._fetch_user_by_email", return_value=None), \
          patch("src.ai.routers.auth._send_account_code") as send_unknown, \
-         patch.object(auth_throttle, "ensure_allowed"), \
-         patch.object(auth_throttle, "record_failure", return_value=False):
-        known = client.post("/auth/password/forgot", json={"email": "unknown@example.com"})
+         patch("src.ai.routers.auth.notifications.send_password_reset_email") as email_unknown, \
+         patch.object(auth_throttle, "ensure_allowed") as allowed, \
+         patch.object(auth_throttle, "record_failure", return_value=False) as counted:
+        response = client.post("/auth/password/forgot", json={"email": "unknown@example.com"})
 
-    with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
-         patch("src.ai.routers.auth._fetch_user_by_email", return_value=("u1", "hash", "Jane", "en")), \
-         patch("src.ai.routers.auth._send_account_code", return_value="123456") as send_registered, \
-         patch("src.ai.routers.auth.notifications.send_password_reset_email"), \
-         patch.object(auth_throttle, "ensure_allowed"), \
-         patch.object(auth_throttle, "record_failure", return_value=False):
-        registered = client.post("/auth/password/forgot", json={"email": "jane@example.com"})
-
-    assert known.json() == registered.json()
+    assert response.status_code == 404
+    assert response.json()["code"] == "ACCOUNT_NOT_FOUND"
+    assert "sent" not in response.json()["detail"].lower()
     send_unknown.assert_not_called()
-    send_registered.assert_called_once()
+    email_unknown.assert_not_called()
+    allowed.assert_called_once_with("send", "unknown@example.com")
+    counted.assert_called_once_with("send", "unknown@example.com")
 
 
 def test_verify_reset_code_rejects_an_invalid_code(monkeypatch):
@@ -271,7 +269,7 @@ def test_verify_email_marks_verified_and_consumes_the_token():
     mock_consume.assert_called_once()
 
 
-def test_resend_verification_never_reveals_whether_the_email_exists():
+def test_resend_verification_uses_the_same_unregistered_address_policy():
     from src.ai.core import auth_throttle
 
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
@@ -279,7 +277,8 @@ def test_resend_verification_never_reveals_whether_the_email_exists():
          patch.object(auth_throttle, "ensure_allowed"), \
          patch.object(auth_throttle, "record_failure", return_value=False):
         response = client.post("/auth/email/resend-verification", json={"email": "unknown@example.com"})
-    assert response.status_code == 200
+    assert response.status_code == 404
+    assert response.json()["code"] == "ACCOUNT_NOT_FOUND"
 
 
 # --- team invitations -------------------------------------------------------
