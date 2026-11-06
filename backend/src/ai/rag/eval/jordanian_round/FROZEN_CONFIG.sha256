@@ -1,0 +1,23 @@
+e7e76266abdc2813b4b510f46e4c69f96ec562c4ad6c65507a7bc84f65944c88  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/sealed_set_v3.py
+44069a87d23f86bc654238fd22d80252d0699006553b4c6355af3dfa47908e0e  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/sealed_jo.py
+33d39ce790122cb8e2a64f95196374b499f42e3d356b7cf3c79f3be69da1b65c  src/ai/rag/llm_understanding.py
+31296c26e568d5fe3857ab661553c18f071d6fd823bfc16c64e677815c7d854a  src/ai/rag/understanding.py
+f9b8df23ea3e16e74938754b752a89c40ba0d49d53f3595061973bfe4a80a459  src/ai/rag/periods.py
+e00a6779eb1ed2bd3b1b83b36b47b407b368fb4d3f979e4f1cfe5b97ab762690  src/ai/rag/advisor.py
+ca51e4ee06fc359514e3da078127b7dfb44c02e792ca408634dcaa1e51ded511  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/final_eval.py
+dadbc57f40c27b27000d5d1ae7392849868d7c0d3b72c8ba8b6c84cbc5968da9  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/val_checks.py
+3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597  /var/lib/keelpg/models/qwen3-4b-instruct-2507-q4_k_m.gguf
+config: RAG_LLM_UNDERSTANDING=gaps, examples=on, catalog_names=15, model=qwen3-4b-instruct-2507 Q4_K_M, frozen Fri Nov  6 12:04:30 UTC 2026
+5804ec8913c38c686068165003ef84467431039b9d216222220126cc3eac39f2  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/sealed_jo2.py
+e9087d3e3a331a6e3a907ff9ef4ebb02c8593c27603f9ce51f9da1f455b8174c  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/val_jo2.py
+# sealed_jo2/val_jo2 re-fingerprinted after replacing 3 overlapping questions, before any scoring:
+7062ad583f0d81cc7691a96edb9ed3a905f03540a2f114b6ee108627a70ab930  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/sealed_jo2.py
+aca4091e18a3c5f4a1f323d9886269c3650de62f7650d181e90287e06307ae7e  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/val_jo2.py
+# sealed_jo2 re-fingerprinted (one more overlap replaced), before any scoring:
+3a77bc40a6a95711b9978120511a6f665a6a8f8d1fb24d58588ca4b4dd572a2f  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/sealed_jo2.py
+# sealed_jo2 final evaluation run Fri Nov  6 14:31:33 UTC 2026, repo HEAD 7560027575926f59374d7b043ccf6531b4b5f5dd (code identical to main 7962305):
+3a77bc40a6a95711b9978120511a6f665a6a8f8d1fb24d58588ca4b4dd572a2f  /tmp/claude-0/-home-user-CEOPRO-AI/c8794a69-41dd-5445-8daa-778d19f69725/scratchpad/sealed_jo2.py
+66fa6cf9e4aec1d39e38a2fb0ce69499d8129af5ba9f18a5171ac21e3593ac31  src/ai/rag/llm_understanding.py
+5031f7d3f4dc16d927f0207917586c4ef8064c3ef9e2b22a58c3d62379807469  src/ai/rag/understanding.py
+c415149499d89af028ebdcfe608fdbd5c59c349f33b711dd597df752bdad1b2c  src/ai/rag/periods.py
+0bbf45eefdcad3f7e93e93972b2e333ff19f57e18edd9ba8d76d756ddc3bb0cb  src/ai/rag/advisor.py
