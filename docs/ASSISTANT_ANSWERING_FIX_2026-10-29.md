@@ -140,3 +140,9 @@ Unit and live-database tests: `test_rag_periods.py` (52), `test_rag_business_rec
   names its product, so the answer can tell them apart.
 - Prompt size grew by about 0.3–1.5k tokens for broad questions. The existing compact-prompt
   retry still covers provider size limits.
+
+## Follow-up (2026-11-05)
+
+The suite now has extended and held-out case sets (`--suite core|extended|holdout|holdout2|all`, 121 cases),
+and the understanding gaps they exposed are fixed. Results, the held-out generalisation estimate and the
+remaining limits are in [AI_MODEL_ACCURACY.md](AI_MODEL_ACCURACY.md).

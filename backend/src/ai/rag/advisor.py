@@ -45,7 +45,7 @@ from typing import Callable, Dict, List, Optional
 from src.ai.billing import credits
 from src.ai.rag import access as acl
 from src.ai.rag import business_analysis, citations, conversation_memory, evidence as ev, llm_client, product_guide
-from src.ai.rag import business_records, conversation, understanding, untrusted
+from src.ai.rag import business_records, conversation, llm_understanding, understanding, untrusted
 from src.ai.rag.periods import MONTH_NAMES, label_dates as periods_label
 from src.ai.core.business_time import business_today
 from src.ai.rag.business_tools import build_financial_facts_block
@@ -287,11 +287,64 @@ _ARABIC_PUNCTUATION = re.compile("[\u060c\u061b\u061f\u066a-\u066d\u06d4]")
 _DATE_WORDS = {understanding._norm(name) for names in MONTH_NAMES.values() for name in names if " " not in name}
 
 
+def _stem(word: str) -> str:
+    """English inflections reduced the way the keyword index does (bm25_index._normalize), plus "-ed":
+    "Can customers return labneh?" must share "customer" and "return" with "...cannot be returned..."."""
+    if word.startswith("ال") and len(word) > 4:
+        return word[2:]
+    if not word.isascii():
+        return word
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 5 and word.endswith("ing"):
+        return word[:-3]
+    if len(word) > 5 and word.endswith("ed") and not word.endswith("eed"):
+        return word[:-2]
+    if len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is")):
+        return word[:-1]
+    return word
+
+
 def _content_words(text: str) -> set:
     # Arabic punctuation sits inside the Arabic letter range: "طلب؟" must still be the word "طلب".
     words = re.findall(r"[\w؀-ۿ]{3,}", _ARABIC_PUNCTUATION.sub(" ", understanding._norm(text)))
-    return {w[2:] if w.startswith("ال") and len(w) > 4 else w for w in words
-            if w not in _STOP and w not in _DATE_WORDS and not w.isdigit()}
+    return {_stem(w) for w in words if w not in _STOP and w not in _DATE_WORDS and not w.isdigit()}
+
+
+# Arabic policy words and their English equivalents, for finding an English-only document by keyword when
+# no embedding model is available to match across languages ("هل يمكن استرجاع اللبنة؟" vs "Returns Policy").
+_ARABIC_DOCUMENT_TERMS = (
+    (("ارجاع", "استرجاع", "استرداد", "يرجع", "ترجيع"), "return returned refund"),
+    (("استبدال", "تبديل"), "exchange replace"),
+    (("كفاله", "ضمان"), "warranty guarantee"),
+    (("توصيل", "ديليفري"), "delivery"),
+    (("رسوم", "اجره", "اجرة", "تكلفه", "تكلفة", "سعر", "كلفه"), "fee price charge cost"),
+    (("مده", "مدة", "كم يوم", "متى يوصل"), "days time"),
+    (("شحن",), "shipping delivery"),
+    (("دفع", "الدفع"), "payment"),
+    (("اجازه", "اجازات", "اجازة"), "leave holiday"),
+    (("ساعات العمل", "مواعيد العمل", "الدوام"), "opening hours"),
+)
+
+
+def _english_search_terms(u: understanding.Understanding) -> str:
+    """Words to add to an Arabic question's document search: the English catalogue names of the products it
+    names and English equivalents of its policy words. Keyword search cannot cross languages on its own."""
+    normalized = understanding._norm(u.effective_question)
+    terms = [p["name"] for p in u.slots.get("products") or [] if p.get("name") and p["name"].isascii()]
+    terms += [english for arabic, english in _ARABIC_DOCUMENT_TERMS
+              if any(understanding._norm(word) in normalized for word in arabic)]
+    return (" " + " ".join(terms)) if terms else ""
+
+
+def _excerpt_after_title(item) -> str:
+    """The item's text without a leading repeat of its own title: a record line "Sales for May (...): no sales"
+    is stored with that title, and was shown as "Sales for May (...): Sales for May (...): no sales"."""
+    text = " ".join(item.excerpt.split())
+    head, sep, rest = text.partition(": ")
+    if sep and head and rest and (item.title or "").endswith(head):
+        return rest
+    return text
 
 
 def _relevant(question: str, text: str) -> bool:
@@ -541,8 +594,12 @@ def _sales_periods(u: understanding.Understanding, today) -> List[dict]:
 
 _NAMED_RECORD_TITLES = ("Stock of ", "Demand forecast for ", "Sales of the products asked about")
 _HEADLINE_TITLES = ("Sales for ",)
-_RANKING = re.compile(r"(?<![a-z])(top|best|worst|most|least|rank|ranking|which products?|what sold|bestsell)|"
-                      r"اكثر|افضل|اقل|اسوا|ترتيب|اي منتج|شو المنتج")  # a period's own total, the first thing an answer about it says
+_RANKING = re.compile(r"(?<![a-z])(top|best|worst|most|least|rank|ranking|which products?|what sold|bestsell|weakest|"
+                      r"strongest|highest|lowest|fastest|slowest|flying off|biggest seller|slow[- ]moving)|"
+                      r"الاعلي|الادني|الاضعف|الاقوي|(?<!\S)اعلي(?!\S)|"
+                      # "الأصناف اللي ربحها عالي"، "منتج مكسبه قليل"
+                      r"(?:اصناف|منتجات|صنف|منتج)\S*\s+(?:\S+\s+){0,3}(?:عالي|قليل|واطي)|"
+                      r"اكثر|اكتر|افضل|اقل|اسوا|ترتيب|اي منتج|شو المنتج|شو الصنف|اي صنف|ايا صنف|ما بيمشي|مش ماشي")  # a period's own total, the first thing an answer about it says
 
 
 def _records(conn, tenant_id: str, u: understanding.Understanding, access: acl.Access,
@@ -586,7 +643,8 @@ def _records(conn, tenant_id: str, u: understanding.Understanding, access: acl.A
 
     day = today or business_today(conn)
     # A ranking question ("top 10", "which sold least") gets the longer lists; any other gets the top 5.
-    ranking = bool(slots.get("top_product")) or bool(_RANKING.search(understanding._norm(u.effective_question)))
+    ranking = (bool(slots.get("top_product")) or bool(slots.get("ranking_requested"))
+               or bool(_RANKING.search(understanding._norm(u.effective_question))))
     asks_sales = bool(intents & {U.SALES, U.FINANCIALS}) or slots.get("customer_ranking") or slots.get("top_product") \
         or (bool(slots.get("periods")) and bool(intents & {U.PRODUCTS, U.ADVICE, U.PRICING}) and not intents & {
             U.REVIEWS, U.FORECAST, U.INVENTORY, U.MARKET_RESEARCH, U.COMPETITORS, U.PRODUCT_RESEARCH})
@@ -682,6 +740,10 @@ def _product_records(u: understanding.Understanding, catalog: List[dict], access
                             f"{product['name']}: " + "; ".join(parts),
                             ev.COMPANY, ev.OBSERVED, route=f"/products/{product['product_id']}",
                             capabilities=frozenset({acl.CATALOG}), observed_at=datetime.now(timezone.utc))
+        # A price question about this product is answered by this record: rank it with the other records
+        # computed for the question, or "بكم نبيع السماق؟" (sharing no word with it) showed sales sections instead.
+        if U.PRICING in u.intents:
+            item.data = {**(item.data or {}), "exact": "named"}
         out[product["product_id"]] = {**product, "evidence_id": item.id,
                                       "cost_visible": access.allows(acl.COSTS) and product["cost"] is not None}
     return out
@@ -1187,7 +1249,7 @@ def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "ev
         # they are shown only when there is no such document.
         matched = [i for i in items if i.kind == ev.COMPANY_DOCUMENT]
         items = matched[:EVIDENCE_MODE_MAX_RELEVANT] or items
-    claims = [[citations.Claim(text=f"{item.title}: {' '.join(item.excerpt.split())[:400]}", kind=citations.FACT, evidence=[item.id])]
+    claims = [[citations.Claim(text=f"{item.title}: {_excerpt_after_title(item)[:400]}", kind=citations.FACT, evidence=[item.id])]
               for item in items]
     # A summary only when the top item is known to answer the question (it shares words with it, or retrieval
     # matched that document to it); a confident but unrelated line is worse than none.
@@ -1412,6 +1474,13 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     today = business_today(conn) if conn is not None else datetime.now(timezone.utc).date()
     u = understanding.understand(question, previous=state, catalog=catalog, company_currency=company.get("currency"),
                                  today=today)
+    # A second reader for wordings the rules don't know (off unless RAG_LLM_UNDERSTANDING=gaps): it only fills
+    # what the rules left empty, and any failure leaves the rules' reading as it is.
+    rules_found_intent = bool(u.intents)
+    # Asked only when the rules' reading is uncertain (needs_model): most questions never wait for the model.
+    reading = (llm_understanding.read(question, catalog, today)
+               if llm_understanding.enabled() and question.strip() and llm_understanding.needs_model(u, question) else None)
+    u = llm_understanding.fill_gaps(u, reading)
     registry = ev.EvidenceRegistry()
     statuses: List[dict] = []
     # "My top product" names a product for another question ("would importing my top product be cheaper?").
@@ -1430,7 +1499,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         else:
             _status(statuses, "top_product", "none_found", "no recorded sales to rank products by" if u.slots.get('all_history')
                     else "no sales recorded in the last 90 days to rank products by")
-    answerable = understanding.is_answerable(question) or u.follow_up
+    answerable = llm_understanding.answerable(understanding.is_answerable(question), rules_found_intent, reading) or u.follow_up
 
     user_ids = _user_inputs(registry, question, state, u.follow_up, language)
     _recall(registry, question, full_question, older, recent_full, language)
@@ -1452,6 +1521,8 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         if U.COMPANY in u.intents:
             # The company's own profile document answers "tell me about my company" in any wording or language.
             search += " company profile"
+        if language == "ar":
+            search += _english_search_terms(u)
         exact, replaced = (0, frozenset())
         if not u.public_scope:  # "the average water price" needs no sales or price-gap records
             exact, replaced = _records(conn, tenant_id, u, access, registry, statuses, language, today)
