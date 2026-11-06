@@ -18,6 +18,15 @@ from PIL import Image
 
 from src.ai.tests.signup_helpers import create_verified_test_account
 
+
+def _with_subject(picture):
+    """Draws a "product" so the fake provider image is not rejected as blank."""
+    from PIL import ImageDraw
+    w, h = picture.size
+    ImageDraw.Draw(picture).ellipse((w // 4, h // 4, w * 3 // 4, h * 3 // 4), fill=(245, 245, 235))
+    return picture
+
+
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
                                 reason="AI_TEST_DATABASE_URL/APP_DB_PASSWORD not set - skipping live-DB integration test")
@@ -31,7 +40,7 @@ requires_minio = pytest.mark.skipif(
 
 def _png():
     buffer = io.BytesIO()
-    Image.new("RGB", (512, 512), (180, 110, 60)).save(buffer, format="PNG")
+    _with_subject(Image.new("RGB", (512, 512), (180, 110, 60))).save(buffer, format="PNG")
     return buffer.getvalue()
 
 

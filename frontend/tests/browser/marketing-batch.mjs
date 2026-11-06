@@ -8,6 +8,7 @@
 //
 //   APP_URL=... API_URL=... E2E_EMAIL=... E2E_PASSWORD=... [E2E_LOCALE=ar] [E2E_WIDTH=390]
 //   [E2E_IMAGE_MINUTES=6] [E2E_SHOTS=/dir] [CHROMIUM_PATH=...] node tests/browser/marketing-batch.mjs
+import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const BASE = process.env.APP_URL || 'http://localhost:5173';
@@ -48,20 +49,25 @@ const api = async (path, init = {}) => (await page.request.fetch(API + path, { .
 const capacity = await api('/marketing/image-capacity');
 check(capacity.available === true, `an image worker is live (${capacity.workers} worker(s), ${capacity.image_servers} server(s))`);
 
-// 1. A campaign from a description; its first image (Portrait) goes through the queue.
+// 1. A post from a description; its first picture (a 9:16 story) goes through the queue.
 await page.goto(`${BASE}/marketing`);
-await page.locator('[role="tablist"] button[role="tab"]').nth(2).click();
 await page.locator('textarea.mk-textarea').first().fill(locale === 'ar'
   ? 'خلطة زعتر بلدي 250 غرام في مرطبان زجاجي، سمسم محمّص وزعتر بري، من مخبز عائلي في عمّان.'
   : "Za'atar spice mix, 250 g glass jar, roasted sesame and wild thyme, from a family bakery in Amman.");
-await page.locator('details.studio-more summary').first().click();
-await page.locator('select:has(option[value="PORTRAIT"])').first().selectOption('PORTRAIT');
-await page.locator('.studio-generate button').click();
+await createPost('story'); // "Instagram or Facebook story": a full-screen 9:16 picture
 await page.locator('.studio-editor').waitFor({ timeout: 15 * 60000 });
 const campaignId = new URL(page.url()).searchParams.get('campaign');
 check(Boolean(campaignId), 'campaign created with its copy');
-const headline = await page.locator('.studio-post input.apex-input').first().inputValue();
+const headline = (await page.locator('.studio-post__headline').first().textContent()) || '';
 check(locale === 'ar' ? /[؀-ۿ]/.test(headline) : /[A-Za-z]/.test(headline), `copy in ${locale}: "${headline.slice(0, 50)}"`);
+
+// One screen: the description is already in the box; open Customize, choose
+// where it will be posted (which sets the picture's shape), then Create post.
+async function createPost(place) {
+  await page.locator('details.studio-customize > summary').click();
+  await page.locator('.studio-customize select').first().selectOption(place);
+  await page.locator('.studio-generate button').click();
+}
 
 async function previewShape(timeout) {
   await page.waitForFunction(() => {
@@ -71,10 +77,12 @@ async function previewShape(timeout) {
   return page.locator('img.studio-image__frame').first().evaluate((el) => ({ w: el.naturalWidth, h: el.naturalHeight }));
 }
 const first = await previewShape(perImage + 120000);
-check(Math.abs(first.w / first.h - 0.8) < 0.02, `first image arrived from the queue as 4:5 (${first.w}x${first.h})`);
+check(Math.abs(first.w / first.h - 9 / 16) < 0.02, `first image arrived from the queue as 9:16 (${first.w}x${first.h})`);
 await shot('batch-first');
 
 // 2. "Make many images": Square + Landscape, one each.
+await page.locator('.studio-new-picture').click();
+await page.locator('.studio-picture-panel > details.studio-fold > summary').click();
 const panel = page.locator('.studio-batch');
 await panel.waitFor({ timeout: 30000 });
 const boxes = panel.locator('.studio-batch__formats input[type="checkbox"]');
@@ -88,7 +96,7 @@ await shot('batch-progress');
 await page.waitForFunction(() => document.querySelectorAll('.studio-gallery__item').length >= 3, null, { timeout: 2 * perImage + 120000 });
 const assets = (await api(`/marketing/campaigns/${campaignId}/assets`)).assets;
 const formats = assets.map((a) => a.image_format).sort();
-check(JSON.stringify(formats) === JSON.stringify(['LANDSCAPE', 'PORTRAIT', 'SQUARE']), `gallery holds ${formats.join(', ')}`);
+check(JSON.stringify(formats) === JSON.stringify(['LANDSCAPE', 'SQUARE', 'STORY']), `gallery holds ${formats.join(', ')}`);
 check(assets.every((a) => a.mode === 'ai'), 'every image was made by the model');
 const jobs = await api(`/marketing/campaigns/${campaignId}/image-jobs`);
 check(jobs.counts.COMPLETED === 3 && jobs.counts.FAILED === 0, `jobs: ${JSON.stringify(jobs.counts)}`);
@@ -96,7 +104,9 @@ check(jobs.jobs.every((j) => j.seconds > 5), `real generation times: ${jobs.jobs
 await shot('batch-gallery');
 
 // 3. Download one from the gallery and attach the landscape one.
-const landscapeIndex = (await page.locator('.studio-gallery__item').evaluateAll((items) => items.map((i) => i.textContent))).findIndex((text) => /16:9/.test(text));
+const wideName = JSON.parse(readFileSync(new URL(`../../src/assets/locales/${locale}.json`, import.meta.url), 'utf8')).studio.formatsPlain.LANDSCAPE.title;
+if (!(await page.locator('details.studio-gallery[open]').count())) await page.locator('details.studio-gallery > summary').click();
+const landscapeIndex = (await page.locator('.studio-gallery__item').evaluateAll((items) => items.map((i) => i.textContent))).findIndex((text) => text.includes(wideName));
 const item = page.locator('.studio-gallery__item').nth(landscapeIndex);
 await item.locator('a[download]').waitFor({ timeout: 30000 });
 const [download] = await Promise.all([page.waitForEvent('download'), item.locator('a[download]').click()]);
