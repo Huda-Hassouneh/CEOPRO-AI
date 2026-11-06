@@ -195,11 +195,67 @@ def test_asking_what_we_sell_something_for_is_a_price_question(question):
     assert u.PRICING in intents and u.SALES not in intents
 
 
-@pytest.mark.parametrize("question", ["كم بعنا من السماق؟", "How much sumac did we sell for 2 JOD?", "what do we sell?"])
+@pytest.mark.parametrize("question", ["كم بعنا من السماق؟", "How much sumac did we sell for 2 JOD?", "بعنا بكام الشهر اللي فات؟"])
 def test_sales_questions_that_mention_selling_stay_sales(question):
-    assert u.SALES in u.detect_intents(question)
+    intents = u.understand(question).intents
+    assert u.SALES in intents and u.PRICING not in intents
+
+
+def test_what_we_sell_asks_about_the_company_not_a_price():
+    # Changed 2026-11-05: "what do we sell?" was read as a sales question; it asks about the range we offer.
+    intents = u.understand("what do we sell?").intents
+    assert u.COMPANY in intents and u.PRICING not in intents and u.SALES not in intents
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("What price do we sell Freekeh 1kg at?", {u.PRICING}), ("ما سعر بيع الفريكة؟", {u.PRICING}),
+    ("إذا الزبون بدو يرجع لبنة شو بصير؟", {u.DOCUMENTS}),
+    ("Is our honey overpriced compared to other shops?", {u.COMPETITORS}),
+    ("Who sells olive oil cheaper than us?", {u.COMPETITORS, u.PRICING}),  # a price comparison: pricing is fair too
+    ("شو رأي الزباين بالتوصيل؟", {u.REVIEWS}),
+])
+def test_the_intent_is_read_without_extra_needs_from_words_used_in_another_sense(question, expected):
+    assert set(u.understand(question).intents) - {u.PRODUCTS} == expected
 
 
 @pytest.mark.parametrize("message", ["مبيعات تموز", "stock?", "sales"])
 def test_a_short_message_naming_a_business_need_is_a_question(message):
     assert u.is_answerable(message)
+
+
+@pytest.mark.parametrize("question, expected", [
+    # debts and payments are read from the invoices (sales records), never as stock left
+    ("مين الناس اللي لسا ما دفعوا؟", {u.SALES}),
+    ("قديش ضايل إلنا عند الزباين؟", {u.SALES}),
+    ("قديش مجموع الديون؟", {u.SALES}),
+    ("الـ outstanding invoices عنا كم؟", {u.SALES}),
+    # orders ("طلبيات") are orders received, not future demand ("الطلب")
+    ("عدد الطلبيات تبع مبارح", {u.SALES}),
+    ("لازم نعمل طلبية من المورد؟", {u.INVENTORY}),
+    # Jordanian stock words
+    ("فش طحينة؟", {u.INVENTORY}),
+    ("اي اشي قرب يفضى؟", {u.INVENTORY}),
+    ("قديش بعنا زعتر وكم ضل؟", {u.SALES, u.INVENTORY}),
+    # net profit and expenses
+    ("قديش دخلنا الصافي؟", {u.FINANCIALS}),
+    ("شو المصروف الشهري تبعنا؟", {u.FINANCIALS}),
+    # "تبعنا" (our) is not "بعنا" (we sold); "أسابيع" (weeks) is not "بيع"
+    ("التقييم تبعنا نزل؟", {u.REVIEWS}),
+    ("شو التوقعات للأسابيع الجاية؟", {u.FORECAST}),
+    # the terms of selling are a policy question
+    ("شو سياسة البيع بالتقسيط؟", {u.DOCUMENTS}),
+    ("بنبيع بالجملة؟ شو الشروط؟", {u.DOCUMENTS}),
+    ("في حدا زعلان منا؟", {u.REVIEWS}),
+])
+def test_jordanian_everyday_wordings(question, expected):
+    assert set(u.detect_intents(question)) == expected
+
+
+def test_a_trailing_vocative_keeps_thanks_small_talk():
+    assert u.is_answerable("تسلم يا رب") is False
+    assert u.detect_intents("يعطيك العافية يا غالي") == []   # "dear", not "expensive"
+
+
+@pytest.mark.parametrize("message", ["إزيك عامل إيه", "كيفك، شو الأخبار"])
+def test_greetings_strung_together_are_small_talk(message):
+    assert u.is_answerable(message) is False

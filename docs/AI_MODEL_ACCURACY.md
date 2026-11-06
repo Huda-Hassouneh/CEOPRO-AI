@@ -96,6 +96,106 @@ Fixed in this round:
 
 Live API suite after this round: 121/121 (see Verification).
 
+### Question understanding: third round (rules + local model as a second reader)
+
+`rag/llm_understanding.py` adds a local language model as a second reader behind the rules. It is off
+unless `RAG_LLM_UNDERSTANDING=gaps`. The model is asked only when the rules are unsure: no need found,
+only a generic product need, more than one need, a time word with no period read, or a price question
+with no product. It may only fill what the rules left empty (or trim a need the rules added from a word
+used in another sense). It can name only catalogue products, and its periods become dates through
+`periods.py`. A failed or invalid reply leaves the rules' reading unchanged. No answer caching was added.
+
+**Model comparison** (same prompt, same development questions, 4-CPU / 16 GB machine, llama.cpp,
+Q4_K_M unless noted). "Alone" = model without rules, the fair comparison. "With examples" = 18 worked
+examples written from development questions only.
+
+| Model | Alone (140 q) | Jordanian alone (18) | Median | P95 | Peak memory | Invalid replies |
+|---|---|---|---|---|---|---|
+| Qwen3-4B-Instruct-2507, with examples | 85.7% | 11/18 | 12.9 s | 15.4 s | 5.75 GB | 0 |
+| Qwen3-1.7B, with examples | 73.6% | 9/18 | 6.9 s | 24.2 s | 2.8 GB | 0 |
+| Llama 3.2 3B, with examples | 72.1% | 10/18 | 14.8 s | 30.4 s | 4.7 GB | 0 |
+| Llama 3.1 8B, with examples | 87.9% | 16/18 | 18.0 s | 20.7 s | 9.8 GB | 0 |
+| gpt-oss-20b MXFP4 (35-question subset) | 42.9% | 1/6 | 30.6 s | 168.9 s | ~13.4 GB | 10/35 |
+
+The production model is still `openai/gpt-oss-20b` on Groq; it was not changed. Its local CPU result
+says nothing about Groq, which could not be tested (key rejected). Llama 3.1 8B was KEEL's Groq model
+until 2026-09-03; it is not in the current pipeline. Qwen3-4B was frozen for the final test: close to
+Llama 3.1 8B in accuracy at about 60% of the memory and steadier latency.
+
+**Final evaluation, scored once, aggregate only** (configuration and both sets fingerprinted first):
+
+| Set | Result | 95% CI |
+|---|---|---|
+| Sealed v3 (136 q, all dialects) | **132/136 = 97.1%** | 92.7–98.9 |
+| — Jordanian / Levantine / mixed | 16/16, 30/30, 10/10 | |
+| — Egyptian / English / Gulf / MSA | 28/29, 18/19, 15/16, 15/16 | |
+| Sealed Jordanian (87 q, everyday speech) | **73/87 = 83.9%** | 74.8–90.2 |
+| — colloquial (slang, typos, idioms) | 26/36 = 72.2% | 56.0–84.2 |
+| — simple / compound / mixed English | 33/37, 6/6, 8/8 | |
+| — weakest areas | debts 1/4, inventory 7/11, profit 6/8 | |
+
+Latency: questions answered by the rules alone take about 3 ms; the model was asked on 29/136 (v3)
+and 34/87 (Jordanian) questions, with P95 about 15 s and max 36 s for those. So the 3-second target is
+met only for questions the rules handle. Zero invalid model replies; peak memory 5.76 GB.
+
+**Verdict: not complete.** Sealed v3 passes the 95% minimum but not the 98% stretch. Everyday Jordanian
+speech fails at 83.9%, mostly on intent (21 of 23 field errors). Both sets have now been used, so they
+cannot guide further tuning. The next round needs a new Jordanian development set, ideally written or
+reviewed by native speakers, and a new sealed set. Debt questions also need receivables data: KEEL has no
+receivables records for the assistant yet. Answer correctness, faithfulness and citation accuracy with a
+model writing the answer were not measured in this round.
+
+### Question understanding: Jordanian round (2026-11-06)
+
+**Order of work, for independence.** A new Jordanian final set (91 questions, `sealed_jo2`) and a validation set
+(60, `val_jo2`) were written and fingerprinted first. After that came the per-question diagnosis of the spent
+Jordanian final set and a new development set (119, `dev_jo2`, fresh wordings). Rules, prompt meanings and
+examples were changed from the development set only. All three sets are author-written by the developer (an AI)
+and **not reviewed by a native Jordanian speaker**, so no result below establishes the 95% target.
+
+**Diagnosis of the 21 intent errors** (12 questions in the spent Jordanian final set):
+
+| Category | Errors | Root cause |
+|---|---|---|
+| Rules sure but wrong, model never asked | 6 | «الطلبيات» (orders) read as demand «الطلب»; «صافي» (net) and «مشتكي» (complaining) unknown |
+| Rules found nothing; model misread Jordanian | 11 | «فش عنا», «نواقص», «نجيب جديد» (stock); «عليهم مصاري», «الديون» (debts: no rule, no prompt meaning); «رح يطلب عليه» (demand) |
+| Merging rules and model | 4 | «شروط البيع» read as sales; «انخلصت» (paid off) read as stock running out; competitors vs market research |
+
+About 3 of the 21 depend on labelling conventions (debts → sales because invoices hold payment status;
+competitors vs market research) that a native reviewer or product owner should confirm.
+
+**Changes.**
+- New rule cues for debts and payments (read from invoices), orders, Jordanian stock words, net profit and
+  expenses, and complaints.
+- «تبعنا» ("our") no longer reads as «بعنا» ("we sold"), and «أسابيع» ("weeks") no longer as «بيع».
+- Terms-of-sale questions go to policies, and «delivery … cost» is the delivery-fee policy.
+- Months spelled as numbers («شهر عشرة») are read.
+- The model may no longer trim a need from a question that joins two needs itself.
+- Greetings never call the model.
+- Six worked examples from the development set were added. No receivables data, schema or production model change.
+
+**Results** (rules + local Qwen3-4B, model asked only when the rules are unsure; 4-CPU / 16 GB):
+
+| Pool | Before | After | 95% CI |
+|---|---|---|---|
+| Jordanian development (119) | 68.9% | 114/119 = 95.8% | 90.5–98.2 |
+| Jordanian validation (60) | — | 57/60 = 95.0% (second pass) | 86.3–98.3 |
+| Earlier development pools (90 / 149 / 140) | 100 / 100 / 100% | 100 / 100 / 100% | |
+
+- **Validation is a second-pass figure.** The first pass was 53/60 = 88.3%. Five of its seven errors were the
+  compound-question trimming flaw, which the development set also showed. It was fixed after validation was
+  scored, so 95.0% is not an untouched result.
+- **Remaining errors:**
+  - Typos («امبارخ», «الربخ», «بعنااليوم»).
+  - A short product name («الدبس»).
+  - Capacity and reorder questions phrased with «طلبية».
+  - Market comparison read as market research, not competitors.
+- **Latency:** rules-only questions take about 3 ms, and the model is asked on 11–22% of questions. When asked it
+  takes 7–15 s (median), with P95 overall about 15 s and max 48 s. Peak memory is 5.8 GB, with zero invalid model
+  replies.
+
+The new final set `sealed_jo2` (fingerprint `3a77bc40…`) has not been scored; it needs approval first.
+
 ### Limits: why this is not "95% everywhere"
 
 - **New wordings: about 85%.** Question understanding is rule-based (keywords, periods, product names).

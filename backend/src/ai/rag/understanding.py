@@ -46,16 +46,20 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
             "مبيع", "بعت", "بعنا", "بيعنا", "باع", "بيع", "ايراد", "إيراد", "دخل", "فاتور", "فواتير", "طلبات",
             # dialect: Egyptian "اتباع"/"بعنا كام", Levantine "الغلة"/"المدخول", Gulf "الدخل"
             "اتباع", "اتباعت", "الغله", "غلتنا", "المدخول", "مدخول", "مبعيات", "مبيعت", "بيجيب فلوس", "جاب فلوس",
-            "بيجيب مصاري", "جاب مصاري"),
+            "بيجيب مصاري", "جاب مصاري",
+            # orders: "كم طلبية اجتنا؟", "الأوردرات"
+            "طلبيه", "طلبيات", "اوردر"),
     FINANCIALS: ("profit", "margin", "cost", "loss", "gross", "expensive to make", "break even", "break-even",
                  "losing money", "lose money", "lost money", "making money on", "make money on", "earn us",
                  "خسرانين", "بنخسر", "نخسر", "خسرنا",
-                 "ربح", "أرباح", "ارباح", "هامش", "تكلف", "تكاليف", "خسار", "كلفة", "كسبنا", "مكسب", "مربح"),
+                 "ربح", "أرباح", "ارباح", "هامش", "تكلف", "تكاليف", "خسار", "كلفة", "كسبنا", "مكسب", "مربح",
+                 # net and expenses: "قديش الصافي؟", "المصاريف"; Jordanian "رابحين"، "كسبانين"، "بنكسب"
+                 "expense", "صافي", "مصاريف", "مصروف", "نفقات", "رابح", "كسبان", "نكسب"),
     PRODUCTS: ("product", "item", "catalog", "catalogue", "sku", "منتج", "صنف", "اصناف", "أصناف", "سلعة", "سلع",
                "بضاعه", "بضايع", "بضائع", "برودكت"),
     PRICING: ("price", "pricing", "charge", "expensive", "cheap", "cost the customer", "cost customers", "سعر", "أسعار", "اسعار", "تسعير", "غالي", "رخيص",
               # "بكم نبيع السماق؟" / "بقديش" - "for how much"
-              "بكم ", "بكام", "بقديش", "ثمن"),
+              "بكم ", "بكام", "بقديش", "بقديه", "قديه سعر", "ثمن"),
     INVENTORY: ("stock", "inventory", "restock", "reorder", "out of", "warehouse",
                 # "how much X do we have left?", "units remaining", "what's on hand"
                 "have left", "left in", "how many left", "how much left", "remaining", "on hand",
@@ -64,25 +68,42 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
                 # "كم باقي عندنا"، "شو ضايل"، "الكمية المتبقية"، "هل هو متوفر"
                 "كم باقي", "شو باقي", "قديش باقي", "باقي عند", "باقي لدي", "متبقي", "ضايل", "ظايل", "متوفر",
                 "قرب يخلص", "رح يخلص", "حيخلص", "قربت تخلص", "فاضل", "فاضله", "نطلب", "نعيد طلب",
-                "do we have any", "have we got", "in the warehouse"),
+                # Levantine "what's left": "قديه ضل عنا"، "شو ضل من"، "ضايل"
+                "ضل عن", "ضل من", "قديه ضل", "قديش ضل", "شو ضل", "ظل عن", "كم ضل",
+                "do we have any", "have we got", "in the warehouse",
+                # Jordanian: "فش طحينة؟" (none left), "خالص"، "فاضي"، "قرب يفضى"، "نواقص"، "بدنا نجيب"، "نوصي على"
+                " فش ", "ما ضل", "خالص", "خلصان", "فاضي", "يفضي", "نواقص", "الناقص", "ناقصنا", "نقص ب", "تعبيه",
+                "نعبي", "لازم نجيب", "بدنا نجيب", "نوصي علي", "كميه كفايه", "الحد الادني"),
     FORECAST: ("forecast", "demand", "predict", "next month", "next week", "expected sales",
                "projected", "projection", "coming month", "coming weeks", "upcoming month", "outlook",
                "will we sell", "going to sell", "expect to sell",
-               "توقع", "الطلب", "تنبؤ", "الشهر الجاي", "الشهر القادم", "الشهر المقبل", "الشهر الياي"),
+               "توقع", "الطلب", "تنبؤ", "الشهر الجاي", "الشهر القادم", "الشهر المقبل", "الشهر الياي",
+               # "رح يطلبوا الناس"، "للشهر الجاي"، "الأسابيع الجاية"، "نجهز"
+               "رح يطلب", "حيطلب", "للشهر الجاي", "للشهر القادم", "الجايه", "نجهز"),
     MARKETING: ("campaign", "marketing", "advert", " ad ", "ads", "promotion", "promo",
                 "حملة", "حملات", "تسويق", "اعلان", "إعلان", "ترويج"),
-    COMPETITORS: ("competitor", "competition", "rival", "منافس", "المنافسة", "منافسين", "المنافسين", "كومبتيتور"),
+    COMPETITORS: ("competitor", "competition", "rival", "منافس", "المنافسة", "منافسين", "المنافسين", "كومبتيتور",
+                  # a price or offer measured against ours: "who sells it cheaper than us", "أرخص منا"
+                  "cheaper than us", "than us", "than ours", "ارخص منا", "اغلى منا", "ارخص من عنا", "ارخص مننا", "اغلى مننا",
+                  "other shops", "other stores", "other sellers", "other businesses", "elsewhere", "compared to others",
+                  "than we do", "less than we", "cheaper than we", "for less than us",
+                  "محلات تانيه", "محلات ثانيه", "المحلات التانيه", "المحلات الثانيه", "باقي المحلات", "غيرنا"),
     REVIEWS: ("review", "rating", "feedback", "complain", "sentiment", "customers say", "customers think",
               "customer opinion", "satisf", "opinion of us", "think of us", "say about us",
               "تقييم", "مراجع", "آراء", "اراء", "شكاو", "شكوى", "رضا", "رأي الزبائن", "راي الزبائن", "رأي العملاء",
-              "راي العملاء", "رايهم", "رأيهم", "انطباع", "happy with", "unhappy", "happy are", "customers happy",
-              "بتقول ايه عن", "بيقولوا ايه عن", "بيقولوا عن", "بيحكوا عن", "بيقولوا الزبائن", "الزبائن مبسوطين",
-              "مبسوطين منا", "راضيين"),
+              "راي العملاء", "رأي الناس", "راي الناس", "رايهم", "رأيهم", "انطباع", "happy with", "unhappy", "happy are", "customers happy",
+              "بتقول ايه عن", "بيقولوا ايه عن", "بيقولوا ايه على", "بيقولوا عن", "بيحكوا عن", "بيقولوا الزبائن",
+              "الزبائن بيقولوا", "الزباين بيقولوا", "الناس بتقول", "الزبائن مبسوطين",
+              "مبسوطين منا", "راضيين",
+              # complaints: "اشتكى"، "بيشتكوا"، "مشتكي"، "زعلان منا"
+              "اشتكي", "يشتك", "مشتكي", "زعلان", "متضايق", "بيحكو", "بيقولو"),
     DOCUMENTS: ("document", "file", "contract", "agreement", "policy", "uploaded", "pdf",
                 # what a policy document answers without the word "policy": "can customers return labneh?"
                 "return", "refund", "warranty", "guarantee", "exchange it", "exchange an", "delivery", "deliver to",
-                "مستند", "ملف", "عقد", "اتفاقي", "سياسة",
-                "ارجاع", "إرجاع", "استرجاع", "استرداد", "استبدال", "كفالة", "كفاله", "ضمان", "توصيل", "التوصيل"),
+                "terms and conditions", "conditions", "مستند", "ملف", "عقد", "اتفاقي", "سياسة", "شروط", "تقسيط",
+                "ارجاع", "إرجاع", "استرجاع", "استرداد", "استبدال", "كفالة", "كفاله", "ضمان", "توصيل", "التوصيل",
+                # returning something: "فيني رجّع شي"، "ينفع الزبون يرجع المنتج"، "can I return it"
+                "رجع شي", "ارجع شي", "يرجع المنتج", "يرجع ال", "ارجع ال", "نرجع ال", "برجع ال", "ترجع ال"),
     CUSTOMER_PREFERENCE: ("why do customers", "why customers", "why people", "prefer", "choose", "rather buy",
                           "switch to", "what do customers like", "what customers like", "why do they buy",
                           "why is it popular", "why are they buying", "reject",
@@ -180,7 +201,8 @@ _REFERS_BACK_TIME = re.compile(
 def _norm(text: str) -> str:
     text = to_ascii_digits(text or "").lower()
     text = re.sub(r"[ًٌٍَُِّْـ]", "", text)
-    return text.translate(str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي", "ة": "ه"}))
+    # ئ/ؤ written as ي/و is common in dialect writing ("الزباين" for "الزبائن"); fold both ways to one form.
+    return text.translate(str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي", "ة": "ه", "ئ": "ي", "ؤ": "و"}))
 
 
 _KEYWORD_PATTERNS: Dict[str, "re.Pattern"] = {}
@@ -243,20 +265,108 @@ def correct_typos(text: str) -> str:
 
 
 # "بكم نبيع السماق؟", "what do we sell tahini for?": "sell" here asks the price, not how much was sold.
-_PRICE_ASK = ("بكم ", "بكام", "بقديش", "what do we sell", "what do you sell", "sell it for", "selling it for",
-              "sell for", "selling for")
+_PRICE_ASK = ("بكم ", "بكام", "بقديش", "بقديه", "what do we sell", "what do you sell", "sell it for", "selling it for",
+              "sell for", "selling for", "price do we sell", "price we sell", "selling price", "sale price",
+              "سعر بيع", "سعر البيع", "بنبيع ب", "نبيع ب")
 _SELL_FOR = re.compile(r"(?<![a-z])(?:sell|selling|sells|charge|charging)\s+(?:[\w'-]+\s+){0,6}for\s*[?؟.!]?\s*$")
 _VOLUME_WORDS = ("how many", "how much did", "units", "revenue", "sold", "sales", "income", "كم بعنا", "كم بيعنا",
-                 "قديش بعنا", "مبيعات", "ايراد", "كميه", "كمية", "دخل")
+                 "قديش بعنا", "مبيعات", "ايراد", "كميه", "كمية", "دخل", "بعنا", "بيعنا", "اتباع", "انباع")
+
+
+_CUSTOMER_RETURNS = re.compile(r"(?:الزبون|زبون|العميل|customer|client)\S*\s+(?:\S+\s+){0,3}"
+                               r"(?:يرجع|يرجّع|يبدل|يبدّل|يسترجع|يستبدل|return|exchange|refund)|"
+                               # "فيني بدّل غرض"، "ينفع أبدل منتج"، "can I exchange it": exchanging a purchase
+                               r"(?<![\w])[اأنيتب]?بد?ل\s+(?:ال)?(?:غرض|منتج|شي|قطعه|البضاعه|بضاعه)")
+_MOVING_ITEM = re.compile(r"(?:صنف|اصناف|منتج|منتجات|بضاعه|item|product)\S*\s+(?:\S+\s+){0,2}"
+                          r"(?:ما\s+|مش\s+|مو\s+)?(?:بيمشي|ماشي|عم\s*يمشي|يمشي|بتمشي|ماشيه|moving|flying)")
+_OPINION_CUES = ("رأي", "راي", "رايهم", "بيقولوا", "بيحكوا", "يقولون", "انطباع", "think of", "say about", "saying about",
+                 "opinion", "feel about", "feedback on", "reviews of", "reviews on")
+_CATALOGUE_CUES = ("how many products", "how many items", "how many different", "how many distinct", "different products", "list", "catalog", "catalogue", "sku", "range of products",
+                   "كم منتج", "كم صنف", "عدد المنتجات", "عدد الاصناف", "قائمه", "كتالوج", "منتجاتي", "اصنافي")
+_WHO_SELLS = ("who sells", "who else sells", "who is selling", "مين بيبيع", "مين يبيع", "من يبيع", "مين عم يبيع")
+_OUR_SALES_WORDS = ("revenue", "sold", "sales", "income", "turnover", "مبيعات", "ايراد", "بعنا", "دخل")
+
+
+# "تبعنا"/"تبعتنا" ("our") contains "بعنا" (we sold), and "اسابيع" (weeks) contains "بيع": neutralised first.
+_NOT_SELLING = re.compile(r"(?<!\S)تبع\S*|اسابيع")
+# A vocative ("يعطيك العافية يا غالي" - "dear") is not a need ("غالي" = expensive).
+_VOCATIVE = re.compile(r"(?<!\S)يا\s+(?:رب|غالي|غاليه|حبيبي|حبيبتي|شباب|معلم|باشا|زلمه)(?!\S)")
+_DELIVERY_WORDS = ("deliver", "shipping", "توصيل", "شحن")
+_PROFIT_WORDS = ("profit", "margin", "ربح", "ارباح", "هامش", "خسار")
+# Debts and payments: answered from invoices and their payment status (sales records).
+_DEBT_STRONG = re.compile(r"(?<!\S)(?:ال|بال|و)?(?:دين|ديون)(?![^\s؟?.!،,])|مديون|ذمم|ذمه|مدفوع|ما\s+دفع|ما\s+انسدد|سدد|تحصيل|"
+                          r"تحصل|عليه[م]?\s+(?:مصاري|فلوس|حساب)|(?:ا|إ)?لنا\s+عند|يدفعلنا|دفعولنا|مين\s+دفع|دفع\s+ولا|"
+                          r"انخلص|outstanding|unpaid|receivable|overdue|(?<![a-z])owe|(?<![a-z])debt")
+_DEBT_WEAK = re.compile(r"حسابات\s+مفتوحه|الحسابات\s+المفتوحه|دفعات|دفعه|دافع|متاخر|مأخر|ماخر|رصيد|مستحق|معلق|مش\s+مسكر|علي\s+الحساب|عالقه\s+عند|"
+                        r"(?<![a-z])payment")
+_STOCK_WORDS = ("stock", "inventory", "warehouse", "مخزون", "مخزن", "ستوك", "مستودع")
+_ORDER_WORDS = re.compile(r"طلبيه|طلبيات|الطلبات|طلبات|اوردر|(?<![a-z])orders?(?![a-z])")
+_FUTURE_CUES = ("توقع", "متوقع", " رح ", "الجاي", "القادم", "المقبل", "next", "forecast", "predict", "expect",
+                "will ", "going to")
+_STRONG_FORECAST = ("توقع", "تنبؤ", "forecast", "predict", "projected", "projection")
+_COMPARE_CUES = ("مقارن", "قارن", "compare", " vs", "versus", "actual", "فعلي")
+_POLICY_FRAME = ("سياسه", "شروط", "شرط", "عقد", "تقسيط", "policy", "terms", "conditions", "contract")
+_NET_OR_EXPENSES = ("صافي", "مصاريف", "مصروف", "نفقات", "expense")
+_EXPLICIT_SALES = ("مبيع", "بعنا", "بيعنا", "revenue", "sales", "sold", "ايراد", "فاتور", "فواتير", "turnover")
 
 
 def detect_intents(text: str) -> List[str]:
-    lowered = f" {_norm(text)} "
+    lowered = f" {_VOCATIVE.sub(' ', _NOT_SELLING.sub(' ', _norm(text)))} "
     found = [intent for intent, keywords in _KEYWORDS.items() if _has(lowered, keywords)]
+    stock_named = _has(lowered, _STOCK_WORDS)
+    if _DEBT_STRONG.search(lowered) or (_DEBT_WEAK.search(lowered) and not stock_named):
+        # "مين عليه مصاري؟"، "الفواتير الغير مدفوعة"، "قديش ضايل إلنا عند الزباين؟": owed money, not stock left
+        found = [i for i in found if i not in (REVIEWS, PRODUCTS) and (i != INVENTORY or stock_named)]
+        if SALES not in found:
+            found.append(SALES)
+    if _ORDER_WORDS.search(lowered):
+        if _has(lowered, ("مورد", "supplier")):
+            # "نعمل طلبية من المورد": restocking from a supplier
+            found = [i for i in found if i not in (SALES, PRODUCT_RESEARCH, FORECAST)] + \
+                ([INVENTORY] if INVENTORY not in found else [])
+        elif FORECAST in found and not _has(lowered, _FUTURE_CUES):
+            # "عدد الطلبيات تبع مبارح": orders received, not future demand ("الطلب")
+            found = [i for i in found if i != FORECAST] + ([SALES] if SALES not in found else [])
+    if FORECAST in found and SALES in found and _has(lowered, _STRONG_FORECAST) and not _has(lowered, _COMPARE_CUES):
+        found.remove(SALES)  # "توقع مبيعات كانون الأول": the forecast of sales
+    if FINANCIALS in found and SALES in found and _has(lowered, _NET_OR_EXPENSES) and not _has(lowered, _EXPLICIT_SALES):
+        found.remove(SALES)  # "قديش دخلنا الصافي؟": net profit, not revenue
+    if DOCUMENTS in found and FINANCIALS in found and _has(lowered, _DELIVERY_WORDS) \
+            and not _has(lowered, _PROFIT_WORDS):
+        found.remove(FINANCIALS)  # "how much does delivery cost": the delivery fee policy, not our cost price
+    if DOCUMENTS in found and _has(lowered, _POLICY_FRAME) and not _has(lowered, _VOLUME_WORDS):
+        # "شروط البيع بالجملة"، "سياسة البيع بالتقسيط": the terms of selling, not sales figures or suppliers
+        found = [i for i in found if i not in (SALES, PRODUCT_RESEARCH)]
+    if _CUSTOMER_RETURNS.search(lowered):
+        found = [i for i in found if i not in (REVIEWS,)] + ([DOCUMENTS] if DOCUMENTS not in found else [])
+    if _MOVING_ITEM.search(lowered) and SALES not in found:
+        found.append(SALES)  # "الصنف اللي ما بيمشي", "items flying off the shelves": how products sell
+    if SALES in found and COMPANY in found and _has(lowered, ("what do we sell", "what does our company sell",
+                                                            "شو منبيع", "شو بنبيع", "ماذا نبيع")) \
+            and not _has(lowered, _OUR_SALES_WORDS):
+        found.remove(SALES)
+    if SALES in found and _has(lowered, _WHO_SELLS) and not _has(lowered, _OUR_SALES_WORDS):
+        found.remove(SALES)  # "who sells X" is about other sellers, never our own sales
+    if COMPETITORS in found and _has(lowered, ("than us", "than ours", "than we", "منا", "مننا")):
+        found = [i for i in found if i not in (PRODUCT_RESEARCH, SALES)]
+    if ADVICE in found and INVENTORY in found and _has(lowered, ("لازم نطلب", "should i reorder", "should we reorder",
+                                                                 "should we order", "should i order", "should we restock",
+                                                                 "لازم نجيب", "محتاجين نطلب", "نحتاج نطلب")):
+        found.remove(ADVICE)  # which products to reorder is answered by the stock records
+    if REVIEWS in found and _has(lowered, _OPINION_CUES):
+        found = [i for i in found if i not in (DOCUMENTS, PRODUCTS)]  # an opinion's topic is not a need of its own
+    if _has(lowered, ("how many different", "how many distinct", "how many products", "كم منتج", "كم صنف", "عدد المنتجات")):
+        found = [i for i in found if i != INVENTORY] + ([PRODUCTS] if PRODUCTS not in found else [])  # range, not stock levels
+    if PRODUCTS in found and (set(found) - {PRODUCTS}) & (_DATA_INTENTS | {REVIEWS, COMPETITORS}) \
+            and not _has(lowered, _CATALOGUE_CUES):
+        found.remove(PRODUCTS)  # "the product" next to a specific need is not a catalogue question
     if _SELL_FOR.search(lowered) and not _has(lowered, _VOLUME_WORDS):
         found = [intent for intent in found if intent not in (SALES, COMPANY)] + ([PRICING] if PRICING not in found else [])
     elif PRICING in found and SALES in found and _has(lowered, _PRICE_ASK) and not _has(lowered, _VOLUME_WORDS):
         found.remove(SALES)
+    elif PRICING in found and _has(lowered, ("بعنا", "بيعنا", "اتباع", "انباع")) and _has(lowered, ("بكام", "بكم ", "بقديش")):
+        # "بعنا بكام الشهر اللي فات؟": how much we sold for (revenue), not a product's price
+        found = [i for i in found if i != PRICING] + ([SALES] if SALES not in found else [])
     corrected = correct_typos(lowered)
     if corrected != lowered:  # "which items are low in inventroy?": products, and the misspelt stock too
         found += [intent for intent, keywords in _KEYWORDS.items()
@@ -292,7 +402,38 @@ _GREETING_AND_SMALLTALK = {
     "كيفك", "كيفك؟", "شو اخبارك", "ازيك", "ازيك؟", "عامل ايه", "شعلومك", "شعلومك؟",
     "شكرا", "شكرا لك", "شكرا جزيلا", "مشكور", "يعطيك العافية", "تسلم",
     "مساء الخير", "صباح الخير", "مساء النور", "صباح النور",
+    "يا هلا", "هلا فيك", "الله يخليك", "الله يسلمك", "كيف الحال", "كيف الحال؟", "تسلم", "تسلمي",
 }
+
+
+_GREETINGS_NORMALISED = sorted({_norm(g).strip("؟?") for g in _GREETING_AND_SMALLTALK} | {"عامل ايه", "شو الاخبار"},
+                               key=len, reverse=True)
+
+
+def _only_greetings(text: str) -> bool:
+    """True when the message is greetings and nothing else: "إزيك عامل إيه", "كيفك، شو الأخبار"."""
+    rest = f" {_norm(text)} "
+    for greeting in _GREETINGS_NORMALISED:
+        rest = re.sub(r"(?<!\S)" + re.escape(greeting) + r"(?![^\s،,.!؟?])", " ", rest)
+    return rest != f" {_norm(text)} " and not re.sub(r"[\s،,.!؟?و]+", "", rest)
+
+
+# Parts of a question joined by "and" / "و" / a comma: "قديش بعنا وقديش ربحنا؟" asks two things.
+_CLAUSE_SPLIT = re.compile(r"\s+و(?=\S{2,})|(?<![a-z])and(?![a-z])|[،,؟?;]|\s+ولا\s+|(?<![a-z])or(?![a-z])")
+
+
+def explicitly_compound(question: str) -> bool:
+    """True when at least two joined parts of the question each name a different need on their own."""
+    needs = {frozenset(detect_intents(part)) for part in _CLAUSE_SPLIT.split(_norm(question))}
+    needs.discard(frozenset())
+    return len(needs) >= 2
+
+
+def is_greeting(query_text: str) -> bool:
+    """A greeting, thanks or "how are you" and nothing else (a trailing "يا غالي" / "يا رب" allowed)."""
+    bare = (query_text or "").strip().lower().strip("!؟?. ")
+    bare = re.sub(r"\s+(?:يا\s+(?:رب|غالي|غاليه|حبيبي|حبيبتي|شباب|معلم|باشا|زلمه)|حبيبي|والله)$", "", bare).strip()
+    return bool(bare) and (bare in _GREETING_AND_SMALLTALK or _only_greetings(bare))
 
 
 def is_answerable(query_text: str) -> bool:
@@ -301,7 +442,7 @@ def is_answerable(query_text: str) -> bool:
     normalized = (query_text or "").strip().lower()
     if not normalized:
         return False
-    if normalized.strip("!؟?. ") in _GREETING_AND_SMALLTALK:
+    if is_greeting(normalized):
         return False
     word_count = len(normalized.split())
     if word_count < 3 and len(normalized) < 12:
@@ -515,6 +656,7 @@ def _period_days(text: str) -> Optional[int]:
 
 # Size and packaging words, and words that describe rather than name a product: a question that shares only
 # one of these with a product name ("the 1kg pack", "premium") is not about that product.
+_GENERIC_STEMS: set = set()  # filled below, once _stem exists
 _GENERIC_NAME_WORDS = {
     "pack", "packs", "box", "jar", "tin", "bottle", "bag", "set", "kit", "mix", "blend", "gift", "premium", "extra",
     "fresh", "loose", "per", "medium", "large", "small", "mini", "new", "classic", "original", "special", "drink",
@@ -534,7 +676,20 @@ def _name_tokens(text: str) -> List[str]:
 
 
 def _core(tokens: List[str]) -> List[str]:
-    return [t for t in tokens if not _SIZE_TOKEN.match(t) and t not in _GENERIC_NAME_WORDS and len(t) > 1]
+    return [t for t in tokens if not _SIZE_TOKEN.match(t) and t not in _GENERIC_NAME_WORDS
+            and t not in _GENERIC_STEMS and len(t) > 1]
+
+
+def _generic_stems() -> set:
+    return {_stem(g) for g in _GENERIC_NAME_WORDS}
+
+
+def _stem(token: str) -> str:
+    """An Arabic word without its feminine/nisba ending, so the forms people actually write meet the catalogue's:
+    جبنه/جبن، نابلسيه/نابلسي، بريه/بري. (Text is already normalised: ة -> ه.) Latin words are unchanged."""
+    if re.match(r"[\u0621-\u064a]", token) and len(token) > 3 and token.endswith("ه"):
+        return token[:-1]
+    return token
 
 
 def _contains_run(haystack: List[str], needle: List[str]) -> bool:
@@ -565,18 +720,33 @@ def _products(text: str, catalog: List[dict]) -> List[dict]:
                 break
     if matched:
         return matched[:5]
-    question = _name_tokens(text)
+    raw = _name_tokens(text)
+    question = [_stem(t) for t in raw]
     if not question:
         return []
+    asked = set(question)
+    # A distinctive word is judged by its length as written: "لبنة" is distinctive even though its stem is "لبن".
+    long_stems = {_stem(t) for t in raw if len(t) >= 4}
     partial = []
     for product in catalog:
-        best = 0
+        best = 0.0
         for name in filter(None, (product.get("name"), product.get("name_alt"))):
-            core = _core(_name_tokens(_norm(name)))
+            tokens = [_stem(t) for t in _name_tokens(_norm(name))]
+            core = _core(tokens)
+            generic = {t for t in tokens if t in _GENERIC_STEMS} & asked
+            shared = [w for w in core if w in asked]
+            score = 0.0
             if len(core) >= 2 and any(_contains_run(question, core[i:i + 2]) for i in range(len(core) - 1)):
-                best = max(best, 2)
-            elif any(len(word) >= 4 and word in question for word in core):
-                best = max(best, 1)
+                score = 2.0
+            elif len(set(shared)) >= 2:
+                score = 2.0   # two words of its name in any order: "العسل البري" ~ "عسل زهور برية"
+            elif any(word in long_stems for word in shared):
+                score = 1.0
+            elif shared and generic:
+                score = 1.0   # a short word and a packaging word: "علبة التمر" ~ "علبة هدايا تمر"
+            if 0 < score < 2:
+                score += 0.5 * len(generic)  # between weak matches, packaging words tell close names apart
+            best = max(best, score)
         if best:
             partial.append((best, product))
     if not partial:
@@ -657,8 +827,11 @@ def extract_slots(question: str, catalog: Optional[List[dict]] = None, company_c
 _SLOT_KEYS_REPLACED_TOGETHER = {("origin_country", "destination_country", "countries")}
 
 
+_FUTURE_SELLING = ("will we sell", "will sell", "going to sell", "expect to sell", "likely sell", "next month",
+                   "next week", "coming month", "رح نبيع", "حنبيع", "هنبيع", "سنبيع", "نتوقع نبيع", "متوقع نبيع",
+                   "متوقعين نبيع", "بنتوقع", "الشهر الجاي", "الشهر القادم", "الشهر المقبل")
 # With a product named: "do we have X?" asks the stock; "how much is X?" with no other topic asks the price.
-_DO_WE_HAVE = re.compile(r"(?<![\w])(?:هل\s+)?(?:في|فيه|فى|يوجد|بيوجد)\s+(?:عندنا|عندي|لدينا|عندكم)|"
+_DO_WE_HAVE = re.compile(r"(?<![\w])(?:هل\s+)?(?:في|فيه|فى|يوجد|بيوجد)\s+(?:عندنا|عندي|لدينا|عندكم|عنا|عنّا)|"
                          r"(?<![a-z])(?:do|does)\s+(?:we|i)\s+(?:still\s+)?have\b")
 _HOW_MUCH_IS = re.compile(r"(?<![a-z])how\s+much\s+(?:is|are)\b|(?<![\w])(?:بكم|بكام|بقديش|(?:كم|قديش)\s+(?:حق|ثمن))(?![\w])")
 # "كم تمر عندنا؟", "how many tahini have we got?": a count of what the company holds.
@@ -682,6 +855,9 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
             intents.append(PRICING)  # "How much is the Ramadan Gift Hamper?"
     if slots.get("customer_ranking") and SALES not in intents:
         intents.append(SALES)
+    if FORECAST in intents and SALES in intents and not slots.get("periods") and not slots.get("period_days") \
+            and _has(f" {_norm(question)} ", _FUTURE_SELLING):
+        intents.remove(SALES)  # "how much will we sell next month?" asks the forecast, not past sales
     padded = f" {_norm(question)} "
     about_us = COMPANY in intents or bool(_SELF_REFERENCE.search(padded)) or bool(re.search(r"(?<![a-z])us(?![a-z])", padded))
     if about_us and _has(padded, _COMPANY_BACKGROUND) and not set(intents) & _DATA_INTENTS:
@@ -754,3 +930,6 @@ def understand(question: str, previous: Optional[dict] = None, catalog: Optional
         combined, effective = list(intents), question
     return Understanding(question, combined, merged, True, effective, previous_intents,
                          public_scope=is_public_scope(effective, combined, merged))
+
+
+_GENERIC_STEMS.update(_generic_stems())
