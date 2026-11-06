@@ -27,7 +27,7 @@ and `ceopro-redis-staging`) are not KEEL's and must not be changed.
 
 | Piece | Resource | Notes |
 |---|---|---|
-| API | Render web service `ceopro-ai-new` (free) | `backend/Dockerfile.ai`, health check `/health`, auto-deploy **off** (deploy a reviewed commit explicitly), custom domain `api.keelai.net` |
+| API | Render web service `ceopro-ai-new` (free) | `backend/Dockerfile.ai`, health check `/health`, auto-deploy **off** (deploy a reviewed commit explicitly), builds from branch `claude/vibrant-albattani-j2ksq5` (production commits; keep it merged into `main`), custom domain `api.keelai.net` |
 | Frontend | Render static site `keel-web` (free) | `cd frontend && npm ci && npm run build`, publish `frontend/dist`, `VITE_API_BASE_URL=https://api.keelai.net`, security headers + SPA rewrite set on the service, domains `keelai.net` and `www.keelai.net` (redirects to the apex) |
 | Database | Neon project (PostgreSQL 18) | `DATABASE_URL` = the **direct** (not `-pooler`) owner connection string with `sslmode=require` - migrations rely on one session; the API itself connects as the restricted `ceopro_app` role derived from it with `APP_DB_PASSWORD` |
 | Redis | Upstash (free), `rediss://` URL in `REDIS_URL` | Render allows one free Key Value per workspace and that slot is not KEEL's |
@@ -39,13 +39,25 @@ role has CREATEROLE but not SUPERUSER - `scripts/apply_migrations.py`
 handles that on PostgreSQL 16+ (it enables `createrole_self_grant` for its
 own session), verified against PostgreSQL 16 and 18.6.
 
+**Email (configured 2026-11-06).** Brevo SMTP relay `smtp-relay.brevo.com`,
+**port 2525**, STARTTLS (`SMTP_USE_TLS=true`), sender
+`EMAIL_FROM_ADDRESS=support@keelai.net`. Render's free web services block
+outbound ports 25, 465 and 587 (Render changelog, Sept 2025): on 587 every
+send failed with `Pending registration email delivery failed`. Brevo also
+listens on 2525, which is not blocked; a signup on 2026-11-06 15:34 UTC
+answered `delivery: sent`. Keep 2525 while the API is on a free instance.
+Sign-up, password reset and verification resend only report an email as sent
+when the provider accepted it (`200 status=sent`); otherwise
+`503 EMAIL_DELIVERY_FAILED`, and an unregistered address gets
+`404 ACCOUNT_NOT_FOUND` (see `backend/src/ai/routers/auth.py`).
+
 Settings still to provide in `ceopro-ai-new` -> Environment (the start-up
-log lists each missing one): `SMTP_*` + `EMAIL_FROM_ADDRESS` (required:
-`REQUIRE_EMAIL_VERIFICATION=true`, so sign-up cannot finish without email),
-`GROQ_API_KEY` (assistant), `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`
-(webhook URL `https://api.keelai.net/billing/webhook`), `MINIO_*` (file
-storage, e.g. Cloudflare R2 below), `OPERATOR_EMAILS`, optional
-`SENTRY_DSN` and the market-data provider keys.
+log lists each missing one): `MINIO_*` (file storage, e.g. Cloudflare R2
+below - without it uploads and stored images are unavailable),
+`STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` (webhook URL
+`https://api.keelai.net/billing/webhook`), `OPERATOR_EMAILS`, `TAVILY_API_KEY`
+(assistant web research), optional `SENTRY_DSN` and the market-data provider
+keys.
 
 **Backups and recovery.** Neon keeps a point-in-time restore history (its
 length depends on the Neon plan): to recover, create a branch from a time
