@@ -109,6 +109,10 @@ _TOOL_BLOCKS = (
     ("Per-unit margin from the product catalog", (acl.CATALOG, acl.COSTS), "/products"),
 )
 _LEADS = {
+    "direct": {
+        "en": "From your company's records:",
+        "ar": "من سجلات شركتك:",
+    },
     "evidence_mode": {
         "en": "The assistant's writing service is unavailable right now, so here is the evidence KEEL found for "
               "your question, unsummarised:",
@@ -1169,7 +1173,7 @@ def _flag_foreign_summary(summary: Optional[dict], mode: str, language: str) -> 
     about an English document gets an English sentence. Translating it would need the model that is not
     available in this mode, so the answer says so instead (`note`, which the chat words in the user's language).
     A model-written summary already follows the question's language."""
-    if summary and mode in ("evidence", "unverifiable") and _language(summary["text"]) != language:
+    if summary and mode in ("evidence", "unverifiable", "direct") and _language(summary["text"]) != language:
         return {**summary, "note": "source_language"}
     return summary
 
@@ -1192,6 +1196,27 @@ _ROUTES_FOR_INTENT = {
     U.REVIEWS: ("/market",), U.CUSTOMER_PREFERENCE: ("/market",), U.DOCUMENTS: ("/ai-advisor",),
     U.COMPANY: ("/settings/company", "/ai-advisor"),
 }
+
+
+# Direct answers (RAG_DIRECT_ANSWERS=on, off by default): a simple question with one need that the company's exact
+# records answer - a period's sales, a product's stock or price, the catalogue - is answered from those records
+# without a model call. Anything that asks for reasoning, a comparison, advice, several needs or public research
+# still goes to the model.
+DIRECT_ANSWERS = os.getenv("RAG_DIRECT_ANSWERS", "off").strip().lower() in ("on", "1", "true", "yes")
+_DIRECT_INTENTS = frozenset({U.SALES, U.INVENTORY, U.PRICING, U.PRODUCTS})
+_NEEDS_REASONING = re.compile(
+    r"(?<![a-z])(why|how come|explain|analy|should|recommend|compare|versus|vs|trend|advice|what if|improve|reason)|"
+    r"ليش|ليه|لماذا|ليه|اشرح|حلل|تحليل|انصح|نصيح|لازم|قارن|مقارن|توقع|السبب|بسبب|كيف بقدر|كيف ازيد|شو رايك|رايك")
+
+
+def _direct_answer_ok(u: understanding.Understanding, question: str, exact_records: int, research_result,
+                      calculation, guide) -> bool:
+    intents = set(u.intents)
+    return (DIRECT_ANSWERS and exact_records > 0 and len(intents) == 1 and intents <= _DIRECT_INTENTS
+            and research_result is None and calculation is None and not guide
+            and not u.slots.get("read_by_model")
+            and not _NEEDS_REASONING.search(understanding._norm(question))
+            and not understanding.explicitly_compound(question))
 
 
 def _evidence_mode(registry: ev.EvidenceRegistry, language: str, lead: str = "evidence_mode",
@@ -1510,7 +1535,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         for item, screen in zip(items, product_guide.guide_screens(question)):
             item.route = screen
 
-    company_found = documents_found = 0
+    company_found = documents_found = exact_records = 0
     products: Dict[str, dict] = {}
     if answerable and include_structured_facts:
         for intent in u.intents:
@@ -1527,6 +1552,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
         if not u.public_scope:  # "the average water price" needs no sales or price-gap records
             exact, replaced = _records(conn, tenant_id, u, access, registry, statuses, language, today)
             company_found += exact
+            exact_records = exact
         documents_found = _documents(conn, tenant_id, search, access, registry, top_k, statuses, language,
                                      intents=u.intents, superseded=replaced,
                                      all_history=bool(u.slots.get("all_history")))
@@ -1584,6 +1610,8 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     if not use_ai:
         draft, mode = _evidence_mode(registry, language, lead="allowance_used", question=u.effective_question, intents=u.intents), "evidence"
         _status(statuses, "answer_writing", "allowance_used")
+    elif _direct_answer_ok(u, question, exact_records, research_result, calculation, guide):
+        draft, mode = _evidence_mode(registry, language, lead="direct", question=u.effective_question, intents=u.intents), "direct"
     else:
         try:
             with _server_refusals_as_llm_errors():
@@ -1618,7 +1646,7 @@ def answer(conn, tenant_id: str, question: str, top_k: int = 5, history: Optiona
     # An evidence-mode summary is a sentence quoted from the evidence, not written by the model: counting it as
     # "model" would inflate the share of answers whose summary the model wrote.
     summary_source = rendered["summary_source"]
-    if summary_source == "model" and mode in ("evidence", "unverifiable"):
+    if summary_source == "model" and mode in ("evidence", "unverifiable", "direct"):
         summary_source = "extractive"
     logger.info("assistant_answer mode=%s summary=%s dropped=%d issues=%d repaired=%s", mode,
                 summary_source, rendered["summary_dropped"], issue_count, repaired)
