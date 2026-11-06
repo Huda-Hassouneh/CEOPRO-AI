@@ -61,6 +61,11 @@ COPY --chown=ceopro:ceoprogroup src/ai ./src/ai
 COPY --chown=ceopro:ceoprogroup src/infrastructure ./src/infrastructure
 COPY --chown=ceopro:ceoprogroup src/market_scraper ./src/market_scraper
 COPY --chown=ceopro:ceoprogroup templates ./templates
+# The standard plan catalog (src/ai/billing/standard_plan_catalog.py's
+# CATALOG_PATH = /app/config/billing/standard_plan_catalog.json). The
+# migration runner validates and installs it on every boot, so without it
+# the container exits before the API starts.
+COPY --chown=ceopro:ceoprogroup config ./config
 # apply_migrations.py alone (not the rest of scripts/, which pulls in
 # heavier live-verification/scraping scripts the ai service never runs) -
 # see docker-entrypoint.sh's own comment for why a single-container
