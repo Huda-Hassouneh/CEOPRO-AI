@@ -27,6 +27,7 @@ from src.infrastructure.public_urls import frontend_origin
 import logging
 import os
 import smtplib
+import ssl
 from email.mime.text import MIMEText
 
 logger = logging.getLogger("CEOPRO_AI_NOTIFICATIONS")
@@ -82,7 +83,7 @@ def send_email(to_address: str, subject: str, body: str) -> bool:
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
         if SMTP_USE_TLS:
-            server.starttls()
+            server.starttls(context=ssl.create_default_context())
         if SMTP_USERNAME and SMTP_PASSWORD:
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
         server.sendmail(EMAIL_FROM_ADDRESS, [to_address], message.as_string())
