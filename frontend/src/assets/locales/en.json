@@ -1513,7 +1513,8 @@
     },
     "forgotPassword": {
       "title": "Reset Password",
-      "subtitle": "Enter your email address and we'll send you a link to reset your password.",
+      "subtitle": "Enter your email address and we'll email you a 6-digit code to reset your password.",
+      "createAccount": "Create an account",
       "emailPlaceholder": "name@company.com",
       "submit": "Send Verify Code"
     },
@@ -1627,6 +1628,8 @@
     },
     "errors": {
       "generic": "Something went wrong. Please try again.",
+      "accountNotFound": "No KEEL account uses this email address. Check the spelling or create an account.",
+      "emailDeliveryFailed": "We couldn't send the email right now. No code was sent. Please try again in a few minutes.",
       "network": "Unable to connect. Check your connection and try again.",
       "sessionExpired": "Your session has expired or is no longer valid. Please sign in again.",
       "serverUnavailable": "The service is temporarily unavailable. Please try again later.",

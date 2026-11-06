@@ -20,12 +20,14 @@ than guessed at.
 """
 
 import logging
+import smtplib
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from src.ai import db
@@ -51,10 +53,39 @@ logger = logging.getLogger("APEX_AUTH")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _INVALID_CREDENTIALS_DETAIL = "Invalid email or password."
-# Same message for "no such email" and "already verified"/"nothing to
-# reset" - standard account-enumeration defense, the exact convention
-# login already established below for "no such email" vs "wrong password".
-_GENERIC_CODE_SENT_DETAIL = "If that email is registered, a code has been sent."
+# Account-code emails (password reset, email verification) report what really
+# happened. Existence policy: the same fact signup already discloses (409 for a
+# registered address), behind the same per-email send throttle and anonymous
+# request rate limit - never more (no names, verification state or codes).
+_CODE_SENT_DETAIL = "We've emailed you a 6-digit code."
+_ACCOUNT_NOT_FOUND_DETAIL = "No KEEL account uses this email address. Check the spelling or create an account."
+_DELIVERY_FAILED_DETAIL = "We couldn't send the email right now. Please try again in a few minutes."
+
+
+def _code_sent_response() -> dict:
+    return {"status": "sent", "detail": _CODE_SENT_DETAIL}
+
+
+def _account_not_found_response() -> JSONResponse:
+    return JSONResponse(status_code=404, content={"code": "ACCOUNT_NOT_FOUND", "detail": _ACCOUNT_NOT_FOUND_DETAIL})
+
+
+def _delivery_failed_response() -> JSONResponse:
+    return JSONResponse(status_code=503, content={"code": "EMAIL_DELIVERY_FAILED", "detail": _DELIVERY_FAILED_DETAIL},
+                        headers={"Retry-After": "60"})
+
+
+def _deliver_account_code(send, email: str, code: str) -> bool:
+    """True only when the provider accepted the message. Unconfigured email,
+    timeouts, refused logins and rejected messages are all False; only the
+    error type and a masked address are logged (never the code or server text,
+    which can echo credentials)."""
+    try:
+        return bool(send(email, code))
+    except (smtplib.SMTPException, OSError) as exc:
+        logger.warning("Account code email not delivered (%s) to=%s", type(exc).__name__,
+                       notifications.mask_address(email))
+        return False
 
 
 def _fetch_user_by_email(conn, email: str):
@@ -107,9 +138,14 @@ def _send_account_code(conn, email: str, user_id, token_type: str, expiry: int) 
     return code
 
 
-def _send_verification_code(conn, email: str, user_id) -> None:
-    code = _send_account_code(conn, email, user_id, "EMAIL_VERIFICATION", EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES)
-    notifications.send_email_verification_email(email, code)
+def _issue_and_deliver_code(conn, email: str, user_id, token_type: str, expiry: int, send) -> bool:
+    """Create the code, send it, and cancel it again if it was never delivered
+    (it still counts against the per-account send budget, so retries stay limited)."""
+    code = _send_account_code(conn, email, user_id, token_type, expiry)
+    if _deliver_account_code(send, email, code):
+        return True
+    _cancel_active_codes(conn, token_type, email)
+    return False
 
 
 def _fetch_user_memberships(conn, user_id):
@@ -531,33 +567,30 @@ def _consume_token(conn, token_id) -> None:
 
 
 @router.post("/password/forgot")
-def forgot_password(body: ForgotPasswordRequest) -> dict:
+def forgot_password(body: ForgotPasswordRequest):
     """
-    Always returns the same generic response whether or not the email is
-    registered - the same account-enumeration defense POST /auth/login's
-    own docstring already documents for "no such email" vs "wrong
-    password". The real code is only ever handed to notifications.
-    send_password_reset_email() (logged, not returned in this response) -
-    see that module's own docstring for how to read it in local
-    development without a real SMTP provider configured.
+    Three truthful outcomes: 200 {"status": "sent"} only when the email
+    provider accepted the message; 404 ACCOUNT_NOT_FOUND for an unregistered
+    address (see the existence policy above _CODE_SENT_DETAIL); 503
+    EMAIL_DELIVERY_FAILED when the account exists but the email could not be
+    sent (the unsent code is cancelled; retrying is safe and stays inside the
+    send limits). The code itself is never returned.
     """
     auth_throttle.ensure_allowed("send", body.email)
     auth_throttle.record_failure("send", body.email)  # counts requests, not failures
     conn = db.auth_lookup_connection()
     try:
         user_row = _fetch_user_by_email(conn, body.email)
-        if user_row is not None:
-            user_id = user_row[0]
-            code = _send_account_code(conn, body.email, user_id, "PASSWORD_RESET", PASSWORD_RESET_CODE_EXPIRE_MINUTES)
-            notifications.send_password_reset_email(body.email, code)
-    except HTTPException as exc:
+        if user_row is None:
+            return _account_not_found_response()
+        delivered = _issue_and_deliver_code(conn, body.email, user_row[0], "PASSWORD_RESET",
+                                            PASSWORD_RESET_CODE_EXPIRE_MINUTES, notifications.send_password_reset_email)
+    except HTTPException:
         conn.rollback()
-        if exc.status_code != 429:
-            raise
-        # Durable send budget is deliberately silent: preserve unknown-email parity.
+        raise
     finally:
         conn.close()
-    return {"detail": _GENERIC_CODE_SENT_DETAIL}
+    return _code_sent_response() if delivered else _delivery_failed_response()
 
 
 class VerifyCodeRequest(BaseModel):
@@ -613,10 +646,9 @@ class ResendVerificationRequest(BaseModel):
     registration_token: Optional[str] = None
 
 @router.post("/email/resend-verification")
-def resend_email_verification(body: ResendVerificationRequest) -> dict:
-    """Same generic response regardless of whether the email exists or is
-    already verified - never confirms account existence to an
-    unauthenticated caller."""
+def resend_email_verification(body: ResendVerificationRequest):
+    """Same truthful outcomes and existence policy as POST /auth/password/forgot.
+    A pending registration (registration_token) keeps its own flow."""
     if body.registration_token:
         from src.ai.core import pending_registration
         return pending_registration.resend(body.email, body.registration_token)
@@ -625,16 +657,17 @@ def resend_email_verification(body: ResendVerificationRequest) -> dict:
     conn = db.auth_lookup_connection()
     try:
         user_row = _fetch_user_by_email(conn, body.email)
-        if user_row is not None:
-            _send_verification_code(conn, body.email, user_row[0])
-    except HTTPException as exc:
+        if user_row is None:
+            return _account_not_found_response()
+        delivered = _issue_and_deliver_code(conn, body.email, user_row[0], "EMAIL_VERIFICATION",
+                                            EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES,
+                                            notifications.send_email_verification_email)
+    except HTTPException:
         conn.rollback()
-        if exc.status_code != 429:
-            raise
-        # Do not reveal account existence through the database fallback budget.
+        raise
     finally:
         conn.close()
-    return {"detail": _GENERIC_CODE_SENT_DETAIL}
+    return _code_sent_response() if delivered else _delivery_failed_response()
 
 
 class VerifyEmailRequest(BaseModel):
