@@ -12,6 +12,8 @@ function toCompany(body) {
     businessSize: undefined,
     country: body.country_code || '',
     currency: body.primary_currency || '',
+    // Tenant business-calendar timezone; the API defaults unknown values to UTC.
+    timezone: body.timezone || 'UTC',
     industryKey: body.industry_key || '',
     description: body.business_description || '',
     website: body.website_url || '',

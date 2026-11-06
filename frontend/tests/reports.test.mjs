@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { reportsApi } from '../src/features/reports/api/reportsApi.js';
 import httpClient from '../src/shared/lib/httpClient.js';
+import { createReportDateRange } from '../src/features/reports/utils/reportDateRange.js';
 
 // reportsApi calls the real, mounted backend/src/ai/routers/reports.py
 // (GET /reports/sales, GET /reports/financial-summary). What's worth a
@@ -125,4 +126,28 @@ test('reportsApi.exportSales returns null when the export fails', async (t) => {
   t.after(() => { httpClient.defaults.baseURL = originalBaseURL; server.close(); });
 
   assert.equal(await reportsApi.exportSales({ format: 'json' }), null);
+});
+
+test('table and CSV, JSON, PDF exports receive the same tenant-local half-open range', async (t) => {
+  const seen = [];
+  const server = http.createServer((req, res) => {
+    const url = new URL(req.url, 'http://localhost');
+    seen.push({ path: url.pathname, format: url.searchParams.get('format'), start: url.searchParams.get('start_date'), end: url.searchParams.get('end_date') });
+    res.setHeader('Content-Type', url.pathname.endsWith('/export') ? 'application/pdf' : 'application/json');
+    res.end(url.pathname.endsWith('/export') ? 'pdf' : JSON.stringify({ rows: [], total_row_count: 0 }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const originalBaseURL = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = originalBaseURL; server.close(); });
+
+  const range = createReportDateRange('2026-08-01', '2026-08-20', 'Asia/Amman');
+  await reportsApi.getSalesReport(range);
+  for (const format of ['csv', 'json', 'pdf']) await reportsApi.exportSales({ ...range, format, lang: 'en' });
+  assert.equal(seen.length, 4);
+  for (const request of seen) {
+    assert.equal(request.start, '2026-07-31T21:00:00.000Z');
+    assert.equal(request.end, '2026-08-20T21:00:00.000Z');
+  }
+  assert.deepEqual(seen.slice(1).map(({ format }) => format), ['csv', 'json', 'pdf']);
 });
