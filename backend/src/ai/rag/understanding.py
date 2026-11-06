@@ -49,11 +49,21 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
                  "ربح", "أرباح", "ارباح", "هامش", "تكلف", "تكاليف", "خسار", "كلفة", "كسبنا", "مكسب", "مربح"),
     PRODUCTS: ("product", "item", "catalog", "catalogue", "sku", "منتج", "صنف", "اصناف", "أصناف", "سلعة", "سلع",
                "بضاعه", "بضايع", "بضائع", "برودكت"),
-    PRICING: ("price", "pricing", "charge", "expensive", "cheap", "سعر", "أسعار", "اسعار", "تسعير", "غالي", "رخيص"),
+    PRICING: ("price", "pricing", "charge", "expensive", "cheap", "سعر", "أسعار", "اسعار", "تسعير", "غالي", "رخيص",
+              # "بكم نبيع السماق؟" / "بقديش" - "for how much"
+              "بكم ", "بكام", "بقديش", "ثمن"),
     INVENTORY: ("stock", "inventory", "restock", "reorder", "out of", "warehouse",
-                "مخزون", "مخزن", "نفاد", "نفد", "خلص", "إعادة الطلب", "اعادة الطلب", "ستوك", "الستوك", "المستودع"),
+                # "how much X do we have left?", "units remaining", "what's on hand"
+                "have left", "left in", "how many left", "how much left", "remaining", "on hand",
+                "running low", "low on", "run out", "running out", "available", "availability",
+                "مخزون", "مخزن", "نفاد", "نفد", "خلص", "إعادة الطلب", "اعادة الطلب", "ستوك", "الستوك", "المستودع",
+                # "كم باقي عندنا"، "شو ضايل"، "الكمية المتبقية"، "هل هو متوفر"
+                "كم باقي", "شو باقي", "قديش باقي", "باقي عند", "باقي لدي", "متبقي", "ضايل", "ظايل", "متوفر",
+                "قرب يخلص", "رح يخلص", "حيخلص"),
     FORECAST: ("forecast", "demand", "predict", "next month", "next week", "expected sales",
-               "توقع", "الطلب", "تنبؤ", "الشهر الجاي", "الشهر القادم"),
+               "projected", "projection", "coming month", "coming weeks", "upcoming month", "outlook",
+               "will we sell", "going to sell", "expect to sell",
+               "توقع", "الطلب", "تنبؤ", "الشهر الجاي", "الشهر القادم", "الشهر المقبل", "الشهر الياي"),
     MARKETING: ("campaign", "marketing", "advert", " ad ", "ads", "promotion", "promo",
                 "حملة", "حملات", "تسويق", "اعلان", "إعلان", "ترويج"),
     COMPETITORS: ("competitor", "competition", "rival", "منافس", "المنافسة", "منافسين", "المنافسين", "كومبتيتور"),
@@ -62,7 +72,10 @@ _KEYWORDS: Dict[str, Tuple[str, ...]] = {
               "تقييم", "مراجع", "آراء", "اراء", "شكاو", "شكوى", "رضا", "رأي الزبائن", "راي الزبائن", "رأي العملاء",
               "راي العملاء", "رايهم", "رأيهم", "انطباع"),
     DOCUMENTS: ("document", "file", "contract", "agreement", "policy", "uploaded", "pdf",
-                "مستند", "ملف", "عقد", "اتفاقي", "سياسة"),
+                # what a policy document answers without the word "policy": "can customers return labneh?"
+                "return", "refund", "warranty", "guarantee", "exchange it", "exchange an",
+                "مستند", "ملف", "عقد", "اتفاقي", "سياسة",
+                "ارجاع", "إرجاع", "استرجاع", "استرداد", "استبدال", "كفالة", "كفاله", "ضمان"),
     CUSTOMER_PREFERENCE: ("why do customers", "why customers", "why people", "prefer", "choose", "rather buy",
                           "switch to", "what do customers like", "what customers like", "why do they buy",
                           "why is it popular", "why are they buying", "reject",
@@ -222,9 +235,21 @@ def correct_typos(text: str) -> str:
     return re.sub(r"[a-z]+", fix, text)
 
 
+# "بكم نبيع السماق؟", "what do we sell tahini for?": "sell" here asks the price, not how much was sold.
+_PRICE_ASK = ("بكم ", "بكام", "بقديش", "what do we sell", "what do you sell", "sell it for", "selling it for",
+              "sell for", "selling for")
+_SELL_FOR = re.compile(r"(?<![a-z])(?:sell|selling|charge|charging)\s+(?:[\w'-]+\s+){1,6}for\s*[?؟.!]?\s*$")
+_VOLUME_WORDS = ("how many", "how much did", "units", "revenue", "sold", "sales", "income", "كم بعنا", "كم بيعنا",
+                 "قديش بعنا", "مبيعات", "ايراد", "كميه", "كمية", "دخل")
+
+
 def detect_intents(text: str) -> List[str]:
     lowered = f" {_norm(text)} "
     found = [intent for intent, keywords in _KEYWORDS.items() if _has(lowered, keywords)]
+    if _SELL_FOR.search(lowered) and not _has(lowered, _VOLUME_WORDS):
+        found = [intent for intent in found if intent not in (SALES, COMPANY)] + ([PRICING] if PRICING not in found else [])
+    elif PRICING in found and SALES in found and _has(lowered, _PRICE_ASK) and not _has(lowered, _VOLUME_WORDS):
+        found.remove(SALES)
     corrected = correct_typos(lowered)
     if corrected != lowered:  # "which items are low in inventroy?": products, and the misspelt stock too
         found += [intent for intent, keywords in _KEYWORDS.items()
@@ -272,7 +297,9 @@ def is_answerable(query_text: str) -> bool:
         return False
     word_count = len(normalized.split())
     if word_count < 3 and len(normalized) < 12:
-        return False
+        # Arabic words are short: "مبيعات تموز" (July sales) is 11 characters. A short message that names a
+        # business need is a question, not small talk.
+        return bool(detect_intents(normalized))
     return True
 
 
