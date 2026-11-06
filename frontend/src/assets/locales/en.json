@@ -7121,6 +7121,7 @@
       "cityLabel": "City",
       "cityHint": "Select your city",
       "cityPlaceholder": "Select a city",
+      "countryPlaceholder": "Select a country",
       "languageLabel": "Language",
       "languageHint": "Choose the language for your KEEL application",
       "noteMarket": "Your country and city help KEEL show competitors relevant to your market.",

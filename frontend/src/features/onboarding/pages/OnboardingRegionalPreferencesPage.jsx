@@ -36,10 +36,14 @@ export function OnboardingRegionalPreferencesPage() {
           <small>{t('onboarding.region.countryHint')}</small>
           <Select
             id="setup-country"
-            value={country}
             required
             aria-required="true"
-            options={ORANGE_COUNTRIES.map((item) => ({ value: item.value, label: t(item.labelKey) }))}
+            value={countryIsValid ? country : ''}
+            options={[
+              // Without a placeholder the browser shows the first country as if it were chosen.
+              { value: '', label: t('onboarding.region.countryPlaceholder') },
+              ...ORANGE_COUNTRIES.map((item) => ({ value: item.value, label: t(item.labelKey) })),
+            ]}
             onChange={(event) => setRegionalPreferences({ country: event.target.value, city: '' })}
           />
         </div>

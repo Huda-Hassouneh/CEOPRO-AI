@@ -210,3 +210,23 @@ def test_partial_validation_upload_is_visible_and_not_falsely_completed(api, own
     assert detail.json()["review_status"] == "review_required"
     assert detail.json()["rows"][0]["canonical_posting_status"] == "not_committed"
     assert detail.json()["rows"][0]["validation_findings"]
+
+
+def test_an_upload_larger_than_one_draft_imports_every_row(api, admin_conn, owner):
+    """A sales export with more rows than one review draft holds (10,000)
+    used to fail the whole upload with a 500; it is now recorded as parts and
+    every row is imported."""
+    rows = 10_250
+    body = "product_name,quantity,unit_price,currency,transaction_date\n" + "".join(
+        f"M97 Bulk Item {i % 7},1,2.50,JOD,2026-{1 + i % 9:02d}-{1 + i % 27:02d}\n" for i in range(rows))
+    upload = api.post("/extraction/upload", files={"file": ("bulk.csv", body.encode(), "text/csv")}, headers=owner["headers"])
+    assert upload.status_code == 200, upload.text[:500]
+    result = upload.json()
+    assert result["promotion"]["rows_promoted"] == rows
+    draft = result["import_draft"]
+    assert draft["row_count"] == rows and draft["parts"] == 3 and len(set(draft["batch_ids"])) == 3
+    with admin_conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM keel_import_draft_rows WHERE tenant_id=%s", (owner["tenant"],))
+        assert cur.fetchone()[0] == rows
+        cur.execute("SELECT count(*) FROM transactions WHERE tenant_id=%s", (owner["tenant"],))
+        assert cur.fetchone()[0] == rows

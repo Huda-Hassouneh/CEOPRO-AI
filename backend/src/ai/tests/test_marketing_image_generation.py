@@ -196,6 +196,8 @@ def test_huggingface_json_error_and_missing_token(monkeypatch):
 
 def test_a_failing_or_busy_provider_falls_back_to_the_next(monkeypatch, _clean_env):
     monkeypatch.setattr(image_generation.random, "shuffle", lambda items: None)  # fixed order for the scripted replies
+    # Speed history left in Redis by earlier tests must not reorder the scripted providers.
+    monkeypatch.setenv("MARKETING_IMAGE_FASTEST_FIRST", "false")
     monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "acc")
     monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "cf")
     monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
