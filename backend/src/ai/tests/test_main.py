@@ -1243,6 +1243,7 @@ def test_unhandled_exception_returns_a_generic_500_not_a_leaked_message():
     case the global handler exists for."""
     fake_conn = MagicMock()
     with patch("src.ai.routers.pricing.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.pricing.usage.get_plan", return_value={"assigned": True, "status": "active"}), \
          patch(
              "src.ai.routers.pricing.pricing_pipeline.run_price_recommendation",
              side_effect=RuntimeError("some internal detail that must never reach the caller"),

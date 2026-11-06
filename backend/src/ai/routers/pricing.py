@@ -22,10 +22,20 @@ router = APIRouter(prefix="/pricing", tags=["pricing"])
 logger = logging.getLogger("CEOPRO_AI_PRICING_ROUTER")
 
 
+def _require_active_subscription(conn, tenant_id: str) -> None:
+    """Local pricing is included in every assigned, access-granting plan."""
+    plan = usage.get_plan(conn, tenant_id)
+    # No pricing feature code: this checks subscription access, not a module/quota.
+    usage._require_active(plan, None)
+    if not plan["assigned"]:
+        raise usage.PlanLimitReached("SUBSCRIPTION_INACTIVE", None)
+
+
 @router.post("/recommend")
 def pricing_recommend(product_id: UUID, ctx: TenantContext = Depends(get_tenant_context), idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        _require_active_subscription(conn, ctx.tenant_id)
         product_id=str(product_id)
         if isinstance(idempotency_key,str):
             if not 1<=len(idempotency_key)<=200 or not idempotency_key.isascii() or any(ord(ch)<33 or ord(ch)>126 for ch in idempotency_key):
@@ -60,6 +70,7 @@ def pricing_recommend_all(ctx: TenantContext = Depends(get_tenant_context)) -> d
     """A decision for every active product - none is left without one for lack of market data."""
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
+        _require_active_subscription(conn, ctx.tenant_id)
         result = pricing_pipeline.run_price_recommendations_for_all(conn, ctx.tenant_id)
         conn.commit()
         return result
