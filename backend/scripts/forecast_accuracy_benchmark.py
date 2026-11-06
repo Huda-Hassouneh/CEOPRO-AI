@@ -35,7 +35,7 @@ import sys
 import time
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -114,11 +114,18 @@ def _company_rows(key: str, origins: int, end: date) -> list:
     return rows
 
 
+def _one_thread_per_worker():
+    """XGBoost uses every core by default; several worker processes each doing so oversubscribe the CPU
+    and run many times slower than one process (seen: >2 h instead of 20 min on 4 cores)."""
+    from src.ai.forecasting import model
+    model.DEFAULT_PARAMS["n_jobs"] = 1
+
+
 def run(origins: int, only=None, end: date = DEFAULT_END, workers: int = 1) -> dict:
     started = time.time()
     keys = [c.key for c in COMPANIES if not only or c.key in only]
     if workers > 1:
-        with ProcessPoolExecutor(max_workers=workers) as pool:
+        with ProcessPoolExecutor(max_workers=workers, initializer=_one_thread_per_worker) as pool:
             parts = list(pool.map(_company_rows, keys, [origins] * len(keys), [end] * len(keys)))
     else:
         parts = [_company_rows(key, origins, end) for key in keys]
