@@ -203,6 +203,10 @@ def persist_import_draft(conn, *, tenant_id: str, actor_id: str, source_id: str,
             "category": category, "row_count": len(validated)}
 
 
+# Well inside the database's 10,000-row / 8 MB limit per draft.
+DRAFT_PART_ROWS = 5000
+
+
 def record_sales_extraction_draft(conn, *, tenant_id: str, actor_id: str, job_id: str, summary: Any) -> dict[str, Any]:
     """Create a draft from existing extraction staging without changing its promotion path."""
     with conn.cursor() as cursor:
@@ -241,9 +245,22 @@ def record_sales_extraction_draft(conn, *, tenant_id: str, actor_id: str, job_id
                 else "invalid"
             )
         rows.append(row)
-    return persist_import_draft(conn, tenant_id=tenant_id, actor_id=actor_id, source_id=source_id,
-                                job_id=job_id, category="sales", rows=rows,
-                                provenance={"pipeline": "python_extraction", "kind": "sales"})
+    # One draft holds at most 10,000 rows (keel_import_batch_create97), but an
+    # upload may carry more (10 MB). Larger files are recorded as consecutive
+    # parts; part 1 keeps the original idempotency key, so retries and
+    # single-part imports behave exactly as before.
+    parts = [rows[start:start + DRAFT_PART_ROWS] for start in range(0, len(rows), DRAFT_PART_ROWS)] or [rows]
+    results = [persist_import_draft(conn, tenant_id=tenant_id, actor_id=actor_id, source_id=source_id,
+                                    job_id=job_id, category="sales", rows=part,
+                                    idempotency_key=None if number == 1 else f"sales:{job_id}:part{number}",
+                                    provenance={"pipeline": "python_extraction", "kind": "sales",
+                                                **({"part": number, "parts": len(parts)} if len(parts) > 1 else {})})
+               for number, part in enumerate(parts, start=1)]
+    first = dict(results[0])
+    if len(results) > 1:
+        first.update(row_count=len(rows), parts=len(results), batch_ids=[r["batch_id"] for r in results],
+                     duplicate=all(r["duplicate"] for r in results))
+    return first
 
 
 def decide_import_review(conn, *, batch_id: str, revision_id: str, decision: str,
