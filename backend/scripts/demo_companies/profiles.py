@@ -433,3 +433,37 @@ CLARITY = Company(
 )
 
 COMPANIES = [ZAYTOUNA, ATLAS, BEIT_SHAWARMA, NOUR_BEAUTY, PETRA_INDUSTRIAL, BYTEFIX, CLARITY]
+
+
+# --- VELORA: the owner's DEMO company on keelai.net -------------------------
+# Opt-in only (generate.py --only velora); COMPANIES above stays the seven
+# acceptance companies. Same tested Jordan specialty-food history as Zaytouna,
+# relabelled so nobody mistakes it for real records: the business type says
+# DEMO, every product carries the VELORA brand, and every competitor is a
+# fictional "DEMO" business on a reserved .example domain (no real company's
+# name is paired with invented prices).
+def _velora():
+    from dataclasses import replace
+
+    demo_names = {}
+    competitors = []
+    for number, competitor in enumerate(ZAYTOUNA.competitors, start=1):
+        name = f"DEMO Competitor {number:02d}"
+        demo_names[competitor.name] = name
+        competitors.append(replace(competitor, name=name, website=f"https://demo-competitor-{number:02d}.example"))
+    return replace(
+        ZAYTOUNA,
+        key="velora",
+        business_name="VELORA",
+        owner_name="Huda Hassouneh",
+        email_local="huda",
+        business_type="DEMO (synthetic data) - specialty food & gift retailer, 2 stores in Amman + online delivery",
+        documents=[],
+        products=[replace(product, brand="VELORA") for product in ZAYTOUNA.products],
+        competitors=competitors,
+    )
+
+
+VELORA = _velora()
+EXTRA_COMPANIES = [VELORA]
+ALL_COMPANIES = COMPANIES + EXTRA_COMPANIES
