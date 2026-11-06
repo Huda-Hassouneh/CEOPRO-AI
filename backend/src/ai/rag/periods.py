@@ -21,7 +21,7 @@ from typing import List, Optional, Tuple
 
 # Normalised month names, English and Arabic (Levantine/Iraqi and Egyptian/Gulf names).
 MONTH_NAMES = _MONTHS = {
-    1: ("january", "jan", "كانون الثاني", "كانون ثاني", "يناير"),
+    1: ("january", "jan", "كانون الثاني", "كانون ثاني", "كانون التاني", "كانون تاني", "يناير"),
     2: ("february", "feb", "شباط", "فبراير"),
     3: ("march", "اذار", "مارس"),
     4: ("april", "apr", "نيسان", "ابريل", "إبريل"),
@@ -31,7 +31,7 @@ MONTH_NAMES = _MONTHS = {
     8: ("august", "aug", "اب", "اغسطس", "أغسطس"),
     9: ("september", "sept", "sep", "ايلول", "سبتمبر"),
     10: ("october", "oct", "تشرين الاول", "تشرين اول", "اكتوبر"),
-    11: ("november", "nov", "تشرين الثاني", "تشرين ثاني", "نوفمبر"),
+    11: ("november", "nov", "تشرين الثاني", "تشرين ثاني", "تشرين التاني", "تشرين تاني", "نوفمبر"),
     12: ("december", "dec", "كانون الاول", "كانون اول", "ديسمبر"),
 }
 # Words that are only a month when they stand next to a month cue: "may" is a verb, "اب" a father.
@@ -151,7 +151,7 @@ _RELATIVE = (
     (("this week", "هالاسبوع", "هذا الاسبوع", "الاسبوع الحالي", "الاسبوع ده", "هالجمعه"), "this_week"),
     (("last week", "previous week", "الاسبوع الماضي", "الاسبوع اللي فات", "الاسبوع السابق"), "last_week"),
     (("this month", "current month", "month to date", "month-to-date", "mtd", "هالشهر", "هذا الشهر", "الشهر الحالي",
-      "الشهر ده", "هاد الشهر", "هذا الشهر الحالي", "since the start of the month", "since the beginning of the month",
+      "الشهر ده", "هاد الشهر", "الشهر هاد", "الشهر هذا", "هذا الشهر الحالي", "since the start of the month", "since the beginning of the month",
       "from the start of the month", "من بدايه الشهر", "من اول الشهر", "منذ بدايه الشهر"),
      "this_month"),
     (("last month", "previous month", "الشهر الماضي", "الشهر اللي فات", "الشهر السابق", "الشهر المنصرم"), "last_month"),
@@ -213,7 +213,19 @@ _ROLLING_WORDS = (
 )
 
 
+# Number words people write instead of digits: "آخر سبعة أيام", "اخر تلاتين يوم", "the last seven days".
+_NUMBER_WORDS = {
+    "واحد": 1, "اثنين": 2, "اتنين": 2, "ثلاث": 3, "ثلاثه": 3, "تلات": 3, "تلاته": 3, "اربع": 4, "اربعه": 4, "خمس": 5,
+    "خمسه": 5, "ست": 6, "سته": 6, "سبع": 7, "سبعه": 7, "ثمان": 8, "ثمانيه": 8, "تمن": 8, "تمنيه": 8, "تسع": 9, "تسعه": 9,
+    "عشر": 10, "عشره": 10, "اربعطعش": 14, "اربعتعش": 14, "اربعه عشر": 14, "ثلاثين": 30, "تلاتين": 30, "ستين": 60,
+    "تسعين": 90, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+    "ten": 10, "fourteen": 14, "thirty": 30, "sixty": 60, "ninety": 90,
+}
+_NUMBER_WORD = re.compile(r"(?<![\w])(" + "|".join(sorted(map(re.escape, _NUMBER_WORDS), key=len, reverse=True)) + r")(?![\w])")
+
+
 def rolling_days(text: str) -> Optional[int]:
+    text = _NUMBER_WORD.sub(lambda m: str(_NUMBER_WORDS[m[1]]), text)
     for pattern, unit in _ROLLING:
         match = pattern.search(text)
         if match:
@@ -278,6 +290,10 @@ def _mentions(text: str, today: date) -> List[Tuple[int, int, str, object]]:
     for match in _MONTH_SLASH_YEAR.finditer(text):
         if 1 <= int(match[1]) <= 12:
             add(match.start(), match.end(), "month", (int(match[2]), int(match[1])))
+    for match in re.finditer(rf"(?<!\d)(\d{{1,2}})(?:st|nd|rd|th)?\s*(?:and|to|until|till|through|-|–|الى|إلى|لـ?|و|حتى)\s*"
+                             rf"(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:of\s+)?({_MONTH_ALTERNATION})(?:\s*,?\s*{_YEAR})?", text):
+        month = _month_number(match[3]); year = int(match[4]) if match[4] else None
+        add(match.start(1), match.end(1), "day_open", (year, month, int(match[1])))
     for match in _DAY_MONTH.finditer(text):
         month = _month_number(match[2])
         year = int(match[3]) if match[3] else None
@@ -292,6 +308,14 @@ def _mentions(text: str, today: date) -> List[Tuple[int, int, str, object]]:
         number = int(match[1]) if match[1] else _ORDINAL_QUARTER.get(match[3] or match[5])
         year = match[2] or match[4] or match[6]
         add(match.start(), match.end(), "quarter", (int(year) if year else None, number))
+        # "الربع الاول والتاني", "Q1 and second": another quarter named by its ordinal alone
+        tail = re.match(r"\s*(?:و|ب|مع\s+|and\s+|&\s*|with\s+(?:the\s+)?|vs\.?\s+|versus\s+)(?:ال)?"
+                        r"(اول|ثاني|ثالث|رابع|تاني|تالت|first|second|third|fourth)(?![\w])",
+                        text[match.end():])
+        if tail:
+            other = _ORDINAL_QUARTER.get(tail[1]) or _ORDINAL_QUARTER.get("ال" + tail[1])
+            if other:
+                add(match.end() + tail.start(1), match.end() + tail.end(1), "quarter", (int(year) if year else None, other))
     for match in _HALF.finditer(text):
         number = int(match[1]) if match[1] else _ORDINAL_HALF.get(match[3] or match[5])
         year = match[2] or match[4] or match[6]
@@ -300,6 +324,18 @@ def _mentions(text: str, today: date) -> List[Tuple[int, int, str, object]]:
         month = int(match[1])
         if 1 <= month <= 12:
             add(match.start(), match.end(), "month", (int(match[2]) if match[2] else None, month))
+    for match in re.finditer(rf"({_MONTH_ALTERNATION})\s+(?:of\s+)?(?:this year|السنه دي|السنه هاي|هذه السنه|هذا العام|من هذا العام|"
+                             rf"السنه الحاليه)(?![\w])", text):
+        name = match[1] if match[1] in _MONTH_BY_NAME else match[1][1:]
+        if _MONTH_BY_NAME.get(name):
+            add(match.start(), match.end(), "month", (today.year, _MONTH_BY_NAME[name]))
+    for match in re.finditer(rf"({_MONTH_ALTERNATION})\s+(?:of\s+)?(?:last year|the previous year|من السنه الماضيه|السنه الماضيه|"
+                             rf"السنه اللي فاتت|السنه اللي فاتت دي|من العام الماضي|العام الماضي|اللي فات|الماضي)(?![\w])", text):
+        name = match[1] if match[1] in _MONTH_BY_NAME else match[1][1:]
+        month = _MONTH_BY_NAME.get(name)
+        if month:
+            year = today.year - 1 if ("year" in match[0] or "سنه" in match[0] or "عام" in match[0]) else _recent_year(month, today)
+            add(match.start(), match.end(), "month", (year, month))
     for match in _MONTH_YEAR.finditer(text):
         name = match[1] if match[1] in _MONTH_BY_NAME else match[1][1:]
         lead = text[max(0, match.start() - 10):match.start()]
@@ -315,7 +351,9 @@ def _mentions(text: str, today: date) -> List[Tuple[int, int, str, object]]:
         for match in _MONTH_YEAR.finditer(text):
             name = match[1] if match[1] in _MONTH_BY_NAME else match[1][1:]
             lead = text[max(0, match.start() - 12):match.start()]
-            compared = name != match[1] or re.search(r"(vs\.?|versus|and|or|with|than|مقارنه|مع|او)\s*$", lead)
+            follows = text[match.end():match.end() + 30]
+            compared = (name != match[1] or re.search(r"(vs\.?|versus|and|or|with|than|مقارنه|مع|او)\s*$", lead)
+                        or re.match(rf"\s*(?:vs\.?|versus|and|or|with|to|-|و|مع|او)\s*({_MONTH_ALTERNATION})", follows))
             if name in _AMBIGUOUS and compared:
                 add(match.start(), match.end(), "month", (int(match[2]) if match[2] else None, _MONTH_BY_NAME[name]))
     for match in _STANDALONE_YEAR.finditer(text):
@@ -349,16 +387,38 @@ def _close(kind: str, value, today: date, year_hint: Optional[int] = None) -> Op
     return None
 
 
+# "شهر عشرة" / "بشهر تسعة": a month named by its number in words (same length kept, so offsets stay valid).
+_SPELLED_MONTH = {"واحد": 1, "اتنين": 2, "اثنين": 2, "تلاته": 3, "ثلاثه": 3, "اربعه": 4, "خمسه": 5, "سته": 6,
+                  "سبعه": 7, "تمانيه": 8, "ثمانيه": 8, "تسعه": 9, "عشره": 10, "حداعش": 11, "احدعش": 11,
+                  "اطنعش": 12, "اثنعش": 12}
+_SPELLED_MONTH_RE = re.compile(r"(?<=شهر )(" + "|".join(_SPELLED_MONTH) + r")(?![\w])")
+
+
+def _spelled_month_numbers(text: str) -> str:
+    return _SPELLED_MONTH_RE.sub(lambda m: str(_SPELLED_MONTH[m.group(1)]).ljust(len(m.group(1))), text)
+
+
 def resolve_periods(text: str, today: date) -> List[dict]:
     """Every period `text` (already normalised) names, in the order named:
     relative ones ("last month"), months, quarters, years, single days and
     "from X to Y" ranges. At most 4."""
+    text = _spelled_month_numbers(text)
     periods: List[Tuple[int, dict]] = []
     covered: List[Tuple[int, int]] = []
+    until_now = re.compile(r"(?:until now|till now|to date|up to today|until today|لهلق|لهلا|لهسا|لحد دلوقتي|لحد الان|لحد النهارده|"
+                           r"لحد اليوم|حتى الان|حتى اليوم|لليوم|لغايه اليوم)")
     for phrases, key in _RELATIVE:
         for phrase in phrases:
             # "والسنة الماضية", "بالشهر الماضي": an attached conjunction or preposition is still the period.
             for match in re.finditer(_word(phrase, prefixed=True), text):
+                if key == "last_year" and re.search(rf"({_MONTH_ALTERNATION})\s+(?:of\s+|من\s+)?$", text[:match.start()]):
+                    continue  # "December last year": the year qualifies the month (see _mentions)
+                if key == "today" and until_now.search(text[max(0, match.start() - 6):match.end()]):
+                    continue  # "لحد النهارده" closes a range ("من أول سبتمبر لحد النهارده"); not a day of its own
+                if key == "this_year" and re.search(
+                        rf"(?:({_MONTH_ALTERNATION})|q[1-4]|h[12]|quarter|half|الربع\s+\S+|النصف\s+\S+)\s+(?:of\s+|من\s+)?$",
+                        text[:match.start()]):
+                    continue  # "النصف الأول من هذا العام", "Q3 this year": the year qualifies the period before it
                 if all(match.end() <= s or match.start() >= e for s, e in covered):
                     periods.append((match.start(), _relative(key, today)))
                     covered.append((match.start(), match.end()))
@@ -393,8 +453,9 @@ def resolve_periods(text: str, today: date) -> List[dict]:
             continue
         period = _close(kind, value, today, year_hint)
         if period and kind in ("day", "day_open", "month", "quarter", "half") and re.search(
-                r"(?<![a-z])(since|starting|starting from|ever since)\s*$|(?<![" + _ARABIC + r"])(منذ|من وقت|من بدايه)\s*$",
-                text[max(0, start - 16):start]):
+                r"(?<![a-z])(since|starting|starting from|ever since|from the (?:start|beginning) of)\s*$|"
+                r"(?<![" + _ARABIC + r"])(منذ|من وقت|من بدايه|من اول|من أول|من بدايه شهر|من اول شهر)\s*$",
+                text[max(0, start - 30):start]):
             # "since June", "منذ حزيران": from the start of that period up to today.
             begin = date.fromisoformat(period["start"])
             period = _period(begin, today + timedelta(days=1), f"{begin.isoformat()} to {today.isoformat()}", "days")

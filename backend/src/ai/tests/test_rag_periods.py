@@ -195,3 +195,24 @@ def test_numeric_months_and_arabic_month_cues(question, expected):
 
 def test_a_father_is_not_august():
     assert _labels("زرت ابي آب") == []
+
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("Revenue between 1 and 15 October", ["2026-10-01 to 2026-10-15"]),
+    ("مبيعات من 1 لـ 15 أكتوبر", ["2026-10-01 to 2026-10-15"]),
+    ("مبيعات النصف الأول من هذا العام", ["H1 2026"]),
+    ("sales for December last year", ["December 2025"]),
+    ("Compare May and June", ["May 2026", "June 2026"]),
+    ("قارنلي مبيعات الربع الأول والتاني", ["Q1 2026", "Q2 2026"]),
+])
+def test_ranges_qualified_years_and_joined_periods(question, expected):
+    assert _labels(question) == expected
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("المبيعات تبعت شهر تسعه", ["September 2026"]),   # TODAY here is 29 October 2026
+    ("الأوردرات الشهر هاد", ["October 2026 to date"]),
+])
+def test_a_month_spelled_as_a_number_and_this_month_after_the_noun(question, expected):
+    assert _labels(question) == expected
