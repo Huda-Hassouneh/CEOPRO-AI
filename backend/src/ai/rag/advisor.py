@@ -544,7 +544,7 @@ def _fact_sections(conn, tenant_id: str, u: understanding.Understanding, access:
     general = not u.intents
     if not wanted and not general:
         return 0
-    if u.slots.get("all_history"):
+    if u.slots.get("all_history") and "sales" not in skip:
         if access.allows(acl.SALES):
             return len(registry.add_fact_lines(build_historical_sales_lines(conn, tenant_id), route="/reports",
                        capabilities=frozenset({acl.SALES}), observed_at=datetime.now(timezone.utc)))
@@ -586,10 +586,16 @@ def _analysis(conn, tenant_id: str, u: understanding.Understanding, access: acl.
     return added
 
 
-def _sales_periods(u: understanding.Understanding, today) -> List[dict]:
-    """The periods to report sales for: those the question names, else its rolling window, else the last 30 days."""
+def _sales_periods(u: understanding.Understanding, today, coverage=None) -> List[dict]:
+    """The periods to report: explicit dates, all stored invoice dates, or a rolling window."""
     if u.slots.get("periods"):
         return list(u.slots["periods"])
+    if u.slots.get("all_history"):
+        if coverage is None:
+            return []
+        first, last = coverage
+        return [{"start": first.isoformat(), "end": (last + timedelta(days=1)).isoformat(),
+                 "label": "all stored history", "kind": "all_history"}]
     days = int(u.slots.get("period_days") or 30)
     start = today - timedelta(days=days - 1)
     return [{"start": start.isoformat(), "end": (today + timedelta(days=1)).isoformat(),
@@ -655,14 +661,17 @@ def _records(conn, tenant_id: str, u: understanding.Understanding, access: acl.A
     if asks_sales and access.allows(acl.SALES):
         def sales() -> None:
             coverage = business_records.sales_coverage(conn, tenant_id)
-            periods = _sales_periods(u, day)
+            periods = _sales_periods(u, day, coverage)
+            if u.slots.get("all_history") and not coverage:
+                add(["All historical sales (live invoices, every stored date): no invoices recorded."],
+                    "/sales", acl.SALES)
             several = len(periods) > 1
             for period in periods:
                 add(business_records.sales_lines(
                     conn, tenant_id, period, product_ids=product_ids, language=language,
                     with_costs=access.allows(acl.COSTS) and (U.FINANCIALS in intents or not several),
                     series=bool(slots.get("series")), customers=bool(slots.get("customer_ranking")),
-                    coverage=coverage, compare_previous=not several,
+                    coverage=coverage, compare_previous=not several and not u.slots.get("all_history"),
                     top=business_records.TOP_PRODUCTS if ranking and not several else 5), "/sales", acl.SALES)
             add(business_records.comparison_lines(conn, tenant_id, periods), "/sales", acl.SALES)
 

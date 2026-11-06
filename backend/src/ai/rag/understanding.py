@@ -698,7 +698,7 @@ def _contains_run(haystack: List[str], needle: List[str]) -> bool:
 
 def _all_history(text: str) -> bool:
     return bool(re.search(
-        r"\b(?:all[- ]time|lifetime|all (?:of )?(?:our |the )?(?:sales )?history|all historical sales|"
+        r"\b(?:all[- ]time|lifetime|all (?:of )?(?:our |the )?(?:available )?(?:invoice )?(?:sales )?history|all historical sales|"
         r"entire (?:sales )?history|since (?:the )?beginning)\b|"
         r"(?:كامل|كل|جميع) (?:سجل |تاريخ |تاريخية )?(?:المبيعات|الفترات)|منذ البداية|على مر التاريخ", text))
 
