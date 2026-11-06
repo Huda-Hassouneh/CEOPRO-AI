@@ -56,7 +56,11 @@ BEGIN
  END IF;
  RAISE EXCEPTION 'Unsupported provider routing capability' USING ERRCODE='42501';
 END $$;
+-- A non-superuser may hand a function only to a role that can create in its schema;
+-- granted for this statement alone and revoked at once (same end state as a superuser run).
+GRANT CREATE ON SCHEMA public TO ceopro_billing_lookup;
 ALTER FUNCTION public.billing_provider_tenant(text,text) OWNER TO ceopro_billing_lookup;
+REVOKE CREATE ON SCHEMA public FROM ceopro_billing_lookup;
 REVOKE ALL ON FUNCTION public.billing_provider_tenant(text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_provider_tenant(text,text) TO ceopro_billing_webhook;
 CREATE FUNCTION public.billing_provider_month_spend(p_provider text,p_model text,p_since timestamptz) RETURNS numeric
@@ -65,7 +69,11 @@ CREATE FUNCTION public.billing_provider_month_spend(p_provider text,p_model text
  WHERE (p_provider IS NULL OR provider=p_provider) AND (p_model IS NULL OR provider_operation=p_model)
  AND created_at>=p_since AND status<>'released'
 $$;
+-- A non-superuser may hand a function only to a role that can create in its schema;
+-- granted for this statement alone and revoked at once (same end state as a superuser run).
+GRANT CREATE ON SCHEMA public TO ceopro_billing_lookup;
 ALTER FUNCTION public.billing_provider_month_spend(text,text,timestamptz) OWNER TO ceopro_billing_lookup;
+REVOKE CREATE ON SCHEMA public FROM ceopro_billing_lookup;
 REVOKE ALL ON FUNCTION public.billing_provider_month_spend(text,text,timestamptz) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_provider_month_spend(text,text,timestamptz) TO ceopro_credit_accounting;
 CREATE FUNCTION public.billing_expired_credit_tenants(p_seconds integer) RETURNS SETOF uuid
@@ -73,7 +81,11 @@ CREATE FUNCTION public.billing_expired_credit_tenants(p_seconds integer) RETURNS
  SELECT DISTINCT tenant_id FROM public.usage_ledger WHERE status='reserved'
  AND p_seconds>0 AND created_at<now()-make_interval(secs=>p_seconds)
 $$;
+-- A non-superuser may hand a function only to a role that can create in its schema;
+-- granted for this statement alone and revoked at once (same end state as a superuser run).
+GRANT CREATE ON SCHEMA public TO ceopro_billing_lookup;
 ALTER FUNCTION public.billing_expired_credit_tenants(integer) OWNER TO ceopro_billing_lookup;
+REVOKE CREATE ON SCHEMA public FROM ceopro_billing_lookup;
 REVOKE ALL ON FUNCTION public.billing_expired_credit_tenants(integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_expired_credit_tenants(integer) TO ceopro_credit_accounting;
 GRANT SELECT ON public.billing_customers TO ceopro_billing_webhook;
@@ -206,7 +218,11 @@ BEGIN
  UPDATE public.billing_subscriptions SET scheduled_plan_key=p_plan,scheduled_period_code=p_period,updated_at=now()
  WHERE tenant_id=t AND stripe_subscription_id=p_subscription;
 END $$;
+-- A non-superuser may hand a function only to a role that can create in its schema;
+-- granted for this statement alone and revoked at once (same end state as a superuser run).
+GRANT CREATE ON SCHEMA public TO ceopro_schedule_writer;
 ALTER FUNCTION public.billing_setup_schedule(text,text,text) OWNER TO ceopro_schedule_writer;
+REVOKE CREATE ON SCHEMA public FROM ceopro_schedule_writer;
 REVOKE ALL ON FUNCTION public.billing_setup_schedule(text,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_setup_schedule(text,text,text) TO ceopro_billing_setup;
 

@@ -193,7 +193,20 @@ competitors vs market research) that a native reviewer or product owner should c
   takes 7–15 s (median), with P95 overall about 15 s and max 48 s. Peak memory is 5.8 GB, with zero invalid model
   replies.
 
-The new final set `sealed_jo2` (fingerprint `3a77bc40…`) has not been scored; it needs approval first.
+**Final result, Jordanian set 2** (scored once with approval on 2026-11-06, aggregate only, fingerprint
+`3a77bc40…` unchanged before and after): **84/91 = 92.3%, 95% CI 85.0–96.2.**
+
+- **Below the 95% minimum.** The set is also unreviewed by a native speaker.
+- **By kind of question:**
+  - simple 30/32, colloquial 28/30, compound 10/11, ambiguous 4/6
+  - typos 8/8, mixed English 4/4
+- **By business area:**
+  - debts 14/14, sales 16/16, inventory 16/17
+  - profit 13/15, multi-part 10/12, customers/reviews 0/2
+- **The 7 failing questions:** 5 missed a need (intent recall), 3 added an extra need (intent precision), and 1
+  missed the product.
+- **Speed and reliability:** the model was asked on 24/91 questions, with no invalid replies. Rules-only questions
+  take about 3 ms; P95 15.7 s, max 17.7 s. Peak memory 5.8 GB.
 
 ### Limits: why this is not "95% everywhere"
 

@@ -25,7 +25,7 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
-from scripts.demo_companies.profiles import COMPANIES, EID_AL_ADHA, EID_AL_FITR, HISTORY_START, RAMADAN, Company, Product
+from scripts.demo_companies.profiles import ALL_COMPANIES, COMPANIES, EID_AL_ADHA, EID_AL_FITR, HISTORY_START, RAMADAN, Company, Product
 
 MINOR_UNITS = {"JOD": 3, "KWD": 3, "BHD": 3, "OMR": 3, "TND": 3}
 
@@ -334,8 +334,9 @@ def write_reviews(reviews: list, out_dir: Path) -> str:
 def build(out_dir: Path, end: date, only: set = None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     summary = {}
-    for index, company in enumerate(COMPANIES):
-        if only and company.key not in only:
+    for index, company in enumerate(ALL_COMPANIES):
+        # Extra companies (e.g. VELORA) are generated only when asked for by name.
+        if (only and company.key not in only) or (not only and company not in COMPANIES):
             continue
         rng = random.Random(2026_10_06 + index)
         company_dir = out_dir / company.key

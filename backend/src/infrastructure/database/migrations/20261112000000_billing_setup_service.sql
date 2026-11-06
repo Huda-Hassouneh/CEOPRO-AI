@@ -68,7 +68,11 @@ BEGIN
  VALUES(t,p_plan,'trialing',n::date,e::date,'trial');
  RETURN jsonb_build_object('reason',NULL,'plan_key',p_plan,'started_at',n,'ends_at',e);
 END $$;
+-- A non-superuser may hand a function only to a role that can create in its schema;
+-- granted for this statement alone and revoked at once (same end state as a superuser run).
+GRANT CREATE ON SCHEMA public TO ceopro_trial_issuer;
 ALTER FUNCTION public.billing_setup_trial(TEXT,BOOLEAN) OWNER TO ceopro_trial_issuer;
+REVOKE CREATE ON SCHEMA public FROM ceopro_trial_issuer;
 REVOKE ALL ON FUNCTION public.billing_setup_trial(TEXT,BOOLEAN) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_setup_trial(TEXT,BOOLEAN) TO ceopro_billing_setup;
 

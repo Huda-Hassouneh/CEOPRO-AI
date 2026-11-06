@@ -11,7 +11,11 @@ BEGIN
  PERFORM 1 FROM public.tenant_users WHERE tenant_id=p_tenant AND user_id=p_actor AND removed_at IS NULL FOR SHARE;
  RETURN FOUND;
 END $$;
+-- A non-superuser may hand a function only to a role that can create in its schema;
+-- granted for this statement alone and revoked at once (same end state as a superuser run).
+GRANT CREATE ON SCHEMA public TO ceopro_schedule_writer;
 ALTER FUNCTION public.billing_accounting_principal(uuid,uuid) OWNER TO ceopro_schedule_writer;
+REVOKE CREATE ON SCHEMA public FROM ceopro_schedule_writer;
 REVOKE ALL ON FUNCTION public.billing_accounting_principal(uuid,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.billing_accounting_principal(uuid,uuid) TO ceopro_credit_accounting;
 
