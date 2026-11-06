@@ -205,7 +205,9 @@ def test_the_owners_prompt_is_sent_and_kept_and_the_channel_recorded(studio):
     result = client.post(f"/marketing/campaigns/{cid}/generate-image",
                          json={"prompt": "Kunafa slice with pistachio, top-down, soft daylight", "channel": "INSTAGRAM"},
                          headers=headers).json()
-    assert server.requests[-1][1]["prompt"] == "Kunafa slice with pistachio, top-down, soft daylight"
+    # Providers receive the owner's words inside the commercial-photo framing
+    # (image_generation.shape_prompt); the owner's own wording is what is kept.
+    assert "Kunafa slice with pistachio, top-down, soft daylight" in server.requests[-1][1]["prompt"]
     assert result["asset"]["channel"] == "INSTAGRAM"
     assert result["asset"]["prompt"] == "Kunafa slice with pistachio, top-down, soft daylight"
     reloaded = client.get(f"/marketing/campaigns/{cid}", headers=headers).json()
