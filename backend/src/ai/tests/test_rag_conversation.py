@@ -607,3 +607,41 @@ def test_conversational_and_evidence_replies_are_not_charged_to_the_plan():
     from src.ai.routers import rag as rag_router
     assert "conversation" in rag_router.NON_CHARGEABLE_MODES and "evidence" in rag_router.NON_CHARGEABLE_MODES
     assert "general_knowledge" not in rag_router.NON_CHARGEABLE_MODES, "a model-written explanation is charged"
+
+
+@pytest.mark.parametrize("message, act", [
+    ("لو سمحت", conversation.REQUEST), ("excuse me", conversation.REQUEST),
+    ("والله انك رائع", conversation.COMPLIMENT), ("you're awesome", conversation.COMPLIMENT),
+    ("برافو عليك", conversation.COMPLIMENT), ("يلا بشوفك", conversation.FAREWELL), ("منشوفك بعدين", conversation.FAREWELL),
+    ("شو بتعرف تعمل؟", conversation.IDENTITY), ("الحمدلله", conversation.ACK), ("الحمد لله تمام", conversation.ACK),
+    ("مسا النور", conversation.GREETING), ("مشكورين يا شباب", conversation.THANKS), ("🙏", conversation.THANKS),
+    ("👍", conversation.ACK), ("👋", conversation.GREETING),
+])
+def test_everyday_social_messages_are_read_by_meaning(message, act):
+    turn = conversation.classify(message)
+    assert turn.kind == conversation.SOCIAL and act in turn.acts
+    sentences, _ = conversation.social_reply(turn, message)
+    assert sentences and not any(ch.isdigit() for s in sentences for ch in s if message[0] not in "e")
+
+
+@pytest.mark.parametrize("message", ["لو سمحت قديش بعنا امبارح؟", "please show me last month's sales",
+                                     "رائع، بس ليش نزل البيع؟"])
+def test_a_polite_or_social_opener_keeps_the_business_question(message):
+    turn = conversation.classify(message)
+    assert turn.kind != conversation.SOCIAL and turn.remainder and turn.remainder != message
+
+
+@pytest.mark.parametrize("message", ["ساعدني افهم المبيعات", "شو بتعرف عن مبيعاتنا؟"])
+def test_a_request_for_help_with_a_business_topic_is_business(message):
+    assert conversation.classify(message).kind != conversation.SOCIAL
+
+
+def test_thanks_before_a_question_still_asks_it():
+    message = "الحمدلله، قديش ضل طحينة؟"
+    assert conversation.classify(message).kind != conversation.SOCIAL
+
+
+def test_replies_vary_with_the_message_not_one_fixed_line():
+    replies = {" ".join(conversation.social_reply(conversation.classify(m), m)[0])
+               for m in ("لو سمحت", "لو سمحتي", "من فضلك", "بعد اذنك", "ممكن سؤال")}
+    assert len(replies) >= 2
