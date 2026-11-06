@@ -28,3 +28,14 @@ Ordered by urgency. "Owner" means Huda Hassouneh. The owner must approve every p
   also occur on main before recent commits (REPORTED).
 - No native Jordanian speaker has reviewed any evaluation set.
 - Production answer speed and quality have not been measured.
+
+## Added 20:43 UTC (from the demo account session)
+| # | Task | Depends on | Exact next action |
+|---|---|---|---|
+| 19 | Merge and deploy the forecast-refresh fix `d214da09` (`claude/focused-goodall-kiwf2f`) | Owner approval to merge to main and deploy | Merge main (`33e2d22`) into it, run the forecast tests, then merge to main and the production branch, deploy, and refresh VELORA's forecasts |
+| 20 | Review sentiment shows 0/200 analysed for VELORA | — | Investigate the sentiment worker and its provider key in production |
+| 21 | VELORA demo QA still to do | — | Assistant in EN and Jordanian; reports and exports; Arabic mobile pass |
+| 22 | Configure MinIO (file storage) and Tavily in production | Owner keys and cost decision | Add them as Render secrets; never commit them |
+| 23 | Change the VELORA temporary password | Owner | Change it in Settings → Security |
+
+Task 5 (VELORA account) is now DONE (REPORTED). Note: the item about a separate demo email in the inventory is superseded.

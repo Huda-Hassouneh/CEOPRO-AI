@@ -80,3 +80,28 @@ git checkout main && git log --oneline -5      # expect 33e2d22 at the top (or l
   summary. Full final-turn results were read for only 7 sessions; see the inventory.
 - Full transcripts could not be exported from inside a cloud session. A cloud session has no `/export` command, and
   its tools return per-event JSON only. The owner can export each conversation by opening it in the Claude app
+
+## 5. Update 20:43 UTC — report from "KEEL demo account setup" (`session_019obuSiDQdTMDxrwW7z58VV`)
+
+Branch `claude/focused-goodall-kiwf2f` (VERIFIED on the remote) carries `d214da09`, "forecasts always regenerated
+after an import". **It is NOT on main and NOT deployed.** It changes `backend/src/ai/forecasting/{generation,refresh}.py`
+and `backend/src/ai/routers/extraction.py`, and adds two tests. It fixes stale forecasts (about 10% of real demand)
+after back-to-back uploads. It still has to be merged with `b8aa514` and `33e2d22`.
+
+REPORTED by that session:
+- **Tests:** local backend 4,937 PASS / 1 FAIL (`test_standard_plan_creation_contract`, caused by local reused-DB
+  state); frontend 267 PASS, lint and build PASS; GitHub CI on `ef305db` PASS; 29 new forecast tests PASS.
+- **Production:** API `ceopro-ai-new` runs `337561a` (main `16fd8f5` content). Website `keel-web` runs `341049e`.
+- **VELORA demo account:** EXISTS. It was created through normal signup with the owner's own email and verified by
+  the emailed code. Company VELORA (JO/JOD), Plus trial until 2026-11-20. The temporary password was given to the
+  owner in that session's chat only; change it.
+  - **Onboarding** was completed in the UI.
+  - **Seeded via the public API:** 28 products, 54,889 synthetic sales lines (Apr 2025 – 5 Nov 2026), 11 fictional
+    "DEMO Competitor NN" with 62 prices, and 266 reviews labelled "DEMO synthetic review".
+  - **Checked against ground truth:** revenue 7d 4,365.303 / 30d 22,950.648 / 90d 61,945.621 JOD, exact match.
+- **Remaining:**
+  - Deploy `d214da09`, then refresh VELORA's forecasts (they are currently stale and low).
+  - Review sentiment shows 0/200 analysed; not investigated.
+  - Not yet tested: the assistant in EN and Jordanian, reports and exports, Arabic on mobile.
+  - KEEL has no expenses/purchases feature.
+  - MinIO (file storage) and Tavily are not configured in production.
