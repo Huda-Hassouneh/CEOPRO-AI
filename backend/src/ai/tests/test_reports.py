@@ -172,6 +172,24 @@ def test_json_export_is_one_valid_document():
     assert "generated_at" in body
 
 
+def test_pdf_export_receives_the_same_explicit_half_open_bounds():
+    from datetime import datetime, timezone
+
+    start = datetime(2026, 7, 31, 21, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 20, 21, tzinfo=timezone.utc)
+    fake_conn = MagicMock()
+    with patch("src.ai.routers.reports.db.app_role_connection", return_value=fake_conn), \
+         patch("src.ai.routers.reports.usage.reserve_request", return_value=None), \
+         patch("src.ai.routers.reports.sales_pdf.report_data", return_value={}) as report_data, \
+         patch("src.ai.routers.reports.sales_pdf.render_pdf", return_value=b"pdf"):
+        response = client.get("/reports/sales/export", params={
+            "format": "pdf", "start_date": start.isoformat(), "end_date": end.isoformat(),
+        }, headers=_auth())
+    assert response.status_code == 200
+    report_data.assert_called_once_with(fake_conn, "t1", start, end)
+    fake_conn.close.assert_called_once()
+
+
 def test_export_rejects_unknown_formats_and_bad_ranges():
     assert client.get("/reports/sales/export", params={"format": "xlsx"}, headers=_auth()).status_code == 422
     bad = {"start_date": "2026-02-01T00:00:00Z", "end_date": "2026-01-01T00:00:00Z"}

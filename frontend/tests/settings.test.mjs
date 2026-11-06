@@ -51,7 +51,7 @@ test('api layer sends the real request shape and translates the real response sh
         return res.end(JSON.stringify({ user_id: 'u1', email: 'a@b.com', full_name: 'New Name', preferred_language: 'en', email_verified: true }));
       }
       if (req.url === '/settings/company' && req.method === 'GET') {
-        return res.end(JSON.stringify({ business_name: 'Company', business_type: null, country_code: 'JO', primary_currency: 'JOD' }));
+        return res.end(JSON.stringify({ business_name: 'Company', business_type: null, country_code: 'JO', primary_currency: 'JOD', timezone: 'Asia/Amman' }));
       }
       if (req.url === '/settings/company/target-markets' && req.method === 'GET') {
         return res.end(JSON.stringify({ target_markets: [
@@ -104,6 +104,7 @@ test('api layer sends the real request shape and translates the real response sh
   const company = await companyApi.getCompany();
   assert.equal(company.company.name, 'Company');
   assert.equal(company.company.currency, 'JOD');
+  assert.equal(company.company.timezone, 'Asia/Amman');
 
   assert.deepEqual(await companyApi.getTargetMarkets(), [
     { market_type: 'COUNTRY', country_code: 'AE', region_name: null },
