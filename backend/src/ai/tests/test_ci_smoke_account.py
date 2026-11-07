@@ -102,6 +102,17 @@ def test_completed_smoke_account_is_read_only_on_repeat():
 
 def test_smoke_refuses_expired_or_unassigned_rights_instead_of_creating_payment():
     client = GuidedClient(access=False)
-    with pytest.raises(RuntimeError, match="valid signup trial"):
+    with pytest.raises(RuntimeError, match="confirmed trial"):
         _complete_guided_onboarding(client, None)
     assert all(method == "GET" for method, _, _ in client.calls)
+
+
+def test_offline_provider_fixture_refuses_normal_or_mismatched_runtime_database(monkeypatch):
+    from scripts.provider_trial_fixture import confirm_trial
+    monkeypatch.setenv('BILLING_TEST_DATABASE_URL','postgresql://fixture@127.0.0.1:55432/keel_billing_test_fixture')
+    monkeypatch.setenv('DATABASE_URL','postgresql://fixture@127.0.0.1:55432/keel_dev')
+    monkeypatch.setenv('SCRAPER_DATABASE_URL','postgresql://fixture@127.0.0.1:55432/keel_dev')
+    client=Client('http://127.0.0.1:18000')
+    try:
+        with pytest.raises(RuntimeError,match='same disposable test database'):confirm_trial(client)
+    finally:client.http.close()

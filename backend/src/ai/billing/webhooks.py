@@ -19,7 +19,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.ai.billing import promotions, store, self_service
+from src.ai.billing import promotions, store, self_service, trial_checkouts
 from src.ai.billing.payment_runtime import payment_gateway
 from src.ai.billing.payment_contracts import (
     CheckoutSnapshot, InvoiceSnapshot, PaymentEventKind as Kind, PaymentState,
@@ -79,18 +79,23 @@ def sync_subscription(sys_conn, subscription_ref: ProviderReference, event_creat
     customer_tenant = store.tenant_for_customer(sys_conn, customer) if customer else None
     if customer_tenant and str(customer_tenant) != str(tenant_id):
         raise WebhookRetry("subscription customer belongs to another company")
+    if (sub_metadata.get('keel_trial_attempt_id')
+            and store.customer_id(sys_conn,tenant_id) != customer):
+        raise WebhookRetry('trial subscription customer differs from the authorized Checkout customer')
     if customer and not customer_tenant:
         store.save_customer(sys_conn, tenant_id, customer)
     previous = store.current_subscription(sys_conn, tenant_id)
+    issued = trial_checkouts.reconcile(sys_conn,tenant_id,subscription,plan_key,period_code,
+        previous=previous,issued_trial=store.trial(sys_conn,tenant_id),event_id=provider_event_id)
     trial_payment_verified = False
-    if (previous and previous["stripe_subscription_id"] == subscription_id
-            and previous.get("trial_end") and previous["status"] != "active"
+    approved_end = previous.get('trial_end') if previous else (issued['ends_at'] if issued else None)
+    if (approved_end and (not previous or previous['status'] != 'active')
             and subscription.state == SubscriptionState.ACTIVE):
         start = subscription.period_start
         # Invalid trial boundaries are rejected by apply_subscription without
         # querying an unrelated invoice. An 'active' label alone is not proof
         # of the first post-trial payment, including during invoice finalization.
-        if start and start >= previous["trial_end"] and subscription.trial_end == previous["trial_end"]:
+        if start and start >= approved_end and subscription.trial_end == approved_end:
             latest = subscription.latest_invoice
             invoice = gateway.get_invoice(latest) if latest else None
             trial_payment_verified = bool(
@@ -100,6 +105,8 @@ def sync_subscription(sys_conn, subscription_ref: ProviderReference, event_creat
                 and any(begin is not None and end is not None and begin <= start < end
                         for begin, end in invoice.coverage)
             )
+        if issued and not trial_payment_verified:
+            raise WebhookRetry('The first post-trial period requires verified invoice settlement')
     store.apply_subscription(sys_conn, tenant_id, subscription, plan_key, period_code, event_created,
                              trial_payment_verified=trial_payment_verified)
     entitlements.forget(tenant_id)  # the new plan's modules apply at once
@@ -340,9 +347,12 @@ def _handle_locked(sys_conn, event: VerifiedPaymentEvent) -> dict:
                 custom_quote = metadata.get("billing_kind") == "custom_quote"
                 hint = metadata.get("tenant_id") if custom_quote else (
                     session.client_reference or metadata.get("tenant_id"))
+                if (metadata.get('keel_trial_attempt_id') and (not session.customer or not hint
+                        or str(store.tenant_for_customer(sys_conn,session.customer.opaque_id)) != str(hint))):
+                    raise WebhookRetry('trial Checkout customer does not match its authorized tenant')
                 if session.customer and hint and not store.tenant_for_customer(sys_conn, session.customer.opaque_id):
                     store.save_customer(sys_conn, hint, session.customer.opaque_id)
-                tenant_id = sync_subscription(sys_conn, session.subscription, created, hint)
+                tenant_id = sync_subscription(sys_conn, session.subscription, created, hint,provider_event_id=event.event_id)
                 if custom_quote:
                     _record_custom_checkout_session(sys_conn, session, tenant_id, event.event_id)
                 else:
@@ -351,6 +361,7 @@ def _handle_locked(sys_conn, event: VerifiedPaymentEvent) -> dict:
             session = event.checkout_snapshot
             if session is None:
                 raise WebhookRetry("Checkout notification is missing its verified snapshot")
+            tenant_id = trial_checkouts.expired(sys_conn, session, event.event_id)
             if getattr(sys_conn, "verified_webhook_only", False):
                 redemption = promotions._metadata_redemption(session)
                 if redemption:
@@ -362,7 +373,7 @@ def _handle_locked(sys_conn, event: VerifiedPaymentEvent) -> dict:
                         sys_conn.bind_tenant(tenant_id)
             promotions.checkout_expired(sys_conn, session=session, stripe_event_id=event.event_id)
         elif kind == Kind.SUBSCRIPTION_CHANGED:
-            tenant_id = sync_subscription(sys_conn, event.subscription, created)
+            tenant_id = sync_subscription(sys_conn, event.subscription, created,provider_event_id=event.event_id)
         elif kind in (Kind.INVOICE_SETTLED, Kind.INVOICE_FAILED):
             # Authenticated event snapshots can still be stale. Fetch current
             # invoice truth while serialized against other invoice events.
@@ -379,7 +390,7 @@ def _handle_locked(sys_conn, event: VerifiedPaymentEvent) -> dict:
                 raise WebhookRetry("invoice subscription identity changed")
             if subscription_ref:
                 subscription_id = subscription_ref.opaque_id
-                tenant_id = sync_subscription(sys_conn, subscription_ref, created, invoice.tenant_hint)
+                tenant_id = sync_subscription(sys_conn, subscription_ref, created, invoice.tenant_hint,provider_event_id=event.event_id)
                 customer = invoice.customer.opaque_id if invoice.customer else None
                 if customer and str(store.tenant_for_customer(sys_conn, customer)) != str(tenant_id):
                     raise WebhookRetry("invoice customer belongs to another company")
@@ -404,7 +415,7 @@ def _handle_locked(sys_conn, event: VerifiedPaymentEvent) -> dict:
                     raise WebhookRetry("paid invoice is not yet reconciled by the provider")
         elif kind == Kind.SCHEDULE_ENDED:
             if event.subscription:
-                tenant_id = sync_subscription(sys_conn, event.subscription, created)
+                tenant_id = sync_subscription(sys_conn, event.subscription, created,provider_event_id=event.event_id)
                 store.set_schedule(sys_conn, tenant_id, event.subscription.opaque_id, None, None)
         # Any other event type is stored for the record and acknowledged.
         store.finish_event(sys_conn, event.event_id, tenant_id)

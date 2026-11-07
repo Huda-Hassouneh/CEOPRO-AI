@@ -72,5 +72,8 @@ def opened(conn, attempt, session):
 
 def expire(conn, attempt):
     with conn.cursor() as cur:
-        cur.execute("UPDATE billing_checkout_attempts SET state='expired',updated_at=clock_timestamp() WHERE attempt_id=%s", (str(attempt["attempt_id"]),))
+        cur.execute("UPDATE billing_checkout_attempts SET state='expired',updated_at=clock_timestamp() "
+                    "WHERE attempt_id=%s AND state IN ('preparing','open')", (str(attempt["attempt_id"]),))
+    from src.ai.billing import trial_checkouts
+    trial_checkouts.release(conn, attempt)
     conn.commit()

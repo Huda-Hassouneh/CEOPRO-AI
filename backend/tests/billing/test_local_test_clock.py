@@ -21,6 +21,8 @@ from .test_database import live_subscription
 
 REAL_CLIENT = stripe_api._client
 REAL_STRIPE = stripe_api.stripe
+REAL_PREPARE_CUSTOMER = stripe_api.prepare_customer_create
+REAL_RECOVER_CUSTOMER = stripe_api.recover_customer_create
 
 
 @pytest.fixture
@@ -41,11 +43,13 @@ def sdk(monkeypatch):
         sessions.setdefault(key,{'id':'cs_offline_'+uuid.uuid4().hex,'url':'https://checkout.stripe.test/offline','status':'open'})
         return deepcopy(sessions[key])
     client=SimpleNamespace(Webhook=REAL_STRIPE.Webhook, InvalidRequestError=REAL_STRIPE.InvalidRequestError, Balance=SimpleNamespace(retrieve=balance),
+                           Account=SimpleNamespace(retrieve=lambda:{'id':'acct_offline'}),api_version='2026-08-26.dahlia',
                            test_helpers=SimpleNamespace(TestClock=SimpleNamespace(retrieve=clock)),
                            Customer=SimpleNamespace(create=create,retrieve=retrieve),
                            checkout=SimpleNamespace(Session=SimpleNamespace(create=lambda **kw:session(**kw),retrieve=lambda sid:next(deepcopy(v) for v in sessions.values() if v['id']==sid))))
     monkeypatch.setattr(stripe_api,'stripe',client)
     monkeypatch.setattr(stripe_api,'_client',REAL_CLIENT)
+    monkeypatch.setattr(stripe_api,'prepare_customer_create',REAL_PREPARE_CUSTOMER)
     monkeypatch.setenv('STRIPE_SECRET_KEY','sk_test_offline')
     for key in ('STRIPE_TEST_CLOCK_ENABLED','STRIPE_TEST_CLOCK_ID','KEEL_LOCAL_TEST_CLOCKS','ENVIRONMENT','APP_ENV','RENDER','KUBERNETES_SERVICE_HOST'):
         monkeypatch.delenv(key,raising=False)
@@ -57,6 +61,75 @@ def enable(monkeypatch):
                       'KEEL_DEV_ISOLATED':'1','KEEL_LOCAL_TEST_CLOCKS':'1','SENTRY_ENVIRONMENT':'development',
                       'DATABASE_URL':'postgresql://ceopro_app:fixture@127.0.0.1/keel_billing_test_fixture'}.items():
         monkeypatch.setenv(key,value)
+
+
+def test_frozen_create_keeps_original_clock_and_contact_on_retry(sdk,monkeypatch):
+    enable(monkeypatch)
+    monkeypatch.setattr(stripe_api,'prepare_customer_create',REAL_PREPARE_CUSTOMER)
+    frozen=stripe_api.prepare_customer_create('a@example.test','Original','tenant','operation-fixed')
+    first=stripe_api.create_customer('a@example.test','Original','tenant','stable',frozen=frozen)
+    monkeypatch.setenv('STRIPE_TEST_CLOCK_ID','clock_changedConfiguration')
+    second=stripe_api.create_customer('changed@example.test','Renamed','tenant','stable',frozen=frozen)
+    writes=[c[1] for c in sdk.calls if c[0]=='create']
+    assert first==second and len(sdk.customers)==1 and writes[0]==writes[1]
+    assert writes[1]['test_clock']=='clock_offlineFixture'
+    assert writes[1]['email']=='a@example.test' and writes[1]['name']=='Original'
+    assert writes[1]['metadata']=={'tenant_id':'tenant','keel_customer_operation_id':'operation-fixed'}
+
+
+def test_frozen_create_rejects_different_account_before_write(sdk,monkeypatch):
+    monkeypatch.setattr(stripe_api,'prepare_customer_create',REAL_PREPARE_CUSTOMER)
+    frozen=stripe_api.prepare_customer_create('a@example.test','Original','tenant','operation-fixed')
+    sdk.client.Account.retrieve=lambda:{'id':'acct_different'}
+    with pytest.raises(ValueError,match='namespace'):stripe_api.create_customer('a@example.test','Original','tenant','stable',frozen=frozen)
+    assert not [c for c in sdk.calls if c[0]=='create']
+
+
+def test_customer_idempotency_conflict_remains_unknown(monkeypatch):
+    from src.ai.billing.payment_contracts import FrozenCustomerRequest, PaymentProviderError, ProviderOperationOutcome
+    from src.ai.billing.stripe_gateway import StripeGateway
+
+    def conflict(*args,**kwargs):
+        raise REAL_STRIPE.IdempotencyError('Synthetic changed-payload conflict',http_status=400)
+    monkeypatch.setattr(stripe_api,'create_customer',conflict)
+    request=FrozenCustomerRequest('stripe','stable-operation',{'params':{
+        'email':'fixture@example.test','name':'Synthetic','metadata':{'tenant_id':'tenant'}}},3600)
+    with pytest.raises(PaymentProviderError) as error:StripeGateway().submit_customer(request)
+    assert error.value.outcome==ProviderOperationOutcome.OUTCOME_UNKNOWN
+
+
+@pytest.mark.parametrize('matching_customers',[0,1,2])
+def test_frozen_clock_recovery_requires_unique_operation_and_tenant(sdk,monkeypatch,matching_customers):
+    enable(monkeypatch)
+    frozen=stripe_api.prepare_customer_create('a@example.test','Original','tenant','operation-fixed')
+    monkeypatch.setenv('STRIPE_TEST_CLOCK_ID','clock_changedConfiguration')
+    candidates=[{'id':'cus_foreign','metadata':{'tenant_id':'other','keel_customer_operation_id':'operation-fixed'}},
+                {'id':'cus_other_operation','metadata':{'tenant_id':'tenant','keel_customer_operation_id':'other'}}]
+    candidates.extend({'id':'cus_match_'+str(i),'metadata':{'tenant_id':'tenant','keel_customer_operation_id':'operation-fixed'}}
+                      for i in range(matching_customers))
+    queries=[]
+    def customers(**kwargs):
+        queries.append(kwargs)
+        return SimpleNamespace(auto_paging_iter=lambda:iter(candidates))
+    monkeypatch.setattr(sdk.client.Customer,'list',customers,raising=False)
+    # Exercise the real API recovery boundary, not the suite's offline default.
+    if matching_customers>1:
+        with pytest.raises(ValueError,match='Several provider customers'):
+            REAL_RECOVER_CUSTOMER('tenant','operation-fixed',frozen)
+    else:
+        result=REAL_RECOVER_CUSTOMER('tenant','operation-fixed',frozen)
+        assert (result['id'] if result else None)==('cus_match_0' if matching_customers else None)
+    assert queries==[{'test_clock':'clock_offlineFixture','limit':100}]
+    assert not [c for c in sdk.calls if c[0]=='create']
+
+
+def test_frozen_test_customer_cannot_replay_when_local_mode_disabled(sdk,monkeypatch):
+    enable(monkeypatch)
+    monkeypatch.setattr(stripe_api,'prepare_customer_create',REAL_PREPARE_CUSTOMER)
+    frozen=stripe_api.prepare_customer_create('a@example.test','Original','tenant','operation-fixed')
+    monkeypatch.setenv('STRIPE_TEST_CLOCK_ENABLED','false')
+    with pytest.raises(test_clock.TestClockError):stripe_api.create_customer('a@example.test','Original','tenant','stable',frozen=frozen)
+    assert not [c for c in sdk.calls if c[0]=='create']
 
 
 @pytest.mark.parametrize('flag',[None,'false'])
@@ -146,7 +219,7 @@ def test_native_checkout_mapping_reuse_conflict_and_disable(client,clock_runtime
     sdk.clock['frozen_time']-=8*3600  # Existing ready clock with a past origin.
     headers={'Authorization':'Bearer '+create_access_token(tid,uid,email_verified=True)[0]}
     monkeypatch.setenv('PUBLIC_FRONTEND_ORIGIN','http://127.0.0.1:15173')
-    assert client.post('/billing/trial',json={'plan_key':'growth'},headers=headers).status_code==200
+    assert store.start_trial(owner_db,tid,started_by_user_id=uid,plan_key='growth')
     response=client.post('/billing/checkout',json={'plan_key':plan,'period_code':'monthly'},headers=headers)
     assert response.status_code==200,response.json()
     again=client.post('/billing/checkout',json={'plan_key':plan,'period_code':'monthly'},headers=headers)
@@ -176,6 +249,9 @@ def test_clock_time_is_tenant_scoped_and_renewal_credits_are_idempotent(clock_ru
     live=live_subscription(tid,price,status='trialing');live['trial_end']=int(time.time())+14*86400;live['items']['data'][0]['current_period_end']=live['trial_end']
     sdk.customers[live['customer']]={'id':live['customer'],'livemode':False,'metadata':{'tenant_id':tid},'test_clock':sdk.clock['id']}
     monkeypatch.setattr(stripe_api,'retrieve_subscription',lambda _:deepcopy(live))
+    with owner_db.cursor() as cur:
+        cur.execute('INSERT INTO billing_trials(tenant_id,plan_key,started_at,ends_at,started_by_user_id) VALUES(%s,%s,to_timestamp(%s),to_timestamp(%s),%s)',
+                    (tid,test_price[0],live['trial_end']-14*86400,live['trial_end'],uid))
     assert send('customer.subscription.created',{'id':live['id']}).status_code==200
     with closing(db.app_role_connection(tid,uid)) as conn:assert usage.get_plan(conn,tid)['status']=='trialing'
     sdk.clock['frozen_time']=live['trial_end']
@@ -244,6 +320,9 @@ def test_enabled_trial_schedule_preserves_cutoff_and_simulated_expiry(client,clo
     sdk.customers[provider.live['customer']]={'id':provider.live['customer'],'livemode':False,'metadata':{'tenant_id':tid},'test_clock':sdk.clock['id']}
     provider.install(monkeypatch)
     monkeypatch.setattr(store,'resolve_price',lambda *a:('growth','monthly'))
+    with owner_db.cursor() as cur:
+        cur.execute('INSERT INTO billing_trials(tenant_id,plan_key,started_at,ends_at,started_by_user_id) VALUES(%s,%s,to_timestamp(%s),to_timestamp(%s),%s)',
+                    (tid,'growth',provider.live['trial_end']-14*86400,provider.live['trial_end'],uid))
     assert send('customer.subscription.created',{'id':provider.live['id']}).status_code==200
     original_price=store.current_price
     def configured(conn,key,term):

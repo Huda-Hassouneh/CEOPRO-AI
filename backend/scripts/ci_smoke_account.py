@@ -8,7 +8,7 @@ real products and competitors to show; the rest shows its empty state.
 
   python -m scripts.ci_smoke_account --api http://localhost:8000 --email ci@example.com --password '...'
 
-Re-running resumes saved onboarding and reuses the signup trial, products and
+Re-running resumes saved onboarding and reuses the explicitly selected trial, products and
 competitor prices. No paid plan, Stripe object or trial reset is created.
 """
 import argparse
@@ -116,15 +116,15 @@ def _sign_in_existing_account(client: Client, email: str, password: str) -> dict
 def _complete_guided_onboarding(client: Client, company) -> None:
     """Use the same saved profile/plan acknowledgement as the six-step UI.
 
-    Signup normally grants the catalog's one-time trial. Reuse those actual
-    rights; never invent a plan, reset a trial, or create a Stripe Checkout.
+    Reuse confirmed rights; never issue a local trial or create Checkout.
     Resume partial setup and leave completed accounts unchanged on a retry.
     """
     state = client.request("GET", "/onboarding/state")
     subscription = client.request("GET", "/billing/subscription")
-    if not (subscription.get("assigned") and subscription.get("hasAccess")):
+    has_access = subscription.get("assigned") and subscription.get("hasAccess")
+    if not has_access:
         raise RuntimeError(
-            "The smoke account needs its valid signup trial or an existing active plan. "
+            "The smoke account needs a confirmed trial or an existing active plan. "
             "Use a fresh disposable CI database/account; this fixture never grants paid rights."
         )
     if state["isComplete"]:
@@ -135,7 +135,7 @@ def _complete_guided_onboarding(client: Client, company) -> None:
         {"industry": "retail"},
         {"businessSize": "1-50", "annualRevenue": "under-100k"},
         {"objectives": ["competitors", "forecasting", "knowledge"]},
-        {"selectedPlan": subscription["planId"], "billingPeriod": subscription["billingPeriod"]},
+        {"selectedPlan": subscription['planId'], "billingPeriod": subscription["billingPeriod"]},
     ]
     for step, values in enumerate(choices, start=1):
         if step <= state["highestCompletedStep"]:
@@ -159,6 +159,7 @@ def main():
         action="store_true",
         help="Capture the verification code in memory for a loopback CI/test account only.",
     )
+    parser.add_argument('--test-provider-trial-fixture',action='store_true',help='Offline signed-provider fixture; disposable test database only, never Stripe acceptance.')
     args = parser.parse_args()
 
     company = next(c for c in COMPANIES if c.key == args.company)
@@ -170,6 +171,9 @@ def main():
         else _sign_in_existing_account(client, args.email, args.password)
     )
     configure_company(client, company)
+    if args.test_provider_trial_fixture:
+        from scripts.provider_trial_fixture import confirm_trial
+        confirm_trial(client)
     _complete_guided_onboarding(client, company)
     product_ids = create_catalog(client, company)
     names = set(product_ids)

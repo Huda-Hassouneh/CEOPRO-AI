@@ -7,7 +7,7 @@ separate exact-body provider HMAC gate. New routes are covered automatically.
 """
 import os
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 import jwt
 import pytest
@@ -196,7 +196,15 @@ def test_token_missing_tenant_or_user_claim_is_rejected(claims):
     assert client.get("/dashboard/metrics", headers=_bearer(_tok(claims))).status_code == 401
 
 
-def test_tenant_comes_only_from_the_token_never_from_request_params():
+@pytest.fixture
+def assigned_dashboard_plan(monkeypatch):
+    # Only these offline route tests arrange access; native lifecycle tests
+    # still exercise the real onboarding and paid/provider-trial gates.
+    monkeypatch.setattr('src.ai.routers.dashboard.usage.get_plan',
+                        lambda conn, tenant: {'assigned': True, 'status': 'active'})
+
+
+def test_tenant_comes_only_from_the_token_never_from_request_params(assigned_dashboard_plan):
     """A client must not be able to switch tenant via query string or header."""
     conn = MagicMock()
     with patch("src.ai.routers.dashboard.db.app_role_connection", return_value=conn) as app_conn, patch(
@@ -207,10 +215,10 @@ def test_tenant_comes_only_from_the_token_never_from_request_params():
             headers={**_bearer(_tok({"tenant_id": "victim-safe", "user_id": "u9", "ev": True})), "X-Tenant-Id": "attacker"},
         )
     assert response.status_code == 200
-    app_conn.assert_called_once_with("victim-safe", "u9")
+    assert app_conn.call_args_list == [call('victim-safe', 'u9'), call('victim-safe', 'u9')]
 
 
-def test_connection_is_closed_even_when_the_pipeline_fails():
+def test_connection_is_closed_even_when_the_pipeline_fails(assigned_dashboard_plan):
     conn = MagicMock()
     with patch("src.ai.routers.dashboard.db.app_role_connection", return_value=conn), patch(
         "src.ai.routers.dashboard.dashboard_metrics.get_dashboard_metrics", side_effect=RuntimeError("boom")
@@ -218,13 +226,14 @@ def test_connection_is_closed_even_when_the_pipeline_fails():
         response = client.get("/dashboard/metrics", headers=_bearer(_tok()))
     assert response.status_code == 500
     conn.rollback.assert_called()
-    conn.close.assert_called_once()
+    assert conn.close.call_count == 2  # access gate and route each close their connection
 
 
-def test_error_response_does_not_leak_internals():
+def test_error_response_does_not_leak_internals(assigned_dashboard_plan):
     conn = MagicMock()
     with patch("src.ai.routers.dashboard.db.app_role_connection", return_value=conn), patch(
         "src.ai.routers.dashboard.dashboard_metrics.get_dashboard_metrics", side_effect=RuntimeError("password=hunter2 host=10.0.0.5")
     ):
         response = client.get("/dashboard/metrics", headers=_bearer(_tok()))
+    assert response.status_code == 500
     assert "hunter2" not in response.text and "10.0.0.5" not in response.text

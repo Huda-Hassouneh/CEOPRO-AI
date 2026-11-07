@@ -12,7 +12,7 @@ display what `/billing/*` returns.
 |---|---:|---:|---:|---|
 | Plan key (database, Stripe) | `starter` | `growth` | `enterprise` | `custom` |
 | Monthly price | $55 | $140 | $350 | quoted |
-| Free trial | 14 days | 14 days | 7 days | per contract (0-90 days) |
+| Free trial | 14 days | 14 days | 7 days | no new cardless trial |
 | Products | 100 | 250 | 500 | contract |
 | Reports per month | 5 | 20 | 60 | contract (default 60) |
 | Team seats | 5 | 20 | 50 | contract (default 60) |
@@ -31,6 +31,78 @@ display what `/billing/*` returns.
   token cap stays as an internal safety limit and is no longer shown.
 - All values are in `usage_plans` / `usage_plan_limits` (migration
   `20261020000000_keel_subscriptions_and_credits.sql`), not in code.
+
+### Configured trial length versus remaining trial time
+
+`usage_plans.trial_days` is the backend source for new trial duration and plan
+cards. `POST /billing/trial` reserves the selected plan's canonical duration
+and opens provider Checkout; it grants no local access. Verified provider
+reconciliation records UTC `billing_trials.started_at` and `ends_at` together
+with the subscription, assignment and entitlement snapshot. The restricted
+`billing_setup_trial(..., true)` command refuses cardless activation.
+Signup/email verification and new-workspace
+creation grant no commercial plan. During onboarding, the customer explicitly
+selects a plan and starts its eligible trial through `POST /billing/trial`.
+Selecting a different paid plan later does not issue another trial or change an
+existing cutoff.
+
+Fresh Checkout sends `CheckoutIntent.trial_duration_days` and requires a reusable
+recurring payment method. Stripe translates this to subscription-mode Checkout,
+`payment_method_collection=always`, `subscription_data.trial_period_days` and
+missing-payment-method cancellation. KEEL verifies normalized method readiness,
+authorized tenant/customer, frozen plan/term/price, duration and subscription
+identity before activation. Other providers must supply equivalent evidence.
+No frontend field controls these terms.
+
+For already-issued trials, Checkout sends the existing cutoff through the provider-neutral
+`CheckoutIntent.trial_end`; the Stripe adapter translates it to
+`subscription_data.trial_end`, never a new duration. An issued
+14-day trial opened in Checkout a minute after trial activation has slightly less than 14
+days remaining. Stripe controls its hosted wording. Changing to 14 days from
+Checkout or rounding the cutoff up would extend the issued trial and is not the
+approved policy. Zero-day plans issue no new trial; a previously granted trial
+remains governed by its original cutoff. Checkout's existing minimum remaining
+window is separate from plan duration.
+
+For customers with an issued trial, onboarding plan selection and the KEEL
+review put the existing UTC expiry first. The review hides the selected plan's
+default trial duration, and plan cards do not offer a new trial. Customers
+without an issued trial can still see the catalog's default duration. Choosing
+Pro does not replace a previously issued Plus trial with Pro's shorter default.
+No rounded countdown replaces configured days. Already frozen Checkout
+requests, subscriptions, credits and billing boundaries are unchanged.
+
+Pending Checkout retries reuse the original frozen request and provider session
+under the tenant's Checkout lock. Continue may also resume an already authorized
+trial Checkout for the same plan, term and promotion; Start trial cannot silently
+resume a paid Checkout. A reservation with no session and no frozen request has
+never submitted Checkout and can safely release its trial claim when changing
+selection or after a setup failure. Verified expired/missing sessions can retry;
+completed sessions wait for reconciliation. Unknown provider outcomes retain
+their reservation and original idempotency key. Incompatible submitted terms
+require an explicit close action, with provider closure verified before release.
+
+### Provider customer identity and CREATE recovery
+
+Customer creation has its own durable `billing_customer_operations` record,
+separate from Checkout attempts and commercial eligibility. One operation owns
+one stable provider key and an immutable adapter-encoded payload, namespace and
+safe replay window. Contact/name changes never rebuild that CREATE request.
+Mapped customers are verified and reused; replacing a tenant's mapping is refused.
+Any future contact update must be a separate operation, not another CREATE.
+
+Unknown outcomes first try positive provider recovery, then may replay the same
+frozen request within the provider's guaranteed window. An expired replay window
+or an unmapped legacy attempt without its original payload requires reconciliation;
+a negative search is not proof that CREATE failed. Only definitive rejection
+allows another logical operation. Customer coordination grants no trial, plan,
+entitlements or Credits. Verified payment reconciliation remains the authority.
+
+Migration `20261128000000_customer_creation_operations.sql` adds the FORCE RLS
+ledger with scoped setup-role permissions. It preserves existing mappings and
+commercial records and quarantines unmapped historical attempts instead of
+inventing their original request parameters. Apply through a verified backup and
+the normal migration procedure after isolated upgrade/restricted-role checks.
 
 ## 2. Data Credits and AI Credits
 
@@ -300,8 +372,9 @@ reported as failed sources. The run continues with the free ones.
 - Start and end are exact UTC timestamps (`billing_trials.started_at`,
   `ends_at`). Access ends at `ends_at` to the second, not at the end of a
   day. Changing a device's clock or restarting the app changes nothing.
-- Trial length per plan: Standard 14 days, Plus 14, Pro 7. A Custom
-  contract sets its own (0-90 days).
+- Trial length per plan: Standard 14 days, Plus 14, Pro 7. New cardless Custom
+  trial activation is refused; historical Custom trials remain unchanged.
+  Paid manually negotiated Custom contracts remain supported.
 - Eligibility, checked on the server (`store.trial_eligibility`):
   - one trial per company, ever;
   - one per person across all their companies;
@@ -310,9 +383,28 @@ reported as failed sources. The run continues with the free ones.
 - **A company with no plan has no access** (`UNASSIGNED_PLAN_ACCESS=none`;
   "default" exists only for single-company installs). That applies, for
   example, when a person's second company was refused a trial.
-- Sign-up starts the Plus trial (`TRIAL_PLAN_KEY`). A company that never had
-  a trial can start one on the plan it picks: `POST /billing/trial`, or the
-  Billing page's "Start free trial".
+- Verified signup creates the identity, company and owner membership, with no
+  trial or plan assignment. New workspaces follow the same policy. An eligible
+  company explicitly opens its selected plan's trial Checkout using `POST /billing/trial`:
+  Standard (`starter`) 14 days, Plus (`growth`) 14 days, Pro (`enterprise`) 7 days
+  in the current catalog. Zero-day plans offer Checkout without a new trial.
+- Pending reservations consume no trial eligibility and grant no entitlements.
+  Person/workspace locks and unique pending indexes serialize competing attempts.
+  Cancelled/verified-expired Checkout releases the reservation; unknown provider
+  outcomes remain blocked for reconciliation rather than risking a second trial.
+  Only verified provider-backed activation consumes eligibility, atomically with
+  subscription/assignment/snapshot reconciliation. Duplicate and out-of-order
+  events re-read current provider state and preserve the original activation.
+- `/billing/subscription.trialEligiblePlanIds` reports eligible catalog plans;
+  `trialAvailable` is their aggregate flag. Neither depends on `TRIAL_PLAN_KEY`.
+  Unassigned companies return no current plan identity. Onboarding saves the
+  selected plan and completion requires matching, access-granting rights.
+- Dashboard routes enforce durable onboarding completion and an assigned
+  `active`/`trialing` plan on the API as well as in the React navigation gate.
+  Existing tenant-role and feature/module checks still apply.
+- Existing issued trials retain their exact plan, cutoff and entitlement snapshot.
+  "Continue with current trial" acknowledges those existing rights; it does not
+  activate a new trial or bypass identity/tenant or onboarding-completion checks.
 - **Trial budgets are bounded:** a trial gets a tenth of a month's Data and
   AI Credits (`usage_plan_limits.trial_limit_value`), never a full paid
   month. Other allowances are the plan's.
@@ -322,9 +414,10 @@ reported as failed sources. The run continues with the free ones.
   - the Billing page shows how to choose a plan.
 - **Before expiry:** a "trial ends in N days" alert from 3 days before, in
   the app and in the optional email summary.
-- **No silent conversion:**
-  - A trial never turns into a paid plan on its own; paying needs a Stripe
-    Checkout the customer completes.
+- **Provider-confirmed billing:**
+  - Fresh trials require completed provider Checkout and reusable-payment-method
+    confirmation. At the cutoff, recurring billing follows the terms accepted
+    in Checkout; paid access requires verified invoice settlement.
   - A company that subscribes during its trial keeps the remaining days, and
     Stripe cancels the subscription at the trial's end if no payment method
     was collected (`missing_payment_method: cancel`).
@@ -337,7 +430,7 @@ reported as failed sources. The run continues with the free ones.
 python -m scripts.billing_admin set-contract --tenant <id> --contract-ref C-2026-001 \
   --by "<approver>" --reason "Signed order form" --monthly-price 900 --refresh daily --support priority \
   --data-source pos --limit tracked_products=2000 --limit data_credits=9000 --limit ai_credits=9000 \
-  --limit monthly_reports=200 --limit team_seats=75 [--trial-days 14] [--period-months 12]
+  --limit monthly_reports=200 --limit team_seats=75 [--period-months 12]
 ```
 
 - The command writes the following and puts the company on `custom`:

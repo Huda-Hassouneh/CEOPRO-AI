@@ -12,7 +12,7 @@ import psycopg2
 import pytest
 from fastapi.testclient import TestClient
 
-from src.ai.tests.signup_helpers import create_verified_test_account
+from src.ai.tests.signup_helpers import create_verified_test_account, install_historical_trial_fixture
 
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -56,6 +56,7 @@ def test_owner_runs_two_companies_in_different_industries_without_leakage(client
     other_email = f"other+{uuid.uuid4().hex[:8]}@example.com"
     try:
         restaurant = _signup(client, email, "Grill House")
+        install_historical_trial_fixture(restaurant, 'growth')
         stranger = _signup(client, other_email, "Someone Else's Shop")
 
         company = client.get("/settings/company", headers=_auth(restaurant)).json()

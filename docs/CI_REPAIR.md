@@ -29,7 +29,7 @@ Local compatibility used an isolated temporary overlay, leaving existing virtual
 
 The original fixture configured company settings/catalog data, then called completion without saving the durable onboarding choices. The API correctly returned `409` with `Complete your profile and choose a plan first.`
 
-The fixture now reads saved progress and actual subscription rights, saves each missing `/onboarding/state` step with its current revision, acknowledges the existing signup trial/active plan, then completes onboarding through `/settings/company/onboarding/complete`. It never creates Checkout, resets a trial, grants a paid plan or bypasses verification. Expired/unassigned rights fail with an actionable error. Repeat runs retain completed state, products, competitor prices and the original trial. API startup waits for database/Redis readiness rather than liveness alone.
+The fixture reads saved progress and confirmed subscription rights, saves each missing `/onboarding/state` step with its current revision, then completes onboarding through `/settings/company/onboarding/complete`. Signup grants no plan. The isolated launcher explicitly enables `--test-provider-trial-fixture`: it replaces only provider transport, creates Checkout through the production endpoint, and sends a signed synthetic provider confirmation through the real decoder/reconciler and restricted SQL roles. It refuses non-loopback or mismatched/non-test databases. This creates no external Stripe objects and is not Stripe acceptance. Existing rights are reused without resets; expired rights fail. Normal fixture execution requires already-confirmed rights. API startup waits for database/Redis readiness rather than liveness alone.
 
 ### Route security test contract
 

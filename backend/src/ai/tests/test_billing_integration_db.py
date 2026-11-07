@@ -178,15 +178,26 @@ def test_checkout_reuses_the_customer_and_sends_the_expected_session(sys_conn, s
     tenant = _company(sys_conn)
     calls = {"customers": 0}
 
-    def fake_customer(email, name, tenant_id, idempotency_key):
+    def fake_customer(email, name, tenant_id, idempotency_key, *, frozen):
         calls["customers"] += 1
-        return {"id": calls.setdefault("cid", f"cus_{uuid.uuid4().hex[:10]}")}
+        assert frozen['params']['metadata']['tenant_id'] == tenant_id
+        assert frozen['params']['email'] == email and frozen['params']['name'] == name
+        return {"id": calls.setdefault("cid", f"cus_{uuid.uuid4().hex[:10]}"), 'metadata': frozen['params']['metadata']}
 
     def fake_session(params, idempotency_key):
         calls["params"], calls["key"] = params, idempotency_key
         calls["sessions"] = calls.get("sessions", 0) + 1
         return {"id": "cs_" + tenant, "url": "https://checkout.stripe.com/c/cs_" + tenant}
 
+    monkeypatch.setattr(stripe_api, "prepare_customer_create", lambda email, name, tenant, operation: {
+        'namespace': {'account': 'acct_offline', 'livemode': False}, 'api_version': 'offline',
+        'params': {'email': email, 'name': name, 'metadata': {'tenant_id': tenant, 'keel_customer_operation_id': operation}},
+    })
+    monkeypatch.setattr(stripe_api, "retrieve_customer", lambda reference: {'id': reference, 'metadata': {'tenant_id': tenant}})
+    monkeypatch.setattr(stripe_api, "customer_subscriptions", lambda *a: [])
+    monkeypatch.setattr(stripe_api, "open_customer_checkouts", lambda *a: [])
+    monkeypatch.setattr(stripe_api, "customer_clock_time", lambda *a, **kw: None)
+    monkeypatch.setattr(stripe_api, "_client", lambda: pytest.fail("Unexpected external Stripe request"))
     monkeypatch.setattr(stripe_api, "create_customer", fake_customer)
     monkeypatch.setattr(stripe_api, "create_checkout_session", fake_session)
     monkeypatch.setattr(stripe_api, "retrieve_checkout_session", lambda sid: {
@@ -508,7 +519,7 @@ def test_subscription_effective_rights_are_tenant_isolated_and_read_only(billing
             "billingPeriod", "periodStart", "periodEnd", "trialEndsAt", "trialUsed", "renewsAt",
             "endsAt", "cancelAtPeriodEnd", "scheduledChange", "hasSubscription", "hasBillingAccount",
             "canManageBilling", "paymentsEnabled", "limits", "usage", "features", "entitlements",
-            "credits", "trialAvailable", "trialEndsAtExact",
+            "credits", "trialAvailable", "trialEligiblePlanIds", "trialEndsAtExact",
         }
         expected_top_level = legacy_fields | {"effectiveRights", "currentPrice", "checkoutTrialEndsAt"}
         for response in (response_a.json(), response_b.json()):
@@ -554,7 +565,7 @@ def test_two_simultaneous_deliveries_of_one_event_process_it_once(sys_conn, stri
     event = StripeWebhookDecoder(WEBHOOK_SECRET).decode(payload, _signed(payload))
     runs, results, errors = [], [], []
 
-    def slow_sync(conn, subscription_id, created, hint=None):
+    def slow_sync(conn, subscription_id, created, hint=None, **kwargs):
         runs.append(subscription_id)
         time.sleep(1.0)  # long enough for the second delivery to arrive mid-processing
         return tenant
@@ -583,7 +594,7 @@ def test_a_failed_event_is_retried_not_swallowed_as_a_duplicate(sys_conn, monkey
     event = StripeWebhookDecoder(WEBHOOK_SECRET).decode(payload, _signed(payload))
     attempts = []
 
-    def flaky(conn, subscription_id, created, hint=None):
+    def flaky(conn, subscription_id, created, hint=None, **kwargs):
         attempts.append(1)
         if len(attempts) == 1:
             raise RuntimeError("temporary")

@@ -64,6 +64,40 @@ class CheckoutState(str, Enum):
     UNKNOWN = "unknown"
 
 
+@dataclass(frozen=True)
+class CustomerIntent:
+    tenant_reference: str
+    email: str
+    company_name: str
+    operation_id: str
+    idempotency_key: str
+
+
+@dataclass(frozen=True)
+class FrozenCustomerRequest:
+    """Adapter-owned transport and namespace, committed before the first write."""
+    provider: str
+    idempotency_key: str
+    payload: Mapping
+    replay_window_seconds: int
+
+
+@dataclass(frozen=True)
+class CustomerSnapshot:
+    reference: ProviderReference
+    tenant_reference: str | None
+    deleted: bool = False
+
+
+@dataclass(frozen=True)
+class CustomerRecoveryIntent:
+    tenant_reference: str
+    operation_id: str
+    idempotency_key: str
+    created_at: datetime
+    request: FrozenCustomerRequest | None
+
+
 class PaymentState(str, Enum):
     PAID = "paid"
     NOT_REQUIRED = "not_required"
@@ -103,6 +137,8 @@ class CheckoutIntent:
     interval_months: int = 1
     product_name: str | None = None
     trial_end: datetime | None = None
+    trial_duration_days: int | None = None
+    require_payment_method_before_activation: bool = True
     promotion: ProviderReference | None = None
     allow_promotion_entry: bool = True
     automatic_tax: bool = False
@@ -116,6 +152,13 @@ class CheckoutIntent:
             raise ValueError("A positive monthly interval is required")
         if self.recurring_amount is not None and not self.product_name:
             raise ValueError("Inline recurring terms require a product name")
+        if self.trial_duration_days is not None:
+            if type(self.trial_duration_days) is not int or self.trial_duration_days <= 0:
+                raise ValueError("A fresh trial requires a positive configured duration")
+            if self.trial_end is not None:
+                raise ValueError("A fresh duration and an existing trial cutoff are mutually exclusive")
+            if self.require_payment_method_before_activation is not True:
+                raise ValueError("A fresh trial requires a recurring payment method")
 
 
 @dataclass(frozen=True)
@@ -165,6 +208,8 @@ class SubscriptionSnapshot:
     schedule: ProviderReference | None = None
     latest_invoice: ProviderReference | None = None
     metadata: Mapping[str, str] = field(default_factory=dict)
+    trial_start: datetime | None = None
+    recurring_payment_method_ready: bool = False
 
 
 @dataclass(frozen=True)
@@ -253,6 +298,10 @@ class SubscriptionPaymentGateway(Protocol):
                       require_clock: bool = False) -> datetime | None: ...
     def create_customer(self, *, email: str, company_name: str, tenant_reference: str,
                         idempotency_key: str) -> ProviderReference: ...
+    def prepare_customer(self, intent: CustomerIntent) -> FrozenCustomerRequest: ...
+    def submit_customer(self, request: FrozenCustomerRequest) -> CustomerSnapshot: ...
+    def get_customer(self, reference: ProviderReference, *, tenant_reference: str) -> CustomerSnapshot: ...
+    def recover_customer(self, intent: CustomerRecoveryIntent) -> CustomerSnapshot | None: ...
     def list_customer_subscriptions(self, customer: ProviderReference) -> tuple[SubscriptionSnapshot, ...]: ...
     def list_open_checkouts(self, customer: ProviderReference) -> tuple[CheckoutSnapshot, ...]: ...
     def create_checkout(self, intent: CheckoutIntent) -> CheckoutSnapshot: ...

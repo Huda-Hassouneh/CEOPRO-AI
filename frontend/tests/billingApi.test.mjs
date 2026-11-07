@@ -1,6 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkoutConfirmationState, mapPlan } from '../src/features/billing/api/billingApi.js';
+import { billingErrorMessage, checkoutConfirmationState, mapPlan } from '../src/features/billing/api/billingApi.js';
+import { readFileSync } from 'node:fs';
+
+test('pending/reconciliation errors are localized and unknown codes never show raw keys', () => {
+  for (const locale of ['en', 'ar']) {
+    const labels = JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`, import.meta.url), 'utf8'));
+    const t = key => key.split('.').reduce((value, part) => value?.[part], labels) ?? key;
+    for (const reason of ['checkout_pending', 'checkout_reconciling', 'checkout_reconciliation_required', 'trial_checkout_pending', 'customer_creation_reconciling', 'customer_identity_conflict', 'unrecognized_future_code']) {
+      if (reason !== 'unrecognized_future_code') assert.equal(typeof labels.billing.errors[reason], 'string');
+      const message = billingErrorMessage({ response: { data: { detail: { reason } } } }, t);
+      assert.ok(message.length > 20);
+      assert.ok(!message.includes('billing.errors.'));
+      if (reason === 'unrecognized_future_code') assert.equal(message, t('billing.errors.generic'));
+    }
+  }
+});
 
 test('Checkout return is pending until the backend confirms active billing state', () => {
   assert.equal(checkoutConfirmationState(null), 'pending');
@@ -47,6 +62,6 @@ test('trial selection uses the Python trial endpoint and sends no client-control
     const { billingApi } = await import('../src/features/billing/api/billingApi.js');
     await billingApi.startTrial({ planId: 'growth' });
     assert.equal(calls[0].url, '/billing/trial');
-    assert.deepEqual(JSON.parse(calls[0].data), { plan_key: 'growth' });
+    assert.deepEqual(JSON.parse(calls[0].data), { plan_key: 'growth', period_code: 'monthly' });
   } finally { httpClient.defaults.adapter = original; }
 });

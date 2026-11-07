@@ -252,6 +252,8 @@ def set_custom_contract(conn, *, tenant_id: str, contract_ref: str, approved_by:
         raise AdminError("contract limits can't be negative")
     if not 0 <= int(trial_days) <= 90:
         raise AdminError("trial_days must be 0-90")
+    if trial_days:
+        raise AdminError("New trials require provider-confirmed recurring payment setup; manual contracts cannot activate a trial.")
     today = today or datetime.now(timezone.utc).date()
     with conn.cursor() as cursor:
         cursor.execute("SELECT 1 FROM companies WHERE tenant_id = %s;", (tenant_id,))

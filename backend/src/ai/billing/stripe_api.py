@@ -3,6 +3,7 @@ The only module that talks to Stripe. Every call goes through here so tests
 replace these functions instead of the network, and so the API key is set in
 one place. Uses the official stripe-python SDK.
 """
+from copy import deepcopy
 import stripe
 
 from src.ai.billing import config, test_clock
@@ -30,8 +31,34 @@ def _client():
     return stripe
 
 
-def create_customer(email: str, company_name: str, tenant_id: str, idempotency_key: str):
+def customer_namespace(client):
+    return {'account':_plain(client.Account.retrieve())['id'], 'livemode':_plain(client.Balance.retrieve())['livemode']}
+
+
+def prepare_customer_create(email, company_name, tenant_id, operation_id):
+    client=_client()
+    local=test_clock.adapter()
+    options=local.creation_options(client) if local else {}
+    return {'namespace':customer_namespace(client),'api_version':stripe.api_version,
+            'params':{'email':email,'name':company_name,'metadata':{'tenant_id':tenant_id,'keel_customer_operation_id':operation_id},**options}}
+
+
+def _customer_context(client, frozen):
+    if customer_namespace(client)!=frozen['namespace']:
+        raise ValueError('Frozen customer CREATE belongs to a different provider namespace.')
+    options=frozen['params']
+    if options.get('test_clock'):
+        local=test_clock.adapter()
+        if local is None:
+            raise test_clock.TestClockError('Frozen Test Clock customer creation requires the local TEST adapter.')
+        local.clock(client,clock_id=options['test_clock'])
+
+
+def create_customer(email: str, company_name: str, tenant_id: str, idempotency_key: str, *, frozen=None):
     client = _client()
+    if frozen is not None:
+        _customer_context(client,frozen)
+        return _plain(client.Customer.create(**deepcopy(frozen['params']),idempotency_key=idempotency_key,stripe_version=frozen['api_version']))
     local = test_clock.adapter()
     options = local.creation_options(client) if local else {}
     customer = _plain(client.Customer.create(
@@ -41,6 +68,28 @@ def create_customer(email: str, company_name: str, tenant_id: str, idempotency_k
     if local:
         local.validate_customer(customer, tenant_id)
     return customer
+
+
+def retrieve_customer(customer_id):
+    return _plain(_client().Customer.retrieve(customer_id))
+
+
+def recover_customer_create(tenant_id, operation_id, frozen):
+    if frozen is None:
+        # A legacy CREATE has no frozen namespace/options or operation marker.
+        # A negative search cannot establish absence. Require original evidence.
+        return None
+    client=_client();_customer_context(client,frozen)
+    params=frozen['params']
+    if params.get('test_clock'):
+        candidates=client.Customer.list(test_clock=params['test_clock'],limit=100).auto_paging_iter()
+    else:
+        candidates=client.Customer.search(query=f"metadata['keel_customer_operation_id']:'{operation_id}' AND metadata['tenant_id']:'{tenant_id}'",limit=100).auto_paging_iter()
+    matches=[_plain(c) for c in candidates if (_plain(c).get('metadata') or {}).get('tenant_id')==tenant_id
+             and (_plain(c).get('metadata') or {}).get('keel_customer_operation_id')==operation_id]
+    if len(matches)>1:
+        raise ValueError('Several provider customers claim the same logical operation.')
+    return matches[0] if matches else None
 
 
 def create_checkout_session(params: dict, idempotency_key: str):
@@ -69,7 +118,7 @@ def create_portal_session(customer_id: str, return_url: str):
 
 
 def retrieve_subscription(subscription_id: str):
-    return _plain(_client().Subscription.retrieve(subscription_id))
+    return _plain(_client().Subscription.retrieve(subscription_id, expand=["customer"]))
 
 
 def modify_subscription(subscription_id: str, **params):

@@ -78,7 +78,7 @@ def test_signup_stages_pending_registration_without_creating_a_session():
     with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_fake_conn()), \
          patch("src.ai.routers.auth._fetch_user_by_email", return_value=None), \
          patch("src.ai.routers.auth._insert_company") as insert_company, \
-         patch("src.ai.routers.auth._start_free_trial") as start_trial, \
+         patch("src.ai.billing.store.start_trial") as start_trial, \
          patch.object(pending_registration, "_call", return_value={"status": "pending"}) as register, \
          patch.object(pending_registration.notifications, "send_email_verification_email", return_value=True), \
          patch.object(auth_throttle, "ensure_allowed"), \

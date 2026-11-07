@@ -232,12 +232,9 @@ def test_trial_and_checkout_use_real_password_authenticated_connections(client,t
     from src.ai.core.security import create_access_token
     tid,uid=tenant;plan,_=test_price
     headers={"Authorization":"Bearer "+create_access_token(tid,uid,email_verified=True)[0]}
-    trial=client.post("/billing/trial",json={"plan_key":"growth"},headers=headers)
-    assert trial.status_code==200,trial.json()
-    assert client.post("/billing/trial",json={"plan_key":"growth"},headers=headers).status_code==409
     monkeypatch.setenv("STRIPE_SECRET_KEY","sk_test_offline")
     monkeypatch.setenv("PUBLIC_FRONTEND_ORIGIN","http://127.0.0.1:15173")
-    monkeypatch.setattr(stripe_api,"create_customer",lambda *a,**kw:{"id":"cus_password_"+tid})
+    monkeypatch.setattr(stripe_api,"create_customer",lambda *a,**kw:{"id":"cus_password_"+tid,"metadata":{"tenant_id":tid}})
     calls=[]
     def create(params,idempotency_key):
         calls.append(idempotency_key)

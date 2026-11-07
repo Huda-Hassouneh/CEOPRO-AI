@@ -5,10 +5,30 @@ import {
   getOnboardingReturnPath,
   getPostSetupPath,
   hasActivePlanAccess,
+  hasCurrentTrialAccess,
+  canStartPlanTrial,
   ONBOARDING_RETURN_PATH_KEY,
 } from '../src/features/billing/utils/onboardingRouting.js';
 
 const storage = (value) => ({ getItem: () => value });
+
+test('trial eligibility belongs to the selected plan, with no default Plus fallback', () => {
+  const fresh = {trialAvailable:true,trialUsed:false,assigned:false,hasSubscription:false,trialEligiblePlanIds:['starter','enterprise']};
+  for (const [id,days,expected] of [['starter',14,true],['growth',14,false],['enterprise',7,true],['no-trial',0,false]]) {
+    assert.equal(canStartPlanTrial(fresh,{id,trialDays:days,selfServe:true}),expected);
+  }
+  assert.equal(canStartPlanTrial({...fresh,trialUsed:true},{id:'enterprise',trialDays:7,selfServe:true}),false);
+  assert.equal(canStartPlanTrial({...fresh,assigned:true},{id:'enterprise',trialDays:7,selfServe:true}),false);
+  assert.equal(canStartPlanTrial({...fresh,hasSubscription:true},{id:'enterprise',trialDays:7,selfServe:true}),false);
+});
+
+test('continue with current trial requires a real issued trial with backend-confirmed access', () => {
+  const issued = {assigned:true,hasAccess:true,billingStatus:'trialing',trialUsed:true,trialEndsAt:'2026-11-16T07:37:20Z'};
+  assert.equal(hasCurrentTrialAccess(issued),true);
+  for (const changes of [{assigned:false},{hasAccess:false},{billingStatus:'expired'},{trialUsed:false},{trialEndsAt:null},{billingStatus:'active'}]) {
+    assert.equal(hasCurrentTrialAccess({...issued,...changes}),false);
+  }
+});
 
 test('subscription review has one live route and is not shadowed by a legacy redirect', () => {
   const router = readFileSync(new URL('../src/app/router/index.jsx', import.meta.url), 'utf8');

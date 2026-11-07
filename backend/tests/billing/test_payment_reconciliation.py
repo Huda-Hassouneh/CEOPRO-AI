@@ -211,7 +211,7 @@ def test_custom_checkout_completion_only_correlates_and_cannot_attest_payment(re
     monkeypatch.setattr(webhooks, "sync_subscription", lambda *a, **k: synced.append((a, k)) or "tenant-alpha")
     monkeypatch.setattr(webhooks, "_record_custom_checkout_session", lambda *a: linked.append(a))
     webhooks.handle_event(conn, notification(Kind.CHECKOUT_COMPLETED, checkout=checkout.reference, checkout_snapshot=checkout))
-    assert synced[0][0][1] == checkout.subscription and synced[0][1] == {}
+    assert synced[0][0][1] == checkout.subscription and synced[0][1] == {'provider_event_id':'notification-alpha'}
     assert linked[0][1] is checkout and not payments
 
 

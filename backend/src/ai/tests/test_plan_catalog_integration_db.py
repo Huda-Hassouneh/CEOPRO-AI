@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.ai.core import entitlements, usage
-from src.ai.tests.signup_helpers import create_verified_test_account
+from src.ai.tests.signup_helpers import create_verified_test_account, install_paid_plan_fixture
 
 ADMIN_DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -50,8 +50,7 @@ def _company(client, plan_key):
     session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Plan Co", "email": email,
                                                      "country_code": "JO", "primary_currency": "JOD",
                                                      "password": "Plan!Catalog-2026"})
-    _admin("UPDATE tenant_plan_assignments SET plan_key = %s, status = 'active', source = 'manual' WHERE tenant_id = %s;",
-           (plan_key, session["tenant_id"]))
+    install_paid_plan_fixture(session, plan_key, onboarding_complete=True)
     entitlements.forget(session["tenant_id"])
     return session, {"Authorization": f"Bearer {session['access_token']}"}
 
@@ -141,15 +140,16 @@ def test_one_companys_usage_never_reduces_anothers_allowance(client):
         conn.close()
 
 
-def test_new_companies_start_on_the_growth_trial(client):
+def test_new_companies_have_no_commercial_assignment_or_trial(client, monkeypatch):
+    monkeypatch.setenv('UNASSIGNED_PLAN_ACCESS', 'none')
     email = f"trial+{uuid.uuid4().hex[:8]}@example.com"
     session = create_verified_test_account(client, {"full_name": "Owner", "business_name": "Trial Co", "email": email,
                                                      "country_code": "JO", "primary_currency": "JOD",
                                                      "password": "Plan!Catalog-2026"})
-    [(plan_key, status, days)] = _admin(
-        "SELECT a.plan_key, a.status, (a.current_period_end - a.current_period_start) FROM tenant_plan_assignments a WHERE tenant_id = %s;",
-        (session["tenant_id"],))
-    assert (plan_key, status, days) == ("growth", "trialing", 14)
+    for table in ('tenant_plan_assignments', 'billing_trials', 'billing_subscriptions'):
+        assert _admin(f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (session['tenant_id'],)) == [(0,)]
+    subscription = client.get('/billing/subscription', headers={'Authorization': 'Bearer '+session['access_token']}).json()
+    assert subscription['planId'] is None and not subscription['assigned'] and not subscription['hasAccess']
 
 
 def test_the_assistant_allowance_is_counted_in_tokens(client):

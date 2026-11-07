@@ -111,8 +111,8 @@ def test_checkout_links_existing_tenant_and_reuses_customer(
     monkeypatch.setattr(
         stripe_api,
         "create_customer",
-        lambda email, name, tenant_id, idempotency_key: (
-            calls.append((tenant_id, idempotency_key)) or {"id": "cus_test_" + tid}
+        lambda email, name, tenant_id, idempotency_key, **kwargs: (
+            calls.append((tenant_id, idempotency_key)) or {"id": "cus_test_" + tid,"metadata":{"tenant_id":tid}}
         ),
     )
     requests = []
@@ -201,6 +201,12 @@ def test_subscription_lifecycle_is_synchronized_to_existing_rows(
     tid, _ = tenant
     _, price = test_price
     live = live_subscription(tid, price, status=provider_status)
+    if provider_status == 'trialing':
+        # A grandfathered trial, not a new provider-backed activation fixture.
+        now=int(time.time());live['trial_end']=now+14*86400
+        with owner_db.cursor() as cur:
+            cur.execute('INSERT INTO billing_trials(tenant_id,plan_key,started_at,ends_at,started_by_user_id) VALUES(%s,%s,to_timestamp(%s),to_timestamp(%s),%s)',
+                        (tid,test_price[0],now,live['trial_end'],tenant[1]))
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: live)
     response = deliver("customer.subscription.updated", {"id": live["id"]})
     assert response.status_code == 200, response.text
@@ -434,7 +440,7 @@ def test_concurrent_delivery_claims_one_execution(owner_db, tenant, monkeypatch)
     results = []
     errors = []
 
-    def synchronize(conn, sid, created, hint=None):
+    def synchronize(conn, sid, created, hint=None, **kwargs):
         calls.append(sid)
         time.sleep(0.15)
         return tid

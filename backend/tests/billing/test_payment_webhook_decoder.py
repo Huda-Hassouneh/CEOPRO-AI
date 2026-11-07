@@ -127,8 +127,11 @@ def test_payment_boundary_wiring_is_scoped_and_contract_has_no_infrastructure_im
                 module = (getattr(node, "module", None) or "").split(".")[-1]
                 used = (names | {module}) & new_modules
                 if used:
+                    if path.relative_to(src).as_posix() == 'ai/billing/customer_operations.py':
+                        assert used == {'payment_contracts'}, 'Customer policy may use only neutral contracts'
+                        continue
                     assert path.relative_to(src).as_posix() in {
-                        "ai/billing/service.py", "ai/billing/checkout_attempts.py",
+                        "ai/billing/service.py", "ai/billing/checkout_attempts.py", "ai/billing/trial_checkouts.py",
                         "ai/billing/webhooks.py", "ai/billing/store.py", "ai/billing/promotions.py",
                         "ai/routers/billing.py",
                     }, str(path)

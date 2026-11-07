@@ -13,12 +13,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.ai.billing import checkout_attempts, custom_offers, service, store, stripe_api
+from src.ai.billing import checkout_attempts, custom_offers, service, store, stripe_api, customer_operations
 from src.ai.billing.payment_contracts import (
     CheckoutIntent, CheckoutSnapshot, CheckoutState, FrozenCheckoutRequest, Money,
     PaymentProviderError, PaymentState, ProviderOperationOutcome as Outcome,
     ProviderReference as Ref, ScheduledChange, SubscriptionChangeResult,
     SubscriptionSnapshot, SubscriptionState,
+    CustomerIntent, CustomerSnapshot, FrozenCustomerRequest,
 )
 from src.ai.billing.stripe_gateway import StripeGateway
 from .test_reconciliation_roles import restricted_runtime  # noqa: F401
@@ -44,6 +45,16 @@ class OtherGateway:
     def create_customer(self, **fields):
         self.actions.append(("customer", fields))
         return Ref(self.provider, "account-alpha")
+
+    def prepare_customer(self,intent):
+        return FrozenCustomerRequest(self.provider,intent.idempotency_key,{'tenant':intent.tenant_reference},3600)
+
+    def submit_customer(self,request):
+        self.actions.append(('customer',request))
+        return CustomerSnapshot(Ref(self.provider,'account-alpha'),request.payload['tenant'])
+
+    def get_customer(self,reference,*,tenant_reference):
+        return CustomerSnapshot(reference,tenant_reference)
 
     def list_customer_subscriptions(self, customer):
         return ()
@@ -113,6 +124,16 @@ def application(monkeypatch, memory_checkout_reservations):
         "is_active": True, "self_serve": True, "stripe_price_id": "offer-alpha"})
     monkeypatch.setattr(store, "trial", lambda *a: None)
     monkeypatch.setattr(store, "save_customer", lambda *a: None)
+    # Explicit unit persistence double. Native customer-operation SQL, replay,
+    # concurrency and RLS are covered by test_customer_operations.py.
+    def resolve(conn,setup,tenant,email,name,provider):
+        mapped=store.customer_id(conn,tenant)
+        if mapped:
+            provider.get_customer(Ref(provider.provider,mapped),tenant_reference=tenant)
+            return mapped
+        request=provider.prepare_customer(CustomerIntent(tenant,email,name,'unit-operation','unit-stable-key'))
+        return provider.submit_customer(request).reference.opaque_id
+    monkeypatch.setattr(customer_operations,'resolve',resolve)
     return gateway
 
 
@@ -139,6 +160,20 @@ def test_customer_reuse_checks_mapping_and_does_not_create_again(application, mo
     assert service._ensure_customer(None, None, "tenant-alpha", "e", "c") == "account-alpha"
     assert checks == [((Ref("another", "account-alpha"),), {"tenant_reference": "tenant-alpha", "require_clock": True})]
     assert not application.actions
+
+
+@pytest.mark.parametrize('days',[14,7])
+def test_selected_trial_business_request_is_provider_neutral(application,monkeypatch,days):
+    from src.ai.billing import trial_checkouts
+    monkeypatch.setattr(store,'trial_eligibility',lambda *a:None)
+    monkeypatch.setattr(trial_checkouts,'reserve',lambda *a:{'trial_duration_days':days})
+    result=service.create_checkout(None,MagicMock(),'tenant-alpha','owner@example.test','Company','selected-plan','monthly',actor_user_id='actor',trial_requested=True)
+    intent=application.prepared[0]
+    assert intent.trial_duration_days==days and intent.trial_end is None
+    assert intent.require_payment_method_before_activation is True
+    assert intent.price==Ref('another','offer-alpha')
+    assert intent.subscription_metadata['keel_trial_attempt_id']
+    assert result['url']=='https://payments.example.test/hosted'
 
 
 def test_active_subscription_blocks_before_any_gateway_action(application, monkeypatch):

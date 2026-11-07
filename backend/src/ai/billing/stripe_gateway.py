@@ -11,6 +11,7 @@ import stripe
 from src.ai.billing import stripe_api, test_clock
 from src.ai.billing.payment_contracts import (
     CheckoutIntent, CheckoutSnapshot, CheckoutState, FrozenCheckoutRequest, InvoiceSnapshot, Money,
+    CustomerSnapshot, FrozenCustomerRequest,
     PaymentProviderError, PaymentState, ProviderOperationOutcome as Outcome,
     ProviderReference, ScheduledChange, SubscriptionChangeIntent,
     SubscriptionChangeResult, SubscriptionItem, SubscriptionSnapshot, SubscriptionState,
@@ -63,6 +64,10 @@ def _checkout(data):
     )
 
 
+def _customer(data):
+    return CustomerSnapshot(_required_reference(data['id']),(data.get('metadata') or {}).get('tenant_id'),bool(data.get('deleted')))
+
+
 def _subscription(data):
     items = (data.get("items") or {}).get("data") or []
     period = items[0] if items else {}
@@ -78,6 +83,11 @@ def _subscription(data):
         trial_end=_time(data.get("trial_end")), cancel_at_period_end=bool(data.get("cancel_at_period_end")),
         cancelled_at=_time(data.get("canceled_at")), schedule=_reference(data.get("schedule")),
         latest_invoice=_reference(data.get("latest_invoice")), metadata=deepcopy(data.get("metadata") or {}),
+        trial_start=_time(data.get("trial_start")),
+        recurring_payment_method_ready=bool(data.get("default_payment_method") or data.get("default_source")
+            or (isinstance(data.get("customer"), dict) and (
+                (data["customer"].get("invoice_settings") or {}).get("default_payment_method")
+                or data["customer"].get("default_source")))),
     )
 
 
@@ -136,6 +146,8 @@ def _call(operation, *, mutating=False, completed_writes=None):
     except Exception as error:
         if completed_writes:
             outcome = Outcome.OUTCOME_UNKNOWN
+        elif isinstance(error,stripe.IdempotencyError):
+            outcome = Outcome.OUTCOME_UNKNOWN
         elif stripe_api.checkout_request_rejected(error):
             outcome = Outcome.REJECTED
         elif isinstance(error, stripe.InvalidRequestError) and error.http_status == 404:
@@ -189,6 +201,28 @@ class StripeGateway:
         return _call(lambda: _required_reference(stripe_api.create_customer(
             email, company_name, tenant_reference, idempotency_key)["id"]), mutating=True)
 
+    def prepare_customer(self,intent):
+        payload=_call(lambda:stripe_api.prepare_customer_create(intent.email,intent.company_name,intent.tenant_reference,intent.operation_id))
+        # Stripe v1 may prune keys after 24h. Leave margin; never blindly replay
+        # an unresolved write after that guarantee. The domain treats this as
+        # the provider's generic safe replay window.
+        return FrozenCustomerRequest(self.provider,intent.idempotency_key,payload,23*3600)
+
+    def submit_customer(self,request):
+        if request.provider!=self.provider:
+            raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
+        params=request.payload['params']
+        return _call(lambda:_customer(stripe_api.create_customer(params['email'],params['name'],params['metadata']['tenant_id'],request.idempotency_key,frozen=request.payload)),mutating=True)
+
+    def get_customer(self,reference,*,tenant_reference):
+        return _call(lambda:_customer(stripe_api.retrieve_customer(_identifier(reference))))
+
+    def recover_customer(self,intent):
+        def read():
+            value=stripe_api.recover_customer_create(intent.tenant_reference,intent.operation_id,intent.request.payload if intent.request else None)
+            return _customer(value) if value else None
+        return _call(read)
+
     def list_customer_subscriptions(self, customer):
         identifier = _identifier(customer)
         return _call(lambda: tuple(_subscription(item) for item in stripe_api.customer_subscriptions(identifier)))
@@ -215,11 +249,14 @@ class StripeGateway:
         params = {"mode": "subscription", "customer": _identifier(intent.customer), "line_items": [line],
                   "client_reference_id": intent.client_reference, "metadata": dict(intent.metadata),
                   "subscription_data": {"metadata": dict(intent.subscription_metadata)},
-                  "payment_method_collection": "always", "success_url": intent.success_url.replace(
+                  "payment_method_collection": "always" if intent.require_payment_method_before_activation else "if_required", "success_url": intent.success_url.replace(
                       "{checkout_reference}", "{CHECKOUT_SESSION_ID}"),
                   "cancel_url": intent.cancel_url}
         if intent.trial_end is not None:
             params["subscription_data"].update(trial_end=_epoch(intent.trial_end),
+                trial_settings={"end_behavior": {"missing_payment_method": "cancel"}})
+        if intent.trial_duration_days is not None:
+            params["subscription_data"].update(trial_period_days=intent.trial_duration_days,
                 trial_settings={"end_behavior": {"missing_payment_method": "cancel"}})
         if intent.promotion is not None:
             params["discounts"] = [{"promotion_code": _identifier(intent.promotion)}]

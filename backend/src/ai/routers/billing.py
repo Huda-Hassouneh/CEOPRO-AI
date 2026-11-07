@@ -458,20 +458,26 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         has_customer = store.customer_id(conn, ctx.tenant_id) is not None
         role = _role(conn, ctx.tenant_id, ctx.user_id)
         can_manage = role in _BILLING_ROLES
+        trial_candidates = []
+        if can_manage and not trial and not subscription and not plan["assigned"]:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT plan_key FROM usage_plans WHERE is_active AND self_serve AND trial_days > 0 ORDER BY plan_key")
+                trial_candidates = [row[0] for row in cursor.fetchall()]
         budgets = credits.summary(conn, ctx.tenant_id)
         conn.commit()
     finally:
         conn.close()
-    trial_available = False
+    trial_eligible_plan_ids = []
     # Only for an active member: the check below runs on the billing
     # service's connection, which would answer for any company named in a
     # token (e.g. a removed member's, until it expires).
-    if role and not trial and not subscription:
+    if trial_candidates:
         # The per-person check needs this person's other companies, which
         # this company's own connection can't see.
         sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
         try:
-            trial_available = store.trial_eligibility(sys_conn, ctx.tenant_id, config.trial_plan_key(), ctx.user_id) is None
+            trial_eligible_plan_ids = [key for key in trial_candidates
+                                       if store.trial_eligibility(sys_conn, ctx.tenant_id, key, ctx.user_id) is None]
         finally:
             sys_conn.close()
     limits, used = {}, {}
@@ -483,8 +489,8 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         used[key] = _scaled(item["current_usage"], factor)
     return {
         "available": True,
-        "planId": plan["plan_key"],
-        "planName": plan["display_name"],
+        "planId": plan["plan_key"] if plan["assigned"] else None,
+        "planName": plan["display_name"] if plan["assigned"] else None,
         "status": plan["status"],
         "hasAccess": plan["status"] in usage.ACCESS_GRANTING_STATUSES,
         "assigned": plan["assigned"],
@@ -517,7 +523,8 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         # Data and AI Credits, separately: limit, used, remaining, warning
         # threshold reached and reset date. Never provider prices or costs.
         "credits": budgets,
-        "trialAvailable": trial_available,
+        "trialAvailable": bool(trial_eligible_plan_ids),
+        "trialEligiblePlanIds": trial_eligible_plan_ids,
         "trialEndsAtExact": _iso(plan.get("trial_ends_at")),
     }
 
@@ -536,53 +543,14 @@ def usage_history(limit: int = 50, ctx: TenantContext = Depends(get_tenant_conte
     return {"items": items}
 
 
-class TrialChoice(BaseModel):
-    plan_key: str
+class TrialChoice(CheckoutChoice):
+    pass
 
 
 @router.post("/trial")
 def start_trial(body: TrialChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
-    """A company that never had a trial (and has no plan) starts one on the
-    plan it picks, for that plan's trial length. Checked on the server: one
-    trial per company, one per person, self-serve plans only. No payment is
-    taken and nothing converts to a paid plan without a checkout."""
-    conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    try:
-        _require_billing_role(conn, ctx)
-        conn.commit()
-    finally:
-        conn.close()
-    sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
-    try:
-        reason = store.trial_eligibility(sys_conn, ctx.tenant_id, body.plan_key, ctx.user_id)
-        if reason:
-            raise HTTPException(status_code=409, detail={"reason": reason, "message": _TRIAL_REFUSALS.get(reason, _TRIAL_REFUSALS["trial_already_used"])})
-        granted = store.start_trial(sys_conn, ctx.tenant_id, started_by_user_id=ctx.user_id, plan_key=body.plan_key)
-        if not granted:
-            sys_conn.rollback()
-            raise HTTPException(status_code=409, detail={"reason": "trial_already_used", "message": _TRIAL_REFUSALS["trial_already_used"]})
-        sys_conn.commit()
-    except HTTPException:
-        raise
-    except Exception:
-        sys_conn.rollback()
-        raise
-    finally:
-        sys_conn.close()
-    from src.ai.core import entitlements
-
-    entitlements.forget(ctx.tenant_id)
-    return {"plan_key": granted["plan_key"], "started_at": granted["started_at"].isoformat(),
-            "ends_at": granted["ends_at"].isoformat()}
-
-
-_TRIAL_REFUSALS = {
-    "plan_has_no_trial": "This plan doesn't offer a free trial.",
-    "trial_already_used": "Your company has already used its free trial.",
-    "trial_already_used_by_person": "You've already used a free trial with another company.",
-    "plan_already_assigned": "Your company already has a plan.",
-    "subscription_exists": "Your company already has a subscription.",
-}
+    """Prepare selected-plan trial Checkout; only verified reconciliation grants access."""
+    return _subscription_checkout(body,ctx,trial_requested=True)
 
 
 @router.get("/invoices")
@@ -620,13 +588,18 @@ def validate_promotion(body: PromotionValidation, ctx: TenantContext = Depends(g
 
 @router.post("/checkout")
 def start_checkout(body: CheckoutChoice, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    return _subscription_checkout(body,ctx)
+
+
+def _subscription_checkout(body: CheckoutChoice, ctx: TenantContext, *, trial_requested: bool = False) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
         company_name, email = _company(conn, ctx.tenant_id, ctx.user_id)
         return service.create_checkout(conn, sys_conn, ctx.tenant_id, email, company_name,
-                                       body.plan_key, body.period_code, body.promotion_code, ctx.user_id)
+                                       body.plan_key, body.period_code, body.promotion_code, ctx.user_id,
+                                       trial_requested=trial_requested)
     except service.BillingError as err:
         raise _to_http(err)
     except HTTPException:

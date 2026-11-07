@@ -205,3 +205,29 @@ above. Real Stripe Checkout payment with these identities remains a separate gat
 o external financial resources or paid rights in development data are created by
 these offline proofs. Missing or legacy manual-deployment service configuration is
 not permission to substitute an administrator DSN.
+
+### Provider-backed trial confirmation
+
+The forward migration `20261127000000_provider_backed_trials.sql` replaces the
+setup role's local trial activation with a pending reservation. It does not
+update historical trials, assignments, snapshots, prices or credit balances.
+The new table uses FORCE RLS, one pending reservation per person/workspace,
+and unique provider subscription identity. It freezes the selected plan's
+canonical duration, billing term and opaque published provider price.
+
+Setup may reserve/release but cannot issue a trial or assignment. Only the
+verified-event role can invoke confirmation under an unprocessed, tenant-bound
+receipt. The NOLOGIN issuer validates one-time eligibility under person/workspace
+locks and inserts the issued boundary; it has no assignment INSERT privilege.
+Reconciliation validates normalized customer, subscription, price, duration and
+recurring-method readiness, then atomically commits trial, subscription,
+assignment, snapshot and completed receipt. A redirect or pending row grants no
+access. Terminal Checkout expiry releases only its matching reservation.
+
+Disposable verification includes fresh/repeated migration, real password-role
+and tenant-isolation checks, forbidden direct writes/confirmation, simultaneous
+workspace requests, replay/order permutations, rejected payment setup and
+mismatched evidence. The 164→165 upgrade preserved seeded historical record and
+catalog fingerprints (`.dev/evidence/trial-upgrade/result.json`). The normal
+development DB remains unmigrated; applying this migration and restarting the
+API require a separately approved rollout with a verified recoverable backup.
