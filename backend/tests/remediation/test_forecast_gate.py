@@ -4,7 +4,8 @@ This is isolated HTTP authorization coverage, not full model-server execution.
 """
 
 import ast
-from types import SimpleNamespace
+import uuid
+from uuid import UUID
 
 import pytest
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
@@ -60,8 +61,12 @@ def test_exact_forecast_route_gate(
         "db": db,
         "usage": usage,
         "requires": requires,
+        "UUID": UUID,
         "get_product": lambda *args: {"product_id": "fixture"},
-        "forecasting_pipeline": SimpleNamespace(run_forecast=work),
+        # Inference/authorization doubles: the entitlement gate under test
+        # runs before the handler body, so a denied request must never reach them.
+        "require_forecast_authorization": lambda *args: None,
+        "_generate_or_reuse_forecast": work,
     }
     exec(  # noqa: S102 -- exact trusted repository AST, no user input
         compile(ast.Module(body=[handler], type_ignores=[]), str(source), "exec"),
@@ -72,7 +77,7 @@ def test_exact_forecast_route_gate(
     app.include_router(router)
     with TestClient(app) as client:
         result = client.post(
-            "/dashboard/products/fixture/forecast", headers=headers(assigned)
+            f"/dashboard/products/{uuid.uuid4()}/forecast", headers=headers(assigned)
         )
     if state == "included":
         assert result.status_code == 200 and result.json() == body and len(calls) == 1

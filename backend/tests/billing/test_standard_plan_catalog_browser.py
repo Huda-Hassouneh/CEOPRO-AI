@@ -21,8 +21,9 @@ from .test_reconciliation_roles import restricted_runtime  # noqa: F401
 @pytest.mark.parametrize('locale,width',[('en',1440),('en',390),('ar',1440),('ar',390)])
 def test_template_browser(locale,width,platform_owner_context,restricted_runtime):
     root=Path(__file__).resolve().parents[3]
-    chrome=Path('C:/Program Files/Google/Chrome/Application/chrome.exe')
-    assert chrome.is_file(),'Chrome required for local browser acceptance'
+    chrome=next((p for p in [Path(os.environ.get('CHROMIUM_PATH','missing-chrome')),
+        Path('C:/Program Files/Google/Chrome/Application/chrome.exe')] if p.is_file()),None)
+    assert chrome,'Chrome required for local browser acceptance'
     api_port,ui_port=port(),port()
     api,ui=f'http://127.0.0.1:{api_port}',f'http://127.0.0.1:{ui_port}'
     app=FastAPI()
