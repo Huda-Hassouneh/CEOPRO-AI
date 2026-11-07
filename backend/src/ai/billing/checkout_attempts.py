@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import json
 import uuid
 
+from src.ai.billing.payment_contracts import FrozenCheckoutRequest
+
 
 @contextmanager
 def tenant_lock(conn, tenant_id):
@@ -42,6 +44,23 @@ def freeze(conn, attempt, params):
         frozen = cur.fetchone()[0]
     conn.commit()
     return frozen
+
+
+class FrozenCheckoutConflict(ValueError):
+    """An existing immutable request belongs to another approved revision."""
+
+
+def freeze_payment_request(conn, attempt, request: FrozenCheckoutRequest, *, quote_revision=None):
+    """Compatibility bridge for the existing raw provider_params JSONB column.
+
+    Keep its Stripe representation untouched; the application never rebuilds
+    frozen transport evidence. No SQL, transaction or retry semantics change.
+    """
+    payload = freeze(conn, attempt, request.payload)
+    if quote_revision is not None:
+        if request.provider != "stripe" or (payload.get("metadata") or {}).get("custom_quote_revision_id") != quote_revision:
+            raise FrozenCheckoutConflict("The previous revision Checkout must be reconciled first.")
+    return FrozenCheckoutRequest(request.provider, request.idempotency_key, payload)
 
 
 def opened(conn, attempt, session):

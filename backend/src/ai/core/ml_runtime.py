@@ -18,6 +18,45 @@ logger = logging.getLogger("KEEL_ML_RUNTIME")
 ML_LOAD_LOCK = threading.RLock()
 
 
+# Loading torch + transformers + a base model needs well over 1 GB. On a
+# smaller container (Render's free web service has 512 MB) the kernel kills the
+# whole API mid-load - found on keelai.net: importing reviews restarted the API
+# a minute later and no review was ever analysed. Callers treat a machine
+# without this much memory as "model unavailable" and use their fallback.
+LOCAL_MODEL_MIN_MEMORY_MB = 1536
+
+
+def container_memory_limit_mb():
+    """The cgroup memory limit in MB (v2 memory.max, then v1), or None when
+    unlimited or unknown."""
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            with open(path) as handle:
+                raw = handle.read().strip()
+        except OSError:
+            continue
+        if raw.isdigit():
+            limit = int(raw) // (1024 * 1024)
+            return None if limit >= 1 << 40 else limit  # v1 reports "unlimited" as a huge number
+        return None  # "max"
+    return None
+
+
+def memory_allows_local_models() -> bool:
+    """False when the container is too small to load a local model safely.
+    LOCAL_ML_MODELS=on/off overrides the check (auto by default)."""
+    import os
+
+    mode = os.getenv("LOCAL_ML_MODELS", "auto").strip().lower()
+    if mode in ("on", "1", "true", "yes"):
+        return True
+    if mode in ("off", "0", "false", "no"):
+        return False
+    limit = container_memory_limit_mb()
+    minimum = int(os.getenv("LOCAL_MODEL_MIN_MEMORY_MB", str(LOCAL_MODEL_MIN_MEMORY_MB)))
+    return limit is None or limit >= minimum
+
+
 _UNOBTAINABLE_UNTIL = {}  # model name -> monotonic time before which it isn't re-probed
 UNOBTAINABLE_RETRY_SECONDS = 600
 

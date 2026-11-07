@@ -41,6 +41,7 @@ SOCIAL, OFF_TOPIC, CONCEPT, BUSINESS = "social", "off_topic", "concept", "busine
 # social acts
 GREETING, WELLBEING, THANKS, FAREWELL, IDENTITY, INTRODUCTION, ACK, APOLOGY = (
     "greeting", "wellbeing", "thanks", "farewell", "identity", "introduction", "ack", "apology")
+REQUEST, COMPLIMENT = "request", "compliment"   # "لو سمحت" / "excuse me" alone; "انت رائع" / "well done"
 
 EN, AR, ARABIZI = "en", "ar", "arabizi"
 MSA, LEVANTINE, GULF, EGYPTIAN = "msa", "levantine", "gulf", "egyptian"
@@ -83,7 +84,8 @@ _PHRASES: Dict[str, Tuple[str, ...]] = {
         "اهلين", "اهلا وسهلا", "اهلا بك", "السلام عليكم", "السلام عليكم ورحمه الله",
         "السلام عليكم ورحمه الله وبركاته", "سلام عليكم", "سلام", "صباح الخير", "صباح النور", "صباحو", "مساء الخير",
         "مساء النور", "مسا الخير", "مساءو", "يسعد صباحك", "يسعد مساك", "يسعد صباحكم", "حياك", "حياك الله", "هلا بيك",
-        "هلا فيك", "نهارك سعيد", "نهاركم سعيد", "صباح الفل", "صباح الورد",
+        "هلا فيك", "نهارك سعيد", "نهاركم سعيد", "صباح الفل", "صباح الورد", "مسا النور", "مساء الورد", "صبحك الله بالخير",
+        "مساك الله بالخير", "مرحبا فيك",
     ),
     WELLBEING: (
         "how are you", "how are u", "how r u", "how r you", "how are you doing", "how is it going", "how's it going",
@@ -104,11 +106,13 @@ _PHRASES: Dict[str, Tuple[str, ...]] = {
         "مشكوره", "تسلم", "تسلمي", "تسلم ايدك", "تسلم ايديك", "يسلمو", "يسلموا", "يسلمو ايديك", "يعطيك العافيه",
         "يعطيكم العافيه", "الله يعطيك العافيه", "يعطيك الف عافيه", "متشكر", "متشكره", "ميرسي", "جزاك الله خير",
         "جزاك الله خيرا", "الله يجزاك خير", "ما قصرت", "ما قصرتي", "تشكر", "بارك الله فيك", "شكرا يا غالي",
+        "مشكورين", "الف شكر", "الله يسلمك", "الله يخليك", "الله يخليلي اياك", "الله يسلم ايديك", "يسلم تمك", "merci ktir", "thanks habibi",
     ),
     FAREWELL: (
         "bye", "goodbye", "good bye", "bye bye", "see you", "see ya", "see you later", "later", "good night",
         "gn", "take care", "have a nice day", "have a good day", "talk later", "ttyl", "ma3 salameh", "yalla bye",
-        "مع السلامه", "مع السلامه الله معك", "باي", "باي باي", "يلا باي", "يلا سلام", "الله معك", "في امان الله",
+        "مع السلامه", "مع السلامه الله معك", "باي", "باي باي",
+        "تصبحو علي خير", "يلا باي", "يلا سلام", "الله معك", "في امان الله",
         "تصبح علي خير", "تصبحون علي خير", "تصبحي علي خير", "نشوفك", "اشوفك بعدين", "الي اللقاء", "سلامات",
     ),
     IDENTITY: (
@@ -129,6 +133,15 @@ _PHRASES: Dict[str, Tuple[str, ...]] = {
         "زين", "كويس", "كويس اوي", "فهمت", "واضح", "تمام شكرا", "هه", "هههه",
         "ههههه", "ماشي الحال", "الله يعافيك", "عافاك",
     ),
+    REQUEST: (
+        "excuse me", "pardon", "please", "pls", "لو سمحت", "لو سمحتي", "لو سمحتو", "لو تكرمت", "لو تكرمتي", "من فضلك",
+        "من فضلكم", "بعد اذنك", "بعد اذنكم", "ممكن مساعده", "ممكن تساعدني", "ممكن سؤال", "عندي سؤال", "سؤال",
+    ),
+    COMPLIMENT: (
+        "well done", "great job", "good job", "nice work", "nice job", "good work", "bravo", "brilliant", "you rock",
+        "برافو", "برافو عليك", "يا سلام", "يا سلام عليك", "ما شاء الله", "ما شاء الله عليك", "عاش", "عاشت ايدك",
+        "الله يعطيك القوه", "كفو", "ابدعت", "مبدع",
+    ),
     APOLOGY: (
         "sorry", "my bad", "sorry about that", "oops", "apologies",
         "اسف", "اسفه", "معلش", "معليش", "عفوا", "سامحني", "المعذره",
@@ -143,6 +156,9 @@ _FILLER = {
     "يا", "و", "حبيبي", "حبيبتي", "صديقي", "غالي", "يا غالي", "اخوي", "خيو", "يا خيو", "يا باشا", "باشا", "يا زلمه",
     "زلمه", "كتير", "كثير", "جدا", "اوي", "خالص", "وانت", "وانتي", "انت", "كمان", "برضو", "كيل", "مساعد", "ابو",
     "الله", "يا رب", "اليوم", "الغالي", "حضرتك", "الحمد لله", "الحمدلله", "بخير", "منيح", "تمام والحمد لله",
+    "علي كل حال", "عالازعاج", "علي الازعاج", "for the trouble", "for bothering you", "بالزبط", "بالضبط", "يا معلم", "معلم",
+    "يا شباب", "شباب", "يا جماعه", "جماعه", "عليكم", "عليك", "قريب", "بكرا", "بعدين", "علي خير", "يا حبيبي", "ya ghali",
+    "ghali", "ktir", "lahza", "لحظه",
 }
 
 _NAME_INTRO = re.compile(
@@ -267,6 +283,16 @@ def _filler_at(words: List[str], start: int) -> int:
     return start
 
 
+def _fillers_only(words: List[str]) -> bool:
+    position = 0
+    while position < len(words):
+        after = _filler_at(words, position)
+        if after == position:
+            return False
+        position = after
+    return True
+
+
 def _consume(words: List[str], fuzzy: bool = False) -> Tuple[List[str], int]:
     """The social acts at the start of the message, and where the rest begins. `fuzzy` also accepts a word one
     typo away from a greeting or thanks ("helo", "thnaks")."""
@@ -293,7 +319,7 @@ _BUSINESS_WORDS = re.compile(
     r"order|invoice|supplier|competitor|market|business|company|shop|store|restaurant|brand|marketing|campaign|"
     r"review|forecast|demand|import|export|customs|tax|vat|licen|keel|report|dashboard|cash|expense|budget|"
     r"employee|staff|wage|salary|rent|branch|ecommerce|shopify|woocommerce|delivery|menu)|"
-    r"مبيع|بيع|بعنا|ربح|ارباح|هامش|تكلف|كلفه|سعر|اسعار|منتج|مخزون|بضاع|زبون|زبائن|زباين|عميل|عملاء|طلب|فاتور|مورد|"
+    r"مبيع|بيع|بعنا|تسعير|ربح|ارباح|هامش|تكلف|كلفه|سعر|اسعار|منتج|مخزون|بضاع|زبون|زبائن|زباين|عميل|عملاء|طلب|فاتور|مورد|"
     r"منافس|سوق|شركه|شركت|محل|متجر|مطعم|تسويق|حمله|تقييم|توقع|استيراد|تصدير|جمرك|ضريب|ترخيص|تقرير|مصاريف|ميزانيه|"
     r"موظف|رواتب|راتب|ايجار|فرع|توصيل|منيو")
 
@@ -414,6 +440,47 @@ def _original_remainder(original: str, words_consumed: int) -> str:
     return original[position:].strip(" ,،.!-–—:;")
 
 
+# Said in many ways, so read by pattern rather than listed: "انت/انك + praise", "(ب/من/ن)شوفك ...", "شو ... بتعرف/بتقدر".
+_PRAISE = (r"رائع|ممتاز|شاطر|بتجنن|عظيم|مبدع|جميل|حلو|فنان|اسطوره|awesome|great|amazing|the best|brilliant|a star|"
+           r"genius|fantastic|smart|helpful|wonderful|cool")
+_PATTERN_ACTS = (
+    (COMPLIMENT, re.compile(r"^(?:(?:والله|wallah)\s+)?(?:انت|انتي|انتا|انك|انكم|you'?re|you are|u r|ur)\s+(?:\S+\s+)?(?:"
+                            + _PRAISE + r")(?![a-z\u0600-\u06ff])")),
+    (FAREWELL, re.compile(r"^(?:يلا\s+)?(?:ب|من|ن|ا|منن|بن)?شوف(?:ك|كم|كي|كو)(?![\u0600-\u06ff])")),
+    (IDENTITY, re.compile(r"^(?:شو|ايش|وش|اي|what)\s+(?:\S+\s+){0,4}?(?:بتعرف|بتقدر|تقدر|بتشتغل|وظيفتك|شغلتك|بتساعد|"
+                          r"تساعدني|are you capable|can you help|can you do)(?![\u0600-\u06ff])")),
+)
+# Emoji alone: read by what they mean.
+_EMOJI_ACTS = ((GREETING, "👋🤝"), (THANKS, "🙏❤️💙💚💜🧡💛🌹🌷💐😍🥰😘"), (COMPLIMENT, "👏🔥💯⭐🌟🏆"),
+               (ACK, "👍👌✅🙂😊😀😃😄😁😆😂🤣😅😉☺️👆✌️"))
+
+
+def _emoji_acts(message: str) -> List[str]:
+    acts = []
+    for act, chars in _EMOJI_ACTS:
+        if any(ch in message for ch in chars) and act not in acts:
+            acts.append(act)
+    return acts
+
+
+def _pattern_turn(turn: Turn, message: str, normalized: str, has_context: bool) -> bool:
+    """A social act recognised by its pattern. True when the turn was settled (all social)."""
+    for act, pattern in _PATTERN_ACTS:
+        match = pattern.match(normalized)
+        if not match:
+            continue
+        rest = normalized[match.end():].strip(" ؟?!.،,")
+        if _BUSINESS_WORDS.search(rest) or re.search(r"\d", rest):
+            if act == IDENTITY:
+                return False  # "شو بتعرف عن مبيعاتنا؟" is a business question
+            turn.acts = [act]
+            turn.remainder = _original_remainder(message, len(normalized[:match.end()].split())) or turn.remainder
+            return False
+        turn.kind, turn.acts, turn.remainder = SOCIAL, [act], ""
+        return True
+    return False
+
+
 def classify(message: str, has_context: bool = False) -> Turn:
     """What kind of message this is (see the module docstring). `has_context`: the conversation already has a
     business topic, so a pointing word ("what is that?") refers to it."""
@@ -423,6 +490,11 @@ def classify(message: str, has_context: bool = False) -> Turn:
     turn.salam = bool(re.search(r"السلام عليكم|سلام عليكم|salam (a|w)?alaikum|salam alaykum|assalam", normalized))
     turn.time_of_day = _time_of_day(normalized)
     turn.casual = bool(re.search(r"(?<![a-z])(hey|yo|sup|wassup|hiya|heya|bro|lol|haha|thx|ty|gm)(?![a-z])", normalized))
+    if not re.search(r"[A-Za-z\u0600-\u06ff0-9]", message or ""):
+        emoji = _emoji_acts(message or "")
+        if emoji:  # "🙏", "👍": read by what they mean
+            turn.kind, turn.acts, turn.remainder = SOCIAL, emoji, ""
+            return turn
     if not normalized:
         turn.kind, turn.acts = SOCIAL, [GREETING]
         return turn
@@ -435,8 +507,24 @@ def classify(message: str, has_context: bool = False) -> Turn:
         turn.name = " ".join(w.capitalize() if _LATIN_LETTER.search(w) else w for w in original_words)
         return turn
 
+    if _pattern_turn(turn, message, normalized, has_context):
+        return turn
+
     words = [_squeeze(w) for w in normalized.split()]
+    if words and _fillers_only(words) and not _BUSINESS_WORDS.search(normalized):
+        # "الحمدلله", "بخير الحمدلله": words that carry no request - an acknowledgement.
+        turn.kind, turn.acts, turn.remainder = SOCIAL, [ACK], ""
+        return turn
     acts, position = _consume(words)
+    if not acts:
+        # Leading words with no meaning of their own, then a social act: "الحمد لله تمام", "والله تسلم".
+        lead = 0
+        while lead < len(words) and _filler_at(words, lead) > lead:
+            lead = _filler_at(words, lead)
+        if 0 < lead < len(words):
+            later_acts, later_position = _consume(words[lead:])
+            if later_acts:
+                acts, position = later_acts, lead + later_position
     if position < len(words):
         # Typos only when they make the whole message social: "helo thnaks" is, "halal products" is not "hala".
         fuzzy_acts, fuzzy_position = _consume(words, fuzzy=True)
@@ -526,6 +614,18 @@ _REPLIES: Dict[Tuple[str, str], Tuple[str, ...]] = {
     (ACK, EGYPTIAN): ("تمام! في حاجة تانية تحب تعرفها؟",),
     (ACK, ARABIZI): ("Tamam! Fi eshi tani bt7eb t3rfo?",),
 
+    (REQUEST, EN): ("Of course - go ahead, what would you like to know?", "Sure, I'm listening. What do you need?"),
+    (REQUEST, MSA): ("تفضّل، بماذا أستطيع مساعدتك؟", "بكل سرور، تفضّل بسؤالك."),
+    (REQUEST, LEVANTINE): ("تفضّل، أكيد! شو بدك تعرف؟", "ولا يهمك، تفضّل اسأل."),
+    (REQUEST, GULF): ("تفضّل، آمرني! وش تبي تعرف؟", "حاضر، تفضّل اسأل."),
+    (REQUEST, EGYPTIAN): ("اتفضّل طبعاً! عايز تعرف إيه؟", "تحت أمرك، اتفضّل اسأل."),
+    (REQUEST, ARABIZI): ("Tfaddal akeed! Shu badak ta3ref?",),
+    (COMPLIMENT, EN): ("Thank you, that's kind of you! What shall we look at next?", "Glad it helps! Anything else you'd like to check?"),
+    (COMPLIMENT, MSA): ("شكراً لك على لطفك! بماذا أستطيع مساعدتك أيضاً؟", "يسعدني أنني أفدتك! هل هناك شيء آخر؟"),
+    (COMPLIMENT, LEVANTINE): ("تسلم، ذوقك! في إشي ثاني بتحب نشوفه؟", "يا ريت دايماً أفيدك! شو كمان بتحب نشوف؟"),
+    (COMPLIMENT, GULF): ("تسلم، هذا من ذوقك! فيه شي ثاني؟", "الله يسعدك! وش تبي نشوف بعد؟"),
+    (COMPLIMENT, EGYPTIAN): ("ميرسي، ده من ذوقك! في حاجة تانية؟", "يا رب دايماً أفيدك! نشوف إيه كمان؟"),
+    (COMPLIMENT, ARABIZI): ("Teslam, zo2ak! Fi eshi tani?",),
     (APOLOGY, EN): ("No problem at all! What would you like to look at?",),
     (APOLOGY, MSA): ("لا عليك أبداً! بماذا أستطيع مساعدتك؟",),
     (APOLOGY, LEVANTINE): ("ولا يهمك أبداً! شو بتحب نشوف؟",),

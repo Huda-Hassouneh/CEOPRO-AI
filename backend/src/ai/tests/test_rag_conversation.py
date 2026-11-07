@@ -472,7 +472,25 @@ def test_no_search_key_is_reported_as_not_configured(monkeypatch):
     assert result.status == public_research.NOT_CONFIGURED and "TAVILY_API_KEY" in result.detail
 
 
-def test_a_failing_search_provider_is_reported_as_failed_not_as_no_information(monkeypatch):
+@pytest.fixture
+def uncached_research(monkeypatch):
+    """Provider classification uses an explicit cache miss, not receipt SQL.
+
+    This file's fake evidence connection cannot persist execution receipts.
+    Native credit/cache integration tests exercise the durable coordinator.
+    Preserve admission ordering here: preflight must succeed before execution.
+    """
+    from src.ai.research import search_cache
+
+    def miss(conn, tenant, key, preflight, execute):
+        preflight()
+        _provider, results = execute()
+        return results
+
+    monkeypatch.setattr(search_cache, "run", miss)
+
+
+def test_a_failing_search_provider_is_reported_as_failed_not_as_no_information(monkeypatch, uncached_research):
     from src.market_scraper import search_quota, web_search
     monkeypatch.setattr(web_search, "is_configured", lambda *a, **k: True)
     monkeypatch.setattr(search_quota, "try_reserve_query", lambda *a, **k: True)
@@ -485,12 +503,25 @@ def test_a_failing_search_provider_is_reported_as_failed_not_as_no_information(m
     assert result.status == public_research.SEARCH_FAILED and "432" in result.detail
 
 
-def test_an_exhausted_search_budget_is_reported_as_such(monkeypatch):
+def test_an_exhausted_search_budget_is_reported_as_such(monkeypatch, uncached_research):
     from src.market_scraper import search_quota, web_search
     monkeypatch.setattr(web_search, "is_configured", lambda *a, **k: True)
     monkeypatch.setattr(search_quota, "try_reserve_query", lambda *a, **k: False)
     monkeypatch.setattr(public_research, "_tenant_budget_ok", lambda tenant_id: True)
     assert _research_directly().status == public_research.BUDGET_EXHAUSTED
+
+
+def test_unavailable_search_coordination_is_not_reported_as_no_information(monkeypatch):
+    from src.ai.research import search_cache
+    from src.market_scraper import web_search
+
+    monkeypatch.setattr(web_search, "is_configured", lambda *a, **k: True)
+    def unavailable(*args):
+        raise search_cache.CacheUnavailable("offline coordination fixture")
+    monkeypatch.setattr(search_cache, "run", unavailable)
+    result = _research_directly()
+    assert result.status == public_research.SEARCH_FAILED
+    assert result.detail == "search coordination unavailable"
 
 
 def test_a_search_that_finds_nothing_is_no_results_never_an_invented_answer(monkeypatch):
@@ -607,3 +638,41 @@ def test_conversational_and_evidence_replies_are_not_charged_to_the_plan():
     from src.ai.routers import rag as rag_router
     assert "conversation" in rag_router.NON_CHARGEABLE_MODES and "evidence" in rag_router.NON_CHARGEABLE_MODES
     assert "general_knowledge" not in rag_router.NON_CHARGEABLE_MODES, "a model-written explanation is charged"
+
+
+@pytest.mark.parametrize("message, act", [
+    ("لو سمحت", conversation.REQUEST), ("excuse me", conversation.REQUEST),
+    ("والله انك رائع", conversation.COMPLIMENT), ("you're awesome", conversation.COMPLIMENT),
+    ("برافو عليك", conversation.COMPLIMENT), ("يلا بشوفك", conversation.FAREWELL), ("منشوفك بعدين", conversation.FAREWELL),
+    ("شو بتعرف تعمل؟", conversation.IDENTITY), ("الحمدلله", conversation.ACK), ("الحمد لله تمام", conversation.ACK),
+    ("مسا النور", conversation.GREETING), ("مشكورين يا شباب", conversation.THANKS), ("🙏", conversation.THANKS),
+    ("👍", conversation.ACK), ("👋", conversation.GREETING),
+])
+def test_everyday_social_messages_are_read_by_meaning(message, act):
+    turn = conversation.classify(message)
+    assert turn.kind == conversation.SOCIAL and act in turn.acts
+    sentences, _ = conversation.social_reply(turn, message)
+    assert sentences and not any(ch.isdigit() for s in sentences for ch in s if message[0] not in "e")
+
+
+@pytest.mark.parametrize("message", ["لو سمحت قديش بعنا امبارح؟", "please show me last month's sales",
+                                     "رائع، بس ليش نزل البيع؟"])
+def test_a_polite_or_social_opener_keeps_the_business_question(message):
+    turn = conversation.classify(message)
+    assert turn.kind != conversation.SOCIAL and turn.remainder and turn.remainder != message
+
+
+@pytest.mark.parametrize("message", ["ساعدني افهم المبيعات", "شو بتعرف عن مبيعاتنا؟"])
+def test_a_request_for_help_with_a_business_topic_is_business(message):
+    assert conversation.classify(message).kind != conversation.SOCIAL
+
+
+def test_thanks_before_a_question_still_asks_it():
+    message = "الحمدلله، قديش ضل طحينة؟"
+    assert conversation.classify(message).kind != conversation.SOCIAL
+
+
+def test_replies_vary_with_the_message_not_one_fixed_line():
+    replies = {" ".join(conversation.social_reply(conversation.classify(m), m)[0])
+               for m in ("لو سمحت", "لو سمحتي", "من فضلك", "بعد اذنك", "ممكن سؤال")}
+    assert len(replies) >= 2

@@ -10,11 +10,13 @@ behavior - this sandbox's network policy blocks every image provider.
 import base64
 import io
 import logging
+import urllib.parse
+from urllib.parse import quote
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from src.ai.marketing import image_generation
 from src.ai.marketing.image_generation import (
@@ -23,9 +25,17 @@ from src.ai.marketing.image_generation import (
 )
 
 
+def _drawn(width, height, colour=(200, 120, 40)):
+    """A picture with something in it (a "product" in the middle): a flat
+    single-colour image is what safety filters return and is rejected."""
+    picture = Image.new("RGB", (width, height), colour)
+    ImageDraw.Draw(picture).ellipse((width // 4, height // 4, width * 3 // 4, height * 3 // 4), fill=(245, 245, 235))
+    return picture
+
+
 def _picture(size=1024, fmt="PNG"):
     buffer = io.BytesIO()
-    Image.new("RGB", (size, size), (200, 120, 40)).save(buffer, format=fmt)
+    _drawn(size, size).save(buffer, format=fmt)
     return buffer.getvalue()
 
 
@@ -132,7 +142,7 @@ def test_cloudflare_returns_the_decoded_image(monkeypatch):
     url = post.call_args.args[0]
     assert url == "https://api.cloudflare.com/client/v4/accounts/acc/ai/run/@cf/black-forest-labs/flux-1-schnell"
     assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer cf-token"
-    assert post.call_args.kwargs["json"] == {"prompt": "kunafa on a tray", "steps": 4}
+    assert post.call_args.kwargs["json"] == {"prompt": image_generation.shape_prompt("kunafa on a tray", "SQUARE"), "steps": 4}
     assert image.provider == "cloudflare" and image.content == JPEG and image.content_type == "image/jpeg"
     assert (image.width, image.height) == (1024, 1024)
 
@@ -154,7 +164,7 @@ def test_huggingface_and_pollinations_return_raw_image_bytes(monkeypatch):
     assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer hf" and image.content_type == "image/png"
     with patch("src.ai.marketing.image_generation.httpx.get", return_value=_response(content=JPEG, content_type="image/jpeg")) as get:
         image = generate_campaign_image("kunafa & tea", provider="pollinations")
-    assert get.call_args.args[0].endswith("/kunafa%20%26%20tea")
+    assert get.call_args.args[0].endswith("/" + quote(image_generation.shape_prompt("kunafa & tea", "SQUARE")))
     params = get.call_args.kwargs["params"]
     assert params["nologo"] == "true" and params["private"] == "true" and "seed" in params
     assert image.provider == "pollinations" and image.content_type == "image/jpeg"
@@ -187,6 +197,8 @@ def test_huggingface_json_error_and_missing_token(monkeypatch):
 
 def test_a_failing_or_busy_provider_falls_back_to_the_next(monkeypatch, _clean_env):
     monkeypatch.setattr(image_generation.random, "shuffle", lambda items: None)  # fixed order for the scripted replies
+    # Speed history left in Redis by earlier tests must not reorder the scripted providers.
+    monkeypatch.setenv("MARKETING_IMAGE_FASTEST_FIRST", "false")
     monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "acc")
     monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "cf")
     monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
@@ -501,7 +513,7 @@ def test_huggingface_falls_through_to_the_second_model(monkeypatch):
 
 def _rect(width, height, fmt="PNG"):
     buffer = io.BytesIO()
-    Image.new("RGB", (width, height), (10, 20, 30)).save(buffer, format=fmt)
+    _drawn(width, height, (10, 20, 30)).save(buffer, format=fmt)
     return buffer.getvalue()
 
 
@@ -658,3 +670,224 @@ def test_local_server_health_is_reported_without_addresses(monkeypatch):
     assert report[1] == {"server": 2, "ok": False}
     assert "gpu-a" not in str(report)
     assert provider_chain()[:2] == ["local#1", "local#2"]
+
+
+# --- every model x every format ---------------------------------------
+# Each provider is answered the way it really answers (its documented
+# response shape); some always return a square whatever is asked, so the
+# answer here is a square for half of them and the requested size for the
+# rest. Whatever comes back, the stored image must be the format's exact
+# shape, and the provider must have been told the format and the framing.
+
+def _answer_for(base, url, kwargs, size_requested):
+    width, height = size_requested if base in ("huggingface", "together", "local", "pollinations") else (1024, 1024)
+    raw = _rect(width, height)
+    encoded = base64.b64encode(raw).decode()
+    if base == "cloudflare":
+        return _response(content_type="application/json", json_body={"result": {"image": encoded}, "success": True})
+    if base == "gemini":
+        return _response(content_type="application/json",
+                         json_body={"candidates": [{"content": {"parts": [{"inlineData": {"data": encoded, "mimeType": "image/png"}}]}}]})
+    if base in ("together", "local"):
+        return _response(content_type="application/json", json_body={"data": [{"b64_json": encoded}]})
+    return _response(content=raw, content_type="image/png")
+
+
+_PROVIDER_ENV = {
+    "cloudflare": ("CLOUDFLARE_ACCOUNTS", "acct:tok"), "huggingface": ("HUGGINGFACE_API_TOKEN", "hf"),
+    "together": ("TOGETHER_API_KEYS", "tg"), "gemini": ("GEMINI_API_KEYS", "g1"),
+    "pollinations": ("POLLINATIONS_API_KEYS", "pk"), "local": ("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:7860"),
+}
+
+
+@pytest.mark.parametrize("image_format", sorted(image_generation.IMAGE_FORMATS))
+@pytest.mark.parametrize("base", sorted(_PROVIDER_ENV))
+def test_every_provider_delivers_every_format_in_its_exact_shape(monkeypatch, base, image_format):
+    env, value = _PROVIDER_ENV[base]
+    monkeypatch.setenv(env, value)
+    size = image_generation.request_size(image_format)
+    prompts = []
+
+    def answer(url, **kwargs):
+        body = kwargs.get("json") or {}
+        prompts.append(body.get("prompt") or body.get("inputs") or
+                       ((body.get("contents") or [{}])[0].get("parts") or [{}])[0].get("text") or url)
+        return _answer_for(base, url, kwargs, size)
+
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=answer), \
+         patch("src.ai.marketing.image_generation.httpx.get", side_effect=answer), \
+         patch.object(image_generation.credits, "provider_call", _no_metering):
+        image = generate_campaign_image("A bottle of olive oil on a wooden table, warm light", provider=base,
+                                        image_format=image_format)
+
+    target = image_generation._ratio(image_format)
+    assert image.image_format == image_format
+    assert abs(image.width / image.height - target) / target <= 0.02
+    with Image.open(io.BytesIO(image.content)) as picture:
+        assert picture.size == (image.width, image.height)
+        assert min(picture.size) >= 256
+    sent = prompts[0] if base != "pollinations" else urllib.parse.unquote(prompts[0])
+    assert image_generation._FORMAT_COMPOSITION[image_format] in sent
+    assert "not cut off" in sent and "No text" in sent and "olive oil" in sent
+
+
+class _no_metering:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return MagicMock()
+
+    def __exit__(self, *exc):
+        return False
+
+
+@pytest.mark.parametrize("image_format", sorted(image_generation.IMAGE_FORMATS))
+def test_the_shaped_prompt_keeps_the_format_guidance_within_every_providers_limit(image_format):
+    shaped = image_generation.shape_prompt("word " * 1000, image_format)
+    assert len(shaped) <= 1200
+    assert shaped.startswith(image_generation._FORMAT_COMPOSITION[image_format])
+    assert shaped.endswith(image_generation._NO_TEXT)
+
+
+def test_the_no_text_rule_is_not_repeated_when_the_prompt_already_has_it():
+    shaped = image_generation.shape_prompt("Olive oil bottle. No text in the picture.", "SQUARE")
+    assert shaped.count("No text") == 1 and "olive oil" in shaped.lower()
+
+
+@pytest.mark.parametrize("colour", [(0, 0, 0), (255, 255, 255), (90, 140, 200)])
+def test_a_blank_single_colour_image_is_rejected(colour):
+    buffer = io.BytesIO()
+    Image.new("RGB", (1024, 1024), colour).save(buffer, format="PNG")
+    with pytest.raises(ImageGenerationError, match="blank"):
+        image_generation.verify_image(GeneratedImage(content=buffer.getvalue(), content_type="image/png", provider="x"))
+
+
+def test_a_blank_image_from_one_provider_falls_through_to_the_next(monkeypatch):
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "huggingface,together")
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    monkeypatch.setenv("TOGETHER_API_KEYS", "tg")
+    black = io.BytesIO()
+    Image.new("RGB", (1024, 1024), (0, 0, 0)).save(black, format="PNG")
+    answers = [_response(content=black.getvalue(), content_type="image/png"),
+               _response(content_type="application/json", json_body={"data": [{"b64_json": base64.b64encode(PNG).decode()}]})]
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=lambda *a, **k: answers.pop(0)), \
+         patch.object(image_generation.credits, "provider_call", _no_metering):
+        image = generate_campaign_image("olive oil")
+    assert image.provider == "together"
+    assert image.attempts == [{"provider": "huggingface", "reason": "failed"}]
+
+
+def test_a_seed_reaches_every_provider_that_takes_one():
+    sent = []
+
+    def capture(url, **kwargs):
+        sent.append(kwargs.get("json") or kwargs.get("params") or {})
+        return _response(content_type="application/json", json_body={})
+
+    with patch("src.ai.marketing.image_generation.httpx.post", side_effect=capture), \
+         patch("src.ai.marketing.image_generation.httpx.get", side_effect=capture):
+        for call in (
+            lambda: image_generation._generate_via_cloudflare("x", credential="a:t", size=(1024, 1024), seed=7),
+            lambda: image_generation._generate_via_huggingface("x", credential="hf", size=(1024, 1024), seed=7),
+            lambda: image_generation._generate_via_together("x", credential="tg", size=(1024, 1024), seed=7),
+            lambda: image_generation._generate_via_pollinations("x", credential="pk", size=(1024, 1024), seed=7),
+        ):
+            with pytest.raises(ImageGenerationError):
+                call()
+    assert sent[0]["seed"] == 7  # Cloudflare
+    assert any((body.get("parameters") or {}).get("seed") == 7 for body in sent)  # Hugging Face
+    assert any(body.get("seed") == 7 and body.get("model", "").startswith("black-forest-labs/FLUX.1-schnell-Free") for body in sent)  # Together
+    assert sent[-1]["seed"] == 7  # Pollinations
+
+
+def test_stable_diffusion_models_get_a_negative_prompt_and_flux_models_do_not():
+    assert "negative_prompt" not in image_generation._hf_parameters("black-forest-labs/FLUX.1-schnell", (1024, 1024), None)
+    assert "text" in image_generation._hf_parameters("stabilityai/stable-diffusion-xl-base-1.0", (1024, 1024), None)["negative_prompt"]
+
+
+# --- realistic commercial photo wording, fastest provider first ----------
+
+def test_every_shaped_prompt_asks_for_a_realistic_commercial_photo_and_an_accurate_product():
+    shaped = image_generation.shape_prompt("A bottle of olive oil on a wooden table", "STORY")
+    assert shaped.startswith(image_generation._FORMAT_COMPOSITION["STORY"])
+    for words in ("commercial product advertising photograph", "photorealistic", "shown accurately",
+                  "No unrelated objects", "distorted product", "No text"):
+        assert words in shaped
+    assert len(shaped) <= 1200
+
+
+class _FakeRedis:
+    def __init__(self):
+        self.lists = {}
+
+    def lpush(self, key, value):
+        self.lists.setdefault(key, []).insert(0, value)
+
+    def ltrim(self, key, start, stop):
+        self.lists[key] = self.lists.get(key, [])[start:stop + 1]
+
+    def lrange(self, key, start, stop):
+        return self.lists.get(key, [])[start:stop + 1]
+
+    def get(self, key):
+        return None
+
+    def setex(self, *args):
+        pass
+
+
+@pytest.fixture
+def fake_redis(monkeypatch):
+    fake = _FakeRedis()
+    monkeypatch.setattr("src.ai.core.redis_client.get_redis_client", lambda: fake)
+    return fake
+
+
+def test_provider_times_are_kept_and_their_median_is_used(fake_redis):
+    for seconds in (4.0, 30.0, 5.0):
+        image_generation.record_seconds("cloudflare", seconds)
+    assert image_generation.measured_seconds("cloudflare") == 5.0
+    assert image_generation.measured_seconds("together") is None
+    for _ in range(40):
+        image_generation.record_seconds("cloudflare", 1.0)
+    assert len(fake_redis.lists["keel:image-provider-seconds:cloudflare"]) == image_generation._TIMINGS_KEPT
+
+
+def test_fast_providers_come_first_then_unmeasured_then_slow(fake_redis, monkeypatch):
+    monkeypatch.setenv("HUGGINGFACE_API_TOKENS", "h1,h2")
+    monkeypatch.setenv("TOGETHER_API_KEYS", "t1")
+    monkeypatch.setenv("GEMINI_API_KEYS", "g1")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNTS", "a:b")
+    image_generation.record_seconds("gemini", 6.0)
+    image_generation.record_seconds("together", 2.5)
+    image_generation.record_seconds("huggingface", 40.0)
+    chain = provider_chain()
+    assert chain[:2] == ["together#1", "gemini#1"], "fastest measured first"
+    assert chain[2] == "cloudflare#1", "not measured yet: after the fast ones"
+    assert set(chain[3:5]) == {"huggingface#1", "huggingface#2"}, "slow ones after, both accounts kept"
+    assert chain[-1] == "aihorde"
+    monkeypatch.setenv("MARKETING_IMAGE_FASTEST_FIRST", "false")
+    assert set(provider_chain()[:5]) == set(chain[:5])
+
+
+def test_a_successful_image_records_how_long_the_provider_took(fake_redis, monkeypatch):
+    monkeypatch.setenv("TOGETHER_API_KEYS", "tg")
+    ok = _response(content_type="application/json", json_body={"data": [{"b64_json": base64.b64encode(PNG).decode()}]})
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=ok), \
+         patch.object(image_generation.credits, "provider_call", _no_metering):
+        generate_campaign_image("olive oil", provider="together")
+    assert image_generation.measured_seconds("together") is not None
+
+
+def test_aihorde_rejection_redacts_a_partial_prompt_echo(caplog):
+    """A provider that echoes only the campaign's words (not the negative
+    prompt KEEL appends) must not get them into the logs either."""
+    prompt = "secret launch of the new olive oil tin"
+    response = _response(403, content_type="application/json",
+                         json_body={"rc": "BadRequest", "message": f"Rejected prompt: {prompt}"})
+    with patch("src.ai.marketing.image_generation.httpx.post", return_value=response), \
+         caplog.at_level(logging.WARNING, logger="CEOPRO_AI_MARKETING_IMAGE"):
+        with pytest.raises(ImageGenerationError):
+            image_generation._generate_via_aihorde(prompt)
+    assert prompt not in caplog.text and "[redacted prompt]" in caplog.text

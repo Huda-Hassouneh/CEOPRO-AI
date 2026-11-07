@@ -125,6 +125,26 @@ def _sync_billing_setup_password(conn) -> None:
         logger.info("Restricted billing credential synchronized: %s", role)
 
 
+def _allow_owner_role_management(conn) -> None:
+    """
+    Managed Postgres (Neon, and similar hosts) gives the database owner
+    CREATEROLE but never real SUPERUSER. From Postgres 16 a CREATEROLE role
+    is no longer automatically a member of the roles it creates, so the
+    migrations that hand SECURITY DEFINER functions to a restricted owner
+    role (ALTER FUNCTION ... OWNER TO, later CREATE OR REPLACE of those
+    functions) fail with "must be able to SET ROLE". createrole_self_grant
+    restores the pre-16 membership for this session only. A superuser
+    connection, or a server older than 16, needs and gets no change.
+    """
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT current_setting('is_superuser') = 'on', current_setting('server_version_num')::int")
+        is_superuser, server_version = cursor.fetchone()
+        if not is_superuser and server_version >= 160000:
+            cursor.execute("SET createrole_self_grant = 'set, inherit'")
+            logger.info("Non-superuser migration role on Postgres 16+: createrole_self_grant enabled for this session.")
+    conn.commit()
+
+
 def _role_exists(conn, role_name: str) -> bool:
     with conn.cursor() as cursor:
         cursor.execute("SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = %s);", (role_name,))
@@ -140,6 +160,7 @@ def run(conn=None) -> list:
     try:
         from src.ai.billing.standard_plan_catalog import load_catalog
         load_catalog()  # Fail before any schema/data write for malformed source.
+        _allow_owner_role_management(conn)
         fresh_plan_catalog = not _table_exists(conn, "usage_plans")
         if _table_exists(conn, BASE_SCHEMA_MARKER_TABLE):
             logger.info(f"Base schema already present (table '{BASE_SCHEMA_MARKER_TABLE}' exists) - skipping Final_schema.sql.")

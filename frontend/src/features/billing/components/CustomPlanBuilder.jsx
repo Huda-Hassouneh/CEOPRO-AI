@@ -59,7 +59,7 @@ export function CustomPlanBuilder({
 }) {
   const { t, locale } = useI18n();
   const formatNumber = (value) =>
-    new Intl.NumberFormat(locale === "ar" ? "ar-JO" : "en-US").format(value);
+    new Intl.NumberFormat(locale === "ar" ? "ar-JO-u-nu-latn" : "en-US").format(value);
 
   return (
     <div className="ceopro-custom-plan-controls">

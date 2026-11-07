@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 import Button from '../../../shared/components/ui/Button.jsx';
 import Input from '../../../shared/components/ui/Input.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useForgotPasswordMutation } from '../hooks/useForgotPasswordMutation.js';
-import { getAuthErrorTranslationKey } from '../utils/authErrors.js';
+import { codeEmailWasSent, getAuthErrorTranslationKey } from '../utils/authErrors.js';
 import { firstValidationError, validateEmail } from '../validation/authValidation.js';
 import { AuthBackLink, AuthPanel } from '../components/AuthPanel.jsx';
 import { AuthStatusMessage } from '../components/AuthStatusMessage.jsx';
@@ -20,7 +20,10 @@ export function ForgotPasswordPage() {
   const [touched, setTouched] = useState(false);
   const [requestError, setRequestError] = useState('');
   const mutation = useForgotPasswordMutation({
-    onSuccess: () => navigate(routePaths.verifyCode, { state: { email } }),
+    // Only a provider-accepted email leads to "we've sent a code".
+    onSuccess: (response) => (codeEmailWasSent(response)
+      ? navigate(routePaths.verifyCode, { state: { email } })
+      : setRequestError('auth.errors.emailDeliveryFailed')),
     onError: (requestFailure) => setRequestError(getAuthErrorTranslationKey(requestFailure)),
   });
 
@@ -53,7 +56,10 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthPanel title={t('auth.forgotPassword.title')} subtitle={t('auth.forgotPassword.subtitle')} className="ceopro-auth-body--narrow">
-      <AuthStatusMessage>{requestError ? t(requestError) : ''}</AuthStatusMessage>
+      <AuthStatusMessage>{requestError ? <>
+        {t(requestError)}
+        {requestError === 'auth.errors.accountNotFound' && <>{' '}<Link className="ceopro-auth-link" to={routePaths.signup}>{t('auth.forgotPassword.createAccount')}</Link></>}
+      </> : ''}</AuthStatusMessage>
       <form className="ceopro-auth-form" onSubmit={submit} noValidate>
         <Input label={t('auth.common.emailAddress')} type="email" autoComplete="email" placeholder={t('auth.forgotPassword.emailPlaceholder')} leftIcon={<Mail size={25} />} value={email} error={error} onChange={updateEmail} onBlur={() => { setTouched(true); setError(validate(email)); }} disabled={mutation.isPending} />
         <Button type="submit" variant="primary" fullWidth loading={mutation.isPending} loadingLabel={t('auth.loading.sendingCode')}>{t('auth.forgotPassword.submit')}</Button>

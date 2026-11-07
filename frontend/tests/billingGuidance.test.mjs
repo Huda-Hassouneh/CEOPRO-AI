@@ -30,7 +30,7 @@ test('incomplete Studio evidence points to the responsible owner configuration a
   assert.equal(warningAction('POLICY_MISSING'),'policy');
   assert.equal(warningAction('RATE_UNVERIFIED'),'provider-accounting');
   assert.equal(warningAction('RATE_MISSING'),'rate-or-binding');
-  assert.equal(warningAction('COST_MULTIPLIER_MISSING'),'custom-quotes');
+  assert.equal(warningAction('COST_MULTIPLIER_MISSING'),'custom-pricing');
   assert.equal(warningAction('CREDIT_BUDGET_UNAVAILABLE'),'plan-features');
   assert.equal(warningAction('CURRENT_PRICE_UNSAFE'),null);
 });

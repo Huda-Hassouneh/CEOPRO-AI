@@ -1,5 +1,5 @@
 """
-Stripe webhooks: the source of truth for a company's subscription.
+KEEL reconciliation of verified payment notifications and fresh provider state.
 
 Ported from the reference project's webhook service (read-only reference:
 src/modules/subscription/service/stripe-webhook.service.ts and
@@ -12,95 +12,70 @@ Improvements over that implementation:
 - The event row is claimed with INSERT ... ON CONFLICT and a row lock, so
   two deliveries of one event can't both run.
 - Subscription events never trust the (possibly stale) payload: the
-  subscription is always re-read from Stripe before it is stored, so an old
+  subscription is always re-read through the gateway before it is stored, so an old
   event delivered late can't overwrite newer state.
 """
 import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.ai.billing import promotions, store, stripe_api, self_service
+from src.ai.billing import promotions, store, self_service
+from src.ai.billing.payment_runtime import payment_gateway
+from src.ai.billing.payment_contracts import (
+    CheckoutSnapshot, InvoiceSnapshot, PaymentEventKind as Kind, PaymentState,
+    ProviderReference, SubscriptionSnapshot, SubscriptionState, VerifiedPaymentEvent,
+)
 from src.ai.core import entitlements
 
 logger = logging.getLogger("APEX_BILLING_WEBHOOKS")
-
-SUBSCRIPTION_EVENTS = {
-    "customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted",
-    "customer.subscription.paused", "customer.subscription.resumed", "customer.subscription.trial_will_end",
-    "customer.subscription.pending_update_applied", "customer.subscription.pending_update_expired",
-}
-INVOICE_EVENTS = {"invoice.paid", "invoice.payment_succeeded", "invoice.payment_failed"}
-SCHEDULE_EVENTS = {
-    "subscription_schedule.released", "subscription_schedule.completed",
-    "subscription_schedule.canceled", "subscription_schedule.aborted",
-}
-
 
 class WebhookRetry(Exception):
     """Processing failed in a way Stripe should retry (500 to Stripe)."""
 
 
-def _id(value) -> Optional[str]:
-    if isinstance(value, dict):
-        return value.get("id")
-    return value
-
-
-def _invoice_subscription_id(invoice: dict) -> Optional[str]:
-    parent = (invoice.get("parent") or {}).get("subscription_details") or {}
-    return _id(parent.get("subscription")) or _id((invoice.get("subscription_details") or {}).get("subscription")) \
-        or _id(invoice.get("subscription"))
-
-
-def _invoice_tenant_hint(invoice: dict) -> Optional[str]:
-    parent = (invoice.get("parent") or {}).get("subscription_details") or {}
-    for metadata in (invoice.get("metadata"), parent.get("metadata"), (invoice.get("subscription_details") or {}).get("metadata")):
-        if metadata and metadata.get("tenant_id"):
-            return metadata["tenant_id"]
-    return None
-
-
-def _resolve_tenant(sys_conn, stripe_sub: dict, hint: Optional[str] = None) -> Optional[str]:
+def _resolve_tenant(sys_conn, subscription: SubscriptionSnapshot, hint: Optional[str] = None) -> Optional[str]:
     """Which company a subscription belongs to: our own records first (they
     were written by us), then the metadata we put on the checkout."""
     return (
-        store.tenant_for_subscription(sys_conn, stripe_sub["id"])
-        or store.tenant_for_customer(sys_conn, _id(stripe_sub.get("customer")) or "")
-        or (stripe_sub.get("metadata") or {}).get("tenant_id")
+        store.tenant_for_subscription(sys_conn, subscription.reference.opaque_id)
+        or store.tenant_for_customer(sys_conn, subscription.customer.opaque_id)
+        or subscription.metadata.get("tenant_id")
         or hint
     )
 
-def sync_subscription(sys_conn, subscription_id: str, event_created: datetime, hint: Optional[str] = None,
+def sync_subscription(sys_conn, subscription_ref: ProviderReference, event_created: datetime, hint: Optional[str] = None,
                      *, custom_payment_verified: bool = False, invoice_id: Optional[str] = None,
                      provider_event_id: Optional[str] = None) -> Optional[str]:
-    """Re-reads the subscription from Stripe and stores it. Returns the tenant."""
+    """Re-read current provider state under the existing lock, then apply KEEL rules."""
+    subscription_id = subscription_ref.opaque_id
     # Serialize snapshots for one subscription across distinct event IDs.
     with sys_conn.cursor() as cursor:
         cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
                        ("keel_stripe_subscription:" + subscription_id,))
-    stripe_sub = stripe_api.retrieve_subscription(subscription_id)
-    if stripe_sub.get("id") != subscription_id:
+    gateway = payment_gateway()
+    subscription = gateway.get_subscription(subscription_ref)
+    if subscription.reference != subscription_ref:
         raise WebhookRetry("subscription identity does not match the requested object")
-    tenant_id = _resolve_tenant(sys_conn, stripe_sub, hint)
+    tenant_id = _resolve_tenant(sys_conn, subscription, hint)
     if not tenant_id:
         # Not one of ours (yet): fail so Stripe retries once checkout's own
         # event has linked the customer.
         raise WebhookRetry(f"no company found for subscription {subscription_id}")
     if getattr(sys_conn, "verified_webhook_only", False):
         sys_conn.bind_tenant(tenant_id)
-    sub_metadata = stripe_sub.get("metadata") or {}
+    sub_metadata = subscription.metadata
     if sub_metadata.get("billing_kind") == "custom_quote":
         return _sync_custom_quote_subscription(
-            sys_conn, stripe_sub, tenant_id, event_created,
+            sys_conn, subscription, tenant_id, event_created,
             payment_verified=custom_payment_verified, invoice_id=invoice_id,
             provider_event_id=provider_event_id,
         )
-    price_id = store.subscription_price_id(stripe_sub)
+    price_id = subscription.items[0].price.opaque_id if subscription.items else None
     resolved = store.resolve_price(sys_conn, price_id) if price_id else None
     if not resolved:
         raise WebhookRetry(f"price {price_id} is not in the plan catalog")
     plan_key, period_code = resolved
-    customer = _id(stripe_sub.get("customer"))
+    customer = subscription.customer.opaque_id
     customer_tenant = store.tenant_for_customer(sys_conn, customer) if customer else None
     if customer_tenant and str(customer_tenant) != str(tenant_id):
         raise WebhookRetry("subscription customer belongs to another company")
@@ -110,40 +85,39 @@ def sync_subscription(sys_conn, subscription_id: str, event_created: datetime, h
     trial_payment_verified = False
     if (previous and previous["stripe_subscription_id"] == subscription_id
             and previous.get("trial_end") and previous["status"] != "active"
-            and stripe_sub.get("status") == "active"):
-        start, _end = store.period_bounds(stripe_sub)
+            and subscription.state == SubscriptionState.ACTIVE):
+        start = subscription.period_start
         # Invalid trial boundaries are rejected by apply_subscription without
         # querying an unrelated invoice. An 'active' label alone is not proof
         # of the first post-trial payment, including during invoice finalization.
-        if start and start >= previous["trial_end"] and store._ts(stripe_sub.get("trial_end")) == previous["trial_end"]:
-            latest = _id(stripe_sub.get("latest_invoice"))
-            invoice = stripe_api.retrieve_invoice(latest) if latest else {}
+        if start and start >= previous["trial_end"] and subscription.trial_end == previous["trial_end"]:
+            latest = subscription.latest_invoice
+            invoice = gateway.get_invoice(latest) if latest else None
             trial_payment_verified = bool(
-                latest and invoice.get("id") == latest and invoice.get("status") == "paid"
-                and _invoice_subscription_id(invoice) == subscription_id
-                and _id(invoice.get("customer")) == customer
-                and any((line.get("period") or {}).get("start", float("inf")) <= start.timestamp()
-                        < (line.get("period") or {}).get("end", 0)
-                        for line in (invoice.get("lines") or {}).get("data", []))
+                invoice and invoice.reference == latest and invoice.settlement_confirmed
+                and invoice.subscription == subscription_ref
+                and invoice.customer == subscription.customer
+                and any(begin is not None and end is not None and begin <= start < end
+                        for begin, end in invoice.coverage)
             )
-    store.apply_subscription(sys_conn, tenant_id, stripe_sub, plan_key, period_code, event_created,
+    store.apply_subscription(sys_conn, tenant_id, subscription, plan_key, period_code, event_created,
                              trial_payment_verified=trial_payment_verified)
     entitlements.forget(tenant_id)  # the new plan's modules apply at once
     return tenant_id
 
-def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, event_created: datetime,
+def _sync_custom_quote_subscription(sys_conn, subscription: SubscriptionSnapshot, tenant_id: str, event_created: datetime,
                                     *, payment_verified: bool, invoice_id: Optional[str],
                                     provider_event_id: Optional[str]) -> str:
     """Keep custom access pending until this verified webhook has a paid invoice."""
     from decimal import Decimal
     from src.ai.billing import admin
-    metadata = stripe_sub.get("metadata") or {}
+    metadata = subscription.metadata
     attempt_id = metadata.get("quote_attempt_id")
     quote_id = metadata.get("custom_quote_id")
     revision_id = metadata.get("custom_quote_revision_id")
     if not all((attempt_id, quote_id, revision_id)):
         raise WebhookRetry("Custom subscription is missing quote correlation metadata")
-    customer = _id(stripe_sub.get("customer"))
+    customer = subscription.customer.opaque_id
     with sys_conn.cursor() as cursor:
         cursor.execute("""
             SELECT q.tenant_id,q.quote_id,q.current_revision_id,q.state,r.revision_id,r.state,
@@ -156,7 +130,7 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
               JOIN public.billing_custom_quote_checkout_attempts a ON a.tenant_id=q.tenant_id AND a.quote_id=q.quote_id
                AND a.revision_id=r.revision_id
              WHERE q.quote_id=%s AND r.revision_id=%s AND a.attempt_id=%s
-        """, (stripe_sub["id"], quote_id, revision_id, attempt_id))
+        """, (subscription.reference.opaque_id, quote_id, revision_id, attempt_id))
         row = cursor.fetchone()
     if not row or str(row[0]) != str(tenant_id) or str(row[2]) != str(revision_id) or row[3] != "accepted" or row[5] != "accepted":
         raise WebhookRetry("Custom quote, tenant or current revision does not match the subscription")
@@ -172,12 +146,12 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
         # only for this exact existing paid contract, preserving explicit owner
         # adjustments and any newer/different manual contract.
         current = store.current_subscription(sys_conn, tenant_id)
-        if current and current["stripe_subscription_id"] == stripe_sub["id"]:
+        if current and current["stripe_subscription_id"] == subscription.reference.opaque_id:
             admin.fill_missing_quote_limits(
                 sys_conn, tenant_id=tenant_id, contract_ref=f"custom-quote:{quote_id}:{revision_id}",
                 selected=row[6] or {}, approved_by=str(row[10]),
                 reason=f"Verified paid quote reconciliation; webhook {provider_event_id}")
-        store.apply_subscription(sys_conn, tenant_id, stripe_sub, "custom", "monthly" if (row[8] or {}).get("currency") == "USD" else row[8]["periodCode"], event_created)
+        store.apply_subscription(sys_conn, tenant_id, subscription, "custom", "monthly" if (row[8] or {}).get("currency") == "USD" else row[8]["periodCode"], event_created)
         entitlements.forget(tenant_id)
         return tenant_id
     if not payment_verified or not invoice_id or not provider_event_id:
@@ -187,29 +161,29 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
     with sys_conn.cursor() as cursor:
         cursor.execute("""SELECT status FROM public.billing_payments
           WHERE tenant_id=%s AND stripe_invoice_id=%s AND stripe_subscription_id=%s""",
-          (tenant_id, invoice_id, stripe_sub["id"]))
+          (tenant_id, invoice_id, subscription.reference.opaque_id))
         payment = cursor.fetchone()
     if not payment or payment[0] != "succeeded":
         raise WebhookRetry("Custom subscription has no verified settled initial invoice")
     with sys_conn.cursor() as cursor:
         cursor.execute("""SELECT 1 FROM public.billing_subscriptions WHERE tenant_id=%s
           AND stripe_subscription_id<>%s AND status IN ('active','trialing','past_due','pending','payment_failed','paused')""",
-          (tenant_id, stripe_sub["id"]))
+          (tenant_id, subscription.reference.opaque_id))
         if cursor.fetchone():
             raise WebhookRetry("another current subscription exists; refusing overlapping Custom contract activation")
-    invoice = stripe_api.retrieve_invoice(invoice_id)
+    invoice_ref = ProviderReference(subscription.reference.provider, invoice_id)
+    invoice = payment_gateway().get_invoice(invoice_ref)
     terms = row[8] or {}
     try:
         payment_amount, months, period = self_service.checkout_terms(terms)
-        expected_minor = int(payment_amount * 100)
     except Exception as exc:
         raise WebhookRetry("Approved Custom quote has invalid commercial terms") from exc
-    if (invoice.get("id") != invoice_id or invoice.get("currency", "").lower() != "usd"
-            or int(invoice.get("amount_paid") or 0) != expected_minor
-            or invoice.get("billing_reason") != "subscription_create"):
+    if (invoice.reference != invoice_ref or not invoice.currency_explicit or invoice.amount_paid.currency != "USD"
+            or invoice.amount_paid.amount != payment_amount
+            or invoice.initial_subscription_invoice is not True):
         raise WebhookRetry("Paid Custom invoice does not match the approved USD quote")
-    paid_epoch = (invoice.get("status_transitions") or {}).get("paid_at")
-    if paid_epoch and datetime.fromtimestamp(int(paid_epoch), tz=timezone.utc) > row[9]:
+    paid_epoch = int(invoice.paid_at.timestamp()) if invoice.paid_at else None
+    if invoice.paid_at and invoice.paid_at > row[9]:
         raise WebhookRetry("Custom offer expired before payment was completed")
     limits = row[6] or {}
     reference = f"custom-quote:{quote_id}:{revision_id}"
@@ -222,27 +196,27 @@ def _sync_custom_quote_subscription(sys_conn, stripe_sub: dict, tenant_id: str, 
         included_features=(row[7] or {}).get("enabledFeatures", []),
         refresh_frequency=(row[7] or {}).get("refreshFrequency"), period_months=months,
     )
-    store.apply_subscription(sys_conn, tenant_id, stripe_sub, "custom", "monthly" if (row[8] or {}).get("currency") == "USD" else row[8]["periodCode"], event_created)
+    store.apply_subscription(sys_conn, tenant_id, subscription, "custom", "monthly" if (row[8] or {}).get("currency") == "USD" else row[8]["periodCode"], event_created)
     with sys_conn.cursor() as cursor:
         cursor.execute("""INSERT INTO public.billing_custom_contract_activations
           (tenant_id,quote_id,revision_id,attempt_id,stripe_subscription_id,stripe_invoice_id,provider_event_id,invoice_paid_at)
           VALUES(%s,%s,%s,%s,%s,%s,%s,to_timestamp(%s))
           ON CONFLICT DO NOTHING""",
-          (tenant_id, quote_id, revision_id, attempt_id, stripe_sub["id"], invoice_id, provider_event_id, paid_epoch or int(event_created.timestamp())))
+          (tenant_id, quote_id, revision_id, attempt_id, subscription.reference.opaque_id, invoice_id, provider_event_id, paid_epoch or int(event_created.timestamp())))
         if cursor.rowcount != 1:
             raise WebhookRetry("Custom contract activation identity already exists; reconcile before retry")
         cursor.execute("""UPDATE public.billing_custom_quote_checkout_attempts
           SET stripe_subscription_id=%s,stripe_invoice_id=%s,provider_event_id=%s,provider_outcome='settled',
               state='settled',updated_at=clock_timestamp() WHERE attempt_id=%s AND tenant_id=%s""",
-          (stripe_sub["id"], invoice_id, provider_event_id, attempt_id, tenant_id))
+          (subscription.reference.opaque_id, invoice_id, provider_event_id, attempt_id, tenant_id))
         cursor.execute("""INSERT INTO public.billing_custom_quote_events
           (tenant_id,quote_id,revision_id,actor_user_id,action,idempotency_key,evidence)
           VALUES(%s,%s,%s,NULL,'contract_activated',%s,jsonb_build_object('invoice_id',%s,'subscription_id',%s))""",
-          (tenant_id, quote_id, revision_id, provider_event_id, invoice_id, stripe_sub["id"]))
+          (tenant_id, quote_id, revision_id, provider_event_id, invoice_id, subscription.reference.opaque_id))
     entitlements.forget(tenant_id)
     return tenant_id
 
-def _record_custom_checkout_session(sys_conn, session: dict, tenant_id: str, event_id: str) -> None:
+def _record_custom_checkout_session(sys_conn, session: CheckoutSnapshot, tenant_id: str, event_id: str) -> None:
     """Bind a signature-verified Checkout event to its durable quote attempt.
 
     This runs only in the existing system-connection webhook transaction. The
@@ -250,16 +224,16 @@ def _record_custom_checkout_session(sys_conn, session: dict, tenant_id: str, eve
     session identity (when already persisted), and the tenant metadata placed
     by the Python Checkout service.
     """
-    metadata = session.get("metadata") or {}
+    metadata = session.metadata
     attempt_id = metadata.get("quote_attempt_id")
     quote_id = metadata.get("custom_quote_id")
     revision_id = metadata.get("custom_quote_revision_id")
-    session_id = session.get("id")
-    subscription_id = _id(session.get("subscription"))
+    session_id = session.reference.opaque_id
+    subscription_id = session.subscription.opaque_id if session.subscription else None
     if (metadata.get("billing_kind") != "custom_quote" or metadata.get("tenant_id") != str(tenant_id)
             or not all((attempt_id, quote_id, revision_id, session_id, subscription_id))
-            or session.get("mode") != "subscription"
-            or session.get("client_reference_id") != attempt_id):
+            or not session.is_subscription
+            or session.client_reference != attempt_id):
         raise WebhookRetry("Custom Checkout session is missing valid quote correlation")
     with sys_conn.cursor() as cursor:
         cursor.execute("""
@@ -300,9 +274,8 @@ def _record_custom_checkout_session(sys_conn, session: dict, tenant_id: str, eve
         """, (tenant_id, quote_id, revision_id, event_id, attempt_id, session_id, subscription_id))
 
 
-def _failure_reason(invoice: dict) -> str:
-    error = invoice.get("last_finalization_error") or {}
-    return error.get("message") or "The payment could not be collected."
+def _failure_reason(invoice: InvoiceSnapshot) -> str:
+    return invoice.failure_reason or "The payment could not be collected."
 
 
 _LOCK_WAIT = "30s"
@@ -338,42 +311,48 @@ def _unlock_event(sys_conn, event_id: str) -> None:
         logger.warning("could not release the lock for Stripe event %s", event_id)
 
 
-def handle_event(sys_conn, event: dict) -> dict:
+def handle_event(sys_conn, event: VerifiedPaymentEvent) -> dict:
     """Processes one verified event, at most once at a time per event id.
     Returns {"duplicate": bool}."""
-    _lock_event(sys_conn, event["id"])
+    if not isinstance(event, VerifiedPaymentEvent):
+        raise TypeError("Reconciliation requires a verified payment event")
+    _lock_event(sys_conn, event.event_id)
     try:
         return _handle_locked(sys_conn, event)
     finally:
-        _unlock_event(sys_conn, event["id"])
+        _unlock_event(sys_conn, event.event_id)
 
 
-def _handle_locked(sys_conn, event: dict) -> dict:
-    created = datetime.fromtimestamp(int(event.get("created") or 0), tz=timezone.utc)
-    if not store.claim_event(sys_conn, event["id"], event["type"], created, event):
+def _handle_locked(sys_conn, event: VerifiedPaymentEvent) -> dict:
+    created = event.occurred_at
+    if not store.claim_payment_event(sys_conn, event):
         sys_conn.commit()
         return {"duplicate": True}
     sys_conn.commit()
 
-    event_type, obj = event["type"], (event.get("data") or {}).get("object") or {}
+    kind = event.kind
     tenant_id = None
     try:
-        if event_type == "checkout.session.completed":
-            if obj.get("mode") == "subscription" and obj.get("subscription"):
-                metadata = obj.get("metadata") or {}
+        if kind == Kind.CHECKOUT_COMPLETED:
+            session = event.checkout_snapshot
+            if session and session.is_subscription and session.subscription:
+                metadata = session.metadata
                 custom_quote = metadata.get("billing_kind") == "custom_quote"
                 hint = metadata.get("tenant_id") if custom_quote else (
-                    obj.get("client_reference_id") or metadata.get("tenant_id"))
-                if obj.get("customer") and hint and not store.tenant_for_customer(sys_conn, obj["customer"]):
-                    store.save_customer(sys_conn, hint, obj["customer"])
-                tenant_id = sync_subscription(sys_conn, _id(obj["subscription"]), created, hint)
+                    session.client_reference or metadata.get("tenant_id"))
+                if session.customer and hint and not store.tenant_for_customer(sys_conn, session.customer.opaque_id):
+                    store.save_customer(sys_conn, hint, session.customer.opaque_id)
+                tenant_id = sync_subscription(sys_conn, session.subscription, created, hint)
                 if custom_quote:
-                    _record_custom_checkout_session(sys_conn, obj, tenant_id, event["id"])
+                    _record_custom_checkout_session(sys_conn, session, tenant_id, event.event_id)
                 else:
-                    promotions.checkout_completed(sys_conn, session=obj, tenant_id=tenant_id, stripe_event_id=event["id"])
-        elif event_type == "checkout.session.expired":
+                    promotions.checkout_completed(sys_conn, session=session, tenant_id=tenant_id, stripe_event_id=event.event_id)
+        elif kind == Kind.CHECKOUT_EXPIRED:
+            session = event.checkout_snapshot
+            if session is None:
+                raise WebhookRetry("Checkout notification is missing its verified snapshot")
             if getattr(sys_conn, "verified_webhook_only", False):
-                redemption = promotions._metadata_redemption(obj)
+                redemption = promotions._metadata_redemption(session)
                 if redemption:
                     with sys_conn.cursor() as cur:
                         cur.execute("SELECT public.billing_provider_tenant(%s,%s)", ("promotion",redemption))
@@ -381,59 +360,59 @@ def _handle_locked(sys_conn, event: dict) -> dict:
                     if routed:
                         tenant_id = str(routed)
                         sys_conn.bind_tenant(tenant_id)
-            promotions.checkout_expired(sys_conn, session=obj, stripe_event_id=event["id"])
-        elif event_type in SUBSCRIPTION_EVENTS:
-            tenant_id = sync_subscription(sys_conn, obj["id"], created)
-        elif event_type in INVOICE_EVENTS:
+            promotions.checkout_expired(sys_conn, session=session, stripe_event_id=event.event_id)
+        elif kind == Kind.SUBSCRIPTION_CHANGED:
+            tenant_id = sync_subscription(sys_conn, event.subscription, created)
+        elif kind in (Kind.INVOICE_SETTLED, Kind.INVOICE_FAILED):
             # Authenticated event snapshots can still be stale. Fetch current
             # invoice truth while serialized against other invoice events.
-            invoice_id = obj["id"]
+            invoice_id = event.invoice.opaque_id
             with sys_conn.cursor() as cursor:
                 cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0));",
                                ("keel_stripe_invoice:" + invoice_id,))
-            invoice = stripe_api.retrieve_invoice(invoice_id)
-            if invoice.get("id") != invoice_id:
+            gateway = payment_gateway()
+            invoice = gateway.get_invoice(event.invoice)
+            if invoice.reference != event.invoice:
                 raise WebhookRetry("invoice identity does not match the requested object")
-            subscription_id = _invoice_subscription_id(invoice)
-            event_subscription = _invoice_subscription_id(obj)
-            if event_subscription and event_subscription != subscription_id:
+            subscription_ref = invoice.subscription
+            if event.subscription and event.subscription != subscription_ref:
                 raise WebhookRetry("invoice subscription identity changed")
-            if subscription_id:
-                tenant_id = sync_subscription(sys_conn, subscription_id, created, _invoice_tenant_hint(invoice))
-                customer = _id(invoice.get("customer"))
+            if subscription_ref:
+                subscription_id = subscription_ref.opaque_id
+                tenant_id = sync_subscription(sys_conn, subscription_ref, created, invoice.tenant_hint)
+                customer = invoice.customer.opaque_id if invoice.customer else None
                 if customer and str(store.tenant_for_customer(sys_conn, customer)) != str(tenant_id):
                     raise WebhookRetry("invoice customer belongs to another company")
-                if invoice.get("status") == "paid" or invoice.get("paid") is True:
+                if invoice.payment_state == PaymentState.PAID:
                     store.record_payment(sys_conn, tenant_id, invoice, subscription_id, "succeeded")
-                    fresh_sub = stripe_api.retrieve_subscription(subscription_id)
-                    if (fresh_sub.get("metadata") or {}).get("billing_kind") == "custom_quote":
-                        tenant_id = sync_subscription(sys_conn, subscription_id, created,
-                            _invoice_tenant_hint(invoice), custom_payment_verified=True,
-                            invoice_id=invoice_id, provider_event_id=event["id"])
+                    fresh_sub = gateway.get_subscription(subscription_ref)
+                    if fresh_sub.metadata.get("billing_kind") == "custom_quote":
+                        tenant_id = sync_subscription(sys_conn, subscription_ref, created,
+                            invoice.tenant_hint, custom_payment_verified=True,
+                            invoice_id=invoice_id, provider_event_id=event.event_id)
                     promotions.invoice_event(
                         sys_conn, tenant_id=tenant_id, invoice=invoice, subscription_id=subscription_id,
-                        stripe_event_id=event["id"], payment_succeeded=True,
+                        stripe_event_id=event.event_id, payment_succeeded=True,
                     )
-                elif event_type == "invoice.payment_failed":
+                elif kind == Kind.INVOICE_FAILED:
                     store.record_payment(sys_conn, tenant_id, invoice, subscription_id, "failed", _failure_reason(invoice))
                     promotions.invoice_event(
                         sys_conn, tenant_id=tenant_id, invoice=invoice, subscription_id=subscription_id,
-                        stripe_event_id=event["id"], payment_succeeded=False,
+                        stripe_event_id=event.event_id, payment_succeeded=False,
                     )
                 else:
                     raise WebhookRetry("paid invoice is not yet reconciled by the provider")
-        elif event_type in SCHEDULE_EVENTS:
-            subscription_id = _id(obj.get("released_subscription")) or _id(obj.get("subscription"))
-            if subscription_id:
-                tenant_id = sync_subscription(sys_conn, subscription_id, created)
-                store.set_schedule(sys_conn, tenant_id, subscription_id, None, None)
+        elif kind == Kind.SCHEDULE_ENDED:
+            if event.subscription:
+                tenant_id = sync_subscription(sys_conn, event.subscription, created)
+                store.set_schedule(sys_conn, tenant_id, event.subscription.opaque_id, None, None)
         # Any other event type is stored for the record and acknowledged.
-        store.finish_event(sys_conn, event["id"], tenant_id)
+        store.finish_event(sys_conn, event.event_id, tenant_id)
         sys_conn.commit()
         return {"duplicate": False}
     except Exception as err:
         sys_conn.rollback()
-        logger.exception("Stripe event %s (%s) failed", event.get("id"), event_type)
-        store.finish_event(sys_conn, event["id"], tenant_id, error=str(err)[:1000])
+        logger.exception("Payment event %s (%s) failed", event.event_id, kind.value)
+        store.finish_event(sys_conn, event.event_id, tenant_id, error=str(err)[:1000])
         sys_conn.commit()
         raise WebhookRetry(str(err)) from err

@@ -1,36 +1,8 @@
-export const ORANGE_COUNTRY_GROUPS = Object.freeze([
-  {
-    id: 'europe',
-    countries: [
-      ['BE', 'belgium'], ['FR', 'france'], ['LU', 'luxembourg'], ['MD', 'moldova'],
-      ['PL', 'poland'], ['RO', 'romania'], ['SK', 'slovakia'], ['ES', 'spain'],
-    ],
-  },
-  {
-    id: 'africaMiddleEast',
-    countries: [
-      ['BW', 'botswana'], ['BF', 'burkinaFaso'], ['CM', 'cameroon'], ['CF', 'centralAfricanRepublic'],
-      ['CI', 'coteDIvoire'], ['CD', 'democraticRepublicCongo'], ['EG', 'egypt'], ['GN', 'guinea'],
-      ['GW', 'guineaBissau'], ['JO', 'jordan'], ['LR', 'liberia'], ['ML', 'mali'],
-      ['MA', 'morocco'], ['SN', 'senegal'], ['SL', 'sierraLeone'], ['TN', 'tunisia'],
-    ],
-  },
-].map((group) => Object.freeze({
-  ...group,
-  countries: Object.freeze(group.countries.map(([value, label]) => Object.freeze({
-    value,
-    labelKey: `onboarding.region.countries.${label}`,
-  }))),
-})));
-
-export const ORANGE_COUNTRIES = Object.freeze(ORANGE_COUNTRY_GROUPS.flatMap((group) => group.countries));
-
 const city = (value, label) => Object.freeze({
   value,
   labelKey: `onboarding.region.cities.${label}`,
 });
-
-export const ORANGE_COUNTRY_CITIES = Object.freeze({
+export const LEGACY_COUNTRY_CITIES = Object.freeze({
   BE: Object.freeze([city('brussels', 'brussels'), city('antwerp', 'antwerp'), city('liege', 'liege')]),
   FR: Object.freeze([city('paris', 'paris'), city('lyon', 'lyon'), city('marseille', 'marseille')]),
   LU: Object.freeze([city('luxembourg-city', 'luxembourgCity'), city('esch-sur-alzette', 'eschSurAlzette')]),
@@ -56,9 +28,3 @@ export const ORANGE_COUNTRY_CITIES = Object.freeze({
   SL: Object.freeze([city('freetown', 'freetown'), city('bo', 'bo')]),
   TN: Object.freeze([city('tunis', 'tunis'), city('sfax', 'sfax'), city('sousse', 'sousse')]),
 });
-
-export const getCitiesForCountry = (countryCode) => ORANGE_COUNTRY_CITIES[countryCode] || [];
-
-export const isSupportedCountryCity = (countryCode, cityValue) => (
-  getCitiesForCountry(countryCode).some((item) => item.value === cityValue)
-);

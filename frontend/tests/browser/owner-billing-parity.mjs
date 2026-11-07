@@ -54,7 +54,8 @@ try{
    const variants=state==='create-plan'?['current']:['reference','current'];
    for(const variant of variants){
     activeCase={variant,tab,state,locale,width,theme};await page.mouse.move(0,0);
-    await page.goto(base+'/__owner_parity?variant='+variant+'&tab='+tab+'&state='+state);await page.locator('.billing-catalog-page').waitFor();await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(200);
+    const selectedTab=variant==='current'&&state==='create-vendor'?'custom-pricing':tab;
+    await page.goto(base+'/__owner_parity?variant='+variant+'&tab='+selectedTab+'&state='+state);await page.locator('.billing-catalog-page').waitFor();await page.evaluate(()=>document.fonts.ready);await page.waitForTimeout(200);
     if(state==='create-plan'&&variant==='current')await page.getByRole('button',{name:t('common.deactivate'),exact:true}).first().waitFor();
     const actions={'create-plan':'billing.catalog.plans.create','create-promotion':'billing.catalog.promos.create','edit-feature':'common.edit','create-quote':'billing.catalog.customPlans.create','create-vendor':'billing.catalog.customPlans.vendorRates.create'};
     if(actions[state]){await page.getByRole('button',{name:t(actions[state]),exact:true}).first().click();await page.getByRole('dialog').waitFor();await page.waitForTimeout(150);}

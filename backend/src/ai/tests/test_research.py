@@ -196,6 +196,7 @@ def test_with_no_provider_the_outcome_names_the_settings_that_would_enable_it(mo
 
 def test_a_failing_provider_is_reported_with_its_reason_and_never_its_key(monkeypatch):
     from src.market_scraper import search_quota, web_search
+    from src.ai.research import search_cache
 
     for name in _PROVIDER_SETTINGS:
         monkeypatch.delenv(name, raising=False)
@@ -203,6 +204,7 @@ def test_a_failing_provider_is_reported_with_its_reason_and_never_its_key(monkey
     monkeypatch.setenv("WEB_SEARCH_PROVIDERS", "tavily")
     monkeypatch.setattr(search_quota, "try_reserve_query", lambda conn, limit: True)
     monkeypatch.setattr(research, "_tenant_budget_ok", lambda tenant_id: True)
+    monkeypatch.setattr(search_cache, "run", lambda conn, tenant, key, preflight, execute: (preflight(), execute()[1])[1])
 
     def refuse(method, url, **kwargs):
         request = httpx.Request(method, url + "?key=tvly-SECRET")
@@ -212,6 +214,54 @@ def test_a_failing_provider_is_reported_with_its_reason_and_never_its_key(monkey
                                 ["trade"], {"destination_country": "JO"}, {"country_code": "JO"})
     assert outcome.status == research.SEARCH_FAILED
     assert "tavily: HTTP 401" in outcome.detail and "SECRET" not in outcome.detail
+
+
+def test_malformed_search_response_does_not_become_a_success(monkeypatch):
+    from src.market_scraper import search_quota, web_search
+    from src.ai.research import search_cache
+
+    monkeypatch.setenv('TAVILY_API_KEY', 'placeholder')
+    monkeypatch.setenv('WEB_SEARCH_PROVIDERS', 'tavily')
+    monkeypatch.setattr(search_quota, 'try_reserve_query', lambda conn, limit: True)
+    monkeypatch.setattr(research, '_tenant_budget_ok', lambda tenant_id: True)
+    monkeypatch.setattr(search_cache, 'run', lambda conn, tenant, key, preflight, execute: (preflight(), execute()[1])[1])
+    monkeypatch.setattr(web_search, '_default_fetch', lambda *args, **kwargs: {'results': [{'title': 'missing URL'}]})
+    outcome = research.research(_Conn(), 't1', ev.EvidenceRegistry(), 'customs duties in Jordan',
+                                ['trade'], {'destination_country': 'JO'}, {'country_code': 'JO'})
+    assert outcome.status == research.SEARCH_FAILED
+
+
+def test_ambiguous_search_failure_does_not_fall_back_to_another_provider(monkeypatch):
+    from src.market_scraper import search_quota, web_search
+    from src.ai.research import search_cache
+
+    monkeypatch.setenv('TAVILY_API_KEY', 'placeholder')
+    monkeypatch.setenv('BRAVE_SEARCH_API_KEY', 'placeholder')
+    monkeypatch.setenv('WEB_SEARCH_PROVIDERS', 'tavily,brave')
+    monkeypatch.setattr(search_quota, 'try_reserve_query', lambda conn, limit: True)
+    monkeypatch.setattr(research, '_tenant_budget_ok', lambda tenant_id: True)
+    monkeypatch.setattr(search_cache, 'run', lambda conn, tenant, key, preflight, execute: (preflight(), execute()[1])[1])
+    calls = []
+    def timeout(method, url, **kwargs):
+        calls.append(url)
+        raise httpx.ReadTimeout('outcome unknown')
+    monkeypatch.setattr(web_search, '_default_fetch', timeout)
+    outcome = research.research(_Conn(), 't1', ev.EvidenceRegistry(), 'customs duties in Jordan',
+                                ['trade'], {'destination_country': 'JO'}, {'country_code': 'JO'})
+    assert outcome.status == research.SEARCH_FAILED
+    assert calls == [web_search.TAVILY_URL]
+
+
+def test_search_cache_rejects_redis_result_past_durable_expiry():
+    import json
+    from datetime import datetime, timedelta, timezone
+    from src.ai.research import search_cache
+
+    class Cache:
+        def get(self, key):
+            return json.dumps({'provider': 'tavily', 'results': [],
+                               'expires_at': (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()})
+    assert search_cache._read(Cache(), 'key') is None
 
 
 def test_the_border_crossing_is_part_of_the_search():

@@ -13,15 +13,18 @@ per-image cost; when every usable provider is a self-hosted image server
 used, unless MARKETING_SELF_HOSTED_IMAGES_USE_PLAN_ALLOWANCE=true. Storage
 limits always apply.
 """
+import io
 import logging
 import os
 from datetime import datetime, timezone
 from typing import Callable, Optional
 
+from PIL import Image
+
 from src.ai import db
 from src.ai.billing import credits
 from src.ai.core import storage_ledger, usage
-from src.ai.marketing import data_access, designed_poster, image_generation, image_storage
+from src.ai.marketing import data_access, designed_poster, image_generation, image_storage, product_composite
 
 logger = logging.getLogger("CEOPRO_AI_MARKETING")
 
@@ -43,6 +46,46 @@ def load_reference_image(client, campaign: dict) -> tuple:
     if selection == "ORIGINAL" and campaign.get("source_image_key"):
         return image_storage.get_image(client, image_storage.SOURCE_IMAGES_BUCKET, campaign["source_image_key"])
     return None, None
+
+
+_REAL_PRODUCT_NOTE = ("Your real product photo was placed into the picture on our server; the photo itself was not sent "
+                      "to any outside service - only the scene description was.")
+
+
+def composite_enabled() -> bool:
+    return os.getenv("MARKETING_COMPOSITE_REAL_PRODUCT", "true").strip().lower() not in ("0", "false", "no")
+
+
+def generate_with_real_product(campaign: dict, reference: bytes, image_format: str, seed: Optional[int] = None,
+                               setting: Optional[str] = None) -> Optional[image_generation.GeneratedImage]:
+    """The owner's product photo, cut out here, placed into a scene the picture
+    model makes from text only. None when the photo cannot be cut out (the
+    caller then makes the picture the usual way). When no model makes a scene,
+    a designed background is used, so the real product is still shown."""
+    try:
+        product, how = product_composite.cutout(reference)
+    except product_composite.CompositeError as err:
+        logger.info("Real-product picture not possible for campaign %s: %s", campaign.get("campaign_id"), err)
+        return None
+    setting = setting or campaign.get("creative_direction") or campaign.get("image_prompt") or ""
+    prompt = product_composite.scene_prompt(campaign.get("campaign_brief") or "", setting)
+    try:
+        scene_image = image_generation.generate_campaign_image(prompt, image_format=image_format, seed=seed, scene=True)
+        scene = Image.open(io.BytesIO(scene_image.content))
+        mode, provider, model = "ai", scene_image.provider, scene_image.model
+    except image_generation.ImageGenerationError as err:
+        logger.warning("No AI scene for campaign %s (%s); using a designed background", campaign.get("campaign_id"), err.message)
+        size = image_generation.IMAGE_FORMATS[image_format]["poster"]
+        scene = designed_poster.procedural_scene(campaign.get("creative_theme") or "MINIMAL_CLEAN", size, seed or 0)
+        mode, provider, model = "designed", "designed", None
+    picture = product_composite.composite(scene, product, image_format)
+    content, content_type = product_composite.to_bytes(picture)
+    logger.info("Real-product picture for campaign %s (cut out by %s, scene: %s)", campaign.get("campaign_id"), how, provider)
+    return image_generation.GeneratedImage(
+        content=content, content_type=content_type, provider=provider, model=model, mode=mode,
+        used_reference=True, reference_note=_REAL_PRODUCT_NOTE, width=picture.width, height=picture.height,
+        image_format=image_format,
+    )
 
 
 def uses_plan_allowance() -> bool:
@@ -89,10 +132,15 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
         try:
             with credits.metering(tenant_id, "marketing_image", usage_class="image_generation",
                                   actor_user_id=user_id):
-                generated = image_generation.generate_campaign_image(
-                    prompt, reference_image=reference_content, reference_content_type=reference_content_type,
-                    image_format=image_format, **({"seed": seed} if seed is not None else {}),
-                )
+                generated = None
+                if reference_content and composite_enabled():
+                    generated = generate_with_real_product(campaign, reference_content, image_format, seed=seed,
+                                                           setting=prompt)
+                if generated is None:
+                    generated = image_generation.generate_campaign_image(
+                        prompt, reference_image=reference_content, reference_content_type=reference_content_type,
+                        image_format=image_format, **({"seed": seed} if seed is not None else {}),
+                    )
         except image_generation.ImageGenerationError as err:
             if not fallback_to_designed:
                 raise

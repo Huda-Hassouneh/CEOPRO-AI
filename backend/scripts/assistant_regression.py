@@ -108,6 +108,12 @@ class Truth:
                         "AND subject_type IN ('BUSINESS', 'PRODUCT') AND (%s::date IS NULL OR review_date >= %s::date) "
                         "AND (%s::date IS NULL OR review_date < %s::date);", tenant, start, start, end, end)
 
+    def names(self, tenant, english):
+        """(English name, Arabic name) of a product - either may name it in an answer."""
+        row = self.one("SELECT product_name->>'en', product_name->>'ar' FROM products WHERE tenant_id = %s "
+                       "AND product_name->>'en' = %s;", tenant, english)
+        return tuple(n for n in row if n) if row else (english,)
+
     def product_names(self, tenant):
         return [r[0] for r in self.all("SELECT product_name->>'en' FROM products WHERE tenant_id = %s;", tenant)]
 
@@ -180,7 +186,8 @@ def build_cases(truth: Truth, staff_email):
         Case("sales-quarter-comparison", "sales/comparison",
              [f"Compare my sales in Q2 {today.year} with Q2 {today.year - 1}"], expect=[q2_now[0], q2_before[0]],
              source="invoices (two quarters)", correct=f"Q2 {today.year} {q2_now[0]} vs Q2 {today.year - 1} {q2_before[0]}"),
-        Case("sales-mtd-mixed-language", "sales/mixed", ["what's my revenue هالشهر؟"], expect=[mtd[0]],
+        Case("sales-mtd-mixed-language", "sales/mixed", ["what's my revenue هالشهر؟"],
+             **({"expect": [mtd[0]]} if mtd[0] else {"expect_text": ["no sales"]}),
              source="invoices (month to date)", correct=f"month-to-date revenue {mtd[0]}"),
         Case("top-product-units-ytd", "products", ["What was my top selling product this year by units?"],
              expect=[top_units_ytd[1]], expect_text=[top_units_ytd[0]],
@@ -268,6 +275,198 @@ def build_cases(truth: Truth, staff_email):
     return cases
 
 
+def build_extended_cases(truth: Truth):
+    """Harder paraphrases of the core questions - other wordings, dialects, units and
+    period expressions - with the same independent-SQL ground truth. They measure how
+    well the assistant generalises beyond the exact phrasings the core cases use."""
+    z, b = truth.tenant(ZAYTOUNA), truth.tenant(BYTEFIX)
+    today = truth.today(z)
+    tomorrow = today + timedelta(days=1)
+    last_start, last_end = month_bounds(today, 1)
+    prev_start, prev_end = month_bounds(today, 2)
+    year = today.year
+    q = (today.month - 1) // 3
+    lq_start = date(year if q else year - 1, (q - 1) % 4 * 3 + 1, 1)
+    lq_end = date(year, q * 3 + 1, 1) if q else date(year, 1, 1)
+    sept = (date(year, 9, 1), date(year, 10, 1))
+    aug = (date(year, 8, 1), date(year, 9, 1))
+    y2025 = (date(year - 1, 1, 1), date(year, 1, 1))
+    june_range = (date(year, 6, 1), date(year, 7, 16))
+    rev = lambda a, e: truth.revenue(z, a, e)[0]
+    units = lambda name, a, e: truth.product_sales(z, name, a, e)[0]
+    stock = lambda name: truth.stock(z, name)
+    month = last_start.strftime("%B")
+    reviews_year = truth.reviews(z, date(year, 1, 1), tomorrow)
+    top_q3_rev = truth.top_product(z, date(year, 7, 1), date(year, 10, 1), by="revenue")
+    top_last_units = truth.top_product(z, last_start, last_end, by="units")
+    top_ytd_rev = truth.top_product(z, date(year, 1, 1), tomorrow, by="revenue")
+    C = Case
+    return [
+        # Sales: other period wordings
+        C("x-sales-september", "sales", [f"What was revenue in September {year}?"], expect=[rev(*sept)]),
+        C("x-sales-how-did-we-do", "sales", [f"How did we do in August {year}?"], expect=[rev(*aug)]),
+        C("x-sales-last-quarter", "sales", ["What were total sales last quarter?"], expect=[rev(lq_start, lq_end)]),
+        C("x-sales-year-2025", "sales", [f"Total sales in {year - 1}"], expect=[rev(*y2025)]),
+        C("x-sales-range", "sales", [f"Sales between 1 June and 15 July {year}"], expect=[rev(*june_range)]),
+        C("x-sales-previous-month", "sales", ["What did we earn the previous month?"], expect=[rev(last_start, last_end)]),
+        C("x-sales-turnover", "sales", ["What was our turnover last month?"], expect=[rev(last_start, last_end)]),
+        C("x-sales-income", "sales", [f"income for {month.lower()} please"], expect=[rev(last_start, last_end)]),
+        C("x-sales-ar-september", "sales/arabic", ["كم بعنا في أيلول؟"], expect=[rev(*sept)]),
+        C("x-sales-ar-sept-egy", "sales/arabic", ["مبيعات شهر سبتمبر كانت كام؟"], expect=[rev(*sept)]),
+        C("x-sales-ar-last-month", "sales/arabic", ["قديش كانت إيراداتنا الشهر اللي فات؟"], expect=[rev(last_start, last_end)]),
+        C("x-sales-ar-q3", "sales/arabic", [f"إيرادات الربع الثالث {year}"], expect=[rev(date(year, 7, 1), date(year, 10, 1))]),
+        C("x-sales-ar-year", "sales/arabic", [f"كم مجموع المبيعات في سنة {year - 1}؟"], expect=[rev(*y2025)]),
+        C("x-sales-compare-months", "sales/comparison", [f"{month} vs {prev_start.strftime('%B')} revenue"],
+          expect=[rev(last_start, last_end), rev(prev_start, prev_end)]),
+        C("x-sales-yoy", "sales/comparison", [f"Compare September {year} sales with September {year - 1}"],
+          expect=[rev(*sept), rev(date(year - 1, 9, 1), date(year - 1, 10, 1))]),
+        # Products
+        C("x-units-dates-sept", "products", [f"How many Medjool Dates 1kg did we sell in September {year}?"],
+          expect=[units("Medjool Dates 1kg", *sept)]),
+        C("x-units-tahini-last-month", "products", ["units of tahini sold last month"],
+          expect=[units("Tahini 450g", last_start, last_end)]),
+        C("x-units-ar-product", "products/arabic", ["كم علبة طحينة بعنا الشهر الماضي؟"],
+          expect=[units("Tahini 450g", last_start, last_end)]),
+        C("x-units-ar-honey", "products/arabic", ["كم بعنا من عسل السدر في أيلول؟"], expect=[units("Sidr Honey 500g", *sept)]),
+        C("x-best-seller-last-month", "products", ["What was our best seller last month by units?"],
+          expect_text=[top_last_units[0]], expect=[top_last_units[1]]),
+        C("x-top-revenue-q3", "products", [f"Which product brought in the most revenue in Q3 {year}?"],
+          expect_text=[top_q3_rev[0]]),
+        C("x-most-popular-ytd", "products", ["What's my best-selling product this year?"], expect_text=[top_ytd_rev[0]]),
+        C("x-top-ar", "products/arabic", ["شو أكثر منتج بعناه الشهر الماضي؟"],
+          expect_text=[truth.names(z, top_last_units[0])], expect=[top_last_units[1]]),
+        # Inventory
+        C("x-stock-zaatar", "inventory", ["How much Premium Za'atar Blend 250g do we have left?"],
+          expect=[stock("Premium Za'atar Blend 250g")]),
+        C("x-stock-dates-partial", "inventory", ["stock of medjool dates"],
+          expect=[stock("Medjool Dates 1kg"), stock("Medjool Dates Gift Box 500g")]),
+        C("x-stock-ar-honey", "inventory/arabic", ["كم باقي عندنا عسل سدر؟"], expect=[stock("Sidr Honey 500g")]),
+        C("x-stock-in-stock", "inventory", ["Do we have Tahini 450g in stock?"], expect=[stock("Tahini 450g")]),
+        # Forecast
+        C("x-forecast-honey", "forecast", ["What's the expected demand for Sidr Honey 500g?"],
+          expect=[truth.forecast(z, "Sidr Honey 500g")]),
+        C("x-forecast-will-sell", "forecast", ["How many Tahini 450g will we sell next month?"],
+          expect=[truth.forecast(z, "Tahini 450g")]),
+        C("x-forecast-ar", "forecast/arabic", ["كم متوقع نبيع من الطحينة الشهر الجاي؟"], expect=[truth.forecast(z, "Tahini 450g")]),
+        # Price
+        C("x-price-charge", "pricing", ["What do we charge for Tahini 450g?"], expect=[truth.price(z, "Tahini 450g")]),
+        C("x-price-ar", "pricing/arabic", ["قديش سعر الطحينة عنا؟"], expect=[truth.price(z, "Tahini 450g")]),
+        # Reviews
+        C("x-reviews-count-year", "sentiment", ["How many customer reviews did we get this year?"], expect=[reviews_year[0]]),
+        C("x-reviews-feedback", "sentiment", ["What's the customer feedback like?"], expect=[truth.reviews(z)[0]], forbid_text=["customs"]),
+        # Documents / company
+        C("x-doc-delivery-ar", "documents/arabic", ["كم رسوم التوصيل للزرقاء؟"], expect=[Decimal("3.5")]),
+        C("x-doc-returns-paraphrase", "documents", ["Can customers return labneh?"], expect_text=["24 hours"]),
+        C("x-company-founded", "company", ["When was the company founded?"], expect_text=["2014"]),
+        C("x-catalogue-ar", "company/arabic", ["كم منتج عندي؟"], expect=[len([n for n in truth.product_names(z) if n])]),
+        # Follow-ups
+        C("x-follow-what-about", "follow-up", [f"What was revenue in August {year}?", "what about September?"], expect=[rev(*sept)]),
+        C("x-follow-last-year", "follow-up", [f"Sales in September {year}", "and the same month last year?"],
+          expect=[rev(date(year - 1, 9, 1), date(year - 1, 10, 1))]),
+        C("x-follow-product-month", "follow-up", ["How much Tahini 450g did we sell last month?", "and in September?"],
+          expect=[units("Tahini 450g", *sept)]),
+        C("x-follow-ar", "follow-up/arabic", ["كم كانت المبيعات في آب؟", "وفي أيلول؟"], expect=[rev(*sept)]),
+        # Missing data / isolation
+        C("x-missing-2023", "missing", ["What were sales in 2023?"], expect_text=["no sales"]),
+        C("x-isolation-bytefix-product", "isolation", ["How much Sidr Honey did we sell last month?"], tenant_email=BYTEFIX,
+          forbid=[units("Sidr Honey 500g", last_start, last_end)] if units("Sidr Honey 500g", last_start, last_end) else []),
+        C("x-isolation-bytefix-sept", "isolation", [f"What was revenue in September {year}?"], tenant_email=BYTEFIX,
+          expect=[truth.revenue(b, *sept)[0]], forbid=[rev(*sept)]),
+    ]
+
+
+def build_holdout_cases(truth: Truth):
+    """New wordings kept out of development: written before the run that scores them and never tuned
+    against, so their pass rate estimates how the assistant does on questions nobody tested."""
+    z, b = truth.tenant(ZAYTOUNA), truth.tenant(BYTEFIX)
+    today = truth.today(z)
+    tomorrow = today + timedelta(days=1)
+    last_start, last_end = month_bounds(today, 1)
+    year = today.year
+    jul, aug, sep = (date(year, 7, 1), date(year, 8, 1)), (date(year, 8, 1), date(year, 9, 1)), (date(year, 9, 1), date(year, 10, 1))
+    rev = lambda a, e: truth.revenue(z, a, e)[0]
+    units = lambda name, a, e: truth.product_sales(z, name, a, e)[0]
+    top_aug_units = truth.top_product(z, *aug, by="units")
+    C = Case
+    return [
+        C("h-sales-july-short", "sales", [f"july {year} sales?"], expect=[rev(*jul)]),
+        C("h-sales-gross-sales", "sales", ["gross sales for last month"], expect=[rev(last_start, last_end)]),
+        C("h-sales-how-much-brought", "sales", [f"How much did the shop bring in during September {year}?"], expect=[rev(*sep)]),
+        C("h-sales-h1", "sales", [f"Revenue for the first half of {year}"], expect=[rev(date(year, 1, 1), date(year, 7, 1))]),
+        C("h-sales-ar-gulf", "sales/arabic", ["كم كان دخلنا في شهر ٩؟"], expect=[rev(*sep)]),
+        C("h-sales-ar-msa", "sales/arabic", ["ما إجمالي المبيعات خلال الشهر الماضي؟"], expect=[rev(last_start, last_end)]),
+        C("h-sales-ar-july", "sales/arabic", ["مبيعات تموز"], expect=[rev(*jul)]),
+        C("h-units-honey-aug", "products", [f"Sidr Honey 500g units in August {year}"], expect=[units("Sidr Honey 500g", *aug)]),
+        C("h-units-coffee-partial", "products", ["how many turkish coffee did we sell last month"],
+          expect=[units("Turkish Coffee Medium Roast 500g", last_start, last_end)]),
+        C("h-units-ar-labneh", "products/arabic", ["كم كيلو لبنة بعنا الشهر الماضي؟"], expect=[units("Fresh Labneh (per kg)", last_start, last_end)]),
+        C("h-top-aug", "products", [f"Which item sold the most units in August {year}?"],
+          expect_text=[truth.names(z, top_aug_units[0])], expect=[top_aug_units[1]]),
+        C("h-top-ar-msa", "products/arabic", ["ما هو المنتج الأكثر مبيعاً هذا العام؟"],
+          # "best-selling" may mean by revenue or by units: either leader answers it.
+          expect_text=[truth.names(z, truth.top_product(z, date(year, 1, 1), tomorrow, by="revenue")[0])
+                       + truth.names(z, truth.top_product(z, date(year, 1, 1), tomorrow, by="units")[0])]),
+        C("h-stock-how-many", "inventory", ["How many Sumac 200g are in the warehouse?"], expect=[truth.stock(z, "Sumac 200g")]),
+        C("h-stock-ar-msa", "inventory/arabic", ["ما هي الكمية المتوفرة من الطحينة؟"], expect=[truth.stock(z, "Tahini 450g")]),
+        C("h-stock-running-low", "inventory", ["Are we running low on Freekeh 1kg?"], expect=[truth.stock(z, "Freekeh 1kg")]),
+        C("h-forecast-coming-weeks", "forecast", ["Projected sales of Sumac 200g in the coming month"], expect=[truth.forecast(z, "Sumac 200g")]),
+        C("h-forecast-ar-msa", "forecast/arabic", ["ما هو الطلب المتوقع على عسل السدر؟"], expect=[truth.forecast(z, "Sidr Honey 500g")]),
+        C("h-price-selling", "pricing", ["What's the selling price of Freekeh 1kg?"], expect=[truth.price(z, "Freekeh 1kg")]),
+        C("h-price-ar-gulf", "pricing/arabic", ["بكم نبيع السماق؟"], expect=[truth.price(z, "Sumac 200g")]),
+        C("h-reviews-total", "sentiment", ["How many reviews do we have in total?"], expect=[truth.reviews(z)[0]]),
+        C("h-doc-refund-ar", "documents/arabic", ["هل يمكن استرجاع اللبنة؟"], expect_text=["24"]),
+        C("h-doc-delivery-zarqa-paraphrase", "documents", ["What's the delivery charge for Zarqa?"], expect=[Decimal("3.5")]),
+        C("h-follow-ar-product", "follow-up/arabic", ["كم بعنا طحينة في آب؟", "وفي أيلول؟"], expect=[units("Tahini 450g", *sep)]),
+        C("h-follow-en-and-revenue", "follow-up", [f"Units of Freekeh 1kg sold in September {year}", "and in August?"],
+          expect=[units("Freekeh 1kg", *aug)]),
+        C("h-isolation-ar-bytefix", "isolation/arabic", ["كم كانت مبيعاتنا في أيلول؟"], tenant_email=BYTEFIX,
+          expect=[truth.revenue(b, *sep)[0]], forbid=[rev(*sep)]),
+    ]
+
+
+def build_holdout2_cases(truth: Truth):
+    """A second held-out set, written after the fixes the first one led to and scored once, so the
+    generalisation estimate is not inflated by having tuned against it."""
+    z, b = truth.tenant(ZAYTOUNA), truth.tenant(BYTEFIX)
+    today = truth.today(z)
+    tomorrow = today + timedelta(days=1)
+    last_start, last_end = month_bounds(today, 1)
+    year = today.year
+    jun, aug, sep = (date(year, 6, 1), date(year, 7, 1)), (date(year, 8, 1), date(year, 9, 1)), (date(year, 9, 1), date(year, 10, 1))
+    rev = lambda a, e: truth.revenue(z, a, e)[0]
+    units = lambda name, a, e: truth.product_sales(z, name, a, e)[0]
+    top_sep_rev = truth.top_product(z, *sep, by="revenue")
+    C = Case
+    return [
+        C("h2-sales-june-numeric", "sales", [f"sales 06/{year}"], expect=[rev(*jun)]),
+        C("h2-sales-what-did-we-take", "sales", ["what did we take in last month"], expect=[rev(last_start, last_end)]),
+        C("h2-sales-total-revenue-aug", "sales", [f"total revenue august"], expect=[rev(*aug)]),
+        C("h2-sales-ar-levant-sep", "sales/arabic", ["قديش بعنا بشهر أيلول؟"], expect=[rev(*sep)]),
+        C("h2-sales-ar-egypt-last", "sales/arabic", ["المبيعات الشهر اللي فات عاملة كام؟"], expect=[rev(last_start, last_end)]),
+        C("h2-sales-q3-vs-q2", "sales/comparison", [f"Q3 vs Q2 {year} sales"],
+          expect=[rev(date(year, 7, 1), date(year, 10, 1)), rev(date(year, 4, 1), date(year, 7, 1))]),
+        C("h2-units-olive-tin-sep", "products", [f"How many Olive Oil Tin 4L did we sell in September?"],
+          expect=[units("Olive Oil Tin 4L", *sep)]),
+        C("h2-units-ar-freekeh", "products/arabic", ["كم كيس فريكة بعنا في آب؟"], expect=[units("Freekeh 1kg", *aug)]),
+        C("h2-top-sep-revenue", "products", [f"Top product by revenue in September {year}"],
+          expect_text=[truth.names(z, top_sep_rev[0])]),
+        C("h2-stock-maftoul", "inventory", ["Maftoul 500g stock level"], expect=[truth.stock(z, "Maftoul 500g")]),
+        C("h2-stock-ar-coffee", "inventory/arabic", ["كم عندي قهوة تركية بالمخزن؟"], expect=[truth.stock(z, "Turkish Coffee Medium Roast 500g")]),
+        C("h2-stock-units-available", "inventory", ["How many units of Sumac 200g are available?"], expect=[truth.stock(z, "Sumac 200g")]),
+        C("h2-forecast-next-30", "forecast", ["Demand forecast for Maftoul 500g over the next 30 days"],
+          expect=[truth.forecast(z, "Maftoul 500g")]),
+        C("h2-forecast-ar-dates", "forecast/arabic", ["كم رح نبيع تمر مجهول الشهر الجاي؟"], expect=[truth.forecast(z, "Medjool Dates 1kg")]),
+        C("h2-price-how-much-is", "pricing", ["How much is our Maftoul 500g?"], expect=[truth.price(z, "Maftoul 500g")]),
+        C("h2-price-ar-msa", "pricing/arabic", ["ما سعر بيع المفتول؟"], expect=[truth.price(z, "Maftoul 500g")]),
+        C("h2-reviews-rating", "sentiment", ["what is our average rating?"], expect=[truth.reviews(z)[0]]),
+        C("h2-doc-fresh-returns", "documents", ["What's the policy on returning fresh products?"], expect_text=["24 hours"]),
+        C("h2-follow-ar-quarter", "follow-up/arabic", ["مبيعات الربع الثالث", "والربع الثاني؟"],
+          expect=[rev(date(year, 4, 1), date(year, 7, 1))]),
+        C("h2-isolation-bytefix-q3", "isolation", ["Q3 revenue"], tenant_email=BYTEFIX,
+          expect=[truth.revenue(b, date(year, 7, 1), date(year, 10, 1))[0]], forbid=[rev(date(year, 7, 1), date(year, 10, 1))]),
+    ]
+
+
 # --- running --------------------------------------------------------------------------
 
 def login(api, email, password, tenant=None):
@@ -305,8 +504,10 @@ def run(case: Case, api, password, truth: Truth):
         if not has_number(text, value):
             problems.append(f"missing figure {value}")
     for word in case.expect_text:
-        if word.lower() not in text.lower():
-            problems.append(f"missing text {word!r}")
+        # A tuple is a set of alternatives: a product may be named by its English or its Arabic name.
+        options = word if isinstance(word, tuple) else (word,)
+        if not any(option and option.lower() in text.lower() for option in options):
+            problems.append(f"missing text {options[0]!r}")
     for value in case.forbid:
         if value and has_number(text, value):
             problems.append(f"contains forbidden figure {value}")
@@ -329,9 +530,16 @@ def main():
     parser.add_argument("--staff-email")
     parser.add_argument("--only", nargs="*")
     parser.add_argument("--report")
+    parser.add_argument("--suite", choices=("core", "extended", "holdout", "holdout2", "all"), default="core",
+                        help="core: the original cases; extended: harder paraphrases; holdout: wordings never "
+                             "tuned against; all: every case")
     args = parser.parse_args()
     truth = Truth(os.environ["DATABASE_URL"].replace("+asyncpg", ""))
-    cases = [c for c in build_cases(truth, args.staff_email) if not args.only or c.key in args.only]
+    cases = (build_cases(truth, args.staff_email) if args.suite in ("core", "all") else []) + \
+            (build_extended_cases(truth) if args.suite in ("extended", "all") else []) + \
+            (build_holdout_cases(truth) if args.suite in ("holdout", "all") else []) + \
+            (build_holdout2_cases(truth) if args.suite in ("holdout2", "all") else [])
+    cases = [c for c in cases if not args.only or c.key in args.only]
     results = []
     for case in cases:
         result = run(case, args.api.rstrip("/"), args.password, truth)

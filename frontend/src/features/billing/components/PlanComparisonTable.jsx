@@ -6,7 +6,7 @@ import { useI18n } from "../../../app/providers/I18nProvider.jsx";
 
 export function PlanComparisonTable({ plans, currentPlanId }) {
   const { locale, t } = useI18n();
-  const number = new Intl.NumberFormat(locale === "ar" ? "ar-JO" : "en-US");
+  const number = new Intl.NumberFormat(locale === "ar" ? "ar-JO-u-nu-latn" : "en-US");
 
   const featureKeys = [
     ...new Set(plans.flatMap((plan) => Object.keys(plan.features || {})))

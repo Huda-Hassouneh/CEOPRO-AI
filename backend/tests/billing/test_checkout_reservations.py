@@ -43,13 +43,13 @@ def test_pending_checkout_blocks_another_contract_and_reuses_same_session(monkey
 
 
 def test_checkout_return_cannot_confirm_another_tenants_payment(monkeypatch):
-    monkeypatch.setattr(stripe_api,'retrieve_checkout_session',lambda _: {'metadata':{'tenant_id':'other'},'status':'complete','payment_status':'paid'})
+    monkeypatch.setattr(stripe_api,'retrieve_checkout_session',lambda _: {'id':'cs_test_synthetic','metadata':{'tenant_id':'other'},'status':'complete','payment_status':'paid'})
     with pytest.raises(service.BillingError) as err:service.checkout_status(None,'tenant','cs_test_synthetic')
     assert err.value.status==404
 
 
 def test_paid_return_waits_for_matching_webhook_subscription(monkeypatch):
-    monkeypatch.setattr(stripe_api,'retrieve_checkout_session',lambda _: {'metadata':{'tenant_id':'tenant'},'customer':'cus_synthetic',
+    monkeypatch.setattr(stripe_api,'retrieve_checkout_session',lambda _: {'id':'cs_test_synthetic','metadata':{'tenant_id':'tenant'},'customer':'cus_synthetic',
         'subscription':'sub_new','status':'complete','payment_status':'paid'})
     monkeypatch.setattr(store,'customer_id',lambda *args:'cus_synthetic')
     monkeypatch.setattr(store,'current_subscription',lambda *args:{'stripe_subscription_id':'sub_old','status':'active'})
@@ -62,7 +62,7 @@ def test_unreconciled_provider_subscription_prevents_another_purchase(monkeypatc
     monkeypatch.setattr(store,'current_subscription',lambda *args:None)
     monkeypatch.setattr(store,'customer_id',lambda *args:'cus_synthetic')
     monkeypatch.setattr(store,'current_price',lambda *args:{'is_active':True,'self_serve':True,'stripe_price_id':'price_synthetic'})
-    monkeypatch.setattr(stripe_api,'customer_subscriptions',lambda *args:[{'id':'sub_existing','status':'active'}])
+    monkeypatch.setattr(stripe_api,'customer_subscriptions',lambda *args:[{'id':'sub_existing','customer':'cus_synthetic','status':'active'}])
     with pytest.raises(service.BillingError) as error:
         service.create_checkout(None,None,'tenant','owner@example.test','Fixture','growth','monthly')
     assert error.value.code=='checkout_reconciling'

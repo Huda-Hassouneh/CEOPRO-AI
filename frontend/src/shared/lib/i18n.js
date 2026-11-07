@@ -1,5 +1,6 @@
 import en from '../../assets/locales/en.json';
 import landingEn from '../../features/landing/locales/en.json';
+import { agreeArabicCounts } from './arabicCounts.js';
 
 export const DEFAULT_LOCALE = 'en';
 export const SUPPORTED_LOCALES = Object.freeze(['en', 'ar']);
@@ -35,9 +36,11 @@ const interpolate = (message, values) => String(message).replace(
 
 export function translate(locale, key, values = {}) {
   const normalizedLocale = SUPPORTED_LOCALES.includes(locale) ? locale : DEFAULT_LOCALE;
-  const message = resolveKey(translations[normalizedLocale], key)
+  const localized = resolveKey(translations[normalizedLocale], key);
+  const message = localized
     ?? resolveKey(translations[DEFAULT_LOCALE], key)
     ?? key;
 
-  return interpolate(message, values);
+  const text = interpolate(message, values);
+  return normalizedLocale === 'ar' && localized !== undefined ? agreeArabicCounts(text) : text;
 }

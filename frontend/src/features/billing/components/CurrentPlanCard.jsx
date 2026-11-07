@@ -106,7 +106,7 @@ const getPlanBillingPeriod = (plan, billingPeriod, currentPrice) => {
 };
 
 const formatCurrency = (amount, currency, locale) =>
-  new Intl.NumberFormat(locale === "ar" ? "ar-JO" : "en-US", {
+  new Intl.NumberFormat(locale === "ar" ? "ar-JO-u-nu-latn" : "en-US", {
     style: "currency",
 
     currency,
