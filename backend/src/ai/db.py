@@ -304,6 +304,75 @@ def auth_lookup_connection():
     return conn
 
 
+# --- Pooled pre-authentication lookups ----------------------------------------
+# Every authenticated request checks its token's revocation receipt and that the user is still an
+# active member (core/security.py). Opening a fresh connection for each check cost two connects
+# (plus a TLS handshake in production) per request: ~6 ms of API CPU locally, starving a 0.1-CPU
+# host. These connections are the same restricted role and session flag as
+# auth_lookup_connection() and live in their own pool, never handed to tenant code.
+_AUTH_LOOKUP_POOL = None
+_AUTH_LOOKUP_POOL_LOCK = __import__("threading").Lock()
+
+
+def _auth_lookup_pool():
+    global _AUTH_LOOKUP_POOL
+    if _AUTH_LOOKUP_POOL is None:
+        with _AUTH_LOOKUP_POOL_LOCK:
+            if _AUTH_LOOKUP_POOL is None:
+                from psycopg2.pool import ThreadedConnectionPool
+
+                size = max(1, int(os.getenv("AUTH_LOOKUP_POOL_MAX_SIZE", "4")))
+                # minconn == maxconn: psycopg2 closes a returned connection whenever it already
+                # holds minconn idle ones, so a smaller minconn would reconnect on every request.
+                _AUTH_LOOKUP_POOL = ThreadedConnectionPool(size, size, _app_database_url())
+    return _AUTH_LOOKUP_POOL
+
+
+class auth_lookup_session:
+    """`with auth_lookup_session() as conn:` - a pooled auth-lookup connection, rolled back and
+    returned afterwards. A broken connection is discarded; when the pool is full a fresh
+    connection is used and closed, so a burst never waits on the pool."""
+
+    def __enter__(self):
+        import psycopg2
+        from psycopg2.pool import PoolError
+
+        self._pooled = True
+        try:
+            conn = _auth_lookup_pool().getconn()
+        except PoolError:
+            self._pooled, conn = False, auth_lookup_connection()
+            self.conn = conn
+            return conn
+        try:
+            if conn.closed:
+                raise psycopg2.InterfaceError("closed")
+            with conn.cursor() as cursor:  # also proves a reused connection still answers
+                cursor.execute("SELECT set_config('app.auth_lookup', 'on', false);")
+            conn.commit()
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            _auth_lookup_pool().putconn(conn, close=True)
+            self._pooled, conn = False, auth_lookup_connection()
+        self.conn = conn
+        return conn
+
+    def __exit__(self, exc_type, exc, tb):
+        import psycopg2
+
+        conn = self.conn
+        broken = conn.closed or isinstance(exc, (psycopg2.OperationalError, psycopg2.InterfaceError))
+        if not broken:
+            try:
+                conn.rollback()
+            except psycopg2.Error:
+                broken = True
+        if self._pooled:
+            _auth_lookup_pool().putconn(conn, close=broken)
+        else:
+            conn.close()
+        return False
+
+
 def minio_client() -> Minio:
     """
     MINIO_ROOT_USER/MINIO_ROOT_PASSWORD (.env.example) - there is no

@@ -203,8 +203,9 @@ def test_static_onboarding_choices_are_available_without_market_entitlement(api)
 
 
 def test_password_change_invalidates_old_token_without_revoking_account(monkeypatch):
+    import contextlib
     conn=MagicMock();conn.cursor.return_value.__enter__.return_value.fetchone.return_value=(True,1)
-    monkeypatch.setattr(auth.db,'auth_lookup_connection',lambda:conn)
+    monkeypatch.setattr(auth.db,'auth_lookup_session',lambda:contextlib.nullcontext(conn))
     with pytest.raises(HTTPException)as error:security.assert_active_principal('t','u',0)
     assert error.value.status_code==401
     security.assert_active_principal('t','u',1)

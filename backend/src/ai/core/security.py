@@ -131,12 +131,12 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
 def assert_active_principal(tenant_id: str, user_id: str, credential_version: int = 0) -> None:
     """Revalidate human membership and platform suspension for every protected request."""
     from src.ai import db
-    conn = None
     try:
-        conn = db.auth_lookup_connection()
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT keel_active_principal(%s, %s), auth_credential_version(%s);", (user_id, tenant_id, user_id))
-            row = cursor.fetchone()
+        with db.auth_lookup_session() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT keel_active_principal(%s, %s), auth_credential_version(%s);",
+                               (user_id, tenant_id, user_id))
+                row = cursor.fetchone()
         if not row or row[0] is not True:
             raise HTTPException(status_code=403, detail="This account or workspace is no longer active.")
         if row[1] != credential_version:
@@ -145,9 +145,6 @@ def assert_active_principal(tenant_id: str, user_id: str, credential_version: in
         raise
     except Exception:
         raise HTTPException(status_code=503, detail="Account verification is temporarily unavailable.") from None
-    finally:
-        if conn is not None:
-            conn.close()
 
 
 # --- Sign-out ---------------------------------------------------------------
@@ -170,22 +167,16 @@ def _revocation_store():
 def _durable_revocation(token_id: str, expires_at=None) -> bool:
     """Existing Python identity owns the receipt; Redis is never an allow authority."""
     from src.ai import db
-    conn = db.auth_lookup_connection()
-    try:
+    with db.auth_lookup_session() as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT keel_token_revocation(%s,%s,%s);", (
                 "record" if expires_at is not None else "check",
                 hashlib.sha256(token_id.encode()).hexdigest(), expires_at))
             row = cursor.fetchone()
-        conn.commit()
-        if not row or not isinstance(row[0], bool):
-            raise RuntimeError("Revocation receipt was not verified")
-        return row[0]
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+        conn.commit()  # a "record" must be durable before sign-out is reported
+    if not row or not isinstance(row[0], bool):
+        raise RuntimeError("Revocation receipt was not verified")
+    return row[0]
 
 
 def revoke_token(token_id: str, expires_at_epoch) -> bool:
