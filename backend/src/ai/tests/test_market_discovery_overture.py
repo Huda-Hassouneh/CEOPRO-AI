@@ -144,6 +144,32 @@ def test_a_large_machine_still_reads_overture_itself(monkeypatch):
     assert overture.search(_query()).status == "ok"
 
 
+def test_on_render_an_unreadable_memory_limit_never_reads_overture_in_process(monkeypatch):
+    # Reproduced: the real API in a 512 MiB cgroup whose limit it cannot read was OOM-killed
+    # 10 s into a discovery (exit 137). Unknown is not "large" on Render.
+    from src.ai.core import ml_runtime
+
+    monkeypatch.delenv("OVERTURE_EXECUTION", raising=False)
+    monkeypatch.delenv("OFFLOAD_PROCESSOR_URL", raising=False)
+    monkeypatch.setenv("RENDER", "true")
+    monkeypatch.setattr(ml_runtime, "container_memory_limit_mb", lambda: None)
+    monkeypatch.setattr(overture, "search_local", lambda q: (_ for _ in ()).throw(AssertionError("read locally")))
+    result = overture.search(_query())
+    assert (result.status, result.reason) == ("skipped", "needs_processor")
+
+
+def test_an_unreadable_limit_off_render_keeps_local_development_working(monkeypatch):
+    from src.ai.core import ml_runtime
+    from src.market_scraper.market_discovery.models import ProviderResult
+
+    monkeypatch.delenv("OVERTURE_EXECUTION", raising=False)
+    monkeypatch.delenv("OFFLOAD_PROCESSOR_URL", raising=False)
+    monkeypatch.delenv("RENDER", raising=False)
+    monkeypatch.setattr(ml_runtime, "container_memory_limit_mb", lambda: None)
+    monkeypatch.setattr(overture, "search_local", lambda q: ProviderResult("overture", "ok"))
+    assert overture.search(_query()).status == "ok"
+
+
 def test_with_a_processor_configured_overture_runs_there_and_returns_the_same_candidates(monkeypatch):
     from src.offload import client as offload
 

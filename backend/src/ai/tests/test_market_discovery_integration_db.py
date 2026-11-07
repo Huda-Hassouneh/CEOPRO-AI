@@ -439,3 +439,97 @@ def test_a_competitors_published_prices_reach_the_product_comparison():
         conn.close()
     assert by_name["Reem Grill"]["name"] == "Reem Grill"
     assert landscape["products_covered"] == 2 and landscape["catalog_size"] == 3
+
+
+def _backdate_active_run(tenant, seconds):
+    with psycopg2.connect(DATABASE_URL) as conn, conn.cursor() as cursor:
+        cursor.execute("UPDATE discovery_runs SET created_at = now() - make_interval(secs => %s) "
+                       "WHERE tenant_id = %s AND status IN ('queued', 'running');", (seconds, tenant))
+
+
+def _run_row(run_id):
+    with psycopg2.connect(DATABASE_URL) as conn, conn.cursor() as cursor:
+        cursor.execute("SELECT status, error FROM discovery_runs WHERE run_id = %s;", (run_id,))
+        return cursor.fetchone()
+
+
+def _redis_or_skip():
+    try:
+        client = pipeline._lease_redis()
+        client.ping()
+        return client
+    except Exception:  # noqa: BLE001
+        pytest.skip("Redis not reachable - lease behaviour needs a real Redis")
+
+
+def test_a_run_whose_process_died_is_replaced_instead_of_blocking_refresh():
+    # Reproduced: an out-of-memory restart left the run 'running' and every refresh answered
+    # "already running" for 15 minutes. Without a live lease it is replaced at once.
+    _redis_or_skip()
+    tenant, user = _company("bakery", "bakery")
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        dead = pipeline.start_run(conn, tenant, user)
+        conn.commit()
+        _backdate_active_run(tenant, pipeline.LEASE_GRACE_SECONDS + 30)
+        fresh = pipeline.start_run(conn, tenant, user)
+        conn.commit()
+        assert fresh != dead
+        assert _run_row(dead) == ("failed", "interrupted")
+        assert _run_row(fresh)[0] == "queued"
+        # Shown to the customer as the generic "couldn't finish, try again" state.
+        assert public_sources.public_run({"error": "interrupted", "providers": {}})["error"] == "generic"
+    finally:
+        conn.close()
+
+
+def test_a_live_lease_unknown_redis_or_a_new_run_still_mean_busy(monkeypatch):
+    redis_client = _redis_or_skip()
+    tenant, user = _company("florist", "florist")
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        run_id = pipeline.start_run(conn, tenant, user)
+        conn.commit()
+        # Inside the grace period nobody has had a chance to take the lease yet.
+        with pytest.raises(pipeline.DiscoveryBusy):
+            pipeline.start_run(conn, tenant, user)
+        conn.rollback()
+        _backdate_active_run(tenant, pipeline.LEASE_GRACE_SECONDS + 30)
+        redis_client.set(pipeline._lease_key(run_id), "1", ex=pipeline.LEASE_SECONDS)
+        with pytest.raises(pipeline.DiscoveryBusy):  # alive in some process (e.g. during a deploy)
+            pipeline.start_run(conn, tenant, user)
+        conn.rollback()
+        redis_client.delete(pipeline._lease_key(run_id))
+
+        def no_redis():
+            raise ConnectionError("redis down")
+
+        monkeypatch.setattr(pipeline, "_lease_redis", no_redis)
+        with pytest.raises(pipeline.DiscoveryBusy):  # unknown is never treated as dead
+            pipeline.start_run(conn, tenant, user)
+        conn.rollback()
+        assert _run_row(run_id) == ("queued", None)
+    finally:
+        conn.close()
+
+
+def test_a_run_holds_its_lease_while_executing_and_releases_it_after():
+    redis_client = _redis_or_skip()
+    tenant, user = _company("butcher", "butcher")
+    seen = {}
+
+    class LeaseProbe(FakeProvider):
+        def search(self, query):
+            seen["held"] = bool(redis_client.exists(pipeline._lease_key(run_id)))
+            return super().search(query)
+
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        run_id = pipeline.start_run(conn, tenant, user)
+        conn.commit()
+        probe = LeaseProbe("openstreetmap", [_place("Prime Cuts", "node/77", industry="butcher")])
+        pipeline.execute_run(conn, tenant, run_id, providers=(probe,), site_reader=_no_website, news_reader=_no_news)
+        assert seen == {"held": True}
+        assert not redis_client.exists(pipeline._lease_key(run_id))
+    finally:
+        conn.close()

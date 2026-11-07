@@ -53,6 +53,66 @@ class DiscoveryBusy(Exception):
         self.run_id = run_id
 
 
+# A running run renews a short Redis lease. A run whose process died (out of memory, restart)
+# stops renewing it, so the next request can replace it at once instead of answering
+# "already running" until STALE_RUN_MINUTES pass. Without Redis nothing is ever declared
+# dead early: the STALE_RUN_MINUTES rule alone applies, as before.
+LEASE_SECONDS = 45
+LEASE_RENEW_SECONDS = 15
+LEASE_GRACE_SECONDS = 90  # a queued run's thread may not have taken its first lease yet
+
+
+def _lease_key(run_id: str) -> str:
+    return f"keel:discovery:lease:{run_id}"
+
+
+def _lease_redis():
+    from src.ai.core.redis_client import get_redis_client
+
+    return get_redis_client(socket_connect_timeout=1, socket_timeout=1)
+
+
+class _RunLease:
+    """Holds a run's lease for as long as the run executes in this process."""
+
+    def __init__(self, run_id: str):
+        import threading
+
+        self.run_id, self.stop = run_id, threading.Event()
+        self.thread = threading.Thread(target=self._renew, name=f"discovery-lease-{run_id}", daemon=True)
+
+    def _renew(self):
+        while True:
+            try:
+                _lease_redis().set(_lease_key(self.run_id), "1", ex=LEASE_SECONDS)
+            except Exception:  # noqa: BLE001 - without Redis the time rule decides
+                pass
+            if self.stop.wait(LEASE_RENEW_SECONDS):
+                return
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self.stop.set()
+        try:
+            _lease_redis().delete(_lease_key(self.run_id))
+        except Exception:  # noqa: BLE001
+            pass
+        return False
+
+
+def _run_is_orphaned(run_id: str, created_at) -> bool:
+    """True only when Redis answers and confirms nobody holds the run's lease."""
+    if created_at is None or datetime.now(timezone.utc) - created_at < timedelta(seconds=LEASE_GRACE_SECONDS):
+        return False
+    try:
+        return not _lease_redis().exists(_lease_key(run_id))
+    except Exception:  # noqa: BLE001 - unknown is not dead
+        return False
+
+
 def provider_status() -> List[dict]:
     out = []
     for provider in PROVIDERS:
@@ -469,8 +529,17 @@ def start_run(conn, tenant_id: str, user_id: Optional[str], radius_km: Optional[
             """,
             (tenant_id, datetime.now(timezone.utc) - timedelta(minutes=STALE_RUN_MINUTES)),
         )
-        cursor.execute("SELECT run_id FROM discovery_runs WHERE tenant_id = %s AND status IN ('queued', 'running');", (tenant_id,))
+        cursor.execute("SELECT run_id, created_at FROM discovery_runs WHERE tenant_id = %s AND status IN ('queued', 'running');",
+                       (tenant_id,))
         row = cursor.fetchone()
+        if row and _run_is_orphaned(str(row[0]), row[1]):
+            logger.warning("discovery run %s lost its process; replacing it", row[0])
+            cursor.execute(
+                "UPDATE discovery_runs SET status = 'failed', error = 'interrupted', finished_at = CURRENT_TIMESTAMP "
+                "WHERE run_id = %s AND status IN ('queued', 'running');",
+                (row[0],),
+            )
+            row = None
         if row:
             raise DiscoveryBusy(str(row[0]))
         cursor.execute(
@@ -504,6 +573,11 @@ def execute_run(conn, tenant_id: str, run_id: str, radius_km: Optional[float] = 
                 site_reader=None, news_reader=None) -> dict:
     """Runs a queued discovery to completion on `conn` (a tenant connection).
     `site_reader` / `news_reader` replace intel.collect / news.collect (tests)."""
+    with _RunLease(run_id):
+        return _execute_run(conn, tenant_id, run_id, radius_km, providers, site_reader, news_reader)
+
+
+def _execute_run(conn, tenant_id: str, run_id: str, radius_km, providers, site_reader, news_reader) -> dict:
     _update_run(conn, run_id, status="running", started_at=datetime.now(timezone.utc))
     try:
         profile = load_profile(conn, tenant_id)

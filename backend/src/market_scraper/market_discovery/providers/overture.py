@@ -384,7 +384,11 @@ def execution_mode() -> str:
     from src.ai.core import ml_runtime
 
     limit = ml_runtime.container_memory_limit_mb()
-    return "local" if limit is None or limit >= LOCAL_MIN_MEMORY_MB else "unsafe"
+    if limit is None:
+        # An unreadable limit is not proof of a large machine. Render sets RENDER=true in every
+        # service and runs keelai.net's API in 512 MiB: there, never risk an in-process read.
+        return "unsafe" if os.getenv("RENDER", "").strip().lower() in ("1", "true", "yes") else "local"
+    return "local" if limit >= LOCAL_MIN_MEMORY_MB else "unsafe"
 
 
 def search(query: DiscoveryQuery) -> ProviderResult:
