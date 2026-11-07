@@ -7,7 +7,8 @@ from dataclasses import dataclass, field, fields
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Mapping, Protocol
+from typing import Callable, Mapping, Protocol
+import json
 
 
 class GatewayEnvironment(str, Enum):
@@ -438,3 +439,147 @@ class SubscriptionPaymentGateway(Protocol):
 
 class PaymentWebhookDecoder(Protocol):
     def decode(self, payload: bytes, signature: str) -> VerifiedPaymentEvent: ...
+
+
+@dataclass(frozen=True)
+class CustomerPayload:
+    """Canonical UTF-8 JSON, not a shallowly frozen dictionary. Never log it."""
+    canonical: bytes = field(repr=False)
+
+    def __post_init__(self):
+        if type(self.canonical) is not bytes:
+            raise ValueError("Immutable canonical bytes required")
+        value = json.loads(self.canonical)
+        def check(item):
+            if isinstance(item, dict):
+                for key, child in item.items():
+                    if key.lower().replace("-", "_") in {
+                        "api_key", "authorization", "password", "secret", "client_secret",
+                        "access_token", "refresh_token", "headers", "card", "cvc", "cvv", "pan",
+                    }:
+                        raise ValueError("Secret/card fields are forbidden")
+                    check(child)
+            elif isinstance(item, list):
+                for child in item:
+                    check(child)
+        check(value)
+        if not isinstance(value, dict) or self._encode(value) != self.canonical:
+            raise ValueError("Canonical JSON object required")
+
+    @staticmethod
+    def _encode(value):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"),
+                          ensure_ascii=False, allow_nan=False).encode("utf-8")
+
+    @classmethod
+    def freeze(cls, value: Mapping):
+        return cls(cls._encode(value))
+
+    def unpack(self) -> dict:
+        return json.loads(self.canonical)  # Every caller gets its own deep copy.
+
+
+@dataclass(frozen=True)
+class CustomerIntent:
+    tenant_id: str
+    operation_id: str
+    request_identity: str
+    binding: GatewayBinding
+    email: str = field(repr=False)
+    company_name: str = field(repr=False)
+
+    def __post_init__(self):
+        _require_binding(self.binding)
+        if any(not isinstance(v, str) or not v.strip() for v in (
+            self.tenant_id, self.operation_id, self.request_identity, self.email, self.company_name
+        )):
+            raise ValueError("Explicit Customer intent identity required")
+
+    def logical_request(self) -> CustomerPayload:
+        return CustomerPayload.freeze({"email": self.email, "name": self.company_name})
+
+
+@dataclass(frozen=True)
+class FrozenCustomerRequest:
+    tenant_id: str
+    operation_id: str
+    binding: GatewayBinding
+    idempotency_key: str
+    logical: CustomerPayload = field(repr=False)
+    transport: CustomerPayload = field(repr=False)
+    encoder_version: str
+    api_version: str
+    replay_support: CapabilityState = CapabilityState.UNKNOWN
+    replay_window_seconds: int = 0
+    dispatch_timeout_seconds: int = 5
+
+    def __post_init__(self):
+        _require_binding(self.binding)
+        if not all(isinstance(v, str) and v.strip() for v in (
+            self.tenant_id, self.operation_id, self.idempotency_key, self.encoder_version, self.api_version
+        )) or not isinstance(self.logical, CustomerPayload) or not isinstance(self.transport, CustomerPayload):
+            raise ValueError("Complete immutable Customer request required")
+        if (not isinstance(self.replay_support, CapabilityState)
+            or type(self.replay_window_seconds) is not int or self.replay_window_seconds < 0
+            or type(self.dispatch_timeout_seconds) is not int or self.dispatch_timeout_seconds <= 0):
+            raise ValueError("Explicit replay and dispatch policy required")
+
+
+@dataclass(frozen=True)
+class CustomerSnapshot:
+    reference: ProviderReference
+    tenant_id: str
+    operation_id: str
+    evidence_kind: str
+    evidence_id: str
+    deleted: bool = False
+
+    def __post_init__(self):
+        _require_binding(self.reference.binding, self.reference)
+        if self.evidence_kind not in {"create_response", "retrieved", "recovered"} or not self.evidence_id:
+            raise ValueError("Customer provenance required")
+
+
+class CustomerRecoveryStatus(str, Enum):
+    MATCH = "match"
+    INCONCLUSIVE = "inconclusive"
+    CONFLICT = "conflict"
+    VERIFIED_NON_CREATION = "verified_non_creation"
+
+
+@dataclass(frozen=True)
+class CustomerRecoveryResult:
+    status: CustomerRecoveryStatus
+    binding: GatewayBinding
+    tenant_id: str
+    operation_id: str
+    snapshot: CustomerSnapshot | None = None
+    evidence_id: str | None = None
+
+    def __post_init__(self):
+        _require_binding(self.binding)
+        if not isinstance(self.status, CustomerRecoveryStatus):
+            raise ValueError("Explicit recovery status required")
+        if (self.status is CustomerRecoveryStatus.MATCH) != (self.snapshot is not None):
+            raise ValueError("A match requires exactly one snapshot")
+        if self.snapshot is not None and (
+            self.snapshot.reference.binding != self.binding or self.snapshot.tenant_id != self.tenant_id
+            or self.snapshot.operation_id != self.operation_id or self.snapshot.deleted
+        ):
+            raise ValueError("Recovery association mismatch")
+        if self.status is CustomerRecoveryStatus.VERIFIED_NON_CREATION and not self.evidence_id:
+            raise ValueError("Operation-wide non-creation evidence required")
+
+
+class DurableCustomerGateway(Protocol):
+    """Optional capability, intentionally separate from SubscriptionPaymentGateway.
+
+    Only trusted server adapters implement this boundary. Snapshots are evidence,
+    not entitlement authority. Unknown replay guarantees must fail closed.
+    """
+    binding: GatewayBinding
+    def prepare_customer(self, intent: CustomerIntent) -> FrozenCustomerRequest: ...
+    def submit_customer(self, request: FrozenCustomerRequest, *, deadline: datetime,
+                        authorize: Callable[[], Mapping]) -> CustomerSnapshot: ...
+    def retrieve_customer(self, reference: ProviderReference, request: FrozenCustomerRequest) -> CustomerSnapshot: ...
+    def recover_customer(self, request: FrozenCustomerRequest) -> CustomerRecoveryResult: ...

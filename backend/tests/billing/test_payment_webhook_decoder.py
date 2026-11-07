@@ -132,6 +132,7 @@ def test_payment_boundary_wiring_is_scoped_and_contract_has_no_infrastructure_im
                         "ai/billing/webhooks.py", "ai/billing/store.py", "ai/billing/promotions.py",
                         "ai/routers/billing.py",
                         "ai/billing/payment_bindings.py", "ai/billing/trial_checkouts.py",
+                        "ai/billing/customer_operations.py", "ai/billing/stripe_api.py",
                     }, str(path)
                     assert "stripe_webhooks" not in used, "Provider decoding is composed at payment_runtime"
     contracts = ast.parse((src / "ai/billing/payment_contracts.py").read_text(encoding="utf-8"))
@@ -148,4 +149,4 @@ def test_dormant_reservation_repositories_are_not_imported_by_runtime_flows():
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 imported = {alias.name.split(".")[-1] for alias in node.names}
                 imported.add((getattr(node, "module", None) or "").split(".")[-1])
-                assert not imported & {"payment_bindings", "trial_checkouts"}
+                assert not imported & {"payment_bindings", "trial_checkouts", "customer_operations"}

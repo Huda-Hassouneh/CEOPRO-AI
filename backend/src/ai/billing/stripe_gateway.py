@@ -15,6 +15,10 @@ from src.ai.billing.payment_contracts import (
     ProviderReference, ScheduledChange, SubscriptionChangeIntent,
     SubscriptionChangeResult, SubscriptionItem, SubscriptionSnapshot, SubscriptionState,
 )
+from src.ai.billing.payment_contracts import (
+    CapabilityState, CustomerPayload, CustomerRecoveryResult, CustomerRecoveryStatus,
+    CustomerSnapshot, FrozenCustomerRequest, GatewayEnvironment,
+)
 
 
 def _reference(value):
@@ -341,3 +345,75 @@ class StripeGateway:
     def create_portal(self, customer, *, return_url):
         identifier = _identifier(customer)
         return _call(lambda: stripe_api.create_portal_session(identifier, return_url)["url"], mutating=True)
+
+
+class StripeDurableCustomerGateway:
+    """Optional dormant capability; legacy StripeGateway is unchanged."""
+    def __init__(self, binding, transport):
+        if binding.provider != 'stripe' or transport.binding != binding:
+            raise ValueError('Exact bound Stripe transport required')
+        self.binding, self.transport = binding, transport
+
+    def prepare_customer(self, intent):
+        if intent.binding != self.binding:
+            raise ValueError('Customer binding mismatch')
+        return FrozenCustomerRequest(
+            intent.tenant_id, intent.operation_id, self.binding, 'keel-customer-' + intent.operation_id,
+            intent.logical_request(), CustomerPayload.freeze({
+                'email': intent.email, 'name': intent.company_name,
+                'metadata': {'tenant_id': intent.tenant_id, 'keel_customer_operation_id': intent.operation_id},
+            }), stripe_api.CUSTOMER_ENCODER, self.transport.api_version,
+            CapabilityState.SUPPORTED if self.transport.replay_window_seconds > self.transport.timeout + 2 else CapabilityState.UNKNOWN,
+            self.transport.replay_window_seconds, self.transport.timeout,
+        )
+
+    def _check(self, request):
+        if (request.binding != self.binding or request.api_version != self.transport.api_version
+            or request.encoder_version != stripe_api.CUSTOMER_ENCODER
+            or request.dispatch_timeout_seconds != self.transport.timeout
+            or request.replay_window_seconds != self.transport.replay_window_seconds
+            or self.transport.max_network_retries != 0 or self.transport.backoff_seconds != 0):
+            raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
+        payload = request.transport.unpack()
+        if (set(payload) != {'email', 'name', 'metadata'}
+            or payload['metadata'] != {'tenant_id': request.tenant_id, 'keel_customer_operation_id': request.operation_id}
+            or {'email': payload['email'], 'name': payload['name']} != request.logical.unpack()):
+            raise PaymentProviderError(Outcome.OUTCOME_UNKNOWN)
+        _call(self.transport.verify_namespace)
+
+    def _snapshot(self, data, request, kind):
+        metadata = data.get('metadata') or {}
+        if (not data.get('id') or data.get('deleted') or metadata.get('tenant_id') != request.tenant_id
+            or metadata.get('keel_customer_operation_id') != request.operation_id
+            or data.get('livemode') is not (self.binding.environment is GatewayEnvironment.LIVE)):
+            raise PaymentProviderError(Outcome.OUTCOME_UNKNOWN)
+        return CustomerSnapshot(ProviderReference('stripe', data['id'], binding=self.binding),
+            request.tenant_id, request.operation_id, kind, data['id'])
+
+    def submit_customer(self, request, *, deadline, authorize):
+        self._check(request)
+        return _call(lambda: self._snapshot(self.transport.create(request,
+            deadline=deadline, authorize=authorize), request, 'create_response'), mutating=True)
+
+    def retrieve_customer(self, reference, request):
+        if reference.binding != self.binding or reference.provider != 'stripe':
+            raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
+        self._check(request)
+        result = _call(lambda: self._snapshot(self.transport.retrieve(reference.opaque_id), request, 'retrieved'))
+        if result.reference != reference:
+            raise PaymentProviderError(Outcome.OUTCOME_UNKNOWN)
+        return result
+
+    def recover_customer(self, request):
+        self._check(request)
+        matches = _call(lambda: self.transport.search(request.tenant_id, request.operation_id))
+        status = CustomerRecoveryStatus.INCONCLUSIVE
+        snapshot = None
+        if len(matches) > 1:
+            status = CustomerRecoveryStatus.CONFLICT
+        elif matches:
+            snapshot = self._snapshot(matches[0], request, 'recovered')
+            # Search is candidate discovery; retrieve under the same bound client.
+            snapshot = self.retrieve_customer(snapshot.reference, request)
+            status = CustomerRecoveryStatus.MATCH
+        return CustomerRecoveryResult(status, self.binding, request.tenant_id, request.operation_id, snapshot)
