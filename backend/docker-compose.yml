@@ -215,6 +215,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+      IMAGE_WORKER_DB_PASSWORD: ${IMAGE_WORKER_DB_PASSWORD}
+      CREDIT_ACCOUNTING_DB_PASSWORD: ${CREDIT_ACCOUNTING_DB_PASSWORD:-}
       POSTGRES_DB: ${POSTGRES_DB}
     command: sh -c "pip install --no-cache-dir psycopg2-binary && python scripts/apply_migrations.py"
     networks:
@@ -666,7 +668,9 @@ services:
     profiles: ["local-images"]
     command: python -m src.ai.marketing.image_worker
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://ceopro_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      IMAGE_WORKER_DB_PASSWORD: ${IMAGE_WORKER_DB_PASSWORD}
+      CREDIT_ACCOUNTING_DB_PASSWORD: ${CREDIT_ACCOUNTING_DB_PASSWORD:-}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       REDIS_HOST: redis
