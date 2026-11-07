@@ -1,0 +1,29 @@
+# KEEL processor: runs heavy tasks (Overture place search) away from the API.
+# See docs/EXTERNAL_PROCESSOR.md. Holds no database, Redis or customer credentials:
+# it receives only a place, a radius and trade words, signed with OFFLOAD_SHARED_SECRET.
+#
+#   docker build -f Dockerfile.processor -t keel-processor .
+#   docker run -e OFFLOAD_SHARED_SECRET=... -p 7860:7860 keel-processor
+FROM python:3.11-slim
+
+# UID 1000: the user Hugging Face Docker Spaces run as.
+RUN useradd --create-home --uid 1000 keel
+WORKDIR /app
+COPY src/offload/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY --chown=keel src/ai ./src/ai
+COPY --chown=keel src/infrastructure ./src/infrastructure
+COPY --chown=keel src/market_scraper ./src/market_scraper
+COPY --chown=keel src/offload ./src/offload
+
+USER keel
+ENV PYTHONUNBUFFERED=1 \
+    OVERTURE_EXECUTION=local \
+    OVERTURE_CACHE_DIR=/tmp/keel-overture \
+    OFFLOAD_WARM_OVERTURE=true \
+    PORT=7860
+EXPOSE 7860
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request,os;urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORT','7860')+'/healthz',timeout=4)"
+CMD ["sh", "-c", "exec uvicorn src.offload.processor:app --host 0.0.0.0 --port ${PORT:-7860} --log-level info"]

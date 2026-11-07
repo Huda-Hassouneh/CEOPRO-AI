@@ -52,3 +52,24 @@ def ready():
     checks = {"database": _timed(_database), "redis": _timed(_redis)}
     healthy = all(check["ok"] for check in checks.values())
     return JSONResponse(status_code=200 if healthy else 503, content={"status": "ok" if healthy else "unavailable", "checks": checks})
+
+
+@router.get("/health/processor")
+def processor():
+    """The external processor that runs heavy work (src/offload), checked separately from the API:
+    an uptime monitor sees "API up, processor down" instead of one combined status. 200 when it
+    answers or none is configured, 503 when configured but unreachable. Load counters only - no
+    task data, URLs or secrets. A request here also wakes a processor host that sleeps when idle."""
+    from src.market_scraper.market_discovery.providers import overture
+    from src.offload import client as offload
+
+    if not offload.configured():
+        return {"status": "not_configured", "overture": overture.execution_mode()}
+    client = offload.get_client()
+    started = time.monotonic()
+    answer = client.health()
+    body = {"status": "ok" if answer else "unavailable", "ms": round((time.monotonic() - started) * 1000),
+            "calls_paused": not client.breaker.allow()}
+    if answer:
+        body.update({key: answer.get(key) for key in ("running", "queued", "max_parallel", "warm")})
+    return JSONResponse(status_code=200 if answer else 503, content=body)

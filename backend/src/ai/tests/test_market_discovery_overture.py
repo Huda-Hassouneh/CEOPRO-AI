@@ -78,8 +78,9 @@ def test_only_the_parts_of_the_dataset_around_the_company_are_read():
         def row_group(self, i):
             return self.groups[i]
 
-    index = {"files": [("a.parquet", 1, Meta([RowGroup(46.2, 24.3), RowGroup(35.5, 31.5), RowGroup(-74, 40)]))]}
-    assert [g[3] for g in overture._row_groups(index, overture._box(_query()))] == [0]
+    meta = Meta([RowGroup(46.2, 24.3), RowGroup(35.5, 31.5), RowGroup(-74, 40)])
+    index = {"files": [["a.parquet", 1]], "groups": overture._compact_groups(0, meta)}
+    assert overture._row_groups(index, overture._box(_query())) == [("a.parquet", 1, 0)]
 
 
 def test_a_business_type_described_in_arabic_matches_names_by_word_stem():
@@ -106,3 +107,72 @@ def test_arabic_only_descriptions_get_english_category_words_once():
     assert len(asked) == 1  # cached
     english = pipeline.build_query("t", {"business_type": "Software company", "latitude": 1, "longitude": 1})
     assert pipeline.with_category_words(english, ask=ask) is english  # English already: nothing asked
+
+
+def test_rows_outside_the_search_or_closed_or_unsure_are_dropped_before_python_reads_them():
+    import pyarrow as pa
+
+    def row(x, y, status="open", confidence=0.8):
+        return {"bbox": {"xmin": x, "xmax": x, "ymin": y, "ymax": y}, "operating_status": status, "confidence": confidence}
+
+    rows = [row(46.68, 24.72), row(46.68, 24.72, status=None), row(46.68, 24.72, status=""),
+            row(46.68, 24.72, status="permanently_closed"), row(46.68, 24.72, confidence=0.1),
+            row(46.68, 24.72, confidence=None), row(10.0, 24.72), row(None, None), row(0.0, 24.72)]
+    kept = overture._in_box(pa.Table.from_pylist(rows), overture._box(_query())).to_pylist()
+    assert [(r["operating_status"], r["confidence"]) for r in kept] == [("open", 0.8), (None, 0.8), ("", 0.8)]
+
+
+def test_a_small_api_container_never_reads_overture_itself(monkeypatch):
+    from src.ai.core import ml_runtime
+
+    monkeypatch.delenv("OVERTURE_EXECUTION", raising=False)
+    monkeypatch.delenv("OFFLOAD_PROCESSOR_URL", raising=False)
+    monkeypatch.setattr(ml_runtime, "container_memory_limit_mb", lambda: 512)
+    monkeypatch.setattr(overture, "search_local", lambda q: (_ for _ in ()).throw(AssertionError("read locally")))
+    result = overture.search(_query())
+    assert (result.status, result.reason) == ("skipped", "needs_processor")
+
+
+def test_a_large_machine_still_reads_overture_itself(monkeypatch):
+    from src.ai.core import ml_runtime
+    from src.market_scraper.market_discovery.models import ProviderResult
+
+    monkeypatch.delenv("OVERTURE_EXECUTION", raising=False)
+    monkeypatch.delenv("OFFLOAD_PROCESSOR_URL", raising=False)
+    monkeypatch.setattr(ml_runtime, "container_memory_limit_mb", lambda: 16384)
+    monkeypatch.setattr(overture, "search_local", lambda q: ProviderResult("overture", "ok"))
+    assert overture.search(_query()).status == "ok"
+
+
+def test_with_a_processor_configured_overture_runs_there_and_returns_the_same_candidates(monkeypatch):
+    from src.offload import client as offload
+
+    calls = []
+
+    class FakeClient:
+        def run(self, kind, params, deadline_seconds):
+            calls.append((kind, params))
+            row = _row("Nahdi", "pharmacy", ["meta"], socials=["https://facebook.com/nahdi"])
+            candidate = overture.to_candidate(row, _query(), True, False)
+            from dataclasses import asdict
+            return {"status": "ok", "reason": None, "requests": 3, "candidates": [asdict(candidate)]}
+
+    monkeypatch.setenv("OVERTURE_EXECUTION", "remote")
+    monkeypatch.setattr(offload, "get_client", lambda: FakeClient())
+    result = overture.search(_query())
+    assert result.status == "ok" and result.requests == 3
+    assert [c.name for c in result.candidates] == ["Nahdi"] and result.candidates[0].source_url == "https://facebook.com/nahdi"
+    assert calls[0][0] == "overture.search" and "tenant_id" not in calls[0][1]
+
+
+def test_an_unavailable_processor_fails_only_the_overture_source(monkeypatch):
+    from src.offload import client as offload
+
+    class DownClient:
+        def run(self, kind, params, deadline_seconds):
+            raise offload.OffloadUnavailable("circuit_open")
+
+    monkeypatch.setenv("OVERTURE_EXECUTION", "remote")
+    monkeypatch.setattr(offload, "get_client", lambda: DownClient())
+    result = overture.search(_query())
+    assert (result.status, result.reason, result.candidates) == ("failed", "processor_unavailable", [])

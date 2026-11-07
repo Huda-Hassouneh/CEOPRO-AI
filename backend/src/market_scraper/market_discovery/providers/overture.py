@@ -25,7 +25,7 @@ import io
 import logging
 import math
 import os
-import pickle
+import json
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -145,7 +145,7 @@ def _cache_key() -> Optional[bytes]:
 
 
 def _read_signed_index(path: str) -> Optional[dict]:
-    """Unpickle only bytes whose HMAC matches; anyone able to write the cache dir cannot plant code."""
+    """Read the index only when its HMAC matches. JSON, not pickle: even a planted file cannot run code."""
     key = _cache_key()
     if not key:
         return None
@@ -155,14 +155,14 @@ def _read_signed_index(path: str) -> Optional[dict]:
         signature = handle.read()
     if not hmac.compare_digest(hmac.new(key, blob, hashlib.sha256).digest(), signature):
         return None
-    return pickle.loads(blob)  # noqa: S301 - signature verified above
+    return json.loads(blob)
 
 
 def _write_signed_index(path: str, index: dict) -> None:
     key = _cache_key()
     if not key:
         return
-    blob = pickle.dumps(index)
+    blob = json.dumps(index, separators=(",", ":")).encode()
     with open(path + ".tmp", "wb") as handle:
         handle.write(blob)
     with open(path + ".sig.tmp", "wb") as handle:
@@ -171,33 +171,51 @@ def _write_signed_index(path: str, index: dict) -> None:
     os.replace(path + ".sig.tmp", path + ".sig")
 
 
+def _compact_groups(file_index: int, meta) -> List[list]:
+    """[file, group, xmin, xmax, ymin, ymax] per row group: all a search needs to choose
+    what to read. The full Parquet footers of a release took ~330 MB held in memory; this
+    takes well under 1 MB."""
+    columns = {meta.schema.column(i).path: i for i in range(meta.num_columns)}
+    groups = []
+    for group in range(meta.num_row_groups):
+        row_group = meta.row_group(group)
+
+        def stat(name, row_group=row_group):
+            return row_group.column(columns[name]).statistics
+
+        groups.append([file_index, group, stat("bbox.xmin").min, stat("bbox.xmax").max,
+                       stat("bbox.ymin").min, stat("bbox.ymax").max])
+    return groups
+
+
 def _load_index(client: httpx.Client) -> dict:
-    """{release, files: [(key, size, metadata)]} - footers fetched once per
-    release and kept on disk, so later scans start immediately."""
+    """{release, files: [[key, size]], groups: [[file, group, xmin, xmax, ymin, ymax]]} -
+    footers fetched once per release, reduced to each row group's box and kept on disk,
+    so later scans start immediately."""
     import pyarrow.parquet as pq
 
     with _lock:
         release = _release(client)
         if release in _index:
             return _index[release]
-        path = os.path.join(CACHE_DIR, f"places-{release}.pickle")
+        path = os.path.join(CACHE_DIR, f"places-{release}.v2.json")
         try:
             cached = _read_signed_index(path)
             if cached is not None:
                 _index[release] = cached
                 return cached
-        except Exception:  # noqa: BLE001 - missing, unsigned, truncated, or written by another pyarrow: rebuild
+        except Exception:  # noqa: BLE001 - missing, unsigned or truncated: rebuild
             pass
         keys, _ = _list(client, f"release/{release}/theme=places/type=place/")
-        files = []
+        files = [[k, s] for k, s in keys if k.endswith(".parquet")]
 
-        def footer(item):
-            key, size = item
-            return key, size, pq.ParquetFile(_RangeFile(BASE_URL + key, _client(), size)).metadata
+        def footer(numbered):
+            number, (key, size) = numbered
+            return _compact_groups(number, pq.ParquetFile(_RangeFile(BASE_URL + key, _client(), size)).metadata)
 
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            files = list(pool.map(footer, [(k, s) for k, s in keys if k.endswith(".parquet")]))
-        index = {"release": release, "files": files}
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            groups = [g for part in pool.map(footer, enumerate(files)) for g in part]
+        index = {"release": release, "files": files, "groups": groups}
         try:
             os.makedirs(CACHE_DIR, exist_ok=True)
             _write_signed_index(path, index)
@@ -214,21 +232,34 @@ def _box(query: DiscoveryQuery) -> Tuple[float, float, float, float]:
     return query.longitude - dlon, query.longitude + dlon, query.latitude - dlat, query.latitude + dlat
 
 
-def _row_groups(index: dict, box) -> List[Tuple[str, int, object, int]]:
+def _row_groups(index: dict, box) -> List[Tuple[str, int, int]]:
+    """(key, size, group) of the row groups whose box overlaps the search box."""
     out = []
-    for key, size, meta in index["files"]:
-        columns = {meta.schema.column(i).path: i for i in range(meta.num_columns)}
-        for group in range(meta.num_row_groups):
-            row_group = meta.row_group(group)
-
-            def stat(name, row_group=row_group):
-                return row_group.column(columns[name]).statistics
-
-            if (stat("bbox.xmax").max < box[0] or stat("bbox.xmin").min > box[1]
-                    or stat("bbox.ymax").max < box[2] or stat("bbox.ymin").min > box[3]):
-                continue
-            out.append((key, size, meta, group))
+    for file_index, group, xmin, xmax, ymin, ymax in index["groups"]:
+        if xmax < box[0] or xmin > box[1] or ymax < box[2] or ymin > box[3]:
+            continue
+        key, size = index["files"][file_index]
+        out.append((key, size, group))
     return out
+
+
+def _in_box(table, box):
+    """Only the rows a search can use, chosen in Arrow before any Python object is made (a row
+    group is ~20,000 places; turning all of them into dicts cost ~120 MB each). The same tests
+    as the row loop in search_local, which still runs on what is left: inside the box, open
+    (or unknown) and confident enough."""
+    import pyarrow.compute as pc
+
+    bbox = table.column("bbox")
+    xmin, ymin = pc.struct_field(bbox, "xmin"), pc.struct_field(bbox, "ymin")
+    keep = pc.and_kleene(pc.and_kleene(pc.greater_equal(xmin, box[0]), pc.less_equal(xmin, box[1])),
+                         pc.and_kleene(pc.greater_equal(ymin, box[2]), pc.less_equal(ymin, box[3])))
+    keep = pc.and_kleene(keep, pc.and_kleene(pc.not_equal(xmin, 0), pc.not_equal(ymin, 0)))  # the loop reads 0 as missing
+    status = table.column("operating_status")
+    keep = pc.and_kleene(keep, pc.or_kleene(pc.or_kleene(pc.is_null(status), pc.equal(status, "open")), pc.equal(status, "")))
+    confidence = pc.fill_null(table.column("confidence"), 0)
+    keep = pc.and_kleene(keep, pc.greater_equal(confidence, MIN_CONFIDENCE))
+    return table.filter(pc.fill_null(keep, False))
 
 
 def _words(text: str) -> List[str]:
@@ -333,7 +364,62 @@ def to_candidate(row: dict, query: DiscoveryQuery, matched_category: bool, name_
     )
 
 
+# Where Overture is read (OVERTURE_EXECUTION): "auto" (default) - on the external processor when
+# OFFLOAD_PROCESSOR_URL is set, otherwise in this process only on a machine with enough memory;
+# "remote" - only on the processor; "local" - always in this process (the processor itself, development).
+# Reading the dataset in a small API container is what ran keelai.net's 512 MB API out of memory and
+# restarted it mid-request, so there it is skipped instead and the other sources still run.
+LOCAL_MIN_MEMORY_MB = int(os.getenv("OVERTURE_LOCAL_MIN_MEMORY_MB", "1536"))
+REMOTE_DEADLINE_SECONDS = float(os.getenv("OVERTURE_REMOTE_DEADLINE_SECONDS", "200"))  # under search_all's 240 s
+
+
+def execution_mode() -> str:
+    mode = os.getenv("OVERTURE_EXECUTION", "auto").strip().lower()
+    if mode in ("local", "remote"):
+        return mode
+    from src.offload import client as offload
+
+    if offload.configured():
+        return "remote"
+    from src.ai.core import ml_runtime
+
+    limit = ml_runtime.container_memory_limit_mb()
+    return "local" if limit is None or limit >= LOCAL_MIN_MEMORY_MB else "unsafe"
+
+
 def search(query: DiscoveryQuery) -> ProviderResult:
+    if os.getenv("DISCOVERY_DISABLE_OVERTURE", "").lower() in ("1", "true", "yes"):
+        return ProviderResult(NAME, "skipped", reason="disabled")
+    if not query.has_location:
+        return ProviderResult(NAME, "skipped", reason="no_location")
+    mode = execution_mode()
+    if mode == "remote":
+        return search_remote(query)
+    if mode == "unsafe":
+        return ProviderResult(NAME, "skipped", reason="needs_processor")
+    return search_local(query)
+
+
+def search_remote(query: DiscoveryQuery) -> ProviderResult:
+    """The same search, run by the processor (src/offload): this process only waits on HTTP."""
+    from src.offload import client as offload
+    from src.offload import tasks as offload_tasks
+
+    try:
+        result = offload.get_client().run(offload_tasks.OVERTURE_SEARCH, offload_tasks.overture_params(query),
+                                          deadline_seconds=REMOTE_DEADLINE_SECONDS)
+    except offload.OffloadUnavailable as exc:
+        logger.warning("Overture processor unavailable: %s", exc)
+        return ProviderResult(NAME, "failed", reason="processor_unavailable", requests=1)
+    except offload.OffloadFailed as exc:
+        logger.warning("Overture processor task failed: %s", exc)
+        return ProviderResult(NAME, "failed", reason="processor_failed", requests=1)
+    candidates = [Candidate(**c) for c in result.get("candidates") or []]
+    return ProviderResult(NAME, result.get("status") or "ok", candidates, reason=result.get("reason"),
+                          requests=int(result.get("requests") or 1))
+
+
+def search_local(query: DiscoveryQuery) -> ProviderResult:
     ok, reason = available()
     if not ok:
         return ProviderResult(NAME, "skipped", reason=reason)
@@ -355,9 +441,9 @@ def search(query: DiscoveryQuery) -> ProviderResult:
         return ProviderResult(NAME, "failed", reason="unreachable", requests=1)
 
     def read(item):
-        key, size, meta, group = item
-        reader = pq.ParquetFile(_RangeFile(BASE_URL + key, _client(), size), metadata=meta)
-        return reader.read_row_group(group, columns=COLUMNS).to_pylist()
+        key, size, group = item
+        reader = pq.ParquetFile(_RangeFile(BASE_URL + key, _client(), size))
+        return _in_box(reader.read_row_group(group, columns=COLUMNS), box).to_pylist()
 
     found, failures = [], 0
     with ThreadPoolExecutor(max_workers=6) as pool:
