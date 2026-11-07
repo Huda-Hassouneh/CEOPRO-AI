@@ -35,7 +35,10 @@ def closed_quote_limits(selected: Dict[str, int]) -> Dict[str, int]:
     unknown = set(selected) - set(_NUMERIC_CONTRACT_FEATURES)
     if unknown or any(isinstance(v, bool) or not isinstance(v, int) or v < 0 for v in selected.values()):
         raise AdminError("invalid approved quote allowances")
-    return {code: selected.get(code, 0) for code in _NUMERIC_CONTRACT_FEATURES}
+    codes = usage.COMMERCIAL_QUANTITATIVE_FEATURES + tuple(
+        code for code in usage.RETIRED_COMMERCIAL_FEATURES if code in selected
+    )
+    return {code: selected.get(code, 0) for code in codes}
 
 
 def fill_missing_quote_limits(conn, *, tenant_id: str, contract_ref: str,
@@ -94,7 +97,7 @@ def set_plan_feature(conn, *, plan_key: str, feature_code: str, included: bool,
     if limit_value is not None and (isinstance(limit_value, bool) or not isinstance(limit_value, int) or limit_value < 0):
         raise AdminError("limit_value must be a nonnegative integer or null")
 
-    numeric = set(_NUMERIC_CONTRACT_FEATURES)
+    numeric = set(usage.COMMERCIAL_QUANTITATIVE_FEATURES)
     modules = set(_CUSTOM_CONTRACT_ENTITLEMENTS)
     if feature_code not in numeric | modules:
         raise AdminError("feature is not supported by the Python plan entitlement catalog")
@@ -235,7 +238,8 @@ def set_custom_contract(conn, *, tenant_id: str, contract_ref: str, approved_by:
                         trial_days: int = 0, data_sources: Optional[list] = None,
                         included_features: Optional[list[str]] = None,
                         refresh_frequency: Optional[str] = None, support_level: Optional[str] = None,
-                        period_months: int = 1, today: Optional[date] = None) -> None:
+                        period_months: int = 1, today: Optional[date] = None,
+                        legacy_quote_limits: bool = False) -> None:
     """Puts a company on an approved Custom contract: its terms, its own
     limits (replacing the plan's), and the Custom plan for the contract
     period. Only what is listed changes; everything is audited."""
@@ -244,6 +248,16 @@ def set_custom_contract(conn, *, tenant_id: str, contract_ref: str, approved_by:
     unknown = [f for f in limits if f not in _NUMERIC_CONTRACT_FEATURES]
     if unknown:
         raise AdminError(f"unknown contract limits: {', '.join(unknown)}")
+    retired = set(limits) & usage.RETIRED_COMMERCIAL_FEATURES
+    if retired and not legacy_quote_limits:
+        # Manual updates may carry an existing historical allowance, but may
+        # not sell a new one. Only verified legacy quote activation opts in.
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT feature_code,limit_value FROM tenant_entitlement_overrides "
+                           "WHERE tenant_id=%s AND feature_code=ANY(%s)", (tenant_id, sorted(retired)))
+            existing = dict(cursor.fetchall())
+        if any(code not in existing or limits[code] != existing[code] for code in retired):
+            raise AdminError("web_searches is retired from new Custom allowances")
     if included_features is not None:
         unknown_features = sorted(set(included_features) - set(_CUSTOM_CONTRACT_ENTITLEMENTS))
         if unknown_features:
@@ -360,7 +374,7 @@ def owner_catalog_command(conn, *, plan_key, reason, active=None, feature_code=N
         if not isinstance(active,bool):raise AdminError("active must be boolean")
         payload.update(action="status",active=active)
     else:
-        if feature_code not in set(_NUMERIC_CONTRACT_FEATURES)|set(_CUSTOM_CONTRACT_ENTITLEMENTS)|set(usage.BASELINE_ENTITLEMENTS):raise AdminError("feature is not supported by the Python plan entitlement catalog")
+        if feature_code not in set(usage.COMMERCIAL_QUANTITATIVE_FEATURES)|set(_CUSTOM_CONTRACT_ENTITLEMENTS)|set(usage.BASELINE_ENTITLEMENTS):raise AdminError("feature is not supported by the Python plan entitlement catalog")
         if not isinstance(included,bool):raise AdminError("included must be boolean")
         if limit_value is not None and (isinstance(limit_value,bool) or not isinstance(limit_value,int) or limit_value<0):raise AdminError("limit_value must be a nonnegative integer or null")
         if feature_code in _CUSTOM_CONTRACT_ENTITLEMENTS + usage.BASELINE_ENTITLEMENTS and limit_value is not None:raise AdminError("module entitlements do not accept a numeric limit")

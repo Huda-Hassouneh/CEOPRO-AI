@@ -119,6 +119,7 @@ export function CustomPlanBuilderPage() {
   return <div className="billing-management-page custom-plan-page" dir={dir}>
     <Link className="billing-back-link" to={returnTo}><ArrowLeft className="ceopro-setup-direction-icon" size={15} />{t('billing.customPlan.back')}</Link>
     <PageHeader title={t('billing.customPlan.title')} subtitle={t('billing.customPlan.subtitle')} />
+    <p className="billing-provider-note" role="note">{t('billing.customPlan.searchAccountingNotice')}</p>
     <p className="billing-provider-note" role="note">{t('billing.customPlan.automaticNotice')}</p>
     {error && <p className="billing-provider-note is-warning" role="alert">{error}</p>}
     {notice && <div className="billing-management-toast"><Toast variant={notice.variant} message={notice.message} onClose={() => setNotice(null)} /></div>}

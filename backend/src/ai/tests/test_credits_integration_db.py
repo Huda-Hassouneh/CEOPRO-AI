@@ -1068,6 +1068,43 @@ def test_ai_and_data_budgets_are_separate(sys_conn, ai, monkeypatch):
 
 # --- data path ---------------------------------------------------------------------
 
+
+def test_zero_data_credit_balance_allows_only_free_authorized_search(sys_conn, monkeypatch):
+    from src.market_scraper import provider_billing
+    tenant = _company(sys_conn, 'starter')
+    with sys_conn.cursor() as cursor:
+        cursor.execute("INSERT INTO tenant_entitlement_overrides(tenant_id,feature_code,limit_value,contract_ref,approved_by,reason) VALUES(%s,'data_credits',0,'fixture','fixture','fixture')", (tenant,))
+    sys_conn.commit()
+    before = _balance(sys_conn, tenant)
+    with credits.metering(tenant, 'market_discovery'):
+        assert provider_billing.metered_request('https://overpass-api.de/api/interpreter', lambda: {'ok': True}) == {'ok': True}
+        # Verified synthetic paid schedule; the refusal must be the Credit balance.
+        provider = _provider(sys_conn)
+        monkeypatch.setitem(provider_billing._PAID, ('paid-zero.example', '/'), (provider, 'op', 'request'))
+        with pytest.raises(credits.BudgetError) as error:
+            provider_billing.metered_request('https://paid-zero.example/', lambda: pytest.fail('No paid request allowed'))
+        assert error.value.reason == 'BUDGET_EXHAUSTED'
+    assert _balance(sys_conn, tenant) == before == (Decimal(0), Decimal(0))
+
+
+def test_search_limiter_outage_does_not_disable_ai_credit_settlement(sys_conn, monkeypatch):
+    from src.market_scraper import provider_billing, search_safety
+    tenant = _company(sys_conn, 'starter')
+    provider = _ai_provider(sys_conn)
+    def down(**kw): raise ConnectionError('fixture')
+    monkeypatch.setattr(search_safety, 'get_shared_redis_client', down)
+    monkeypatch.setattr(search_safety, '_local', search_safety._LocalLimiter())
+    with credits.metering(tenant, 'fixture'):
+        # Free providers keep working on the in-process limiter during the outage.
+        assert provider_billing.metered_request('https://overpass-api.de/api/interpreter',
+                                                lambda: {'free': True}) == {'free': True}
+        with credits.provider_call(credits.AI, provider, 'fixture_model', {'input_token': 100, 'output_token': 20}) as call:
+            call.sent()
+            call.measured({'input_token': 100, 'output_token': 20})
+    assert _balance(sys_conn, tenant, 'ai')[0] == 0
+    assert _balance(sys_conn, tenant, 'ai')[1] > 0
+    assert _balance(sys_conn, tenant, 'data') == (Decimal(0), Decimal(0))
+
 def test_paid_data_requests_are_metered_and_free_ones_are_not(sys_conn, monkeypatch):
     from src.market_scraper import provider_billing
 
@@ -1078,7 +1115,8 @@ def test_paid_data_requests_are_metered_and_free_ones_are_not(sys_conn, monkeypa
     assert provider_billing.classify("https://maps.googleapis.com/maps/api/geocode/json")[0] == "google_geocoding"
     assert provider_billing.classify("https://unknown.example/api")[0].startswith("unlisted:")
 
-    assert provider_billing.metered_request("https://overpass-api.de/api/interpreter", lambda: {"free": True}) == {"free": True}
+    with credits.metering(tenant, "market_discovery"):
+        assert provider_billing.metered_request("https://overpass-api.de/api/interpreter", lambda: {"free": True}) == {"free": True}
     sent = []
     with credits.metering(tenant, "market_discovery"):
         with pytest.raises(credits.BudgetError):  # Google Places has no confirmed price on this server

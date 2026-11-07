@@ -157,8 +157,12 @@ def _places_get(url: str, params: dict, api_key: str) -> dict:
     query = urllib.parse.urlencode({**params, "key": api_key})
     request = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": "CEOPRO-MarketResearchBot/1.0"})
     try:
-        with urllib.request.urlopen(request, timeout=_FETCH_TIMEOUT) as response:
-            payload = json.loads(response.read().decode("utf-8", errors="ignore"))
+        from src.market_scraper.provider_billing import metered_request
+        from src.market_scraper.search_safety import fingerprint
+        def send():
+            with urllib.request.urlopen(request, timeout=min(30, _FETCH_TIMEOUT)) as response:
+                return json.loads(response.read().decode("utf-8", errors="ignore"))
+        payload = metered_request(url, send, request_key=fingerprint(url, params))
     except Exception as exc:  # noqa: BLE001 - classified below, never raised raw
         raise _PlacesError(PROVIDER_ERROR, _redact(f"{type(exc).__name__}: {exc}", api_key)[:300])
     status = payload.get("status")

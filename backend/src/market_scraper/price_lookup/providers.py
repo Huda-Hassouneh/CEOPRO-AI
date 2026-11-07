@@ -49,7 +49,7 @@ from src.market_scraper.price_lookup import matching
 from src.market_scraper.price_lookup.models import PriceQuote, ProductContext, ProviderError, ProviderUnavailable
 
 logger = logging.getLogger("KEEL_PRICE_LOOKUP")
-TIMEOUT = float(os.getenv("PRICE_LOOKUP_TIMEOUT_SECONDS", "15"))
+TIMEOUT = min(30.0, max(1.0, float(os.getenv("PRICE_LOOKUP_TIMEOUT_SECONDS", "15"))))
 from src.market_scraper.user_agent import USER_AGENT  # noqa: E402
 
 # Currency a price symbol/word stands for when a listing shows no ISO code.
@@ -62,21 +62,26 @@ def _json_get(url: str, params: dict, attempts: int = 2) -> dict:
     """GET JSON. One retry for a transient failure (timeout, connection error, 5xx):
     free public services such as Open Food Facts answer 503 now and then. A paid
     provider (SerpAPI) is paid from the company's Data Credits, once per attempt."""
-    from src.market_scraper.provider_billing import metered_request
-
-    return metered_request(url, lambda: _json_get_once(url, params, attempts))
+    return _json_get_once(url, params, min(2, max(1, attempts)))
 
 
 def _json_get_once(url: str, params: dict, attempts: int) -> dict:
+    from src.market_scraper.provider_billing import metered_request
+    from src.market_scraper.search_safety import fingerprint
+
     last: Optional[Exception] = None
     for attempt in range(attempts):
         try:
-            response = httpx.get(url, params=params, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}, follow_redirects=True)
-            if response.status_code >= 500 and attempt + 1 < attempts:
-                time.sleep(1.5)
-                continue
-            response.raise_for_status()
-            return response.json()
+            def send():
+                response = httpx.get(url, params=params, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}, follow_redirects=True)
+                response.raise_for_status()
+                return response.json()
+            return metered_request(url, send, request_key=fingerprint(url, params))
+        except httpx.HTTPStatusError as exc:
+            last = exc
+            if exc.response.status_code < 500 or attempt + 1 >= attempts:
+                raise ProviderError(type(exc).__name__) from exc
+            time.sleep(1.5)
         except (httpx.TimeoutException, httpx.ConnectError) as exc:
             last = exc
             if attempt + 1 < attempts:

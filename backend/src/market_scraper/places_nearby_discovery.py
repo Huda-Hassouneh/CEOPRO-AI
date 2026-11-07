@@ -54,7 +54,8 @@ def _get(url: str, params: dict) -> Optional[dict]:
                 return json.loads(resp.read().decode("utf-8", errors="ignore"))
 
         # Paid from the company's Data Credits; refused (never sent) when they don't allow it.
-        return metered_request(url, send)
+        from src.market_scraper.search_safety import fingerprint
+        return metered_request(url, send, request_key=fingerprint(url, params))
     except Exception as e:  # noqa: BLE001 - any failure here means "no data", not a crash
         logger.warning("Google Places request failed: %s", e)
         return None

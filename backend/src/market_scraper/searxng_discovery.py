@@ -66,8 +66,12 @@ def discover_product_candidates(
         f"{instance_url}/search?{params}", headers={"User-Agent": USER_AGENT},
     )
     try:
-        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT) as resp:
-            payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+        from src.market_scraper.search_safety import admission, fingerprint
+        # The legacy product-discovery fallback shares the same free-provider
+        # capacity authority as the main search interface.
+        with admission('searxng', 'search', free=True, request_key=fingerprint(instance_url, query)):
+            with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT) as resp:
+                payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
     except Exception as e:  # noqa: BLE001 - any failure here means "no data", not a crash
         logger.warning("SearXNG request failed: %s", e)
         return []
