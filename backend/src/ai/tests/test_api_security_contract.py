@@ -31,6 +31,7 @@ _SECRET = os.environ["JWT_SECRET"]
 _PUBLIC = {
     ("GET", "/health"),
     ("GET", "/health/ready"),
+    ("GET", "/health/processor"),
     ("POST", "/auth/login"),
     ("POST", "/auth/signup"),
     ("POST", "/auth/password/forgot"),

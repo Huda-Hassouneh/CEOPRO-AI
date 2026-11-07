@@ -1,0 +1,12 @@
+# The processor's own dependencies (Dockerfile.processor). Kept to what the
+# offloaded tasks import; versions follow src/ai/requirements.txt.
+fastapi>=0.110,<1.0
+uvicorn>=0.29,<1.0
+httpx>=0.27,<1.0
+pyarrow==23.0.1
+psutil>=5.9,<8.0
+# Imported by shared modules (market_scraper.discovery -> ai.core.usage) but never
+# connected: the processor has no database, Redis or vault credentials.
+redis>=5.0,<6.0
+psycopg2-binary>=2.9,<3.0
+cryptography>=42.0,<51.0

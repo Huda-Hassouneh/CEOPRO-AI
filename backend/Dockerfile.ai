@@ -60,6 +60,8 @@ COPY --chown=ceopro:ceoprogroup src/ai ./src/ai
 # never imports, without needing to hand-pick a file subset.
 COPY --chown=ceopro:ceoprogroup src/infrastructure ./src/infrastructure
 COPY --chown=ceopro:ceoprogroup src/market_scraper ./src/market_scraper
+# The API's client for heavy work run on the processor (src/offload/client.py).
+COPY --chown=ceopro:ceoprogroup src/offload ./src/offload
 COPY --chown=ceopro:ceoprogroup templates ./templates
 # The standard plan catalog (src/ai/billing/standard_plan_catalog.py's
 # CATALOG_PATH = /app/config/billing/standard_plan_catalog.json). The
