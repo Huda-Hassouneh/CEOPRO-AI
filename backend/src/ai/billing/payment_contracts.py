@@ -583,3 +583,405 @@ class DurableCustomerGateway(Protocol):
                         authorize: Callable[[], Mapping]) -> CustomerSnapshot: ...
     def retrieve_customer(self, reference: ProviderReference, request: FrozenCustomerRequest) -> CustomerSnapshot: ...
     def recover_customer(self, request: FrozenCustomerRequest) -> CustomerRecoveryResult: ...
+
+
+# Dormant observation contracts. No adapter, persistence or activation is wired here.
+from datetime import timedelta, timezone
+
+
+class VerificationOutcome(str, Enum):
+    VERIFIED = "verified"
+    PENDING = "pending"
+    CONFLICT = "conflict"
+    UNAVAILABLE = "unavailable"
+    UNSUPPORTED = "unsupported"
+
+
+class ObservationSource(str, Enum):
+    AUTHENTICATED_NOTIFICATION = "authenticated_notification"
+    AUTHORITATIVE_LOOKUP = "authoritative_lookup"
+
+
+class RecurringAuthorizationKind(str, Enum):
+    PAYMENT_METHOD_SETUP = "payment_method_setup"
+    MANDATE = "mandate"
+    PROVIDER_AGREEMENT = "provider_agreement"
+    UNKNOWN = "unknown"
+
+
+class RecurringConsentState(str, Enum):
+    RECORDED = "recorded"
+    PENDING = "pending"
+    REJECTED = "rejected"
+    UNKNOWN = "unknown"
+
+
+def _observation_identifiers(*values: str) -> None:
+    if any(type(v) is not str or not v.strip() or v != v.strip() for v in values):
+        raise ValueError("Explicit non-secret observation identifiers required")
+
+
+def _observation_type(value, expected: type) -> None:
+    # A frozen base dataclass does not freeze extension state in a subclass.
+    if type(value) is not expected:
+        raise ValueError("Unsupported verification value type")
+
+
+def _observation_binding(binding: GatewayBinding) -> None:
+    _observation_type(binding, GatewayBinding)
+    _observation_identifiers(binding.provider, binding.merchant_account_id, binding.binding_id)
+    _observation_type(binding.environment, GatewayEnvironment)
+
+
+def _observation_scope(binding: GatewayBinding, *references: ProviderReference | None) -> None:
+    _observation_binding(binding)
+    for reference in references:
+        if reference is not None:
+            _observation_type(reference, ProviderReference)
+            _observation_binding(reference.binding)
+            _observation_identifiers(reference.provider, reference.opaque_id)
+    _require_binding(binding, *references)
+
+
+def _observation_money(value: Money) -> None:
+    _observation_type(value, Money)
+    _observation_type(value.amount, Decimal)
+    _observation_type(value.currency, str)
+
+
+def _observation_time(value: datetime) -> datetime:
+    """Capture an instant once; retain neither a datetime subclass nor its zone.
+
+    Use base datetime descriptors/methods so subclass overrides are not copied.
+    Provider observation freshness policy remains outside this contract.
+    """
+    if not isinstance(value, datetime):
+        raise ValueError("Valid timezone-aware verification timestamp required")
+    try:
+        offset = datetime.utcoffset(value)
+        if offset is None:
+            raise ValueError
+        plain = datetime(*(getattr(datetime, name).__get__(value) for name in (
+            "year", "month", "day", "hour", "minute", "second", "microsecond"
+        )), tzinfo=timezone.utc)
+        fixed_offset = timedelta(*(getattr(timedelta, name).__get__(offset) for name in (
+            "days", "seconds", "microseconds"
+        )))
+        return plain - fixed_offset
+    except Exception:
+        # Invalid custom zones may raise arbitrary errors containing private data.
+        raise ValueError("Valid timezone-aware verification timestamp required") from None
+
+
+def _terms_digest(value: str) -> None:
+    # This is a commitment to persisted terms, not proof of their approval.
+    if (type(value) is not str or not value.startswith("sha256:") or len(value) != 71
+            or any(c not in "0123456789abcdef" for c in value[7:])):
+        raise ValueError("Canonical SHA-256 terms digest required")
+
+
+@dataclass(frozen=True)
+class ObservationProvenance:
+    """Adapter assertion, not cryptographic verification or database authority.
+
+    A stored observation retains its original notification/lookup origin; its
+    local storage ID never becomes a fabricated webhook event. A confirmed
+    billing transition belongs to later restricted persistence, not this DTO.
+    References are non-secret IDs, never signatures, tokens, URLs or raw bodies.
+    """
+    source: ObservationSource
+    reference: ProviderReference = field(repr=False)
+    observed_at: datetime
+    adapter_version: str = field(repr=False)
+    api_version: str = field(repr=False)
+    stored_observation_id: str | None = field(default=None, repr=False)
+
+    def __post_init__(self):
+        _observation_type(self, ObservationProvenance)
+        if not isinstance(self.source, ObservationSource) or not isinstance(self.reference, ProviderReference):
+            raise ValueError("Explicit observation source and scoped reference required")
+        _observation_scope(self.reference.binding, self.reference)
+        object.__setattr__(self, "observed_at", _observation_time(self.observed_at))
+        _observation_identifiers(self.adapter_version, self.api_version)
+        if self.stored_observation_id is not None:
+            _observation_identifiers(self.stored_observation_id)
+
+
+@dataclass(frozen=True)
+class TrialObservationRequest:
+    """Exact persisted associations supplied by KEEL, never provider selection.
+
+    The digest covers the full frozen commercial/entitlement snapshot. The
+    existing ApprovedTrialTerms is its typed summary, not a replacement for it.
+    Absence of Customer-operation lineage means unresolved historical origin;
+    it must not be invented or adopted by an adapter.
+    """
+    approved_terms: ApprovedTrialTerms = field(repr=False)
+    approved_terms_digest: str = field(repr=False)
+    reservation_id: str = field(repr=False)
+    checkout_attempt_id: str = field(repr=False)
+    checkout: ProviderReference = field(repr=False)
+    customer: ProviderReference = field(repr=False)
+    customer_operation_id: str | None = field(default=None, repr=False)
+    subscription: ProviderReference | None = field(default=None, repr=False)
+
+    def __post_init__(self):
+        _observation_type(self, TrialObservationRequest)
+        _observation_type(self.approved_terms, ApprovedTrialTerms)
+        _observation_identifiers(self.approved_terms.tenant_id, self.approved_terms.plan_key,
+                                 self.approved_terms.catalog_revision_id, self.approved_terms.currency)
+        _terms_digest(self.approved_terms_digest)
+        _observation_identifiers(self.reservation_id, self.checkout_attempt_id)
+        if self.customer_operation_id is not None:
+            _observation_identifiers(self.customer_operation_id)
+        if not all(isinstance(v, ProviderReference) for v in (self.checkout, self.customer)):
+            raise ValueError("Exact Checkout and Customer references required")
+        _observation_scope(self.approved_terms.binding, self.checkout, self.customer, self.subscription)
+
+    @property
+    def binding(self) -> GatewayBinding:
+        return self.approved_terms.binding
+
+    @property
+    def tenant_id(self) -> str:
+        return self.approved_terms.tenant_id
+
+
+@dataclass(frozen=True)
+class SubscriptionObservationRequest:
+    tenant_id: str = field(repr=False)
+    binding: GatewayBinding = field(repr=False)
+    customer: ProviderReference = field(repr=False)
+    subscription: ProviderReference = field(repr=False)
+    customer_operation_id: str | None = field(default=None, repr=False)
+
+    def __post_init__(self):
+        _observation_type(self, SubscriptionObservationRequest)
+        _observation_identifiers(self.tenant_id)
+        if not all(isinstance(v, ProviderReference) for v in (self.customer, self.subscription)):
+            raise ValueError("Exact subscription and Customer references required")
+        _observation_scope(self.binding, self.customer, self.subscription)
+        if self.customer_operation_id is not None:
+            _observation_identifiers(self.customer_operation_id)
+
+
+@dataclass(frozen=True)
+class ObservedRecurringTerms:
+    """Observed provider pricing; matching frozen KEEL prices remains mandatory."""
+    amount: Money = field(repr=False)
+    interval_months: int
+    quantity: int = 1
+    price: ProviderReference | None = field(default=None, repr=False)
+
+    def __post_init__(self):
+        _observation_type(self, ObservedRecurringTerms)
+        _observation_money(self.amount)
+        if (type(self.interval_months) is not int
+                or self.interval_months <= 0 or type(self.quantity) is not int or self.quantity <= 0):
+            raise ValueError("Precise observed recurring terms required")
+        if self.price is not None:
+            if not isinstance(self.price, ProviderReference):
+                raise ValueError("Scoped price reference required")
+            _observation_scope(self.price.binding, self.price)
+
+
+@dataclass(frozen=True)
+class ObservedTrialWindow:
+    started_at: datetime
+    ends_at: datetime
+    cutoff: datetime
+
+    def __post_init__(self):
+        _observation_type(self, ObservedTrialWindow)
+        for name in ("started_at", "ends_at", "cutoff"):
+            object.__setattr__(self, name, _observation_time(getattr(self, name)))
+        if self.ends_at <= self.started_at or self.cutoff != self.ends_at:
+            raise ValueError("Consistent observed trial boundaries required")
+
+
+@dataclass(frozen=True)
+class RecurringAuthorizationEvidence:
+    """Setup/mandate/agreement evidence, not a guarantee of future collection.
+
+    A provider agreement can represent reusable authority without disclosing a
+    payment-method ID. Consent is distinct from setup and must identify the
+    recorded agreement and terms revision; no consent text or PII is retained.
+    """
+    customer: ProviderReference = field(repr=False)
+    source: ProviderReference = field(repr=False)
+    kind: RecurringAuthorizationKind = RecurringAuthorizationKind.UNKNOWN
+    readiness: PaymentMethodReadiness = PaymentMethodReadiness.UNKNOWN
+    consent: RecurringConsentState = RecurringConsentState.UNKNOWN
+    consent_reference: ProviderReference | None = field(default=None, repr=False)
+    consent_terms_revision: str | None = field(default=None, repr=False)
+
+    def __post_init__(self):
+        _observation_type(self, RecurringAuthorizationEvidence)
+        if not all(isinstance(v, ProviderReference) for v in (self.customer, self.source)):
+            raise ValueError("Scoped recurring authorization provenance required")
+        _observation_scope(self.customer.binding, self.customer, self.source, self.consent_reference)
+        if (not isinstance(self.kind, RecurringAuthorizationKind)
+                or not isinstance(self.readiness, PaymentMethodReadiness)
+                or not isinstance(self.consent, RecurringConsentState)):
+            raise ValueError("Explicit recurring readiness and consent states required")
+        if self.readiness is PaymentMethodReadiness.REUSABLE_AUTHORITY_CONFIRMED and self.kind is RecurringAuthorizationKind.UNKNOWN:
+            raise ValueError("Confirmed recurring authority requires a known mechanism")
+        if self.consent_terms_revision is not None:
+            _observation_identifiers(self.consent_terms_revision)
+        if self.consent is RecurringConsentState.RECORDED and (
+            self.consent_reference is None or self.consent_terms_revision is None
+        ):
+            raise ValueError("Recorded consent requires reference and terms revision")
+
+
+@dataclass(frozen=True)
+class ObservedSettlement:
+    """Immutable subset of invoice evidence, separate from trial/setup readiness.
+
+    An initial zero-dollar trial invoice is not post-trial paid coverage. Even
+    settled evidence must be matched to the required coverage and KEEL policy
+    by later reconciliation; positive cash collection is not assumed here.
+    """
+    invoice: ProviderReference = field(repr=False)
+    customer: ProviderReference = field(repr=False)
+    subscription: ProviderReference = field(repr=False)
+    amount_paid: Money = field(repr=False)
+    payment_state: PaymentState = PaymentState.UNKNOWN
+    settlement_confirmed: bool = False
+    initial_subscription_invoice: bool | None = None
+    paid_at: datetime | None = None
+    coverage: tuple[tuple[datetime, datetime], ...] = ()
+
+    def __post_init__(self):
+        _observation_type(self, ObservedSettlement)
+        if not all(isinstance(v, ProviderReference) for v in (self.invoice, self.customer, self.subscription)):
+            raise ValueError("Scoped settlement references required")
+        _observation_scope(self.invoice.binding, self.invoice, self.customer, self.subscription)
+        _observation_money(self.amount_paid)
+        if (not isinstance(self.payment_state, PaymentState)
+                or type(self.settlement_confirmed) is not bool
+                or (self.initial_subscription_invoice is not None and type(self.initial_subscription_invoice) is not bool)):
+            raise ValueError("Explicit settlement state required")
+        if self.paid_at is not None:
+            object.__setattr__(self, "paid_at", _observation_time(self.paid_at))
+        # Copy both levels and every instant, including custom decoder sequences.
+        try:
+            coverage = tuple(tuple(_observation_time(value) for value in period) for period in self.coverage)
+        except TypeError:
+            raise ValueError("Explicit settlement coverage required") from None
+        for period in coverage:
+            if len(period) != 2:
+                raise ValueError("Coverage requires start and end")
+            if period[1] <= period[0]:
+                raise ValueError("Positive settlement coverage required")
+        object.__setattr__(self, "coverage", coverage)
+        if self.settlement_confirmed and (self.payment_state is not PaymentState.PAID or self.paid_at is None):
+            raise ValueError("Confirmed settlement requires paid state and timestamp")
+
+
+@dataclass(frozen=True)
+class ProviderVerificationObservation:
+    """Structurally checked adapter evidence, NEVER billing activation authority.
+
+    VERIFIED means a complete observation, not trial eligibility, paid access,
+    authentic adapter origin or permission to write. Later reconciliation must
+    authenticate the adapter, load persisted associations/terms, check exact
+    prices and consent, and use restricted atomic commands. A DTO constructor
+    cannot prove financial facts. Conflicts omit foreign objects rather than
+    disclose them. No raw snapshots/mappings or provider payloads are accepted.
+    """
+    request: TrialObservationRequest | SubscriptionObservationRequest = field(repr=False)
+    provenance: ObservationProvenance = field(repr=False)
+    outcome: VerificationOutcome = VerificationOutcome.UNAVAILABLE
+    capabilities: GatewayCapabilities = field(default_factory=GatewayCapabilities, repr=False)
+    customer: ProviderReference | None = field(default=None, repr=False)
+    checkout: ProviderReference | None = field(default=None, repr=False)
+    subscription: ProviderReference | None = field(default=None, repr=False)
+    checkout_state: CheckoutState = CheckoutState.UNKNOWN
+    subscription_state: SubscriptionState = SubscriptionState.UNKNOWN
+    terms: ObservedRecurringTerms | None = field(default=None, repr=False)
+    trial: ObservedTrialWindow | None = None
+    payment_method: PaymentMethodEvidence | None = field(default=None, repr=False)
+    recurring_authorization: RecurringAuthorizationEvidence | None = field(default=None, repr=False)
+    settlement: ObservedSettlement | None = field(default=None, repr=False)
+
+    def __post_init__(self):
+        _observation_type(self, ProviderVerificationObservation)
+        if (type(self.request) not in (TrialObservationRequest, SubscriptionObservationRequest)
+                or type(self.provenance) is not ObservationProvenance
+                or not isinstance(self.outcome, VerificationOutcome)
+                or type(self.capabilities) is not GatewayCapabilities
+                or not isinstance(self.checkout_state, CheckoutState)
+                or not isinstance(self.subscription_state, SubscriptionState)):
+            raise ValueError("Typed observation context and outcome required")
+        binding = self.request.binding
+        _observation_scope(binding, self.provenance.reference, self.customer, self.checkout, self.subscription)
+        if self.customer is not None and self.customer != self.request.customer:
+            raise ValueError("Observed Customer association conflict")
+        if self.request.subscription is not None and self.subscription is not None and self.subscription != self.request.subscription:
+            raise ValueError("Observed subscription association conflict")
+        if self.checkout is not None and (
+            not isinstance(self.request, TrialObservationRequest) or self.checkout != self.request.checkout
+        ):
+            raise ValueError("Observed Checkout association conflict")
+        for value, expected in ((self.terms, ObservedRecurringTerms), (self.trial, ObservedTrialWindow),
+                                (self.payment_method, PaymentMethodEvidence),
+                                (self.recurring_authorization, RecurringAuthorizationEvidence),
+                                (self.settlement, ObservedSettlement)):
+            if value is not None:
+                _observation_type(value, expected)
+        if self.terms is not None:
+            _observation_scope(binding, self.terms.price)
+        if self.payment_method is not None:
+            method = self.payment_method
+            _observation_scope(binding, method.customer, method.source, method.payment_method)
+            if method.customer != self.request.customer:
+                raise ValueError("Payment-method Customer association conflict")
+            # The legacy type deliberately remains unchanged. Copy its timestamp
+            # only when admitting it into this new immutable verification graph.
+            object.__setattr__(self, "payment_method", PaymentMethodEvidence(
+                method.customer, method.source, _observation_time(method.observed_at),
+                method.readiness, method.payment_method))
+        if self.recurring_authorization is not None:
+            authority = self.recurring_authorization
+            _observation_scope(binding, authority.customer, authority.source, authority.consent_reference)
+            if authority.customer != self.request.customer:
+                raise ValueError("Recurring Customer association conflict")
+        if self.settlement is not None:
+            payment = self.settlement
+            _observation_scope(binding, payment.invoice, payment.customer, payment.subscription)
+            if payment.customer != self.request.customer or self.subscription != payment.subscription:
+                raise ValueError("Settlement association conflict")
+        if self.outcome is VerificationOutcome.VERIFIED:
+            if (self.provenance.source is not ObservationSource.AUTHORITATIVE_LOOKUP
+                    or self.capabilities.authoritative_reconciliation is not CapabilityState.SUPPORTED
+                    or self.customer is None or self.subscription is None or self.terms is None
+                    or self.subscription_state is SubscriptionState.UNKNOWN):
+                raise ValueError("Verified observation requires authoritative scoped evidence")
+            if isinstance(self.request, TrialObservationRequest):
+                approved = self.request.approved_terms
+                authority = self.recurring_authorization
+                if (not self.capabilities.supports_card_backed_trial()
+                        or self.checkout is None or self.checkout_state is not CheckoutState.COMPLETE
+                        or self.trial is None or authority is None
+                        or authority.readiness is not PaymentMethodReadiness.REUSABLE_AUTHORITY_CONFIRMED
+                        or authority.consent is not RecurringConsentState.RECORDED
+                        or (self.payment_method is not None and self.payment_method.readiness is not PaymentMethodReadiness.REUSABLE_AUTHORITY_CONFIRMED)
+                        or self.terms.amount.currency != approved.currency
+                        or self.terms.interval_months != approved.interval_months
+                        or (self.trial.ends_at - self.trial.started_at).total_seconds() != approved.trial_duration_days * 86400):
+                    raise ValueError("Verified trial observation requires complete recurring evidence and consistent terms")
+
+
+class ProviderVerificationGateway(Protocol):
+    """Optional trusted-adapter capability; legacy gateways need not implement it.
+
+    Notification authentication stays in PaymentWebhookDecoder. These methods
+    observe objects under the ORIGINAL persisted binding, never select a new
+    gateway or mutate provider/billing state. Missing support returns explicit
+    unsupported/unavailable evidence, never inferred reusable authority.
+    """
+    binding: GatewayBinding
+
+    def observe_trial_checkout(self, request: TrialObservationRequest) -> ProviderVerificationObservation: ...
+    def observe_subscription(self, request: SubscriptionObservationRequest) -> ProviderVerificationObservation: ...
