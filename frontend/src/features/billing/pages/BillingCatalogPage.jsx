@@ -21,6 +21,7 @@ import { ProviderAccounting } from "../../platform/ProviderAccounting.jsx";
 import { PricingStudio } from "../../platform/PricingStudio.jsx";
 import { BillingSetupGuide, BillingTabGuide } from "../components/BillingGuidance.jsx";
 import { categoryLabel, displayUnit, featureUsageType, groupedFeatures } from "../components/billingFeaturePresentation.js";
+import { ownerBillingGroups, ownerBillingSelection } from "../components/ownerBillingNavigation.js";
 import { billingApi } from "../api/billingApi.js";
 import { getApiError, isForbiddenBillingError } from "../api/catalogPresentationErrors.js";
 import "../styles/BillingCatalogOriginal.css";
@@ -175,9 +176,12 @@ function CreatePlanModal({ isOpen, onClose, api, t, locale, onSaved, plan }) {
 }
 
 function CatalogTabs({ ariaLabel, tabs, platformMode = false }) {
+  const { t } = useI18n();
   const location = useLocation();
   const requestedTab = new URLSearchParams(location.search).get("tab");
   const activeTab = tabs.find((tab) => tab.id === requestedTab) ?? tabs[0];
+  const selection = ownerBillingSelection(activeTab.id, tabs.map(tab => tab.id));
+  const group = ownerBillingGroups.find(item => item.id === selection.group);
 
   const tabUrl = (id) => {
     const params = new URLSearchParams(location.search);
@@ -196,21 +200,25 @@ function CatalogTabs({ ariaLabel, tabs, platformMode = false }) {
           marginBottom: "1.5rem"
         }}
       >
-        {tabs.map((tab) => (
+        {(platformMode ? ownerBillingGroups.map(item => ({
+          id: item.id,
+          label: item.id === 'economics' ? t('billing.catalog.ownerNavigation.economics') : tabs.find(tab => tab.id === item.id)?.label,
+          target: item.tabs.find(id => tabs.some(tab => tab.id === id))
+        })).filter(item => item.target) : tabs.map(tab => ({ ...tab, target: tab.id }))).map((tab) => (
           <Link
             key={tab.id}
-            to={tabUrl(tab.id)}
-            aria-current={tab.id === activeTab.id ? "page" : undefined}
+            to={tabUrl(tab.target)}
+            aria-current={(platformMode ? tab.id === selection.group : tab.id === activeTab.id) ? "page" : undefined}
             style={{
               display: "inline-flex",
               alignItems: "center",
               padding: "0.65rem 1rem",
               borderBottom:
-                tab.id === activeTab.id
+                (platformMode ? tab.id === selection.group : tab.id === activeTab.id)
                   ? "2px solid currentColor"
                   : "2px solid transparent",
               color: "inherit",
-              fontWeight: tab.id === activeTab.id ? 600 : 400,
+              fontWeight: (platformMode ? tab.id === selection.group : tab.id === activeTab.id) ? 600 : 400,
               textDecoration: "none"
             }}
           >
@@ -218,7 +226,12 @@ function CatalogTabs({ ariaLabel, tabs, platformMode = false }) {
           </Link>
         ))}
       </nav>
-      {platformMode && <BillingTabGuide tab={activeTab.id} />}
+      {platformMode && group?.tabs.length > 1 && <nav aria-label={t('billing.catalog.ownerNavigation.sections')} style={{display:'flex',flexWrap:'wrap',gap:'1rem',marginBottom:'1.5rem'}}>
+        {group.tabs.map(id => tabs.find(tab => tab.id === id)).filter(Boolean).map(tab =>
+          <Link key={tab.id} to={tabUrl(tab.id)} aria-current={tab.id === activeTab.id ? 'page' : undefined}>{tab.id === 'custom-plans' ? t('billing.catalog.ownerNavigation.contracts') : tab.id === 'plans' ? t('billing.catalog.ownerNavigation.catalog') : tab.label}</Link>)}
+      </nav>}
+      {platformMode && selection.group === 'economics' && <p role="note">{t(activeTab.id === 'provider-accounting' ? 'billing.catalog.ownerNavigation.providerExplanation' : 'billing.catalog.ownerNavigation.studioExplanation')}</p>}
+      {platformMode && <BillingTabGuide tab={activeTab.id === 'custom-pricing' ? 'custom-quotes' : activeTab.id} />}
       {activeTab.content}
     </div>
   );
@@ -2214,7 +2227,13 @@ export function BillingCatalogPage({
       platformMode={platformMode}
       canManage={canManageAll}
       canManagePricing={canManagePricing}
+      section={platformMode ? 'quotes' : 'all'}
     />
+  );
+  const customPricingContent = featuresForbidden ? customQuotesContent : (
+    <CustomPlanQuoteManager features={features.filter(feature => feature.customPlanSupported !== false)}
+      t={t} locale={locale} api={api} platformMode canManage={canManageAll}
+      canManagePricing={canManagePricing} section="pricing" />
   );
   const customPlansContent = platformMode ? (
     <PlatformCustomPlansManager
@@ -2284,8 +2303,13 @@ export function BillingCatalogPage({
             ? [
                 {
                   id: "custom-quotes",
-                  label: t("billing.catalog.tabs.customQuotes"),
+                  label: t("billing.catalog.ownerNavigation.quotes"),
                   content: customQuotesContent
+                },
+                {
+                  id: "custom-pricing",
+                  label: t("billing.catalog.ownerNavigation.customPricing"),
+                  content: customPricingContent
                 }
               ]
             : []),
@@ -2296,12 +2320,12 @@ export function BillingCatalogPage({
           },
           {
             id: "features",
-            label: t("billing.catalog.tabs.features"),
+            label: platformMode ? t("billing.catalog.ownerNavigation.capabilityCatalog") : t("billing.catalog.tabs.features"),
             content: featuresContent
           },
           {
             id: "plan-features",
-            label: t("billing.catalog.tabs.planFeatures"),
+            label: platformMode ? t("billing.catalog.ownerNavigation.allowances") : t("billing.catalog.tabs.planFeatures"),
             content: planFeaturesContent
           },
           ...(platformMode && subscriptionsContent
