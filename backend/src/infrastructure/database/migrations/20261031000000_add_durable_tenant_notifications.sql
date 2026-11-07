@@ -12,8 +12,18 @@ BEGIN
 END
 $roles$;
 
-ALTER ROLE keel_notification_fn_owner
-    WITH NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+-- Only when an earlier role of this name has drifted: Postgres 16+ lets only a
+-- superuser name SUPERUSER/BYPASSRLS in ALTER ROLE (even to turn them off),
+-- and managed hosts (Neon) give the migration role CREATEROLE, not SUPERUSER.
+DO $harden$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'keel_notification_fn_owner'
+               AND (rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit OR rolbypassrls)) THEN
+        ALTER ROLE keel_notification_fn_owner
+            WITH NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+    END IF;
+END
+$harden$;
 
 GRANT USAGE ON SCHEMA public TO keel_notification_fn_owner;
 GRANT CREATE ON SCHEMA public TO keel_notification_fn_owner;

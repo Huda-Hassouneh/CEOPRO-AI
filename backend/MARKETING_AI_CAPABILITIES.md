@@ -57,6 +57,39 @@ visual theme, and any custom creative prompt - see
 `content_generator.py`'s own docstring). No second LLM call, no invented
 detail beyond what the campaign itself already established.
 
+### Making every provider draw the right image for the chosen format
+
+Every provider gets the same prompt, shaped for the chosen format by
+`image_generation.shape_prompt()`: it opens with the format ("Tall vertical
+9:16 full-screen phone story photo."). It then asks for the whole product,
+centred and not cut off, with room around it. Some models cannot be asked for
+a size (Workers AI's FLUX.1 [schnell] always draws a square), so every result
+is centre-cropped to the format. The prompt also says "no text, letters,
+logos or watermarks", which image models need to be told explicitly. The
+shaped prompt is kept within 1200 characters, the shortest limit of any
+provider, so the format guidance is never truncated.
+
+Checks on every result before it is kept:
+
+- **A real, decodable image.** It must be at least 256 px on each side.
+- **Not blank.** Safety filters (Stable Diffusion's checker, Workers AI) return
+  an all-black or single-colour picture instead of an error. Such a picture is
+  rejected and the next provider is tried.
+- **The exact shape.** The image is cropped to the format's ratio.
+
+Stable Diffusion models also get a negative prompt (text, watermark, cut-off
+product…). FLUX models take none. A variation seed is passed to every
+provider whose API takes one: Cloudflare, Hugging Face, Together,
+Pollinations, AI Horde and self-hosted servers. That way batch variations
+really differ.
+
+`test_marketing_image_generation.py` runs every provider (Cloudflare, Hugging
+Face, Together, Gemini, Pollinations, self-hosted) against every format, using
+mocked responses in each provider's documented shape. It checks that the
+format and framing were sent and that the stored image has the exact ratio.
+It does not prove a live provider's picture quality. That still needs a run
+with real keys (`tests/browser/marketing-images.mjs`, `E2E_EXPECT_MODE=ai`).
+
 ### Uploaded source image is still not analyzed
 
 An uploaded source/reference product image (`POST

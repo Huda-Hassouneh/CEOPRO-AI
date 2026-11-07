@@ -8,6 +8,30 @@ from src.ai.core import usage
 def step(number,revision,**values):
     return profile.StepRequest(step=number,expected_revision=revision,**values)
 
+
+@pytest.mark.parametrize('country,city', [
+    ('JO', 'amman'), ('US', 'new-york-city'), ('DE', 'berlin'), ('JP', 'tokyo'),
+    ('BR', 'sao-paulo'), ('ZA', 'johannesburg'), ('AU', 'sydney'),
+])
+def test_region_location_round_trip_preserves_company_settings(owner_db, tenant, billing_connections, country, city):
+    """Restricted-role saves/reloads retain ISO/slug data without changing company geography."""
+    tid, uid = tenant
+    conn = billing_connections(tid, uid)
+    try:
+        with conn.cursor() as cur:
+            cur.execute('SELECT country_code,primary_currency,timezone FROM companies WHERE tenant_id=%s', (tid,))
+            before = cur.fetchone()
+        saved = profile.save(conn, tid, uid, step(1, 0, country=country, city=city, language='en'))
+        conn.commit()
+        assert saved['currentStep'] == 2
+        reloaded = profile.state(conn, tid)
+        assert (reloaded['country'], reloaded['city']) == (country, city)
+        with conn.cursor() as cur:
+            cur.execute('SELECT country_code,primary_currency,timezone FROM companies WHERE tenant_id=%s', (tid,))
+            assert cur.fetchone() == before
+    finally:
+        conn.close()
+
 @pytest.mark.parametrize('payload',[
     dict(step=1,expected_revision=0,country='US',city='New York'),
     dict(step=2,expected_revision=0,industry='invented'),

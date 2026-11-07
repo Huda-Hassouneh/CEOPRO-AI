@@ -246,12 +246,13 @@ def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, tria
     monkeypatch.setattr(store, "plan_tier", lambda *a: 2)
     live = {
         "id": "sub_existing",
+        "customer": "cus_existing",
         "current_period_start": 1800000000,
         "current_period_end": 1900000000,
         "status": sub["status"],
         "trial_end": 1900000000 if trialing else None,
         "schedule": None,
-        "items": {"data": [{"id": "si_existing"}]},
+        "items": {"data": [{"id": "si_existing", "price": "price_current"}]},
     }
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: live)
     calls = []
@@ -261,19 +262,19 @@ def test_existing_upgrade_preserves_trial_or_waits_for_payment(monkeypatch, tria
         lambda sid, **kw: (
             calls.append(kw)
             or (
-                {
+                {**live,
                     "pending_update": {"expires_at": 1900000000},
                     "latest_invoice": "in_action",
                 }
                 if not trialing
-                else {}
+                else live
             )
         ),
     )
     monkeypatch.setattr(
         stripe_api,
         "retrieve_invoice",
-        lambda iid: {"hosted_invoice_url": "https://invoice.stripe.com/test"},
+        lambda iid: {"id": iid, "hosted_invoice_url": "https://invoice.stripe.com/test"},
     )
     monkeypatch.setattr(store, "set_schedule", lambda *a: None)
 
@@ -342,10 +343,10 @@ def test_existing_downgrade_is_scheduled_without_replacing_paid_period(monkeypat
     monkeypatch.setattr(
         stripe_api,
         "retrieve_subscription",
-        lambda sid: {"id": "sub_existing", "status": "active", "trial_end": None,
+        lambda sid: {"id": "sub_existing", "customer": "cus_existing", "status": "active", "trial_end": None,
                      "current_period_start": int(sub["current_period_start"].timestamp()),
                      "current_period_end": int(end.timestamp()),
-                     "schedule": None, "items": {"data": [{"id": "si_existing"}]}},
+                     "schedule": None, "items": {"data": [{"id": "si_existing", "price": "price_current"}]}},
     )
     monkeypatch.setattr(
         stripe_api,

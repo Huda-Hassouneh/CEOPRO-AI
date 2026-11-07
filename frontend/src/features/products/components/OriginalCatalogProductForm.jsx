@@ -24,7 +24,7 @@ export function OriginalCatalogProductForm({ product, currencies = [], primaryCu
     {localized('name', 250)}
     <p className="catalog-note">{t('catalog.nameHint')}</p>
     <div className="catalog-field-grid">
-      <label>{t('catalog.fields.sku')}<input disabled={pending} dir="ltr" maxLength={100} pattern="[A-Za-z0-9][A-Za-z0-9._-]{0,99}" value={form.sku} onChange={(event) => set('sku', event.target.value)} /></label>
+      <label>{t('catalog.fields.sku')}<input disabled={pending} dir="ltr" maxLength={100} pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,99}" value={form.sku} onChange={(event) => set('sku', event.target.value)} /></label>
       <label>{t('catalog.fields.gtin')}<input disabled={pending} dir="ltr" type="text" inputMode="numeric" maxLength={14} pattern="(?:[0-9]{8}|[0-9]{12}|[0-9]{13}|[0-9]{14})" aria-invalid={gtinError} aria-describedby="product-gtin-hint" value={form.gtin} onChange={event=>{set('gtin',event.target.value);setGtinError(false);}} /><small id="product-gtin-hint">{t('catalog.gtin.hint')}</small>{gtinError && <span role="alert" className="catalog-error">{t('catalog.gtin.invalid')}</span>}</label>
       <label>{t('catalog.fields.currency')}<select disabled={pending} required value={form.currency} onChange={(event) => setForm((state) => ({ ...state, currency: event.target.value, price: '', costPrice: '' }))}>
         <option value="">{t('catalog.selectCurrency')}</option>{[...new Set([...currencies, product?.currency].filter(Boolean))].map((currency) => <option key={currency}>{currency}</option>)}

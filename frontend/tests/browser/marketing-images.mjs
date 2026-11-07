@@ -59,40 +59,50 @@ async function previewShape() {
   }, null, { timeout: 30000 });
   return img.evaluate((el) => ({ w: el.naturalWidth, h: el.naturalHeight }));
 }
+// One screen: the description is already in the box; open Customize, choose
+// where it will be posted (which sets the picture's shape), then Create post.
+async function createPost(place) {
+  await page.locator('details.studio-customize > summary').click();
+  await page.locator('.studio-customize select').first().selectOption(place);
+  await page.locator('.studio-generate button').click();
+}
+const openGallery = async () => {
+  if (!(await page.locator('details.studio-gallery[open]').count())) await page.locator('details.studio-gallery > summary').click();
+};
 const near = (shape, ratio) => Math.abs(shape.w / shape.h - ratio) / ratio <= 0.02;
 
-// 1. A new campaign from a description, Story format, copy in the screen's language.
+// 1. A new post from a description, for a story (9:16), copy in the screen's language.
 await page.goto(`${BASE}/marketing`);
-await page.locator('[role="tablist"] button[role="tab"]').nth(2).click();
 await page.locator('textarea.mk-textarea').first().fill(locale === 'ar'
   ? 'زيت زيتون بكر ممتاز من شمال الأردن، عصرة أولى على البارد، عبوة 1 لتر.'
   : 'Extra virgin olive oil from northern Jordan, first cold press, 1 litre bottle.');
-await page.locator('details.studio-more summary').first().click();
-await page.locator('select:has(option[value="STORY"])').first().selectOption('STORY');
-await page.locator('.studio-generate button').click();
+await createPost('story'); // "Instagram or Facebook story": a full-screen 9:16 picture
 await page.locator('.studio-editor').waitFor({ timeout: 120000 });
 const campaignId = new URL(page.url()).searchParams.get('campaign');
 check(Boolean(campaignId), 'campaign created and opened');
 const story = await previewShape();
 check(near(story, 9 / 16), `story image previewed at 9:16 (${story.w}x${story.h})`);
-const headline = await page.locator('.studio-post input.apex-input').first().inputValue();
+const headline = (await page.locator('.studio-post__headline').first().textContent()) || '';
 check(locale === 'ar' ? /[؀-ۿ]/.test(headline) : /[A-Za-z]/.test(headline), `copy written in ${locale}: "${headline.slice(0, 40)}"`);
+await openGallery();
 await page.locator('.studio-gallery__item').first().waitFor();
-check(await page.locator('.studio-gallery__item').count() === 1, 'gallery shows the one image');
+check(await page.locator('.studio-gallery__item').count() === 1, 'picture list shows the one image');
 let assets = (await (await api(`/marketing/campaigns/${campaignId}/assets`)).json()).assets;
 check(assets.length === 1 && assets[0].attached && assets[0].image_format === 'STORY', 'stored as an attached Story asset');
 if (expectMode) check(assets[0].mode === expectMode, `image mode is ${expectMode} (got ${assets[0].mode})`);
 await shot('marketing-story');
 
 // 2. A landscape image for Facebook, kept in the gallery without replacing the campaign's image.
+await page.locator('.studio-new-picture').click();
 await page.locator('.studio-formats [role="radio"]').nth(3).click();
+await page.locator('.studio-picture-panel .studio-image__options .studio-fold > summary').click();
 await page.locator('.studio-image__options select').first().selectOption('FACEBOOK');
 const promptBox = page.locator('.studio-image__options textarea');
 if (await promptBox.count()) {
   await promptBox.fill('A bottle of olive oil beside fresh bread, wide shot, warm light');
 }
-await page.locator('.studio-check input').uncheck();
-await page.locator('.studio-image__options > button.apex-btn').click();
+await page.locator('.studio-image__options > .studio-check input').uncheck();
+await page.locator('.studio-picture-panel .studio-panel__actions button').click();
 await page.waitForFunction(() => document.querySelectorAll('.studio-gallery__item').length === 2, null, { timeout: 120000 });
 const landscape = await previewShape();
 check(near(landscape, 16 / 9), `new landscape image previewed at 16:9 (${landscape.w}x${landscape.h})`);
@@ -130,6 +140,8 @@ check(assets.length === 1 && assets[0].image_format === 'LANDSCAPE' && assets[0]
 
 // 4. After a reload the gallery and the attached image are still there.
 await page.reload();
+await page.locator('details.studio-gallery > summary').waitFor({ timeout: 30000 });
+await openGallery();
 await page.locator('.studio-gallery__item').first().waitFor({ timeout: 30000 });
 const reloaded = await previewShape();
 check(near(reloaded, 16 / 9) && await page.locator('.studio-gallery__item').count() === 1, 'gallery and attached image survive a reload');

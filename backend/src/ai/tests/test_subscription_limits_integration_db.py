@@ -381,7 +381,7 @@ def test_an_upgrade_applies_now_and_invoices_the_difference(sys_conn, stripe_pri
     tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
     calls = {}
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
-    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.setdefault("modify", kw) and {})
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.setdefault("modify", kw) and sub)
     result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
     assert result == {"state": "applied", "timing": "immediate"}
     assert calls["modify"]["proration_behavior"] == "always_invoice"
@@ -468,7 +468,7 @@ def test_cheaper_lower_tier_plan_with_more_rights_is_still_an_upgrade(sys_conn, 
     tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
     calls = {}
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
-    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or {})
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or sub)
     try:
         result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
         assert result == {"state": "applied", "timing": "immediate"}
@@ -494,7 +494,7 @@ def test_same_rights_longer_billing_period_keeps_existing_immediate_rule(sys_con
     tenant, sub = _subscribed(sys_conn, "growth", stripe_prices)
     calls = {}
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
-    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or {})
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or sub)
     try:
         result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "six-months")
         assert result == {"state": "applied", "timing": "immediate"}
@@ -520,7 +520,7 @@ def test_trial_plan_change_preserves_the_existing_trial_end(sys_conn, stripe_pri
     sys_conn.commit()
     calls = {}
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
-    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or {})
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or sub)
     result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
     assert result == {"state": "applied", "timing": "immediate"}
     assert int(calls["trial_end"]) == trial_end and calls["proration_behavior"] == "none"
@@ -532,9 +532,10 @@ def test_pending_payment_keeps_existing_rights_until_confirmation(sys_conn, stri
     tenant, sub = _subscribed(sys_conn, "starter", stripe_prices)
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
     monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: {
+        **sub,
         "pending_update": {"expires_at": int(time.time()) + 3600}, "latest_invoice": {"id": "in_sca"},
     })
-    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda invoice_id: {"hosted_invoice_url": "https://stripe.test/in_sca"})
+    monkeypatch.setattr(stripe_api, "retrieve_invoice", lambda invoice_id: {"id": invoice_id, "hosted_invoice_url": "https://stripe.test/in_sca"})
     result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
     assert result == {
         "state": "payment_required", "timing": "immediate", "payment_url": "https://stripe.test/in_sca",
@@ -622,7 +623,7 @@ def test_nonconflicting_manual_assignment_is_not_rejected_by_source_alone(sys_co
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
     calls = {}
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
-    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or {})
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: calls.update(kw) or sub)
 
     result = service.change_plan(sys_conn, sys_conn, tenant, "growth", "monthly")
 
@@ -635,7 +636,7 @@ def test_cancelling_keeps_access_until_the_period_ends(sys_conn, stripe_prices, 
     tenant, sub = _subscribed(sys_conn, "growth", stripe_prices)
     sent = {}
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: sub)
-    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: sent.update(kw) or {})
+    monkeypatch.setattr(stripe_api, "modify_subscription", lambda sid, **kw: sent.update(kw) or sub)
     result = service.set_cancellation(sys_conn, tenant, True)
     assert result["state"] == "cancelling" and sent == {"cancel_at_period_end": True}
     assert usage.get_plan(sys_conn, tenant)["status"] == "active"

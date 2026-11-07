@@ -49,7 +49,8 @@ for(const locale of ['en','ar']) {
     for (const category of ['tracked_products', 'ai_credits'].map(code => plan.features[code].category)) {
       assert.ok(html.includes(locale === 'ar' ? category.label_ar : category.label_en.replace('&', '&amp;')));
     }
-    assert.ok(html.includes(new Intl.NumberFormat(locale === 'ar' ? 'ar-JO' : 'en-US').format(100)));
+    assert.ok(html.includes(new Intl.NumberFormat(locale === 'ar' ? 'ar-JO-u-nu-latn' : 'en-US').format(100)));
+    if (locale === 'ar') assert.ok(!/[٠-٩]/.test(html), 'Arabic screens use the same Western digits as the rest of the app');
   });
   test(`subscription review renders the tenant-scoped backend preview and its payment policy in ${locale}`,async()=>{
     const html=await render(locale,'PlanChangePreview.jsx','PlanChangePreview',{

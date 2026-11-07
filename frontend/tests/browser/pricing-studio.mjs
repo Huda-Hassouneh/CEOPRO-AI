@@ -26,13 +26,15 @@ try{
   await guide.getByText(guided.setupTitle).click();
   await guide.getByText(guided.steps.policy,{exact:true}).waitFor();
   const nav=page.locator('.billing-catalog-tabs nav');
+  await nav.getByRole('link',{name:billing.catalog.ownerNavigation.economics,exact:true}).click();
   await nav.getByRole('link',{name:billing.providerAccounting.title,exact:true}).click();
   await page.locator('.billing-tab-guide summary').click();
   await page.locator('.billing-tab-guide').getByText(guided.tabs['provider-accounting'].purpose,{exact:true}).waitFor();
   await page.getByText(billing.providerAccounting.operationalTitle,{exact:true}).waitFor();
-  await nav.getByRole('link',{name:billing.catalog.tabs.features,exact:true}).click();
+  await nav.getByRole('link',{name:billing.catalog.tabs.plans,exact:true}).click();
+  await nav.getByRole('link',{name:billing.catalog.ownerNavigation.capabilityCatalog,exact:true}).click();
   await page.locator('.billing-feature-group').first().waitFor();
-  await nav.getByRole('link',{name:billing.catalog.tabs.planFeatures,exact:true}).click();
+  await nav.getByRole('link',{name:billing.catalog.ownerNavigation.allowances,exact:true}).click();
   const allowanceHeaders=page.getByRole('columnheader',{name:guided.allowance});
   await allowanceHeaders.first().waitFor();
   const featureCatalog=await page.evaluate(url=>fetch(url).then(r=>r.json()),API_URL+'/platform/billing/feature-catalog');

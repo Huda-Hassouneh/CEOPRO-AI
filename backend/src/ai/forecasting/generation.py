@@ -7,12 +7,18 @@ from src.ai.forecasting import pipeline
 STALE_AFTER_HOURS = float(os.getenv("FORECAST_STALE_AFTER_HOURS", "12"))
 
 
-def generate_or_reuse_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = 30, authorization_check=None) -> dict:
+def generate_or_reuse_forecast(conn, tenant_id: str, product_id: str, horizon_days: int = 30, authorization_check=None,
+                              force: bool = False) -> dict:
     """Serialize every generation path and reuse an eligible persisted result.
 
     The product lock is shared by the API, automatic refresh, and stream
     consumer, so page-load refresh cannot race an explicit generate request
     into duplicate history rows.
+
+    force=True always generates (after an import): freshness compares against
+    invoices.created_at, which is the importing transaction's start time, so a
+    forecast computed while a later file was still being written would look
+    newer than the sales it never saw.
     """
     lock_key = f"keel:demand-forecast:{tenant_id}:{product_id}"
     if authorization_check:
@@ -29,7 +35,9 @@ def generate_or_reuse_forecast(conn, tenant_id: str, product_id: str, horizon_da
             (tenant_id, product_id),
         )
         last_sale_at = cursor.fetchone()[0]
-        if last_sale_at is None:
+        if force:
+            pass
+        elif last_sale_at is None:
             cursor.execute(
                 """
                 SELECT evidence_id FROM evidence_records

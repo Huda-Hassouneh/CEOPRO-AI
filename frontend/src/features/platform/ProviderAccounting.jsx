@@ -70,7 +70,7 @@ export function ProviderAccounting({ canManage = false, api = platformBillingApi
   return <section className="provider-accounting" aria-label={text('title')}>
     <Card>
       <h2>{text('title')}</h2><p>{text('description')}</p><p>{text('boundary')}</p>
-      <p><Link to="/admin/billing?python=1&tab=costs">{text('manageRates')}</Link> · <BillingTabLink tab="custom-quotes">{text('vendorRateLink')}</BillingTabLink> · <BillingTabLink tab="pricing-studio">{text('studioLink')}</BillingTabLink></p>
+      <p><Link to="/admin/billing?python=1&tab=costs">{text('manageRates')}</Link> · <BillingTabLink tab="custom-pricing">{text('vendorRateLink')}</BillingTabLink> · <BillingTabLink tab="pricing-studio">{text('studioLink')}</BillingTabLink></p>
       {canManage && <Button onClick={() => open(null)}>{text('add')}</Button>}
       {query.isPending ? <div role="status" aria-label={t('common.loading')}><Skeleton height="120px" /></div>
         : query.isError ? <div role="alert"><p>{text('loadError')}</p><Button onClick={() => query.refetch()}>{text('retry')}</Button></div>

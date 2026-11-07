@@ -10,7 +10,7 @@ export function warningAction(code) {
   if (['POLICY_MISSING','COST_COVERAGE_MISSING','UNBOUNDED_USAGE','MONITORING_ASSUMPTION_MISSING','TIER_INTERNAL_ASSUMPTIONS_MISSING','INTERNAL_ASSUMPTIONS_PROVISIONAL'].includes(code)) return 'policy';
   if (code === 'RATE_MISSING') return 'rate-or-binding';
   if (['RATE_UNVERIFIED','RATE_STALE'].includes(code)) return 'provider-accounting';
-  if (code === 'COST_MULTIPLIER_MISSING') return 'custom-quotes';
+  if (code === 'COST_MULTIPLIER_MISSING') return 'custom-pricing';
   if (code === 'CREDIT_BUDGET_UNAVAILABLE') return 'plan-features';
   if (code === 'PUBLISHED_PRICE_UNAVAILABLE') return 'plans';
   return null;
