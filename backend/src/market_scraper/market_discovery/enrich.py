@@ -34,7 +34,7 @@ from src.market_scraper.market_discovery import industries
 from src.market_scraper.market_discovery.http import USER_AGENT
 from src.market_scraper.market_discovery.matching import Entity, domain_key
 from src.market_scraper.market_discovery.models import Candidate
-from src.market_scraper.network_security import UnsafeTargetError, pin_request
+from src.market_scraper.network_security import UnsafeTargetError, pin_request, shared_ssl_context
 
 logger = logging.getLogger("KEEL_MARKET_DISCOVERY")
 NAME = "website"
@@ -213,7 +213,7 @@ def _own_site(entity: Entity) -> Optional[str]:
 def fetch_site(url: str) -> Optional[dict]:
     """Reads one homepage, or None when it can't or mustn't be read."""
     try:
-        with httpx.Client(timeout=TIMEOUT, follow_redirects=False) as client:
+        with httpx.Client(timeout=TIMEOUT, follow_redirects=False, verify=shared_ssl_context()) as client:
             if not _allowed(client, url):
                 return {"blocked": "robots"}
             response = _safe_get(client, url)

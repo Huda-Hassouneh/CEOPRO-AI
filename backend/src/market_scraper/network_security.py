@@ -1,7 +1,9 @@
 """Runtime SSRF controls for source URLs, DNS answers, and redirects."""
 
 import ipaddress
+import os
 import socket
+import threading
 from urllib.parse import urlsplit
 
 
@@ -130,3 +132,33 @@ def fetch_public_json(url: str, params: dict, headers: dict, timeout: float, max
                 if len(body) > max_bytes:
                     raise UnsafeTargetError("the response is larger than the allowed size")
     return json.loads(bytes(body))
+
+
+_SSL_CONTEXT = None
+_SSL_CONTEXT_LOCK = threading.Lock()
+
+
+def shared_ssl_context():
+    """One verified TLS context for outbound fetches, built the way httpx builds its default
+    (SSL_CERT_FILE / SSL_CERT_DIR when set, otherwise certifi) and reused by every client.
+
+    Building a context re-reads the whole CA bundle: ~14 ms of CPU per httpx.Client. Discovery
+    opens one client per competitor site and page, and that work - 36% of the API's CPU in a
+    profiled run - starved request handling on a 0.1-CPU host. Certificate and hostname checks
+    are unchanged; an SSLContext is safe to share between threads and connections."""
+    global _SSL_CONTEXT
+    if _SSL_CONTEXT is None:
+        with _SSL_CONTEXT_LOCK:
+            if _SSL_CONTEXT is None:
+                import ssl
+
+                if os.environ.get("SSL_CERT_FILE"):
+                    context = ssl.create_default_context(cafile=os.environ["SSL_CERT_FILE"])
+                elif os.environ.get("SSL_CERT_DIR"):
+                    context = ssl.create_default_context(capath=os.environ["SSL_CERT_DIR"])
+                else:
+                    import certifi
+
+                    context = ssl.create_default_context(cafile=certifi.where())
+                _SSL_CONTEXT = context
+    return _SSL_CONTEXT

@@ -43,7 +43,7 @@ import httpx
 
 from src.market_scraper.market_discovery import enrich, menu_media
 from src.market_scraper.market_discovery.http import USER_AGENT
-from src.market_scraper.network_security import UnsafeTargetError
+from src.market_scraper.network_security import UnsafeTargetError, shared_ssl_context
 
 logger = logging.getLogger("KEEL_MARKET_DISCOVERY")
 MAX_PAGES = int(os.getenv("DISCOVERY_INTEL_MAX_PAGES", "8"))
@@ -615,7 +615,7 @@ class _Site:
 
     def __init__(self, homepage: str):
         self.homepage = homepage
-        self.client = httpx.Client(timeout=enrich.TIMEOUT, follow_redirects=False)
+        self.client = httpx.Client(timeout=enrich.TIMEOUT, follow_redirects=False, verify=shared_ssl_context())
         self.robots: Optional[RobotFileParser] = None
         self.robots_text: Optional[str] = None
         self._last = 0.0

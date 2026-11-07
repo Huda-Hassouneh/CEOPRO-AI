@@ -10,6 +10,7 @@ import httpx
 
 logger = logging.getLogger("APEX_MARKET_DISCOVERY")
 from src.market_scraper.user_agent import USER_AGENT  # noqa: E402
+from src.market_scraper.network_security import shared_ssl_context  # noqa: E402
 CACHE_TTL_SECONDS = int(os.getenv("DISCOVERY_CACHE_TTL_SECONDS", str(24 * 3600)))
 
 
@@ -45,7 +46,8 @@ def request_json(method: str, url: str, *, json_body=None, data=None, params=Non
     merged = {"User-Agent": USER_AGENT, "Accept": "application/json", **(headers or {})}
 
     def send():
-        with httpx.Client(timeout=min(30.0, max(1.0, timeout)), follow_redirects=True) as http:
+        with httpx.Client(timeout=min(30.0, max(1.0, timeout)), follow_redirects=True,
+                          verify=shared_ssl_context()) as http:
             response = http.request(method, url, json=json_body, data=data, params=params, headers=merged)
             response.raise_for_status()
             return response.json()
