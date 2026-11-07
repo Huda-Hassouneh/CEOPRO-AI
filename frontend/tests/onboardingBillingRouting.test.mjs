@@ -59,3 +59,11 @@ test('return path accepts only the setup destinations and defaults safely', () =
   assert.equal(getOnboardingReturnPath(storage('//attacker.example')), '/dashboard');
   assert.equal(ONBOARDING_RETURN_PATH_KEY, 'keel.onboarding.returnPath');
 });
+
+test('no trial is offered when the server cannot collect a payment method', () => {
+  const eligible = { trialUsed: false, assigned: false, hasSubscription: false, trialEligiblePlanIds: ['growth'] };
+  const plan = { id: 'growth', trialDays: 14, selfServe: true };
+  assert.equal(canStartPlanTrial({ ...eligible, paymentsEnabled: true }, plan), true);
+  assert.equal(canStartPlanTrial({ ...eligible, paymentsEnabled: false }, plan), false);
+  assert.equal(canStartPlanTrial(eligible, plan), true, 'older responses without the flag keep working');
+});

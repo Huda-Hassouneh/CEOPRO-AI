@@ -523,7 +523,10 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         # Data and AI Credits, separately: limit, used, remaining, warning
         # threshold reached and reset date. Never provider prices or costs.
         "credits": budgets,
-        "trialAvailable": bool(trial_eligible_plan_ids),
+        # A new trial needs a provider-confirmed payment method, so it is only
+        # offered when online payment is configured; eligibility stays visible.
+        "trialAvailable": bool(trial_eligible_plan_ids) and config.payments_enabled(),
+        "trialBlocker": "payments_not_configured" if trial_eligible_plan_ids and not config.payments_enabled() else None,
         "trialEligiblePlanIds": trial_eligible_plan_ids,
         "trialEndsAtExact": _iso(plan.get("trial_ends_at")),
     }

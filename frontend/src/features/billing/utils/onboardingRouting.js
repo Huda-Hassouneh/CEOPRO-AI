@@ -19,6 +19,9 @@ export function hasCurrentTrialAccess(subscription) {
 export function canStartPlanTrial(subscription, plan) {
   if (!plan?.selfServe || !(plan.trialDays > 0) || subscription?.trialUsed
       || subscription?.assigned || subscription?.hasSubscription) return false;
+  // New trials need a payment method collected by the provider; never offer
+  // one the server cannot start.
+  if (subscription?.paymentsEnabled === false) return false;
   // Older API responses carry only the aggregate flag; current responses
   // identify each eligible plan and never rely on the default trial plan.
   return Array.isArray(subscription?.trialEligiblePlanIds)
