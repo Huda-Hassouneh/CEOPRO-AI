@@ -59,6 +59,10 @@ jobs:
       DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
       AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
       APP_DB_PASSWORD: ci_test_app_password
+      # Disposable restricted logins used by native billing security tests.
+      BILLING_SETUP_DB_PASSWORD: ci_test_billing_setup_password
+      BILLING_WEBHOOK_DB_PASSWORD: ci_test_billing_webhook_password
+      CREDIT_ACCOUNTING_DB_PASSWORD: ci_test_credit_accounting_password
       # Dedicated restricted worker login, only for this disposable CI database.
       IMAGE_WORKER_DB_PASSWORD: ci_test_image_worker_password
       JWT_SECRET: ci-test-jwt-secret-never-used-outside-this-job
@@ -171,6 +175,63 @@ jobs:
       - name: Run backend test suite (offline unit tests + live-DB integration tests)
         working-directory: backend
         run: python -m pytest src/ -q
+
+      # Reuse this job's disposable PostgreSQL/Redis and Python install. The
+      # native suite also includes real Billing UI tests, so install its UI once.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies for native billing browser tests
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run native billing suite (restricted roles, RLS and browser contracts)
+        id: native-billing
+        working-directory: backend
+        env:
+          BILLING_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
+          BILLING_DATABASE_TESTS: "1"
+          BILLING_TEST_ENGINE: postgres
+          AI_TEST_REDIS_HOST: 127.0.0.1
+          AI_TEST_REDIS_PORT: "6379"
+          CHROMIUM_PATH: /usr/bin/google-chrome
+          STRIPE_SECRET_KEY: ""
+          PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/native-billing.xml
+        run: |
+          test -x "$CHROMIUM_PATH" || { echo "Chrome is required for native billing browser tests."; exit 1; }
+          python -m scripts.billing_verification preflight
+          python -m scripts.billing_verification test --database
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          report = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "native-billing.xml")
+          cases = list(report.iter("testcase"))
+          if not cases or any(list(report.iter(tag)) for tag in ("skipped", "failure", "error")):
+              raise SystemExit("Native billing requires executed tests with zero skips, failures or errors.")
+          required = {
+              "test_native_runtime_role_password_authentication",
+              "test_restricted_runtime_role_cannot_forge_billing_or_read_another_tenant",
+              "test_password_authenticated_capabilities_do_not_overlap",
+              "test_setup_role_has_no_admin_ownership_or_memberships",
+          }
+          missing = required - {case.get("name") for case in cases}
+          if missing:
+              raise SystemExit("Required native billing security tests did not execute: " + ", ".join(sorted(missing)))
+          print(f"Native billing: {len(cases)} executed; zero skips; restricted-role security proofs present.")
+          PY
+
+      - name: Upload native billing test results
+        if: ${{ always() && steps.native-billing.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-billing-results
+          path: ${{ runner.temp }}/native-billing.xml
+          if-no-files-found: error
 
   frontend:
     runs-on: ubuntu-latest
