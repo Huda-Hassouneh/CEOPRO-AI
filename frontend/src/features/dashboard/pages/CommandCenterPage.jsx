@@ -50,6 +50,7 @@ export function CommandCenterPage() {
 
   const data = query.data;
   const m = data.metrics;
+  const attentionCount = data.actions.filter((a) => a.priority !== 'low').length;
   const currency = m.revenue.currency || data.today.currency;
 
   if (!data.has_sales) {
@@ -100,17 +101,17 @@ export function CommandCenterPage() {
               <div>
               <p className="apex-eyebrow">{today}</p>
               <h1 className="cc-hero__title">{greeting}</h1>
-              <p className="cc-hero__summary">{t('commandCenter.summary', {
+              <p className="cc-hero__summary">{t(attentionCount === 1 ? 'commandCenter.summaryOne' : 'commandCenter.summary', {
                 revenue: money(m.revenue.amount, currency),
                 days: windowDays,
-                attention: number.format(data.actions.filter((a) => a.priority !== 'low').length),
+                attention: number.format(attentionCount),
               })}</p>
               </div>
             </div>
             <div className="cc-today">
               <span className="apex-muted">{t('commandCenter.today.label')}</span>
               <strong className="apex-num">{money(data.today.revenue, data.today.currency || currency)}</strong>
-              <span className="apex-muted">{t('commandCenter.today.orders', { count: number.format(data.today.orders) })}</span>
+              <span className="apex-muted">{t(Number(data.today.orders) === 1 ? 'commandCenter.today.ordersOne' : 'commandCenter.today.orders', { count: number.format(data.today.orders) })}</span>
             </div>
           </div>
           <div className="cc-hero__controls">

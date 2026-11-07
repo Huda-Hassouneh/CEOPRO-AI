@@ -27,12 +27,12 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
   const finalDescription = plan.displayDescription || plan.description || '';
 
   const formatCurrency = (amount) =>
-    new Intl.NumberFormat(locale === 'ar' ? 'ar-JO' : 'en-US', {
+    new Intl.NumberFormat(locale === 'ar' ? 'ar-JO-u-nu-latn' : 'en-US', {
       style: 'currency',
       currency: plan.currency || 'USD',
     }).format(amount || 0);
   const formatNumber = (number) =>
-    new Intl.NumberFormat(locale === 'ar' ? 'ar-JO' : 'en-US').format(number);
+    new Intl.NumberFormat(locale === 'ar' ? 'ar-JO-u-nu-latn' : 'en-US').format(number);
 
   return (
     <aside className="ceopro-plan-summary">

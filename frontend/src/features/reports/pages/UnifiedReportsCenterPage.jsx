@@ -43,6 +43,17 @@ export default function UnifiedReportsCenterPage() {
   const currencyFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }), [locale]);
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }), [locale]);
   const formatAmount = (value) => (value === null || value === undefined ? t('reports.common.unknown') : currencyFormatter.format(value));
+  // Money in the company's currency, the same way in both languages and always
+  // with two decimals: '4,404.30 JOD' / '‏4,404.30 د.أ.‏', never '4,404.3 JOD'.
+  const formatMoneyAmount = (value, currency) => {
+    if (value === null || value === undefined) return t('reports.common.unknown');
+    if (!currency) return currencyFormatter.format(value);
+    try {
+      return new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+    } catch {
+      return `${currencyFormatter.format(value)} ${currency}`;
+    }
+  };
   const formatDate = (value) => dateFormatter.format(new Date(value));
   // Quantities are stored with 4 decimals; show only the ones that matter (2 kg, 1.25 kg).
   const formatQuantity = (value) => (value === null || value === undefined ? '' : new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(Number(value)));
@@ -108,11 +119,11 @@ export default function UnifiedReportsCenterPage() {
           <div className="reports-financial-grid">
             <div className="reports-metric">
               <span>{t('reports.financial.revenue')}</span>
-              <strong>{formatAmount(financial.revenue?.amount)} {financial.currency}</strong>
+              <strong>{formatMoneyAmount(financial.revenue?.amount, financial.currency)}</strong>
             </div>
             <div className="reports-metric">
               <span>{t('reports.financial.grossProfit')}</span>
-              <strong>{formatAmount(financial.gross_profit?.amount)} {financial.gross_profit?.amount !== null ? financial.currency : ''}</strong>
+              <strong>{formatMoneyAmount(financial.gross_profit?.amount, financial.currency)}</strong>
             </div>
             <div className="reports-metric">
               <span>{t('reports.financial.grossMargin')}</span>

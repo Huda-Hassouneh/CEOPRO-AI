@@ -5183,9 +5183,11 @@
       "evening": "مساء الخير، {{name}}"
     },
     "summary": "حققت {{revenue}} خلال آخر {{days}} يومًا. هناك {{attention}} أمور تحتاج انتباهك اليوم.",
+    "summaryOne": "حققت {{revenue}} خلال آخر {{days}} يومًا. هناك أمر واحد يحتاج انتباهك اليوم.",
     "today": {
       "label": "اليوم حتى الآن",
-      "orders": "{{count}} طلبًا"
+      "orders": "{{count}} طلبًا",
+      "ordersOne": "طلب واحد"
     },
     "window": {
       "label": "الفترة",

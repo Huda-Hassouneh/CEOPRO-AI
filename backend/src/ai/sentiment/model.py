@@ -49,8 +49,12 @@ def classify_or_unavailable(texts: List[str], model_name: Optional[str] = None) 
     global _unavailable_until
     if time.monotonic() < _unavailable_until:
         raise SentimentModelUnavailable("sentiment model unavailable (cooling down)")
-    from src.ai.core.ml_runtime import model_obtainable
+    from src.ai.core.ml_runtime import container_memory_limit_mb, memory_allows_local_models, model_obtainable
 
+    if texts and not memory_allows_local_models():
+        _unavailable_until = time.monotonic() + UNAVAILABLE_RETRY_SECONDS
+        raise SentimentModelUnavailable(
+            f"this server's memory ({container_memory_limit_mb()} MB) is too small to load the sentiment model safely")
     if texts and not model_obtainable(model_name or MODEL_NAME):
         _unavailable_until = time.monotonic() + UNAVAILABLE_RETRY_SECONDS
         raise SentimentModelUnavailable(f"sentiment model {model_name or MODEL_NAME} is not cached and its host is unreachable")

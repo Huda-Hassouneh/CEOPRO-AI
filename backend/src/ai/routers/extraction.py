@@ -781,6 +781,7 @@ def _refresh_forecasts(ctx: TenantContext) -> None:
         from src.ai.forecasting import refresh as forecast_refresh
 
         if forecast_refresh.auto_refresh_enabled():
-            forecast_refresh.start_refresh(ctx.tenant_id, ctx.user_id)
+            # Forced: freshness can't be trusted while imports overlap (see generate_or_reuse_forecast).
+            forecast_refresh.start_refresh(ctx.tenant_id, ctx.user_id, force=True)
     except Exception:
         logger.exception("Could not start the forecast refresh after an import (tenant=%s)", ctx.tenant_id)
