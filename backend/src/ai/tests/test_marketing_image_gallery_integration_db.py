@@ -31,6 +31,15 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+
+def _with_subject(picture):
+    """Draws a "product" so the fake provider image is not rejected as blank."""
+    from PIL import ImageDraw
+    w, h = picture.size
+    ImageDraw.Draw(picture).ellipse((w // 4, h // 4, w * 3 // 4, h * 3 // 4), fill=(245, 245, 235))
+    return picture
+
+
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = [
     pytest.mark.skipif(not DATABASE_URL or not os.getenv("APP_DB_PASSWORD"),
@@ -66,7 +75,7 @@ class _ImageServer:
                 if server.square_only:
                     width = height = 1024
                 buffer = io.BytesIO()
-                Image.new("RGB", (width, height), (30, 90, 160)).save(buffer, format="PNG")
+                _with_subject(Image.new("RGB", (width, height), (30, 90, 160))).save(buffer, format="PNG")
                 encoded = base64.b64encode(buffer.getvalue()).decode()
                 answer = {"data": [{"b64_json": encoded}]} if self.path.startswith("/v1") else {"images": [encoded]}
                 payload = json.dumps(answer).encode()
@@ -196,7 +205,9 @@ def test_the_owners_prompt_is_sent_and_kept_and_the_channel_recorded(studio):
     result = client.post(f"/marketing/campaigns/{cid}/generate-image",
                          json={"prompt": "Kunafa slice with pistachio, top-down, soft daylight", "channel": "INSTAGRAM"},
                          headers=headers).json()
-    assert server.requests[-1][1]["prompt"] == "Kunafa slice with pistachio, top-down, soft daylight"
+    # Providers receive the owner's words inside the commercial-photo framing
+    # (image_generation.shape_prompt); the owner's own wording is what is kept.
+    assert "Kunafa slice with pistachio, top-down, soft daylight" in server.requests[-1][1]["prompt"]
     assert result["asset"]["channel"] == "INSTAGRAM"
     assert result["asset"]["prompt"] == "Kunafa slice with pistachio, top-down, soft daylight"
     reloaded = client.get(f"/marketing/campaigns/{cid}", headers=headers).json()

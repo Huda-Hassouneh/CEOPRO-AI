@@ -121,6 +121,7 @@ class MeteringContext:
     actor_user_id: Optional[str] = None
     operation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     idempotency_key: Optional[str] = None
+    logical_operation_ref: Optional[str] = None
     allow_over_budget: bool = False
     steps: Iterator = field(default_factory=itertools.count)
     spent_credits: Dict[str, Decimal] = field(default_factory=dict)
@@ -136,7 +137,7 @@ def current() -> Optional[MeteringContext]:
 @contextmanager
 def metering(tenant_id: str, operation_type: str, *, usage_class: Optional[str] = None,
              actor_user_id: Optional[str] = None, idempotency_key: Optional[str] = None,
-             allow_over_budget: bool = False):
+             allow_over_budget: bool = False, logical_operation_ref: Optional[str] = None):
     """Attributes every paid call inside the block to this company and
     operation. idempotency_key (from the client's Idempotency-Key header, or
     a deterministic job key) makes a replayed operation refuse to charge -
@@ -145,7 +146,8 @@ def metering(tenant_id: str, operation_type: str, *, usage_class: Optional[str] 
     if allow_over_budget and operation_type not in RECOVERY_OPERATIONS:
         raise ValueError("only recovery operations may run past an exhausted budget")
     ctx = MeteringContext(str(tenant_id), operation_type, usage_class, str(actor_user_id) if actor_user_id else None,
-                          idempotency_key=idempotency_key, allow_over_budget=allow_over_budget)
+                          idempotency_key=idempotency_key, allow_over_budget=allow_over_budget,
+                          logical_operation_ref=logical_operation_ref)
     token = _CURRENT.set(ctx)
     try:
         yield ctx
@@ -552,13 +554,13 @@ def reserve(budget_kind: str, provider: str, operation: str, estimated_units: Di
                 INSERT INTO usage_ledger
                     (tenant_id, subscription_id, plan_key, plan_status, budget_kind, period_start, operation_id,
                      operation_type, usage_class, provider, provider_operation, idempotency_key, status,
-                     estimated_units, estimated_cost_usd, reserved_credits, actor_user_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'reserved', %s::jsonb, %s, %s, %s)
+                     estimated_units, estimated_cost_usd, reserved_credits, actor_user_id, logical_operation_ref)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'reserved', %s::jsonb, %s, %s, %s, %s)
                 RETURNING ledger_id;
                 """,
                 (ctx.tenant_id, budget["subscription_id"], budget["plan_key"], budget["status"], budget_kind,
                  budget["period_start"], ctx.operation_id, ctx.operation_type, ctx.usage_class, provider, operation,
-                 key, _json(estimated_units), estimated_cost, credits_needed, ctx.actor_user_id),
+                 key, _json(estimated_units), estimated_cost, credits_needed, ctx.actor_user_id, ctx.logical_operation_ref),
             )
             ledger_id = str(cursor.fetchone()[0])
         conn.commit()

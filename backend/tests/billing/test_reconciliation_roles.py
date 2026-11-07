@@ -129,7 +129,7 @@ def test_signed_activation_renewal_failure_recovery_and_cancel(send,owner_db,ten
     tid,_=tenant;plan,price=test_price;live=live_subscription(tid,price)
     monkeypatch.setattr(stripe_api,"retrieve_subscription",lambda _:live)
     event="evt_replay_"+uuid.uuid4().hex
-    obj=dict(mode="subscription",subscription=live["id"],customer=live["customer"],client_reference_id=tid)
+    obj=dict(id="cs_test_"+uuid.uuid4().hex,mode="subscription",subscription=live["id"],customer=live["customer"],client_reference_id=tid)
     assert send("checkout.session.completed",obj,event).status_code==200
     assert send("checkout.session.completed",obj,event).json()["duplicate"] is True
     with closing(db.app_role_connection(*tenant)) as conn:

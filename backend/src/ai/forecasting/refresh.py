@@ -47,6 +47,25 @@ def auto_refresh_enabled() -> bool:
 _local_lock = threading.Lock()
 _local_running: dict = {}
 _local_status: dict = {}
+_local_rerun: set = set()
+
+
+def products_with_sales(conn, tenant_id: str) -> List[str]:
+    """Every product with recorded sales (an import's forced refresh)."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT DISTINCT p.product_id
+            FROM products p
+            JOIN invoice_items ii ON ii.tenant_id = p.tenant_id AND ii.product_id = p.product_id
+            JOIN invoices i ON i.tenant_id = ii.tenant_id AND i.invoice_id = ii.invoice_id
+            WHERE p.tenant_id = %(tenant)s AND p.deleted_at IS NULL AND i.payment_status <> 'CANCELLED'
+            ORDER BY p.product_id
+            LIMIT %(limit)s;
+            """,
+            {"tenant": tenant_id, "limit": MAX_PRODUCTS_PER_RUN},
+        )
+        return [str(row[0]) for row in cursor.fetchall()]
 
 
 def products_needing_forecast(conn, tenant_id: str, stale_after_hours: float = STALE_AFTER_HOURS) -> List[str]:
@@ -97,6 +116,36 @@ def _redis():
 
 def _lock_key(tenant_id: str) -> str:
     return f"apex:forecast-refresh:lock:{tenant_id}"
+
+
+def _rerun_key(tenant_id: str) -> str:
+    return f"apex:forecast-refresh:rerun:{tenant_id}"
+
+
+def _request_rerun(tenant_id: str) -> None:
+    client = _redis()
+    if client is not None:
+        try:
+            client.set(_rerun_key(tenant_id), "1", ex=LOCK_TTL_SECONDS)
+            return
+        except Exception:
+            pass
+    with _local_lock:
+        _local_rerun.add(tenant_id)
+
+
+def _take_rerun(tenant_id: str) -> bool:
+    client = _redis()
+    if client is not None:
+        try:
+            return bool(client.delete(_rerun_key(tenant_id)))
+        except Exception:
+            pass
+    with _local_lock:
+        if tenant_id in _local_rerun:
+            _local_rerun.discard(tenant_id)
+            return True
+        return False
 
 
 def _status_key(tenant_id: str) -> str:
@@ -190,15 +239,17 @@ def refresh_status(tenant_id: str) -> dict:
 # Running a refresh
 # ---------------------------------------------------------------------------
 
-def refresh_tenant_forecasts(tenant_id: str, user_id: str, product_ids: Optional[List[str]] = None) -> dict:
-    """Forecasts the given products (default: every product that needs it).
-    Each product is its own transaction, so one failure never loses the
-    others. The caller must already hold the lock."""
+def refresh_tenant_forecasts(tenant_id: str, user_id: str, product_ids: Optional[List[str]] = None,
+                             force: bool = False) -> dict:
+    """Forecasts the given products (default: every product that needs it;
+    with force, every product with sales, regenerated). Each product is its
+    own transaction, so one failure never loses the others. The caller must
+    already hold the lock."""
     conn = db.dedicated_tenant_connection(tenant_id, user_id)
     done = failed = 0
     try:
         if product_ids is None:
-            product_ids = products_needing_forecast(conn, tenant_id)
+            product_ids = products_with_sales(conn, tenant_id) if force else products_needing_forecast(conn, tenant_id)
         total = len(product_ids)
         _write_status(tenant_id, state="running", done=0, failed=0, total=total,
                       started_at=datetime.now(timezone.utc).isoformat(), finished_at=None)
@@ -208,7 +259,7 @@ def refresh_tenant_forecasts(tenant_id: str, user_id: str, product_ids: Optional
             try:
                 check = lambda: require_forecast_authorization(conn, tenant_id, user_id)
                 check()
-                generate_or_reuse_forecast(conn, tenant_id, product_id, authorization_check=check)
+                generate_or_reuse_forecast(conn, tenant_id, product_id, authorization_check=check, force=force)
                 done += 1
             except HTTPException as exc:
                 if exc.status_code in (402, 403):
@@ -238,18 +289,27 @@ def refresh_tenant_forecasts(tenant_id: str, user_id: str, product_ids: Optional
         conn.close()
 
 
-def start_refresh(tenant_id: str, user_id: str, product_ids: Optional[List[str]] = None) -> bool:
+def start_refresh(tenant_id: str, user_id: str, product_ids: Optional[List[str]] = None, force: bool = False) -> bool:
     """Starts a background refresh unless one is already running for this
-    company. Returns True when a new refresh was started."""
+    company. Returns True when a new refresh was started.
+
+    force=True (after an import) regenerates every product with sales. If a
+    refresh is already running it may be reading the sales before this import
+    finished, so one more forced run is queued for when it ends."""
     if not _acquire(tenant_id):
-        return False
+        if not force:
+            return False
+        _request_rerun(tenant_id)
+        if not _acquire(tenant_id):  # the running refresh will pick the request up
+            return False
+        _take_rerun(tenant_id)
     _write_status(tenant_id, state="running", done=0, failed=0, total=len(product_ids) if product_ids else None,
                   started_at=datetime.now(timezone.utc).isoformat(), finished_at=None)
 
     def _run():
         started = time.monotonic()
         try:
-            result = refresh_tenant_forecasts(tenant_id, user_id, product_ids)
+            result = refresh_tenant_forecasts(tenant_id, user_id, product_ids, force=force)
             logger.info("Forecast refresh tenant=%s: %s in %.1fs", tenant_id, result, time.monotonic() - started)
         except Exception:
             logger.exception("Forecast refresh failed tenant=%s", tenant_id)
@@ -257,6 +317,8 @@ def start_refresh(tenant_id: str, user_id: str, product_ids: Optional[List[str]]
         finally:
             _release(tenant_id)
             tenant_cache.bump(tenant_id)  # screens show the new forecasts
+            if _take_rerun(tenant_id):
+                start_refresh(tenant_id, user_id, force=True)
 
     threading.Thread(target=_run, name=f"forecast-refresh-{tenant_id}", daemon=True).start()
     return True

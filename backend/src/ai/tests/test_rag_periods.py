@@ -157,3 +157,62 @@ def test_a_follow_up_can_name_a_period_relative_to_the_one_discussed(follow_up, 
     second = u.understand(follow_up, previous=first.state(), today=TODAY)
     assert second.follow_up and u.SALES in second.intents
     assert [p["label"] for p in second.slots["periods"]] == expected
+
+
+# --- Wordings found by the extended and held-out assistant regression sets (2026-11-05) ---
+
+@pytest.mark.parametrize("question, expected", [
+    ("Revenue for the first half of 2026", ["H1 2026"]),
+    ("h2 2025 sales", ["H2 2025"]),
+    ("مبيعات النصف الأول من 2026", ["H1 2026"]),
+    ("sales in the second half of 2025", ["H2 2025"]),
+])
+def test_half_years(question, expected):
+    assert _labels(question) == expected
+
+
+def test_half_year_dates_and_the_half_before():
+    first_half = P.resolve_periods(u._norm("first half of 2026"), TODAY)[0]
+    assert (first_half["start"], first_half["end"]) == ("2026-01-01", "2026-07-01")
+    before = P.previous_period(first_half)
+    assert (before["start"], before["end"], before["label"]) == ("2025-07-01", "2026-01-01", "H2 2025")
+
+
+def test_the_current_half_is_to_date():
+    current = P.resolve_periods(u._norm("sales in h2"), TODAY)[0]
+    assert current["label"] == "H2 2026 to date" and current["end"] == "2026-10-30"
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("sales 06/2026", ["June 2026"]),
+    ("revenue 9-2026", ["September 2026"]),
+    ("كم كيس فريكة بعنا في آب؟", ["August 2026"]),
+    ("sold on 12/06/2026", ["2026-06-12"]),  # a full date stays a single day
+])
+def test_numeric_months_and_arabic_month_cues(question, expected):
+    assert _labels(question) == expected
+
+
+def test_a_father_is_not_august():
+    assert _labels("زرت ابي آب") == []
+
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("Revenue between 1 and 15 October", ["2026-10-01 to 2026-10-15"]),
+    ("مبيعات من 1 لـ 15 أكتوبر", ["2026-10-01 to 2026-10-15"]),
+    ("مبيعات النصف الأول من هذا العام", ["H1 2026"]),
+    ("sales for December last year", ["December 2025"]),
+    ("Compare May and June", ["May 2026", "June 2026"]),
+    ("قارنلي مبيعات الربع الأول والتاني", ["Q1 2026", "Q2 2026"]),
+])
+def test_ranges_qualified_years_and_joined_periods(question, expected):
+    assert _labels(question) == expected
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("المبيعات تبعت شهر تسعه", ["September 2026"]),   # TODAY here is 29 October 2026
+    ("الأوردرات الشهر هاد", ["October 2026 to date"]),
+])
+def test_a_month_spelled_as_a_number_and_this_month_after_the_noun(question, expected):
+    assert _labels(question) == expected

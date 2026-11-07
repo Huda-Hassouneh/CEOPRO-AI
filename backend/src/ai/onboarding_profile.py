@@ -34,10 +34,14 @@ class StepRequest(BaseModel):
 
 def state(conn, tenant_id, *, lock=False):
     with conn.cursor() as cur:
-        cur.execute("SELECT onboarding_profile,onboarding_completed_at FROM companies WHERE tenant_id=%s" + (" FOR UPDATE" if lock else ""), (tenant_id,))
+        cur.execute("SELECT onboarding_profile,onboarding_completed_at,country_code FROM companies WHERE tenant_id=%s" + (" FOR UPDATE" if lock else ""), (tenant_id,))
         row=cur.fetchone()
     if not row: raise HTTPException(404,"Company not found.")
-    profile=row[0] or {}
+    profile=dict(row[0] or {})
+    # Suggest the country chosen at sign-up until setup saves one; it is still
+    # confirmed (with a city) by the owner in step 1, never saved from here.
+    if not profile.get("country") and row[2]:
+        profile["country"]=row[2]
     highest=int(profile.get("highestCompletedStep",0))
     return {**profile,"revision":int(profile.get("revision",0)),"highestCompletedStep":highest,"currentStep":min(highest+1,6),"isComplete":row[1] is not None}
 

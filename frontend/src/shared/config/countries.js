@@ -2,6 +2,8 @@
 // trades in. Names come from the browser (Intl.DisplayNames) in the
 // interface language, so the list is complete in English and Arabic
 // without a translation table.
+import countryCodes from './locations/country-codes.json' with { type: 'json' };
+
 const COUNTRY_CURRENCY = {
   AD: 'EUR', AE: 'AED', AF: 'AFN', AG: 'XCD', AL: 'ALL', AM: 'AMD', AO: 'AOA', AR: 'ARS', AT: 'EUR', AU: 'AUD',
   AZ: 'AZN', BA: 'BAM', BB: 'BBD', BD: 'BDT', BE: 'EUR', BF: 'XOF', BG: 'BGN', BH: 'BHD', BI: 'BIF', BJ: 'XOF',
@@ -24,7 +26,7 @@ const COUNTRY_CURRENCY = {
   VU: 'VUV', WS: 'WST', YE: 'YER', ZA: 'ZAR', ZM: 'ZMW', ZW: 'ZWL',
 };
 
-export const COUNTRY_CODES = Object.freeze(Object.keys(COUNTRY_CURRENCY));
+export const COUNTRY_CODES = Object.freeze(countryCodes);
 
 export function defaultCurrencyFor(countryCode) {
   return COUNTRY_CURRENCY[(countryCode || '').toUpperCase()] || 'USD';

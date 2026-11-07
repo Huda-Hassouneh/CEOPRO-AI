@@ -1867,7 +1867,7 @@ export function CustomPlanPricingPolicyPanel({ t, features = [], api = billingAp
   );
 }
 
-export default function CustomPlanQuoteManager({ features, t, locale, api = billingApi, platformMode = false, canManage = true, canManagePricing = true }) {
+export default function CustomPlanQuoteManager({ features, t, locale, api = billingApi, platformMode = false, canManage = true, canManagePricing = true, section = 'all' }) {
   const [reviewQuote, setReviewQuote] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editQuote, setEditQuote] = useState(null);
@@ -2198,9 +2198,12 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
 
   return (
     <div className="billing-custom-plan-manager">
-      <CustomPlanPricingPolicyPanel t={t} features={features} api={api} canManagePricing={canManagePricing} />
+      {section !== 'quotes' && <>
+        {platformMode && <p role="note">{t('billing.catalog.ownerNavigation.customPricingExplanation')}</p>}
+        <CustomPlanPricingPolicyPanel t={t} features={features} api={api} canManagePricing={canManagePricing} />
+      </>}
 
-      <section className="billing-catalog-section">
+      {section !== 'pricing' && <section className="billing-catalog-section">
         <div className="billing-catalog-section-heading">
           <div>
             <h2>
@@ -2252,9 +2255,9 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
             )}
           />
         )}
-      </section>
+      </section>}
 
-      <section className="billing-catalog-section billing-custom-plan-rate-section">
+      {section !== 'quotes' && <section className="billing-catalog-section billing-custom-plan-rate-section">
         <div className="billing-catalog-section-heading">
           <div>
             <h2>
@@ -2264,6 +2267,7 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
                 "Vendor Rate Cards",
               )}
             </h2>
+            {platformMode && <p role="note">{t('billing.catalog.ownerNavigation.customRateSource')}</p>}
             <p>
               {tr(
                 t,
@@ -2312,9 +2316,9 @@ export default function CustomPlanQuoteManager({ features, t, locale, api = bill
             )}
           />
         )}
-      </section>
+      </section>}
 
-      {platformMode && api.getInfrastructureRates && (
+      {section !== 'quotes' && platformMode && api.getInfrastructureRates && (
         <InfrastructureRateCards
           features={features}
           t={t}

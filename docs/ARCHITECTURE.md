@@ -84,6 +84,28 @@ schedules or rewriting historical costs.
 
 ## Payments
 
+Outbound subscription actions in `billing/service.py` use the typed
+`SubscriptionPaymentGateway` contract. Explicit composition selects
+`StripeGateway`, which translates approved Checkout/transition intents through
+the existing `stripe_api.py` SDK wrapper. KEEL retains eligibility, tenant
+authorization, trial policy, promotions, locks and transaction ownership.
+Checkout requests are frozen before transport; legacy frozen payloads and their
+idempotency identities replay unchanged through the persistence compatibility
+bridge. Existing Stripe database identifiers are retained without migrations.
+
+The webhook route passes exact raw bytes to `PaymentWebhookDecoder`, explicitly
+composed as `StripeWebhookDecoder`. Only a `VerifiedPaymentEvent` reaches KEEL
+reconciliation. Neutral event kinds identify affected resources; fresh
+subscription/invoice snapshots come through `SubscriptionPaymentGateway` under
+the existing locks. KEEL retains tenant correlation, payment/trial predicates,
+Custom quote verification, promotion settlement and entitlement decisions.
+
+Original provider payloads/event types remain receipt evidence at the persistence
+boundary because existing restricted-role SQL guards inspect them. These are not
+application event branches. SQL, roles, Stripe identifiers and assignment-source
+values remain unchanged; supporting another real provider still requires later
+additive persistence/security work. Notifications alone never grant access.
+
 Customer action → Python Checkout/quote authority → Stripe → exact-body signed `/billing/webhook` → idempotent reconciliation → subscription/entitlement snapshots and credit accounting → customer UI.
 
 Local setup does not create a Checkout session or fake a webhook. Stripe CLI testing is an explicit opt-in external activity.

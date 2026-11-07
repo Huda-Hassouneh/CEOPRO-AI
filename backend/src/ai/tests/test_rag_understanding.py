@@ -170,3 +170,92 @@ def test_a_pronoun_question_naming_another_product_is_not_a_follow_up():
 def test_a_pronoun_without_a_product_before_it_is_not_a_follow_up():
     first = u.understand("How are sales this month?", catalog=TWO_PRODUCTS)
     assert not u.understand("what is its price?", previous=first.state(), catalog=TWO_PRODUCTS).follow_up
+
+
+# --- Wordings found by the extended and held-out assistant regression sets (2026-11-05) ---
+
+@pytest.mark.parametrize("question,expected", [
+    ("How much Premium Za'atar Blend 250g do we have left?", {u.INVENTORY}),
+    ("Are we running low on Freekeh 1kg?", {u.INVENTORY}),
+    ("كم باقي عندنا عسل سدر؟", {u.INVENTORY}),
+    ("ما هي الكمية المتوفرة من الطحينة؟", {u.INVENTORY}),
+    ("How many units of Sumac 200g are available?", {u.INVENTORY}),
+    ("Projected sales of Sumac 200g in the coming month", {u.FORECAST}),
+    ("Can customers return labneh?", {u.DOCUMENTS}),
+    ("هل يمكن استرجاع اللبنة؟", {u.DOCUMENTS}),
+])
+def test_everyday_wordings_of_stock_forecast_and_policy_questions(question, expected):
+    assert expected <= set(u.detect_intents(question))
+
+
+@pytest.mark.parametrize("question", ["بكم نبيع السماق؟", "what do we sell tahini for?",
+                                      "what do we charge Sidr Honey 500g for?"])
+def test_asking_what_we_sell_something_for_is_a_price_question(question):
+    intents = u.detect_intents(question)
+    assert u.PRICING in intents and u.SALES not in intents
+
+
+@pytest.mark.parametrize("question", ["كم بعنا من السماق؟", "How much sumac did we sell for 2 JOD?", "بعنا بكام الشهر اللي فات؟"])
+def test_sales_questions_that_mention_selling_stay_sales(question):
+    intents = u.understand(question).intents
+    assert u.SALES in intents and u.PRICING not in intents
+
+
+def test_what_we_sell_asks_about_the_company_not_a_price():
+    # Changed 2026-11-05: "what do we sell?" was read as a sales question; it asks about the range we offer.
+    intents = u.understand("what do we sell?").intents
+    assert u.COMPANY in intents and u.PRICING not in intents and u.SALES not in intents
+
+
+@pytest.mark.parametrize("question, expected", [
+    ("What price do we sell Freekeh 1kg at?", {u.PRICING}), ("ما سعر بيع الفريكة؟", {u.PRICING}),
+    ("إذا الزبون بدو يرجع لبنة شو بصير؟", {u.DOCUMENTS}),
+    ("Is our honey overpriced compared to other shops?", {u.COMPETITORS}),
+    ("Who sells olive oil cheaper than us?", {u.COMPETITORS, u.PRICING}),  # a price comparison: pricing is fair too
+    ("شو رأي الزباين بالتوصيل؟", {u.REVIEWS}),
+])
+def test_the_intent_is_read_without_extra_needs_from_words_used_in_another_sense(question, expected):
+    assert set(u.understand(question).intents) - {u.PRODUCTS} == expected
+
+
+@pytest.mark.parametrize("message", ["مبيعات تموز", "stock?", "sales"])
+def test_a_short_message_naming_a_business_need_is_a_question(message):
+    assert u.is_answerable(message)
+
+
+@pytest.mark.parametrize("question, expected", [
+    # debts and payments are read from the invoices (sales records), never as stock left
+    ("مين الناس اللي لسا ما دفعوا؟", {u.SALES}),
+    ("قديش ضايل إلنا عند الزباين؟", {u.SALES}),
+    ("قديش مجموع الديون؟", {u.SALES}),
+    ("الـ outstanding invoices عنا كم؟", {u.SALES}),
+    # orders ("طلبيات") are orders received, not future demand ("الطلب")
+    ("عدد الطلبيات تبع مبارح", {u.SALES}),
+    ("لازم نعمل طلبية من المورد؟", {u.INVENTORY}),
+    # Jordanian stock words
+    ("فش طحينة؟", {u.INVENTORY}),
+    ("اي اشي قرب يفضى؟", {u.INVENTORY}),
+    ("قديش بعنا زعتر وكم ضل؟", {u.SALES, u.INVENTORY}),
+    # net profit and expenses
+    ("قديش دخلنا الصافي؟", {u.FINANCIALS}),
+    ("شو المصروف الشهري تبعنا؟", {u.FINANCIALS}),
+    # "تبعنا" (our) is not "بعنا" (we sold); "أسابيع" (weeks) is not "بيع"
+    ("التقييم تبعنا نزل؟", {u.REVIEWS}),
+    ("شو التوقعات للأسابيع الجاية؟", {u.FORECAST}),
+    # the terms of selling are a policy question
+    ("شو سياسة البيع بالتقسيط؟", {u.DOCUMENTS}),
+    ("بنبيع بالجملة؟ شو الشروط؟", {u.DOCUMENTS}),
+    ("في حدا زعلان منا؟", {u.REVIEWS}),
+])
+def test_jordanian_everyday_wordings(question, expected):
+    assert set(u.detect_intents(question)) == expected
+
+
+def test_a_trailing_vocative_keeps_thanks_small_talk():
+    assert u.is_answerable("تسلم يا رب") is False
+    assert u.detect_intents("يعطيك العافية يا غالي") == []   # "dear", not "expensive"
+
+
+@pytest.mark.parametrize("message", ["إزيك عامل إيه", "كيفك، شو الأخبار"])
+def test_greetings_strung_together_are_small_talk(message):
+    assert u.is_answerable(message) is False

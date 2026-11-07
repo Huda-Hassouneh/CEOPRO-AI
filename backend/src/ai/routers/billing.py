@@ -13,11 +13,11 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.ai import db
-from src.ai.billing import config, credits, custom_offers, custom_plan_pricing_service, promotions, service, store, stripe_api, webhooks, self_service
+from src.ai.billing import config, credits, custom_offers, custom_plan_pricing_service, promotions, service, store, webhooks, self_service
 from src.ai.core import feature_rights, usage
 from src.ai.core.security import TenantContext, get_tenant_context
 
@@ -763,21 +763,23 @@ def resume_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dic
 
 
 @router.post("/webhook", include_in_schema=False)
-async def stripe_webhook(request: Request, stripe_signature: str = Header(default=None, alias="Stripe-Signature")) -> dict:
+async def stripe_webhook(request: Request) -> dict:
     """Stripe -> KEEL. Verified against the raw body; 400 for a bad signature
     (Stripe stops), 500 when processing failed (Stripe retries)."""
     secret = config.webhook_secret()
     if not secret:
         raise HTTPException(status_code=503, detail="Stripe webhooks are not configured on this server.")
-    if not stripe_signature:
+    from src.ai.billing.payment_contracts import InvalidPaymentWebhook
+    from src.ai.billing.payment_runtime import webhook_decoder, webhook_signature
+    signature = webhook_signature(request)
+    if not signature:
         raise HTTPException(status_code=400, detail="Missing Stripe-Signature header.")
     payload = await request.body()
     try:
-        event = stripe_api.construct_event(payload, stripe_signature, secret)
-    except Exception:  # noqa: BLE001 - invalid signature or payload
+        event = webhook_decoder(secret).decode(payload, signature)
+    except InvalidPaymentWebhook:
         raise HTTPException(status_code=400, detail="Invalid Stripe signature.")
-    event = event.to_dict() if hasattr(event, "to_dict") else dict(event)
-    sys_conn = db.billing_webhook_connection(event["id"])
+    sys_conn = db.billing_webhook_connection(event.event_id)
     try:
         result = webhooks.handle_event(sys_conn, event)
     except webhooks.WebhookRetry:

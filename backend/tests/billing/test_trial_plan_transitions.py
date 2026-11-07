@@ -15,6 +15,8 @@ import pytest
 
 from src.ai import db
 from src.ai.billing import admin, credits, service, store, stripe_api
+from src.ai.billing.stripe_gateway import _preserved_phase
+from src.ai.billing.payment_contracts import PaymentProviderError, ProviderOperationOutcome
 from src.ai.core import usage
 from src.ai.core.security import create_access_token
 from .test_database import live_subscription
@@ -368,7 +370,7 @@ def test_schedule_preserves_current_financial_fields_without_mutating_input():
                  transfer_data={"destination":"acct_offline"})
     phase["items"][0].update(tax_rates=["txr_item"],discounts=[{"discount":"di_item"}])
     before=deepcopy(phase)
-    saved=service._preserved_current_phase(phase,provider.live)
+    saved=_preserved_phase(phase,provider.live["trial_end"])
     assert phase==before
     for key in ("trial_end","automatic_tax","default_tax_rates","discounts","invoice_settings", "default_payment_method","application_fee_percent","transfer_data"):
         assert saved[key]==before[key]
@@ -381,8 +383,9 @@ def test_schedule_with_additional_invoice_items_requires_review():
     sid=provider.create(provider.live["id"])["id"]
     phase=provider.schedule(sid)["phases"][0]
     phase["add_invoice_items"]=[{"price":"price_one_time","quantity":1}]
-    with pytest.raises(service.BillingError) as error:service._preserved_current_phase(phase,provider.live)
-    assert error.value.code=="plan_transition_unclassified"
+    with pytest.raises(PaymentProviderError) as error:_preserved_phase(phase,provider.live["trial_end"])
+    assert error.value.outcome == ProviderOperationOutcome.UNSUPPORTED_CAPABILITY
+    assert error.value.reason == "additional_invoice_items"
 
 
 @pytest.mark.parametrize('invoice_state',['draft','open','missing','old_zero_trial','other_subscription'])

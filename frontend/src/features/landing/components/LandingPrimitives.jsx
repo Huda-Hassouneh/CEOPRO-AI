@@ -8,7 +8,7 @@ import KeelMark from '../../../shared/components/brand/KeelMark.jsx';
 
 export function useLanding() {
   const { t, locale, ...rest } = useI18n();
-  const language = locale === 'ar' ? 'ar-JO' : 'en-US';
+  const language = locale === 'ar' ? 'ar-JO-u-nu-latn' : 'en-US';
   return {
     ...rest, locale, t: (key, values) => t(`landing.${key}`, values),
     n: (value) => new Intl.NumberFormat(language, { maximumFractionDigits: 2 }).format(value),

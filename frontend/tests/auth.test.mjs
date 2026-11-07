@@ -89,3 +89,43 @@ test('signup translates the real signup form shape into the real backend SignupR
   assert.equal(result.session.roles[0], 'owner');
   assert.equal(result.session.user.fullName, 'Jane Doe');
 });
+
+test('forgot password shows the truthful message for each API outcome', async (t) => {
+  const { codeEmailWasSent, getAuthErrorTranslationKey } = await import('../src/features/auth/utils/authErrors.js');
+  const outcomes = {
+    'sent@example.test': [200, { status: 'sent', detail: "We've emailed you a 6-digit code." }],
+    'unknown@example.test': [404, { code: 'ACCOUNT_NOT_FOUND', detail: 'No KEEL account uses this email address.' }],
+    'failing@example.test': [503, { code: 'EMAIL_DELIVERY_FAILED', detail: "We couldn't send the email right now." }],
+    'legacy@example.test': [200, { detail: 'If that email is registered, a code has been sent.' }],
+    'limited@example.test': [429, { detail: 'Too many codes requested.' }],
+  };
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      const [status, payload] = outcomes[JSON.parse(body).email];
+      res.statusCode = status;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(payload));
+    });
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const previous = httpClient.defaults.baseURL;
+  httpClient.defaults.baseURL = `http://127.0.0.1:${server.address().port}`;
+  t.after(() => { httpClient.defaults.baseURL = previous; server.close(); });
+
+  // Mirrors ForgotPasswordPage: navigate to the code screen only when sent.
+  const shown = async (email) => {
+    try {
+      const response = await authHttpAdapter.forgotPassword({ email });
+      return codeEmailWasSent(response) ? 'navigate:verify-code' : 'auth.errors.emailDeliveryFailed';
+    } catch (failure) {
+      return getAuthErrorTranslationKey(failure);
+    }
+  };
+  assert.equal(await shown('sent@example.test'), 'navigate:verify-code');
+  assert.equal(await shown('unknown@example.test'), 'auth.errors.accountNotFound');
+  assert.equal(await shown('failing@example.test'), 'auth.errors.emailDeliveryFailed');
+  assert.equal(await shown('legacy@example.test'), 'auth.errors.emailDeliveryFailed', 'an unconfirmed send is never shown as sent');
+  assert.equal(await shown('limited@example.test'), 'auth.errors.tooManyAttempts');
+});
