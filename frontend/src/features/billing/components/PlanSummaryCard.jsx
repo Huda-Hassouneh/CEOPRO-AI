@@ -36,6 +36,12 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
       style: 'currency',
       currency: plan.currency || 'USD',
     }).format(amount || 0);
+  // A new trial starts when checkout completes; shown as if started today,
+  // which is the date the payment provider uses for a checkout finished now.
+  const firstChargeDate = (days) => new Date(Date.now() + days * 86400000);
+  const formatDate = (date) => new Intl.DateTimeFormat(locale === 'ar' ? 'ar-JO-u-nu-latn' : 'en-US', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  }).format(date);
   const formatNumber = (number) =>
     new Intl.NumberFormat(locale === 'ar' ? 'ar-JO-u-nu-latn' : 'en-US').format(number);
 
@@ -62,6 +68,9 @@ export function PlanSummaryCard({ plan = {}, billingPeriod, checkoutMode = 'paid
         {trialAvailable && <span className="ceopro-plan-summary__trial-badge">{t('billing.payment.trial', { days: trialDays })}</span>}
         {(trialAvailable || isTrial) && <p className="ceopro-plan-summary__renewal">{t('billing.payment.postTrialBilling', {
           amount: formatCurrency(totalPrice), period: describeBillingOption(selectedPricingOption || {}, t),
+        })}</p>}
+        {trialAvailable && trialDays > 0 && <p className="ceopro-plan-summary__renewal" data-testid="trial-first-charge">{t('billing.payment.trialFirstCharge', {
+          amount: formatCurrency(totalPrice), date: formatDate(firstChargeDate(trialDays)),
         })}</p>}
         {promotionEntered && <p className="ceopro-plan-summary__renewal">{t('billing.payment.stripeConfirmsPromotion')}</p>}
         <div className="ceopro-plan-summary__total">

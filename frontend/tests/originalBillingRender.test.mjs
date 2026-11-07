@@ -35,10 +35,10 @@ for(const locale of ['en','ar']) {
       const {translate}=await vite.ssrLoadModule('/src/shared/lib/i18n.js');
       assert.ok(html.includes(`>${name}</h2>`));
       assert.ok(html.includes(translate(locale,'billing.payment.selectedPlan')));
-      assert.ok(html.includes(new Intl.NumberFormat(locale==='ar'?'ar-JO':'en-US',{style:'currency',currency:'USD'}).format(177)));
+      assert.ok(html.includes(new Intl.NumberFormat(locale==='ar'?'ar-JO-u-nu-latn':'en-US',{style:'currency',currency:'USD'}).format(177)));
       assert.ok(html.includes(translate(locale,'billing.periods.monthCountLabel',{months:3})));
       assert.ok(html.indexOf('Checkout action fixture')<html.indexOf('<details'));
-      assert.ok(html.includes('Products')&&html.includes(new Intl.NumberFormat(locale==='ar'?'ar-JO':'en-US').format(123)));
+      assert.ok(html.includes('Products')&&html.includes(new Intl.NumberFormat(locale==='ar'?'ar-JO-u-nu-latn':'en-US').format(123)));
       assert.equal(html.includes('ceopro-plan-summary__trial-badge'),days>0);
       if(days)assert.ok(html.includes(translate(locale,'billing.payment.trial',{days})));
       const existing=await render(locale,'PlanSummaryCard.jsx','PlanSummaryCard',{plan,billingPeriod:'quarterly',selected:true,checkoutMode:'trial',checkoutTrialEndsAt:1794814640});
@@ -136,5 +136,19 @@ for(const locale of ['en','ar']) {
     assert.match(html,/aria-label="(?:Data Credits|رصيد البيانات)"/);
     assert.match(html,/value="20"/);
     assert.ok(!html.includes('9007199254740991'), 'A technical number bound must not become a commercial allowance label');
+  });
+}
+
+for (const locale of ['en', 'ar']) {
+  test(`a new trial discloses its first charge date, amount and how to avoid the charge in ${locale}`, async () => {
+    const plan = { name: 'Plus', currency: 'USD', basePrice: 59, trialDays: 14, pricingOptions: [{ period: 'monthly', totalPrice: 59 }] };
+    const html = await render(locale, 'PlanSummaryCard.jsx', 'PlanSummaryCard', { plan, billingPeriod: 'monthly', selected: true, trialAvailable: true });
+    const tag = locale === 'ar' ? 'ar-JO-u-nu-latn' : 'en-US';
+    const date = new Intl.DateTimeFormat(tag, { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(Date.now() + 14 * 86400000));
+    const amount = new Intl.NumberFormat(tag, { style: 'currency', currency: 'USD' }).format(59);
+    assert.ok(html.includes('data-testid="trial-first-charge"'));
+    assert.ok(html.includes(date), `first charge date ${date}`);
+    assert.ok(html.includes(amount), `amount ${amount}`);
+    if (locale === 'en') assert.match(html, /Cancel before then/);
   });
 }
