@@ -120,6 +120,26 @@ def _month_bounds(today: date):
     return today.replace(day=1), today.replace(day=calendar.monthrange(today.year, today.month)[1])
 
 
+def _company_today(conn, tenant_id: str, now: datetime) -> date:
+    """`now` as a date on the company's own calendar.
+
+    Tenant transactions run in the company's time zone (infrastructure/db_pool.py), so plan
+    periods are stored as company-local dates (billing_setup_trial casts with ::date). Comparing
+    them with the UTC date made a period that had begun locally look "not started" for hours -
+    e.g. a trial started 02:25 in Amman - so allowances and Data/AI Credits were counted in a
+    calendar-month bucket and then reset at 00:00 UTC."""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT timezone FROM companies WHERE tenant_id = %s;", (tenant_id,))
+        row = cursor.fetchone()
+    zone = row[0] if row else None
+    try:
+        return now.astimezone(ZoneInfo(zone)).date() if zone else now.date()
+    except (ZoneInfoNotFoundError, ValueError):
+        return now.date()
+
+
 def _unassigned_access() -> str:
     return os.getenv("UNASSIGNED_PLAN_ACCESS", UNASSIGNED_ACCESS_DEFAULT)
 
@@ -133,7 +153,7 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
         from src.ai.billing import test_clock
         now = test_clock.tenant_now(conn, tenant_id)
     now = now or datetime.now(timezone.utc)
-    today = today or now.date()
+    today = today or _company_today(conn, tenant_id, now)
     with conn.cursor() as cursor:
         cursor.execute(
             """

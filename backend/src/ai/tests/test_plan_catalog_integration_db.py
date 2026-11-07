@@ -417,3 +417,29 @@ def test_review_imports_count_toward_monthly_uploads_and_storage_rows_stay_priva
             assert cursor.fetchone()[0] == 0  # row-level security: B sees none of A's files
     finally:
         conn.close()
+
+
+def test_a_period_that_began_on_the_company_calendar_is_used_before_utc_midnight(client):
+    # Reproduced at 23:25 UTC: a trial started at 02:25 in Amman stored its period from the local
+    # date (8 Nov) while usage compared it with the UTC date (7 Nov), fell back to a calendar
+    # month and lost the counted allowance and Credits again at 00:00 UTC.
+    from datetime import date, datetime, timezone
+
+    session, _ = _company(client, "growth")
+    tenant = session["tenant_id"]
+    _admin("UPDATE companies SET timezone = 'Asia/Amman' WHERE tenant_id = %s;", (tenant,))
+    _admin("UPDATE tenant_plan_assignments SET current_period_start = '2026-11-08', current_period_end = '2026-12-07' "
+           "WHERE tenant_id = %s;", (tenant,))
+    _admin("INSERT INTO tenant_usage_counters (tenant_id, feature_code, period_start, used) "
+           "VALUES (%s, 'sentiment_analysis', '2026-11-08', 7);", (tenant,))
+    late_utc = datetime(2026, 11, 7, 23, 25, tzinfo=timezone.utc)  # 02:25 on 8 Nov in Amman
+    conn = psycopg2.connect(ADMIN_DATABASE_URL)
+    try:
+        plan = usage.get_plan(conn, tenant, now=late_utc)
+        assert (plan["period_start"], plan["period_end"]) == (date(2026, 11, 8), date(2026, 12, 7))
+        assert usage._metered_used(conn, tenant, usage.SENTIMENT_ANALYSIS, plan["period_start"]) == 7
+        # A company on UTC keeps the UTC calendar.
+        _admin("UPDATE companies SET timezone = 'UTC' WHERE tenant_id = %s;", (tenant,))
+        assert usage.get_plan(conn, tenant, now=late_utc)["period_start"] == date(2026, 11, 1)
+    finally:
+        conn.close()
