@@ -47,7 +47,6 @@ export function OnboardingRegionalPreferencesPage() {
           <small>{t('onboarding.region.countryHint')}</small>
           <Select
             id="setup-country"
-            value={country}
             required
             aria-required="true"
             options={[{value:'',label:t('onboarding.region.countryPlaceholder')},...countryOptions(locale)]}

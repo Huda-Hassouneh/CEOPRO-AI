@@ -17,6 +17,8 @@ from uuid import UUID
 from psycopg2.extras import Json
 
 from src.ai.billing import catalog_sync, config, store, stripe_api
+from src.ai.billing.payment_contracts import CheckoutSnapshot, InvoiceSnapshot, PaymentState, ProviderReference
+from src.ai.billing.payment_runtime import payment_gateway
 
 TERMS_REQUIRED = frozenset({
     "discount_type", "discount_value", "starts_at", "expires_at",
@@ -641,7 +643,9 @@ def provider_request_rejected(conn, *, tenant_id: str, redemption_id: str) -> No
                reason_code="provider_validation_rejected")
 
 
-def _metadata_redemption(obj: dict):
+def _metadata_redemption(obj: dict | CheckoutSnapshot | InvoiceSnapshot):
+    if isinstance(obj, (CheckoutSnapshot, InvoiceSnapshot)):
+        return obj.metadata.get("keel_promotion_redemption_id")
     metadata = obj.get("metadata") or {}
     if not metadata:
         parent = (obj.get("parent") or {}).get("subscription_details") or {}
@@ -649,14 +653,17 @@ def _metadata_redemption(obj: dict):
     return metadata.get("keel_promotion_redemption_id")
 
 
-def checkout_completed(conn, *, session: dict, tenant_id: str, stripe_event_id: str) -> None:
+def checkout_completed(conn, *, session: dict | CheckoutSnapshot, tenant_id: str, stripe_event_id: str) -> None:
     redemption_id = _metadata_redemption(session)
-    subscription_id = session.get("subscription")
+    if isinstance(session, CheckoutSnapshot):
+        subscription_id = session.subscription.opaque_id if session.subscription else None
+    else:
+        subscription_id = session.get("subscription")
     if isinstance(subscription_id, dict):
         subscription_id = subscription_id.get("id")
     if not redemption_id:
         return
-    session_id = session.get("id")
+    session_id = session.reference.opaque_id if isinstance(session, CheckoutSnapshot) else session.get("id")
     with conn.cursor() as cur:
         cur.execute("SELECT tenant_id,state,stripe_checkout_session_id,stripe_subscription_id FROM public.billing_promotion_redemptions "
                     "WHERE redemption_id=%s FOR UPDATE;", (redemption_id,))
@@ -677,24 +684,28 @@ def checkout_completed(conn, *, session: dict, tenant_id: str, stripe_event_id: 
     # Checkout and invoice events can arrive out of order. If Stripe includes
     # the initial invoice on the completed session, reconcile it through the
     # same settled-invoice predicate used by invoice webhooks.
-    invoice_id = session.get("invoice")
+    if isinstance(session, CheckoutSnapshot):
+        invoice_id = session.invoice.opaque_id if session.invoice else None
+    else:
+        invoice_id = session.get("invoice")
     if isinstance(invoice_id, dict):
         invoice_id = invoice_id.get("id")
     if invoice_id and subscription_id:
-        invoice = stripe_api.retrieve_invoice(invoice_id)
-        if invoice.get("id") != invoice_id:
+        invoice = payment_gateway().get_invoice(ProviderReference(
+            session.reference.provider if isinstance(session, CheckoutSnapshot) else "stripe", invoice_id))
+        if invoice.reference.opaque_id != invoice_id:
             raise RuntimeError("checkout initial invoice identity mismatch")
         invoice_event(
             conn, tenant_id=tenant_id, invoice=invoice, subscription_id=subscription_id,
-            stripe_event_id=stripe_event_id, payment_succeeded=(invoice.get("status") == "paid" or invoice.get("paid") is True),
+            stripe_event_id=stripe_event_id, payment_succeeded=invoice.payment_state == PaymentState.PAID,
         )
 
 
-def checkout_expired(conn, *, session: dict, stripe_event_id: str) -> None:
+def checkout_expired(conn, *, session: dict | CheckoutSnapshot, stripe_event_id: str) -> None:
     redemption_id = _metadata_redemption(session)
     if not redemption_id:
         return
-    session_id = session.get("id")
+    session_id = session.reference.opaque_id if isinstance(session, CheckoutSnapshot) else session.get("id")
     with conn.cursor() as cur:
         cur.execute("SELECT tenant_id,state,stripe_checkout_session_id,stripe_subscription_id,stripe_initial_invoice_id "
                     "FROM public.billing_promotion_redemptions WHERE redemption_id=%s FOR UPDATE;", (redemption_id,))
@@ -714,7 +725,7 @@ def checkout_expired(conn, *, session: dict, stripe_event_id: str) -> None:
                        stripe_event_id=stripe_event_id, reason_code="checkout_expired")
 
 
-def invoice_event(conn, *, tenant_id: str, invoice: dict, subscription_id: str | None,
+def invoice_event(conn, *, tenant_id: str, invoice: dict | InvoiceSnapshot, subscription_id: str | None,
                   stripe_event_id: str, payment_succeeded: bool) -> None:
     redemption_id = _metadata_redemption(invoice)
     with conn.cursor() as cur:
@@ -744,18 +755,23 @@ def invoice_event(conn, *, tenant_id: str, invoice: dict, subscription_id: str |
         if not prior or prior[0] == "rejected":
             return
         stored_sub = prior[1]
-        billing_reason = invoice.get("billing_reason")
-        invoice_id = invoice.get("id")
+        if isinstance(invoice, InvoiceSnapshot):
+            initial_invoice = invoice.initial_subscription_invoice
+            invoice_id = invoice.reference.opaque_id
+        else:
+            reason = invoice.get("billing_reason")
+            initial_invoice = (reason == "subscription_create") if reason is not None else None
+            invoice_id = invoice.get("id")
         if not payment_succeeded:
             # A payment failure or open invoice is not a final redemption and
             # may later settle; keep its reservation pending.
             return
-        if billing_reason is None:
+        if initial_invoice is None:
             _set_state(conn, rid, tenant_id, "reconciliation_required", event_type="invoice_identity_conflict",
                        stripe_event_id=stripe_event_id, subscription_id=subscription_id, invoice_id=invoice_id,
                        reason_code="billing_reason_missing")
             return
-        if billing_reason != "subscription_create":
+        if not initial_invoice:
             # Renewal/other invoices are unrelated to the qualifying initial
             # redemption. They cannot settle it or permanently consume it.
             return
@@ -769,7 +785,8 @@ def invoice_event(conn, *, tenant_id: str, invoice: dict, subscription_id: str |
                        stripe_event_id=stripe_event_id, subscription_id=subscription_id, invoice_id=invoice_id,
                        reason_code="subscription_identity_mismatch")
             return
-        paid = invoice.get("status") == "paid" or invoice.get("paid") is True
+        paid = invoice.payment_state == PaymentState.PAID if isinstance(invoice, InvoiceSnapshot) else (
+            invoice.get("status") == "paid" or invoice.get("paid") is True)
         # A valid zero-total invoice is paid with amount_paid == 0. Amount is
         # deliberately not used as the settlement test.
         if not paid:

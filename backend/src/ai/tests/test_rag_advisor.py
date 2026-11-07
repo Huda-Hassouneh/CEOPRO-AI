@@ -691,3 +691,36 @@ def test_a_question_word_alone_does_not_make_unrelated_evidence_relevant():
 def test_an_arabic_question_mark_does_not_hide_the_last_word_of_the_question():
     assert "طلب" in advisor._content_words("متى كان آخر طلب؟")
     assert advisor._relevant("ما سياسة الإرجاع؟", "سياسة الإرجاع: يمكن إرجاع المنتجات خلال 14 يوماً")
+
+
+# --- Relevance with inflections, repeated titles, Arabic questions about English documents (2026-11-05) ---
+
+def test_relevance_matches_inflected_english_words():
+    chunk = ("Fresh and chilled products (labneh, cheese) cannot be returned unless they are damaged; "
+             "report this within 24 hours with a photo.")
+    assert advisor._relevant("Can customers return labneh?", chunk)
+
+
+def test_an_excerpt_that_repeats_its_title_is_shown_once():
+    from types import SimpleNamespace
+    item = SimpleNamespace(title="Sales for November 2026 to date (2026-11-01 to 2026-11-05)",
+                           excerpt="Sales for November 2026 to date (2026-11-01 to 2026-11-05): no sales are recorded in this period.")
+    assert advisor._excerpt_after_title(item) == "no sales are recorded in this period."
+    other = SimpleNamespace(title="Sales for October 2026",
+                            excerpt="Revenue 100 JOD; September 2026 (2026-09-01 to 2026-09-30): 90 JOD.")
+    assert advisor._excerpt_after_title(other) == other.excerpt
+
+
+def test_an_arabic_question_searches_documents_with_english_names_and_policy_words():
+    from src.ai.rag import understanding
+    catalog = [{"product_id": "p1", "name": "Fresh Labneh (per kg)", "name_alt": "لبنة طازجة (كيلو)"}]
+    terms = advisor._english_search_terms(understanding.understand("هل يمكن استرجاع اللبنة؟", catalog=catalog))
+    assert "Fresh Labneh (per kg)" in terms and "refund" in terms
+
+
+def test_an_arabic_fee_question_searches_with_the_english_fee_words():
+    from src.ai.rag import understanding
+    terms = advisor._english_search_terms(understanding.understand("كم رسوم التوصيل للزرقاء؟"))
+    assert "delivery" in terms and "fee" in terms
+    chunk = "Zarqa and Russeifa: next-day delivery, fee 3.500 JOD."
+    assert advisor._relevant("كم رسوم التوصيل للزرقاء؟" + terms, chunk)

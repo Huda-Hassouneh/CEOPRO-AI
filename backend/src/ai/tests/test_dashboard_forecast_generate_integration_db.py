@@ -211,3 +211,30 @@ def test_auto_refresh_and_explicit_generation_share_concurrency_idempotency(conn
     with conn.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM demand_forecasts WHERE tenant_id=%s AND product_id=%s", (tenant_id, product_id))
         assert cursor.fetchone()[0] == 1
+
+
+def test_forced_generation_sees_sales_written_by_a_transaction_older_than_the_forecast(conn):
+    """Back-to-back imports: rows written by an import that started before a
+    forecast was computed carry the older created_at (transaction start), so
+    the freshness check wrongly reuses the forecast that never saw them. The
+    import's forced refresh must regenerate."""
+    tenant_id = _insert_company(conn)
+    product_id = _insert_product(conn, tenant_id, "Overlapping imports")
+    now = datetime.now(timezone.utc)
+    with conn.cursor() as cursor:
+        for day in range(60, 120):  # the earlier import: nothing in the last 60 days
+            insert_sale(cursor, tenant_id, product_id, 1, 2.0, now - timedelta(days=day))
+    conn.commit()
+    stale = generate_or_reuse_forecast(conn, tenant_id, product_id)
+    with conn.cursor() as cursor:
+        for day in range(1, 60):  # the later import: busy recent weeks
+            insert_sale(cursor, tenant_id, product_id, 20, 2.0, now - timedelta(days=day))
+        # ...whose transaction started before that forecast was written.
+        cursor.execute("UPDATE invoices SET created_at = %s WHERE tenant_id = %s AND issue_date >= %s",
+                       (now - timedelta(minutes=5), tenant_id, now - timedelta(days=59, hours=1)))
+    conn.commit()
+
+    assert generate_or_reuse_forecast(conn, tenant_id, product_id)["reused"] is True  # the race
+    forced = generate_or_reuse_forecast(conn, tenant_id, product_id, force=True)
+    assert forced["reused"] is False and forced["forecast_id"] != stale["forecast_id"]
+    assert forced["expected_demand"] > stale["expected_demand"]

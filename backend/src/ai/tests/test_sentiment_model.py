@@ -7,6 +7,8 @@ test_sentiment_model_real.py.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import torch
 
 from src.ai.sentiment import model as sentiment_model
@@ -90,3 +92,65 @@ def test_classify_splits_into_batches_of_batch_size(monkeypatch):
     assert len(predictions) == 3
     assert fake_tokenizer.call_count == 2  # batches of [2, 1]
     assert fake_model.call_count == 2
+
+
+# --- memory guard: a small server must fall back, not be killed loading the model ---
+
+def _guarded(monkeypatch, limit_mb, mode=None):
+    from src.ai.core import ml_runtime
+    from src.ai.sentiment import model as sentiment_model
+
+    monkeypatch.setattr(sentiment_model, "_unavailable_until", 0.0)
+    monkeypatch.setattr(ml_runtime, "container_memory_limit_mb", lambda: limit_mb)
+    monkeypatch.setattr(ml_runtime, "model_obtainable", lambda *a, **k: True)
+    if mode is None:
+        monkeypatch.delenv("LOCAL_ML_MODELS", raising=False)
+    else:
+        monkeypatch.setenv("LOCAL_ML_MODELS", mode)
+    loaded = []
+    monkeypatch.setattr(sentiment_model, "classify", lambda texts, model_name=None: loaded.append(texts) or ["ok"])
+    return sentiment_model, loaded
+
+
+def test_a_512_mb_server_never_loads_the_model_and_reports_it_unavailable(monkeypatch):
+    sentiment_model, loaded = _guarded(monkeypatch, 512)
+    with pytest.raises(sentiment_model.SentimentModelUnavailable, match="512 MB"):
+        sentiment_model.classify_or_unavailable(["great service"])
+    assert loaded == []
+
+
+def test_enough_memory_or_no_limit_loads_the_model(monkeypatch):
+    for limit in (4096, None):
+        sentiment_model, loaded = _guarded(monkeypatch, limit)
+        assert sentiment_model.classify_or_unavailable(["great service"]) == ["ok"] and loaded
+
+
+def test_the_operator_can_force_local_models_on_or_off(monkeypatch):
+    sentiment_model, loaded = _guarded(monkeypatch, 512, mode="on")
+    assert sentiment_model.classify_or_unavailable(["x"]) == ["ok"]
+    sentiment_model, loaded = _guarded(monkeypatch, 8192, mode="off")
+    with pytest.raises(sentiment_model.SentimentModelUnavailable):
+        sentiment_model.classify_or_unavailable(["x"])
+    assert loaded == []
+
+
+def test_container_memory_limit_reads_cgroup_values(monkeypatch, tmp_path):
+    from src.ai.core import ml_runtime
+    import builtins
+
+    real_open = builtins.open
+    values = {"/sys/fs/cgroup/memory.max": "536870912\n"}
+
+    def fake_open(path, *a, **k):
+        if path in values:
+            target = tmp_path / "v"
+            target.write_text(values[path])
+            return real_open(target, *a, **k)
+        if str(path).startswith("/sys/fs/cgroup"):
+            raise OSError
+        return real_open(path, *a, **k)
+
+    monkeypatch.setattr(builtins, "open", fake_open)
+    assert ml_runtime.container_memory_limit_mb() == 512
+    values["/sys/fs/cgroup/memory.max"] = "max\n"
+    assert ml_runtime.container_memory_limit_mb() is None

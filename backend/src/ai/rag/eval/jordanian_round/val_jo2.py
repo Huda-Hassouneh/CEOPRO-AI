@@ -1,0 +1,80 @@
+"""Jordanian VALIDATION set #2 - written 2026-11-06 before the per-question diagnosis of sealed_jo and before any
+rule/prompt change of the Jordanian round. Used to check the round's changes (scored per question for analysis),
+never to write rules or examples from. UNREVIEWED by a native Jordanian speaker.
+Same label conventions as sealed_jo2.py. Benchmark date: 2026-11-05 (Thursday)."""
+from sealed_set import (A_P, C, D, F, FC, I, JUL, OCT, PR, Q2, Q3, R, S, SEP, TODAY, YDAY, YTD, MTD, c)
+
+MR = "market_research"
+DEBT = {F}
+
+
+def j(q, dom, cx, **kw):
+    return {**c("jo", q, **kw), "dom": dom, "cx": cx}
+
+
+VAL_JO2 = [
+    j("قديش طلع بيع اليوم؟", "sales", "simple", intents={S}, periods=TODAY),
+    j("البيع امبارح قديش كان؟", "sales", "simple", intents={S}, periods=YDAY),
+    j("مبيعات شهر 7 قديش؟", "sales", "simple", intents={S}, periods=JUL),
+    j("كيف البيع بالربع التاني؟", "sales", "simple", intents={S}, periods=Q2),
+    j("قديش بعنا من بداية الشهر؟", "sales", "simple", intents={S}, periods=MTD),
+    j("شو الأصناف اللي ماشية أكتر هالشهر؟", "products", "colloquial", intents={S}, periods=MTD, top=True, allowed=A_P),
+    j("قديش عدد الفواتير اليوم؟", "orders", "simple", intents={S}, periods=TODAY),
+    j("المبيعات السنة هاي أحسن من السنة الماضية؟", "sales", "compound", intents={S}),
+    j("مين ما سدد لهلأ؟", "debts", "colloquial", intents={S}, allowed=DEBT),
+    j("قديش الذمم المدينة؟", "debts", "simple", intents={S}, allowed=DEBT),
+    j("الزباين اللي عليهم حساب مين؟", "debts", "colloquial", intents={S}, allowed=DEBT),
+    j("في فواتير متأخرة؟", "debts", "simple", intents={S}, allowed=DEBT),
+    j("قديش المبالغ اللي ما تحصلت؟", "debts", "simple", intents={S}, allowed=DEBT),
+    j("مين دفع اليوم؟", "debts", "colloquial", intents={S}, periods=TODAY, allowed=DEBT),
+    j("ديون الزباين زادت؟", "debts", "colloquial", intents={S}, allowed=DEBT),
+    j("قديش ضل عنا عسل زهور؟", "inventory", "simple", intents={I}, products=["Wildflower Honey 1kg"], allowed=A_P),
+    j("خلصت الفريكة؟", "inventory", "colloquial", intents={I}, products=["Freekeh 1kg"], allowed=A_P),
+    j("في زيتون اخضر بالمخزن؟", "inventory", "simple", intents={I}, products=["Green Olives Jar 650g"], allowed=A_P),
+    j("شو البضاعة اللي بدها طلبية جديدة؟", "inventory", "simple", intents={I}),
+    j("شو الناقص عنا؟", "inventory", "colloquial", intents={I}),
+    j("قديش ضايل من شراب التمر هندي؟", "inventory", "colloquial", intents={I},
+      products=["Tamarind Drink Concentrate 1L"], allowed=A_P),
+    j("بدنا نعبي بهارات؟", "inventory", "colloquial", intents={I}, allowed=A_P),
+    j("الستوك كيف بشكل عام؟", "inventory", "colloquial", intents={I}),
+    j("في بضاعة راكدة؟", "inventory", "ambiguous", intents={I}, allowed={S} | A_P),
+    j("كم قطعة ضايلة من سلة رمضان؟", "inventory", "colloquial", intents={I}, products=["Ramadan Gift Hamper"],
+      allowed=A_P),
+    j("قديش ربحنا امبارح؟", "profit", "simple", intents={F}, periods=YDAY),
+    j("صافي الربح هالسنة قديش؟", "profit", "simple", intents={F}, periods=YTD),
+    j("هامش الربح على الطحينة؟", "profit", "simple", intents={F}, products=["Tahini 450g"], allowed=A_P),
+    j("شو أكتر صنف بنكسب منه؟", "profit", "colloquial", intents={F}, top=True, allowed=A_P | {S}),
+    j("في منتجات خسرانة؟", "profit", "colloquial", intents={F}, allowed=A_P),
+    j("قديش التكاليف الشهر الماضي؟", "profit", "simple", intents={F}, periods=OCT),
+    j("احنا كسبانين هالشهر؟", "profit", "colloquial", intents={F}, periods=MTD),
+    j("الربح بشهر 9 قديش؟", "profit", "simple", intents={F}, periods=SEP),
+    j("قديش بعنا عسل سدر وقديش ضل؟", "multi", "compound", intents={S, I}, products=["Sidr Honey 500g"], allowed=A_P),
+    j("المبيعات والأرباح تبع الربع التالت", "multi", "compound", intents={S, F}, periods=Q3),
+    j("سعر الزيت عنا مقارنة بالسوق", "competitors", "compound", intents={C}, allowed=A_P | {PR, MR}),
+    j("شو الوضع العام هالشهر؟", "multi", "ambiguous", intents={S}, periods=MTD, allowed={F, I, R}),
+    j("رح نحتاج نطلب تمر قبل رمضان؟", "multi", "ambiguous", intents={FC}, allowed=A_P | {I}),
+    j("شو بيحكوا الزباين عن اللبنة وقديش بعنا منها هالشهر؟", "multi", "compound", intents={R, S}, periods=MTD,
+      products=["Fresh Labneh (per kg)"], allowed=A_P),
+    j("قديش بعنا اليوم وكم طلبية؟", "multi", "compound", intents={S}, periods=TODAY),
+    j("مين عليه مصاري وقديش الربح هالشهر؟", "multi", "compound", intents={S, F}, periods=MTD),
+    j("قديش متوقع نبيع بالشهر الجاي؟", "forecast", "simple", intents={FC}),
+    j("شو بتتوقع للطلب على العسل؟", "forecast", "colloquial", intents={FC}, allowed=A_P),
+    j("بكم بنبيع المفتول؟", "pricing", "simple", intents={PR}, products=["Maftoul 500g"], allowed=A_P),
+    j("سعر مرطبان الزيتون الأسود قديش؟", "pricing", "simple", intents={PR}, products=["Black Olives Jar 650g"],
+      allowed=A_P),
+    j("في حدا بنافسنا عالقهوة؟", "competitors", "colloquial", intents={C}, allowed=A_P | {PR}),
+    j("تقييمات الزباين هالشهر", "customers", "simple", intents={R}, periods=MTD),
+    j("في شكاوي عن التغليف؟", "customers", "simple", intents={R}),
+    j("بقدر الزبون يرجع اشي مفتوح؟", "policies", "simple", intents={D}),
+    j("التوصيل للسلط قديش بياخد؟", "policies", "simple", intents={D}),
+    j("قدش بعنا الشهر الماضي", "sales", "typo", intents={S}, periods=OCT),
+    j("الارباح تبعت الشهر الي فات", "profit", "typo", intents={F}, periods=OCT),
+    j("الفريكه خلصت؟", "inventory", "typo", intents={I}, products=["Freekeh 1kg"], allowed=A_P),
+    j("سعر السماق", "pricing", "simple", intents={PR}, products=["Sumac 200g"], allowed=A_P),
+    j("الـ stock تبع العسل", "inventory", "mixed", intents={I}, allowed=A_P),
+    j("الـ sales تبع امبارح", "sales", "mixed", intents={S}, periods=YDAY),
+    j("الـ unpaid invoices كم؟", "debts", "mixed", intents={S}, allowed=DEBT),
+    j("مشكورين", "small_talk", "simple", answerable=False),
+    j("الله يعطيك العافية يا غالي", "small_talk", "simple", answerable=False),
+    j("اهلين", "small_talk", "simple", answerable=False),
+]

@@ -18,10 +18,13 @@ from pydantic import BaseModel, Field
 
 from src.ai import db
 from src.ai.billing import credits
+from src.ai.billing import logical_operations
 from src.ai.core import usage
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.rag import advisor as rag_advisor
 from src.ai.rag import conversation_store
+from src.ai.rag import request_replay
+from src.infrastructure.request_language import get_request_language
 from src.ai.rag import llm_client as rag_llm_client
 from src.ai.rag import pipeline as rag_pipeline
 from src.ai.rag import access as rag_access
@@ -72,6 +75,7 @@ ASSISTANT_SESSION_HEADER = "X-Assistant-Session-Id"
 class RagQueryBody(BaseModel):
     query_text: str = Field(..., min_length=1)
     session_id: Optional[str] = None
+    request_id: Optional[str] = Field(default=None, min_length=1, max_length=200)
 
 
 # The plan allowance running out doesn't end the chat: the question is still
@@ -152,10 +156,37 @@ def rag_query(
         if not isinstance(history, list):
             raise HTTPException(status_code=422, detail="history_json must be a JSON array.")
 
-    usage.ensure_ai_rate(ctx.tenant_id)  # fairness: one company can't drain the shared provider
+    operation = None
+    if body is not None and body.request_id:
+        digest = logical_operations.fingerprint({'user_id': str(ctx.user_id), 'question': query_text.strip(),
+            'session_id': session_id, 'top_k': top_k, 'history': history if not session_id else None,
+            'locale': get_request_language()})
+        try:
+            operation = logical_operations.claim(ctx.tenant_id, body.request_id, 'rag_question', digest,
+                                                 actor_user_id=ctx.user_id)
+        except logical_operations.OperationConflict:
+            raise HTTPException(409, detail={'code': 'idempotency_conflict'}) from None
+
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
-    reservation, answered = None, False
+    reservation, answered, prepared, provider_started, result_committed = None, False, None, False, False
     try:
+        if operation:
+            if operation['status'] in ('failed', 'unknown'):
+                raise HTTPException(409, detail={'code': 'request_' + operation['status']})
+            if operation['status'] == 'succeeded':
+                return request_replay.replay(conn, ctx.tenant_id, ctx.user_id, operation['id'])
+            prepared = request_replay.prepare(conn, ctx.tenant_id, ctx.user_id, operation['id'])
+            if prepared['completed']:
+                result = request_replay.replay(conn, ctx.tenant_id, ctx.user_id, operation['id'])
+                try:
+                    logical_operations.finish(ctx.tenant_id, operation['id'], 'succeeded')
+                except logical_operations.OperationConflict:
+                    current = logical_operations.claim(ctx.tenant_id, body.request_id, 'rag_question', digest,
+                                                       actor_user_id=ctx.user_id)
+                    if current['status'] != 'succeeded':
+                        raise
+                return result
+        usage.ensure_ai_rate(ctx.tenant_id)  # fairness: one company can't drain the shared provider
         # Plan allowance, in tokens: an estimate is reserved atomically up
         # front and committed, so concurrent questions can't overshoot it;
         # settled to the real token count after the answer, or given back
@@ -173,38 +204,61 @@ def rag_query(
             use_ai = False
         conn.commit()
         state = None
+        if prepared and prepared['user_message']:
+            session_id = prepared['session']
         if session_id:
             if not conversation_store.session_exists(conn, ctx.tenant_id, session_id):
                 raise HTTPException(status_code=404, detail="Conversation session not found.")
             # Every earlier message: the advisor sends the newest as turns and
             # recalls the rest by relevance, so nothing said is forgotten.
-            history = conversation_store.load_session_history(conn, ctx.tenant_id, session_id, limit=None)
-            state = conversation_store.load_session_state(conn, ctx.tenant_id, session_id)
+            history = conversation_store.load_session_history(conn, ctx.tenant_id, session_id, limit=None,
+                **({'exclude_message_id': prepared['user_message']} if prepared and prepared['user_message'] else {}))
+            state = (prepared['conversation_state'] if prepared and prepared['user_message'] else
+                     conversation_store.load_session_state(conn, ctx.tenant_id, session_id))
         else:
             session_id = conversation_store.create_session(conn, ctx.tenant_id, ctx.user_id, query_text)
 
-        conversation_store.append_message(conn, ctx.tenant_id, session_id, ctx.user_id, "user", query_text)
+        if not prepared or not prepared['user_message']:
+            user_message = conversation_store.append_message(conn, ctx.tenant_id, session_id, ctx.user_id, "user", query_text)
+            if operation:
+                request_replay.bind_turn(conn, ctx.tenant_id, ctx.user_id, operation['id'], prepared['lease'],
+                                         session_id, user_message, state)
         # Keep the customer's question and its conversation identity even if
         # the external model is unavailable. The client can reopen this same
         # session and retry instead of seeing an error that claims the turn
         # was kept while the rollback silently discarded it.
         conn.commit()
+        if operation:
+            request_replay.begin_provider(conn, ctx.tenant_id, ctx.user_id, operation['id'], prepared['lease'])
+            provider_started = True
         # Every AI call this answer makes is paid from the company's AI Credits.
         ask = lambda use_ai: rag_advisor.answer(conn, ctx.tenant_id, query_text, top_k=top_k,  # noqa: E731
                                                 history=history, user_id=ctx.user_id, state=state, use_ai=use_ai)
         try:
             with credits.metering(ctx.tenant_id, "assistant_question", usage_class="simple_question",
-                                  actor_user_id=ctx.user_id):
+                                  actor_user_id=ctx.user_id, logical_operation_ref=operation['id'] if operation else None):
                 result = ask(use_ai)
         except credits.BudgetError as err:
             if err.reason not in _AI_CREDITS_USED:
                 raise
-            result = ask(False)
-        conversation_store.append_message(
+            if operation:
+                with credits.metering(ctx.tenant_id, "assistant_question", usage_class="simple_question",
+                                      actor_user_id=ctx.user_id, logical_operation_ref=operation['id']):
+                    result = ask(False)
+            else:
+                result = ask(False)
+        assistant_message = conversation_store.append_message(
             conn, ctx.tenant_id, session_id, ctx.user_id, "assistant", result["answer"], sources=result.get("sources"),
-            answer_payload={key: result.get(key) for key in _STORED_ANSWER_FIELDS},
+            answer_payload=({key: value for key, value in result.items() if key not in ('answer', 'sources', 'state')}
+                            if operation else {key: result.get(key) for key in _STORED_ANSWER_FIELDS}),
         )
-        conversation_store.save_session_state(conn, ctx.tenant_id, session_id, result.pop("state", None) or {})
+        if operation:
+            request_replay.complete(conn, ctx.tenant_id, ctx.user_id, operation['id'], prepared['lease'], assistant_message)
+        if prepared and prepared['user_message']:
+            conversation_store.save_session_state(conn, ctx.tenant_id, session_id, result.pop("state", None) or {},
+                after_message_id=prepared['user_message'], current_assistant_id=assistant_message)
+        else:
+            conversation_store.save_session_state(conn, ctx.tenant_id, session_id, result.pop("state", None) or {})
         # An evidence-mode reply, and a conversational one (a greeting, thanks,
         # an off-topic note), used no AI capacity, so it doesn't count against
         # the plan's allowance (released in `finally`).
@@ -217,11 +271,17 @@ def rag_query(
         # If settlement fails, the retained answer is rolled back as well.
         try:
             conn.commit()
+            result_committed = True
         except Exception:
             if reservation is not None:
                 reservation["amount"] = reserved_amount
             raise
         answered = chargeable_answer
+        if operation:
+            try:
+                logical_operations.finish(ctx.tenant_id, operation['id'], 'succeeded')
+            except Exception:  # result is durable; retry can complete this status transition
+                logger.exception('RAG result saved but operation status needs recovery')
         return {**result, "session_id": session_id}
     except (HTTPException, usage.PlanLimitReached, credits.BudgetError):
         conn.rollback()
@@ -278,7 +338,31 @@ def rag_query(
     finally:
         if reservation is not None and not answered:
             _give_back(conn, reservation)
+        if operation and prepared and not prepared['completed'] and not provider_started:
+            try:
+                if request_replay.fail_preparing(conn, ctx.tenant_id, ctx.user_id, operation['id'], prepared['lease']):
+                    logical_operations.finish(ctx.tenant_id, operation['id'], 'failed')
+            except Exception:
+                logger.exception('RAG operation preparation requires recovery')
         conn.close()
+        if operation and provider_started and not result_committed:
+            try:
+                # A failed commit acknowledgement does not prove rollback. Check
+                # the durable message association before declaring uncertainty.
+                check = db.app_role_connection(ctx.tenant_id, ctx.user_id)
+                try:
+                    try:
+                        request_replay.replay(check, ctx.tenant_id, ctx.user_id, operation['id'])
+                        final_status = 'succeeded'
+                    except HTTPException as err:
+                        if err.detail != {'code': 'request_result_missing'}:
+                            raise
+                        final_status = 'unknown'
+                finally:
+                    check.close()
+                logical_operations.finish(ctx.tenant_id, operation['id'], final_status)
+            except Exception:
+                logger.exception('RAG operation requires manual recovery')
 
 
 def _give_back(conn, reservation) -> None:

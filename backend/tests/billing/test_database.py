@@ -16,6 +16,7 @@ from src.ai.billing import service, store, stripe_api, webhooks
 from src.ai.core.security import create_access_token
 
 from .test_contract import signed
+from src.ai.billing.stripe_webhooks import StripeWebhookDecoder
 
 
 def test_reconciled_tenant_security_tables_keep_force_rls(owner_db):
@@ -152,6 +153,7 @@ def test_signed_checkout_persists_once_and_replayed_events_do_not_duplicate(
     monkeypatch.setattr(stripe_api, "retrieve_subscription", lambda sid: live)
     event_id = "evt_test_" + uuid.uuid4().hex
     obj = {
+        "id": "cs_test_" + uuid.uuid4().hex,
         "mode": "subscription",
         "subscription": live["id"],
         "customer": live["customer"],
@@ -426,6 +428,8 @@ def test_concurrent_delivery_claims_one_execution(owner_db, tenant, monkeypatch)
         "data": {"object": {"id": "sub_test_race"}},
         "livemode": False,
     }
+    payload = json.dumps(event).encode()
+    event = StripeWebhookDecoder("whsec_offline").decode(payload, signed(payload, "whsec_offline"))
     calls = []
     results = []
     errors = []

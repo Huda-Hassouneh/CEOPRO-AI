@@ -20,6 +20,7 @@ DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="AI_TEST_DATABASE_URL not set - skipping live-DB integration test")
 
 from src.ai.billing import admin, cost_model, credits  # noqa: E402
+from src.ai.billing import logical_operations  # noqa: E402
 from src.ai.core import usage  # noqa: E402
 
 
@@ -234,6 +235,255 @@ def test_a_replayed_operation_is_neither_charged_nor_run_twice(sys_conn):
     assert len(_ledger(sys_conn, tenant)) == 1
 
 
+def test_logical_operation_identity_is_tenant_scoped_and_immutable(sys_conn):
+    a, b = _company(sys_conn), _company(sys_conn)
+    digest = logical_operations.fingerprint({'query': 'same', 'options': [1, 2]})
+    assert digest == logical_operations.fingerprint({'options': [1, 2], 'query': 'same'})
+    first = logical_operations.claim(a, 'request-1', 'test', digest)
+    retry = logical_operations.claim(a, 'request-1', 'test', digest)
+    other = logical_operations.claim(b, 'request-1', 'test', digest)
+    assert first['created'] and not retry['created'] and first['id'] == retry['id']
+    assert other['created'] and other['id'] != first['id']
+    with pytest.raises(logical_operations.OperationConflict):
+        logical_operations.claim(a, 'request-1', 'test', logical_operations.fingerprint({'query': 'changed'}))
+    with pytest.raises(logical_operations.OperationConflict):
+        logical_operations.claim(a, 'request-1', 'other-kind', digest)
+    assert logical_operations.claim(a, 'request-2', 'test', digest)['created']
+    logical_operations.finish(a, first['id'], 'unknown')
+    unknown = logical_operations.claim(a, 'request-1', 'test', digest)
+    assert unknown == {'id': first['id'], 'status': 'unknown', 'created': False}
+    with pytest.raises(logical_operations.OperationConflict):
+        logical_operations.finish(a, first['id'], 'succeeded')
+
+
+def test_logical_operation_concurrent_claims_share_one_record(sys_conn):
+    from concurrent.futures import ThreadPoolExecutor
+
+    tenant = _company(sys_conn)
+    digest = logical_operations.fingerprint({'query': 'same'})
+    barrier = threading.Barrier(2)
+
+    def claim():
+        barrier.wait(timeout=10)
+        return logical_operations.claim(tenant, 'parallel', 'test', digest)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: claim(), range(2)))
+    assert len({result['id'] for result in results}) == 1
+    assert sum(result['created'] for result in results) == 1
+
+
+def test_logical_operation_links_distinct_provider_calls_and_legacy_rows(sys_conn):
+    tenant = _company(sys_conn)
+    provider = _provider(sys_conn)
+    op = logical_operations.claim(tenant, 'multi-call', 'test', logical_operations.fingerprint({'x': 1}))
+    with credits.metering(tenant, 'test', logical_operation_ref=op['id']):
+        for _ in range(2):
+            with credits.provider_call('data', provider, 'op', {'request': 1}) as call:
+                call.measured({'request': 1})
+    with credits.metering(tenant, 'test'):
+        with credits.provider_call('data', provider, 'op', {'request': 1}) as call:
+            call.measured({'request': 1})
+    sys_conn.rollback()
+    with sys_conn.cursor() as cursor:
+        cursor.execute('SELECT logical_operation_ref, status FROM usage_ledger WHERE tenant_id=%s', (tenant,))
+        rows = cursor.fetchall()
+    assert sum(str(ref) == op['id'] and status == 'consumed' for ref, status in rows) == 2
+    assert sum(ref is None and status == 'consumed' for ref, status in rows) == 1
+
+
+def test_logical_operation_restricted_role_cannot_cross_tenants(sys_conn):
+    tenant_a, tenant_b = _company(sys_conn), _company(sys_conn)
+    op = logical_operations.claim(tenant_b, 'private', 'test', logical_operations.fingerprint({'x': 1}))
+    with sys_conn.cursor() as cursor:
+        cursor.execute('SET ROLE ceopro_credit_accounting')
+        cursor.execute("SELECT set_config('app.current_tenant_id', %s, false)", (tenant_a,))
+        cursor.execute('SELECT count(*) FROM billing_logical_operations WHERE id=%s', (op['id'],))
+        assert cursor.fetchone()[0] == 0
+        cursor.execute('UPDATE billing_logical_operations SET status=%s WHERE id=%s', ('succeeded', op['id']))
+        assert cursor.rowcount == 0
+    sys_conn.rollback()
+    with sys_conn.cursor() as cursor:
+        cursor.execute('RESET ROLE')
+
+
+def test_logical_operation_cannot_link_another_tenants_ledger(sys_conn):
+    tenant_a, tenant_b = _company(sys_conn), _company(sys_conn)
+    provider = _provider(sys_conn)
+    op = logical_operations.claim(tenant_b, 'private', 'test', logical_operations.fingerprint({'x': 1}))
+    with credits.metering(tenant_a, 'test', logical_operation_ref=op['id']):
+        with pytest.raises(credits.BudgetError) as error:
+            credits.reserve('data', provider, 'op', {'request': 1})
+    assert error.value.reason == 'ACCOUNTING_UNAVAILABLE'
+    assert _ledger(sys_conn, tenant_a) == []
+
+
+def test_logical_operation_fingerprint_is_database_immutable(sys_conn):
+    tenant = _company(sys_conn)
+    op = logical_operations.claim(tenant, 'immutable', 'test', logical_operations.fingerprint({'x': 1}))
+    with pytest.raises(psycopg2.Error):
+        with sys_conn.cursor() as cursor:
+            cursor.execute('UPDATE billing_logical_operations SET input_fingerprint=%s WHERE id=%s',
+                           ('0' * 64, op['id']))
+    sys_conn.rollback()
+
+
+def test_rag_request_replay_and_concurrent_duplicate(sys_conn, monkeypatch):
+    from types import SimpleNamespace
+    from concurrent.futures import ThreadPoolExecutor
+    from src.ai.routers import rag
+    from fastapi import HTTPException
+
+    tenant = _company(sys_conn)
+    user = str(uuid.uuid4())
+    with sys_conn.cursor() as cur:
+        cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES (%s,%s,'test')", (user, user + '@example.test'))
+        cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES (%s,%s,'owner')", (tenant, user))
+    sys_conn.commit()
+    ctx = SimpleNamespace(tenant_id=tenant, user_id=user)
+    ai_provider = _ai_provider(sys_conn)
+    data_provider = _provider(sys_conn)
+    monkeypatch.setattr(rag.usage, 'ensure_ai_rate', lambda *_: None)
+    monkeypatch.setattr(rag.usage, 'remaining', lambda *_: 10)
+    monkeypatch.setattr(rag.usage, 'reserve', lambda *a: {'amount': 1, 'tenant_id': tenant})
+    monkeypatch.setattr(rag.usage, 'settle', lambda *a: None)
+    monkeypatch.setattr(rag.usage, 'release', lambda *a: None)
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def answer(*args, **kwargs):
+        calls.append(credits.current().logical_operation_ref)
+        entered.set()
+        assert release.wait(10)
+        with credits.provider_call('ai', ai_provider, 'op', {'input_token': 2}) as call:
+            call.measured({'input_token': 2})
+        with credits.provider_call('data', data_provider, 'op', {'request': 1}) as call:
+            call.measured({'request': 1})
+        return {'answer': 'saved answer', 'sources': [], 'answer_mode': 'ai',
+                'token_usage': {'total_tokens': 1}, 'citation_check': {}, 'state': {}}
+
+    monkeypatch.setattr(rag.rag_advisor, 'answer', answer)
+    def ask(request_id, question='same'):
+        return rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None,
+                             body=rag.RagQueryBody(query_text=question, request_id=request_id), ctx=ctx)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(ask, 'same-id')
+        assert entered.wait(10)
+        with pytest.raises(HTTPException) as duplicate:
+            ask('same-id')
+        assert duplicate.value.status_code == 409
+        release.set()
+        result = first.result(timeout=10)
+    assert ask('same-id') == result
+    assert len(calls) == 1 and calls[0]
+    assert len(_ledger(sys_conn, tenant)) == 2
+    with pytest.raises(HTTPException) as conflict:
+        ask('same-id', 'different')
+    assert conflict.value.status_code == 409
+    assert ask('new-id')['answer'] == 'saved answer'
+    assert len(calls) == 2
+    assert len(_ledger(sys_conn, tenant)) == 4
+    original_finish = logical_operations.finish
+    def lost_status(*args, **kwargs):
+        raise RuntimeError('simulated interruption after result commit')
+    monkeypatch.setattr(logical_operations, 'finish', lost_status)
+    saved = ask('lost-response')
+    monkeypatch.setattr(logical_operations, 'finish', original_finish)
+    assert ask('lost-response') == saved
+    assert len(calls) == 3 and len(_ledger(sys_conn, tenant)) == 6
+    other_user = str(uuid.uuid4())
+    with sys_conn.cursor() as cur:
+        cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES (%s,%s,'test')", (other_user, other_user + '@example.test'))
+        cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES (%s,%s,'owner')", (tenant, other_user))
+    sys_conn.commit()
+    with pytest.raises(HTTPException) as forbidden_replay:
+        rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None,
+            body=rag.RagQueryBody(query_text='same', request_id='same-id'),
+            ctx=SimpleNamespace(tenant_id=tenant, user_id=other_user))
+    assert forbidden_replay.value.status_code == 409
+    invalid = rag.RagQueryBody(query_text='same', session_id=str(uuid.uuid4()), request_id='before-provider')
+    with pytest.raises(HTTPException) as absent:
+        rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None, body=invalid, ctx=ctx)
+    assert absent.value.status_code == 404
+    with pytest.raises(HTTPException) as failed:
+        rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None, body=invalid, ctx=ctx)
+    assert failed.value.detail == {'code': 'request_failed'}
+    def unknown(*args, **kwargs):
+        raise RuntimeError('simulated provider outcome unknown')
+    monkeypatch.setattr(rag.rag_advisor, 'answer', unknown)
+    with pytest.raises(HTTPException):
+        ask('unknown')
+    with pytest.raises(HTTPException) as retry_unknown:
+        ask('unknown')
+    assert retry_unknown.value.detail == {'code': 'request_unknown'}
+    assert len(calls) == 3 and len(_ledger(sys_conn, tenant)) == 6
+    sys_conn.rollback()
+    with sys_conn.cursor() as cur:
+        cur.execute('SELECT role,count(*) FROM conversation_messages WHERE tenant_id=%s GROUP BY role', (tenant,))
+        assert dict(cur.fetchall()) == {'user': 4, 'assistant': 3}
+        cur.execute('SELECT count(*) FROM usage_ledger WHERE tenant_id=%s AND logical_operation_ref IS NOT NULL', (tenant,))
+        assert cur.fetchone()[0] == 6
+        cur.execute('DELETE FROM rag_logical_requests WHERE tenant_id=%s AND operation_ref=%s', (tenant, calls[0]))
+    sys_conn.commit()
+    with pytest.raises(HTTPException) as missing:
+        ask('same-id')
+    assert missing.value.detail == {'code': 'request_result_missing'}
+    assert len(calls) == 3 and len(_ledger(sys_conn, tenant)) == 6
+
+
+def test_rag_preprovider_crash_recovers_same_turn(sys_conn, monkeypatch):
+    from types import SimpleNamespace
+    from src.ai import db
+    from src.ai.routers import rag
+    from src.infrastructure.request_language import get_request_language
+
+    tenant, user = _company(sys_conn), str(uuid.uuid4())
+    with sys_conn.cursor() as cur:
+        cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES (%s,%s,'test')", (user, user + '@example.test'))
+        cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES (%s,%s,'owner')", (tenant, user))
+    sys_conn.commit()
+    ctx = SimpleNamespace(tenant_id=tenant, user_id=user)
+    digest = logical_operations.fingerprint({'user_id': user, 'question': 'same', 'session_id': None,
+        'top_k': 5, 'history': None, 'locale': get_request_language()})
+    op = logical_operations.claim(tenant, 'crash', 'rag_question', digest, actor_user_id=user)
+    conn = db.app_role_connection(tenant, user)
+    try:
+        prep = rag.request_replay.prepare(conn, tenant, user, op['id'])
+        session = rag.conversation_store.create_session(conn, tenant, user, 'same')
+        message = rag.conversation_store.append_message(conn, tenant, session, user, 'user', 'same')
+        rag.request_replay.bind_turn(conn, tenant, user, op['id'], prep['lease'], session, message, {'topic': 'original'})
+        rag.conversation_store.append_message(conn, tenant, session, user, 'user', 'later turn')
+        rag.conversation_store.save_session_state(conn, tenant, session, {'topic': 'changed'})
+        conn.commit()
+    finally:
+        conn.close()
+    with sys_conn.cursor() as cur:
+        cur.execute("UPDATE rag_logical_requests SET lease_expires_at=now()-interval '1 second' WHERE operation_ref=%s", (op['id'],))
+    sys_conn.commit()
+    monkeypatch.setattr(rag.usage, 'ensure_ai_rate', lambda *_: None)
+    monkeypatch.setattr(rag.usage, 'remaining', lambda *_: 10)
+    monkeypatch.setattr(rag.usage, 'reserve', lambda *a: {'amount': 1, 'tenant_id': tenant})
+    monkeypatch.setattr(rag.usage, 'settle', lambda *a: None)
+    def recover(*args, **kwargs):
+        assert kwargs['state'] == {'topic': 'original'}
+        assert kwargs['history'] == []
+        return {'answer': 'recovered', 'sources': [], 'answer_mode': 'ai', 'token_usage': {'total_tokens': 1}, 'state': {}}
+    monkeypatch.setattr(rag.rag_advisor, 'answer', recover)
+    result = rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None,
+                           body=rag.RagQueryBody(query_text='same', request_id='crash'), ctx=ctx)
+    assert result['session_id'] == session
+    assert rag.rag_query(query_text=None, top_k=5, history_json=None, session_id=None,
+                         body=rag.RagQueryBody(query_text='same', request_id='crash'), ctx=ctx) == result
+    sys_conn.rollback()
+    with sys_conn.cursor() as cur:
+        cur.execute('SELECT role,count(*) FROM conversation_messages WHERE tenant_id=%s GROUP BY role', (tenant,))
+        assert dict(cur.fetchall()) == {'user': 2, 'assistant': 1}
+        cur.execute("SELECT count(*) FROM conversation_messages WHERE tenant_id=%s AND content='same'", (tenant,))
+        assert cur.fetchone()[0] == 1
+        cur.execute('SELECT state FROM conversation_sessions WHERE session_id=%s', (session,))
+        assert cur.fetchone()[0] == {'topic': 'changed'}
+
+
 def test_settling_twice_never_double_counts(sys_conn):
     tenant = _company(sys_conn, "starter")
     provider = _provider(sys_conn, usd="0.10")
@@ -243,6 +493,201 @@ def test_settling_twice_never_double_counts(sys_conn):
     reservation.settled = False                      # e.g. a retried settlement message
     assert credits.settle(reservation, {"request": 1}) == 0
     assert _balance(sys_conn, tenant) == (Decimal("0"), Decimal("10"))
+
+
+def test_rag_paid_search_cache_and_concurrent_singleflight(sys_conn, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from src.ai.research import research, search_cache
+    from src.market_scraper import search_quota, web_search
+
+    tenant, other = _company(sys_conn), _company(sys_conn)
+    provider = _provider(sys_conn)
+    monkeypatch.setattr(search_cache, 'TTL_SECONDS', 1)
+    monkeypatch.setattr(web_search, 'is_configured', lambda: True)
+    monkeypatch.setattr(web_search, 'configured_providers', lambda: ['tavily'])
+    monkeypatch.setattr(research, '_tenant_budget_ok', lambda tenant_id: True)
+    quota = []
+    monkeypatch.setattr(search_quota, 'try_reserve_query', lambda conn, limit: quota.append(1) or True)
+    entered, release, second_miss = threading.Event(), threading.Event(), threading.Event()
+    calls = []
+    original_read = search_cache._read
+    def record_miss(client, key):
+        value = original_read(client, key)
+        if entered.is_set() and value is None:
+            second_miss.set()
+        return value
+    monkeypatch.setattr(search_cache, '_read', record_miss)
+    def provider_search(query, limit, country=None, fetch=None):
+        calls.append((query, country))
+        entered.set()
+        assert release.wait(10)
+        with credits.provider_call('data', provider, 'op', {'request': 1}) as call:
+            call.measured({'request': 1})
+        return 'tavily', [web_search.Result('https://example.test/', 'title', 'snippet')]
+    monkeypatch.setattr(web_search, 'search', provider_search)
+    def ask(tenant_id, query='same query', country='JO'):
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with credits.metering(tenant_id, 'assistant_question'):
+                return research._search(conn, tenant_id, query, country, None)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(ask, tenant)
+        assert entered.wait(10)
+        second = pool.submit(ask, tenant)
+        assert second_miss.wait(10)
+        release.set()
+        assert first.result(timeout=15) == second.result(timeout=15)
+    assert len(calls) == len(quota) == 1
+    assert len(_ledger(sys_conn, tenant)) == 1
+    assert ask(tenant) == [{'url': 'https://example.test/', 'title': 'title', 'snippet': 'snippet'}]
+    assert len(calls) == len(quota) == 1 and len(_ledger(sys_conn, tenant)) == 1
+    ask(other)
+    ask(tenant, query='different')
+    ask(tenant, country='US')
+    assert len(calls) == len(quota) == 4
+    from src.ai.core.env_secret import secret
+    config = [('tavily', [secret(setting) for setting in web_search.PROVIDERS['tavily'][0]])]
+    key = search_cache.cache_key(tenant, 'same query', 'JO', research.MAX_RESULTS_PER_QUERY, config)
+    import time
+    time.sleep(1.1)
+    ask(tenant)
+    assert len(calls) == len(quota) == 5
+    assert len(_ledger(sys_conn, tenant)) == 4
+
+
+def test_rag_search_failure_does_not_cache(sys_conn, monkeypatch):
+    from src.ai.research import search_cache
+    from src.ai.core.redis_client import get_shared_redis_client
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'failure', None, 6, ['tavily'])
+    attempts = []
+    def fail_before_provider():
+        attempts.append(1)
+        raise ValueError('provider failed')
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            search_cache.run(sys_conn, tenant, key, fail_before_provider, lambda: ('tavily', []))
+    assert len(attempts) == 2
+    assert get_shared_redis_client(socket_connect_timeout=0.5, socket_timeout=1).get(key) is None
+
+
+def test_rag_search_does_not_duplicate_paid_execution_after_lease_loss(sys_conn, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from src.ai.research import search_cache
+    from src.ai.core.redis_client import get_shared_redis_client
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'lease loss', None, 6, ['tavily'])
+    entered, release, pending = threading.Event(), threading.Event(), threading.Event()
+    calls = []
+    original_claim = search_cache._claim
+    def observe_claim(*args):
+        result = original_claim(*args)
+        if result[0] == 'pending':
+            pending.set()
+        return result
+    monkeypatch.setattr(search_cache, '_claim', observe_claim)
+    def first_provider():
+        calls.append('first')
+        entered.set()
+        assert release.wait(10)
+        return 'tavily', []
+    def second_provider():
+        calls.append('second')
+        return 'tavily', []
+    def run(provider):
+        with psycopg2.connect(DATABASE_URL) as conn:
+            return search_cache.run(conn, tenant, key, lambda: None, provider)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(run, first_provider)
+        assert entered.wait(10)
+        redis = get_shared_redis_client(socket_connect_timeout=0.5, socket_timeout=1)
+        redis.set(key + ':lock', 'old-lease', ex=20)
+        redis.delete(key + ':lock')
+        def redis_unavailable(*args):
+            raise ConnectionError('simulated Redis loss')
+        monkeypatch.setattr(search_cache, '_read', redis_unavailable)
+        second = pool.submit(run, second_provider)
+        assert pending.wait(10)
+        release.set()
+        assert first.result(timeout=10) == second.result(timeout=10) == []
+    assert calls == ['first']
+
+
+def test_rag_search_ambiguous_provider_outcome_never_retries(sys_conn, monkeypatch):
+    from src.ai.research import search_cache
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'ambiguous', None, 6, ['tavily'])
+    calls = []
+    def fail():
+        calls.append(1)
+        raise TimeoutError('unknown provider outcome')
+    with pytest.raises(TimeoutError):
+        search_cache.run(sys_conn, tenant, key, lambda: None, fail)
+    monkeypatch.setattr(search_cache, 'WAIT_SECONDS', 0)
+    with pytest.raises(search_cache.CacheUnavailable):
+        search_cache.run(sys_conn, tenant, key, lambda: None, fail)
+    assert calls == [1]
+
+
+def test_rag_search_result_recovers_after_redis_eviction(sys_conn, monkeypatch):
+    from src.ai.research import search_cache
+    from src.ai.core.redis_client import get_shared_redis_client
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'eviction', None, 6, ['tavily'])
+    calls, quota = [], []
+    def execute():
+        calls.append(1)
+        return 'tavily', [{'url': 'https://example.test/', 'title': 'evidence', 'snippet': ''}]
+    expected = search_cache.run(sys_conn, tenant, key, lambda: quota.append(1), execute)
+    get_shared_redis_client(socket_connect_timeout=0.5, socket_timeout=1).delete(key)
+    assert search_cache.run(sys_conn, tenant, key, lambda: quota.append(1), execute) == expected
+    assert calls == quota == [1]
+
+
+def test_rag_search_reclaims_only_expired_preparation(sys_conn, monkeypatch):
+    from src.ai.research import search_cache
+    tenant = _company(sys_conn)
+    key = search_cache.cache_key(tenant, 'reclaim', None, 6, ['tavily'])
+    fingerprint = key.rsplit(':', 1)[-1]
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
+    assert search_cache._claim(sys_conn, tenant, fingerprint, first)[0] == 'owner'
+    assert search_cache._claim(sys_conn, tenant, fingerprint, second)[0] == 'pending'
+    with sys_conn.cursor() as cur:
+        cur.execute('UPDATE rag_search_execution_receipts SET lease_expires_at=now() '
+                    'WHERE tenant_id=%s AND cache_fingerprint=%s', (tenant, fingerprint))
+    sys_conn.commit()
+    assert search_cache._claim(sys_conn, tenant, fingerprint, second)[0] == 'owner'
+    with sys_conn.cursor() as cur:
+        cur.execute("UPDATE rag_search_execution_receipts SET state='provider_started',lease_expires_at=NULL "
+                    'WHERE tenant_id=%s AND cache_fingerprint=%s', (tenant, fingerprint))
+    sys_conn.commit()
+    assert search_cache._claim(sys_conn, tenant, fingerprint, first)[0] == 'pending'
+
+
+def test_rag_search_receipt_restricted_role_tenant_isolation(sys_conn):
+    from src.ai import db
+    from src.ai.research import search_cache
+    tenant, other = _company(sys_conn), _company(sys_conn)
+    actor = str(uuid.uuid4())
+    key = search_cache.cache_key(tenant, 'isolated', None, 6, ['tavily'])
+    other_key = search_cache.cache_key(other, 'isolated', None, 6, ['tavily'])
+    with sys_conn.cursor() as cur:
+        cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES (%s,%s,'test')", (actor, actor + '@example.test'))
+        cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES (%s,%s,'owner')", (tenant, actor))
+        cur.execute("INSERT INTO rag_search_execution_receipts (tenant_id,cache_fingerprint,state,owner_token,lease_expires_at) "
+                    "VALUES (%s,%s,'preparing',%s,now()+interval '1 minute')", (other, other_key.rsplit(':', 1)[-1], str(uuid.uuid4())))
+    sys_conn.commit()
+    conn = db.app_role_connection(tenant, actor)
+    try:
+        assert search_cache._claim(conn, tenant, key.rsplit(':', 1)[-1], str(uuid.uuid4()))[0] == 'owner'
+        with conn.cursor() as cur:
+            cur.execute('SELECT count(*) FROM rag_search_execution_receipts WHERE tenant_id=%s', (other,))
+            assert cur.fetchone()[0] == 0
+            with pytest.raises(psycopg2.Error):
+                cur.execute("INSERT INTO rag_search_execution_receipts (tenant_id,cache_fingerprint,state,owner_token,lease_expires_at) "
+                            "VALUES (%s,%s,'preparing',%s,now()+interval '1 minute')", (other, key.rsplit(':', 1)[-1], str(uuid.uuid4())))
+        conn.rollback()
+    finally:
+        conn.close()
 
 
 # --- provider failures -------------------------------------------------------------
