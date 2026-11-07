@@ -231,7 +231,8 @@ export default function MarketingStudioPage() {
       try {
         const extra = [
           audienceText && `Audience: ${audienceText}.`,
-          occasion && `Occasion: ${t(`marketingApex.occasions.${occasion.key}`)}.`,
+          // An occasion picked earlier only counts while the goal is seasonal.
+          goal === 'seasonal' && occasion && `Occasion: ${t(`marketingApex.occasions.${occasion.key}`)}.`,
           notes.trim(),
         ].filter(Boolean).join('\n');
         const campaign = await createCampaign.mutateAsync({
@@ -241,7 +242,7 @@ export default function MarketingStudioPage() {
           strategyType: GOALS[goal].strategy,
           focus: GOALS[goal].focus,
           tone: TONES[toneKey] || undefined,
-          creativeTheme: theme || occasion?.theme || GOALS[goal].theme || undefined,
+          creativeTheme: theme || (goal === 'seasonal' ? occasion?.theme : undefined) || GOALS[goal].theme || undefined,
           customCreativePrompt: extra || undefined,
           variantsPerPlatform: 1,
           platforms: [PLACES[place].platform],
