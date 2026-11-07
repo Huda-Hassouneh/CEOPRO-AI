@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { useAuthStore } from '../../auth/store/authStore.js';
@@ -17,6 +17,12 @@ import '../../data-ingestion/styles/DataIngestion.css';
 import '../styles/RagAssistant.css';
 
 const createMessageId = () => globalThis.crypto?.randomUUID?.() || `message-${Date.now()}`;
+const createRequestId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+};
 
 // Per-viewer convenience only (which conversation to resume) - the real
 // security/durability boundary is the server (conversation_sessions,
@@ -45,6 +51,10 @@ function writeStoredSessionId(companyId, sessionId) {
 export function RagAssistantPage() {
   const { t, locale, dir } = useI18n();
   const companyId = useAuthStore((state) => state.tenantId);
+  const userId = useAuthStore((state) => state.user?.id);
+  const identity = JSON.stringify([companyId, userId]);
+  const activeIdentity = useRef(identity);
+  activeIdentity.current = identity;
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [restoring, setRestoring] = useState(false);
@@ -57,6 +67,7 @@ export function RagAssistantPage() {
   const [files, setFiles] = useState([]);
   const [notice, setNotice] = useState(null);
   const [requestError, setRequestError] = useState(false);
+  const [retrySubmission, setRetrySubmission] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
@@ -124,6 +135,7 @@ export function RagAssistantPage() {
     setSessionId(null);
     setMessages([]);
     setRequestError(false);
+    setRetrySubmission(null);
     writeStoredSessionId(companyId, null);
     setHistoryOpen(false);
   };
@@ -144,17 +156,25 @@ export function RagAssistantPage() {
     setSessionId(targetSessionId);
     setMessages(result.messages);
     setRequestError(false);
+    setRetrySubmission(null);
     writeStoredSessionId(companyId, targetSessionId);
   };
 
-  const submitQuestion = async (content) => {
-    const createdAt = new Date().toISOString();
-    setMessages((current) => [...current, { messageId: createMessageId(), role: 'user', content, createdAt }]);
-    setQuestion('');
+  const submitQuestion = async (content, retry = null) => {
+    if (retry && retry.identity !== identity) return;
+    const submission = retry || { question: content, sessionId, requestId: createRequestId(), companyId, identity };
+    if (!retry) {
+      const createdAt = new Date().toISOString();
+      setMessages((current) => [...current, { messageId: createMessageId(), role: 'user', content, createdAt }]);
+      setQuestion('');
+      setRetrySubmission(null);
+    }
     setRequestError(false);
     try {
-      const result = await chatMutation.mutateAsync({ question: content, sessionId, companyId });
+      const result = await chatMutation.mutateAsync(submission);
+      if (submission.identity !== activeIdentity.current) return;
       if (!result?.available || !result.message) {
+        setRetrySubmission(result?.terminal ? null : submission);
         // Provider failures still return the persisted session identity so
         // the customer's original question remains in the same conversation
         // when they retry or open history.
@@ -181,12 +201,15 @@ export function RagAssistantPage() {
               : t('ragAssistant.chat.unavailable'));
         return;
       }
+      setRetrySubmission(null);
       if (result.sessionId && result.sessionId !== sessionId) {
         setSessionId(result.sessionId);
         writeStoredSessionId(companyId, result.sessionId);
       }
       setMessages((current) => [...current, result.message]);
     } catch {
+      if (submission.identity !== activeIdentity.current) return;
+      setRetrySubmission(submission);
       setRequestError(t('ragAssistant.feedback.reasons.internalError'));
     }
   };
@@ -221,7 +244,7 @@ export function RagAssistantPage() {
     <PageHeader title={t('ragAssistant.page.title')} subtitle={t('ragAssistant.page.subtitle')} />
     <div className={`rag-assistant-layout ${knowledgeOpen ? '' : 'is-chat-only'}`}>
       <div className="rag-chat-column">
-        {requestError && <div className="rag-request-error" role="alert">{typeof requestError === 'string' ? requestError : t('ragAssistant.chat.unavailable')}</div>}
+        {requestError && <div className="rag-request-error" role="alert">{typeof requestError === 'string' ? requestError : t('ragAssistant.chat.unavailable')}{retrySubmission?.identity === identity && <button type="button" onClick={() => submitQuestion(retrySubmission.question, retrySubmission)} disabled={chatMutation.isPending}>{t('ragAssistant.actions.retry')}</button>}</div>}
         <RagChatWindow messages={messages} question={question} onQuestionChange={setQuestion} onSubmit={submitQuestion} pending={chatMutation.isPending} restoring={restoring || switchingSession} t={t} locale={locale} dir={dir} formatTime={formatTime} formatSize={formatSize} knowledgeOpen={knowledgeOpen} onOpenKnowledge={() => setKnowledgeOpen(true)} sessionHistoryProps={{ open: historyOpen, onToggle: toggleHistory, sessions, isLoading: sessionsLoading, isError: sessionsError, activeSessionId: sessionId, onSelectSession: selectSession, onNewChat: startNewChat, formatRelativeTime }} />
       </div>
       {knowledgeOpen && <KnowledgeBasePanel data={documentsQuery.data} isPending={documentsQuery.isPending} isError={documentsQuery.isError} search={search} onSearch={setSearch} type={type} onType={setType} sort={sort} onSort={setSort} onUpload={() => setUploadOpen(true)} onCollapse={() => setKnowledgeOpen(false)} onRetry={() => documentsQuery.refetch()} t={t} formatDate={formatDate} formatSize={formatSize} />}

@@ -472,7 +472,25 @@ def test_no_search_key_is_reported_as_not_configured(monkeypatch):
     assert result.status == public_research.NOT_CONFIGURED and "TAVILY_API_KEY" in result.detail
 
 
-def test_a_failing_search_provider_is_reported_as_failed_not_as_no_information(monkeypatch):
+@pytest.fixture
+def uncached_research(monkeypatch):
+    """Provider classification uses an explicit cache miss, not receipt SQL.
+
+    This file's fake evidence connection cannot persist execution receipts.
+    Native credit/cache integration tests exercise the durable coordinator.
+    Preserve admission ordering here: preflight must succeed before execution.
+    """
+    from src.ai.research import search_cache
+
+    def miss(conn, tenant, key, preflight, execute):
+        preflight()
+        _provider, results = execute()
+        return results
+
+    monkeypatch.setattr(search_cache, "run", miss)
+
+
+def test_a_failing_search_provider_is_reported_as_failed_not_as_no_information(monkeypatch, uncached_research):
     from src.market_scraper import search_quota, web_search
     monkeypatch.setattr(web_search, "is_configured", lambda *a, **k: True)
     monkeypatch.setattr(search_quota, "try_reserve_query", lambda *a, **k: True)
@@ -485,12 +503,25 @@ def test_a_failing_search_provider_is_reported_as_failed_not_as_no_information(m
     assert result.status == public_research.SEARCH_FAILED and "432" in result.detail
 
 
-def test_an_exhausted_search_budget_is_reported_as_such(monkeypatch):
+def test_an_exhausted_search_budget_is_reported_as_such(monkeypatch, uncached_research):
     from src.market_scraper import search_quota, web_search
     monkeypatch.setattr(web_search, "is_configured", lambda *a, **k: True)
     monkeypatch.setattr(search_quota, "try_reserve_query", lambda *a, **k: False)
     monkeypatch.setattr(public_research, "_tenant_budget_ok", lambda tenant_id: True)
     assert _research_directly().status == public_research.BUDGET_EXHAUSTED
+
+
+def test_unavailable_search_coordination_is_not_reported_as_no_information(monkeypatch):
+    from src.ai.research import search_cache
+    from src.market_scraper import web_search
+
+    monkeypatch.setattr(web_search, "is_configured", lambda *a, **k: True)
+    def unavailable(*args):
+        raise search_cache.CacheUnavailable("offline coordination fixture")
+    monkeypatch.setattr(search_cache, "run", unavailable)
+    result = _research_directly()
+    assert result.status == public_research.SEARCH_FAILED
+    assert result.detail == "search coordination unavailable"
 
 
 def test_a_search_that_finds_nothing_is_no_results_never_an_invented_answer(monkeypatch):

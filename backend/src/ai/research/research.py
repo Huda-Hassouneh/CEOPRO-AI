@@ -29,6 +29,7 @@ import json
 import logging
 import os
 import re
+import httpx
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List, Optional
@@ -213,20 +214,64 @@ def _tenant_budget_ok(tenant_id: str) -> bool:
 
 def _search(conn, tenant_id: str, query: str, country: Optional[str], search_fn) -> List[dict]:
     from src.market_scraper import search_quota, web_search
+    from src.ai.research import search_cache
 
     if search_fn is None:
         if not web_search.is_configured():
             raise _Stop(NOT_CONFIGURED, web_search.missing_configuration())
-        # Tenant allowance first, then an atomic reserve of the shared daily budget (no check-then-record race).
-        if not _tenant_budget_ok(tenant_id) or not search_quota.try_reserve_query(conn, DAILY_SEARCH_LIMIT):
-            raise _Stop(BUDGET_EXHAUSTED)
-        conn.commit()
+        # Include provider configuration in the digest without storing secrets.
+        from src.ai.core.env_secret import secret
+        providers = web_search.configured_providers()
+        config = [(name, [secret(setting) for setting in web_search.PROVIDERS[name][0]]) for name in providers]
+        key = search_cache.cache_key(tenant_id, query, country, MAX_RESULTS_PER_QUERY, config)
+
+        def preflight():
+            # Hits and waiting callers do not consume the provider quotas.
+            if not _tenant_budget_ok(tenant_id) or not search_quota.try_reserve_query(conn, DAILY_SEARCH_LIMIT):
+                raise _Stop(BUDGET_EXHAUSTED)
+            conn.commit()
+
+        def execute():
+            def checked_fetch(method, url, **kwargs):
+                name = ('google_cse' if url == web_search.GOOGLE_CSE_URL else
+                        'brave' if url == web_search.BRAVE_URL else
+                        'tavily' if url == web_search.TAVILY_URL else 'searxng')
+                try:
+                    payload = web_search._default_fetch(method, url, **kwargs)
+                except (httpx.HTTPError, ValueError, KeyError) as exc:
+                    # Once any provider request may have started, do not let
+                    # web_search silently fall back to a second paid provider.
+                    raise _Stop(SEARCH_FAILED, web_search._failure(name, exc)) from exc
+                if not isinstance(payload, dict) or 'error' in payload:
+                    raise _Stop(SEARCH_FAILED, f'{name}: unusable answer')
+                if url == web_search.GOOGLE_CSE_URL:
+                    valid = isinstance(payload.get('items'), list) or isinstance(payload.get('searchInformation'), dict)
+                    rows, url_key, snippet_key = payload.get('items', []), 'link', 'snippet'
+                elif url == web_search.BRAVE_URL:
+                    web = payload.get('web')
+                    valid = isinstance(web, dict) and isinstance(web.get('results'), list)
+                    rows, url_key, snippet_key = web.get('results', []) if isinstance(web, dict) else [], 'url', 'description'
+                else:
+                    valid = isinstance(payload.get('results'), list)
+                    rows, url_key, snippet_key = payload.get('results', []), 'url', 'content'
+                valid = valid and isinstance(rows, list) and all(
+                    isinstance(row, dict) and isinstance(row.get(url_key), str) and row[url_key]
+                    and (row.get('title') is None or isinstance(row['title'], str))
+                    and (row.get(snippet_key) is None or isinstance(row[snippet_key], str)) for row in rows)
+                if not valid:
+                    raise _Stop(SEARCH_FAILED, f'{name}: unusable answer')
+                return payload
+
+            try:
+                provider, results = web_search.search(query, MAX_RESULTS_PER_QUERY, country=country, fetch=checked_fetch)
+            except web_search.SearchFailed as exc:
+                raise _Stop(SEARCH_FAILED, "every configured search provider failed: "
+                            + ("; ".join(exc.failures) or str(exc))) from exc
+            return provider, [r.as_dict() for r in results]
         try:
-            _provider, results = web_search.search(query, MAX_RESULTS_PER_QUERY, country=country)
-        except web_search.SearchFailed as exc:
-            raise _Stop(SEARCH_FAILED, "every configured search provider failed: "
-                        + ("; ".join(exc.failures) or str(exc))) from exc
-        return [r.as_dict() for r in results]
+            return search_cache.run(conn, tenant_id, key, preflight, execute)
+        except search_cache.CacheUnavailable as exc:
+            raise _Stop(SEARCH_FAILED, 'search coordination unavailable') from exc
     return search_fn(query)
 
 

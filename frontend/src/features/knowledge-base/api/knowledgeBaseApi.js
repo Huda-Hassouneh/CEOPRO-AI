@@ -94,7 +94,7 @@ export const knowledgeBaseApi = {
   // docstring). Omitting sessionId starts a brand-new persisted session
   // server-side; its id comes back in the response for the caller to
   // remember for every subsequent turn.
-  chat: async ({ question, sessionId, signal } = {}) => {
+  chat: async ({ question, sessionId, requestId, signal } = {}) => {
     if (!question?.trim()) return { available: false, message: null };
     try {
       // In the body, not the URL: a message can be any length (pasted
@@ -103,6 +103,7 @@ export const knowledgeBaseApi = {
       const response = await httpClient.post('/rag/query', {
         query_text: question,
         session_id: sessionId || undefined,
+        request_id: requestId || undefined,
       }, { signal });
       return {
         available: true,
@@ -131,6 +132,12 @@ export const knowledgeBaseApi = {
       // 503 handling below: "AI pricing isn't set up" or "credits used up"
       // must never read as "busy, try again in 30 seconds".
       const detail = error?.response?.data?.detail;
+      if (detail?.code === 'request_in_progress' || detail?.code === 'request_pending_or_unknown') {
+        return { available: false, busy: true, retryAfterSeconds: 30, ...persistedSession, message: null };
+      }
+      if (detail?.code === 'request_failed' || detail?.code === 'request_unknown') {
+        return { available: false, reason: 'providerUnavailable', terminal: true, ...persistedSession, message: null };
+      }
       if (detail && typeof detail === 'object' && 'budget' in detail && BILLING_REASONS[detail.reason]) {
         return { available: false, reason: BILLING_REASONS[detail.reason], renewsOn: detail.period_end || null,
           ...persistedSession, message: null };

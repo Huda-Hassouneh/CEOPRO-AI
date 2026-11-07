@@ -37,6 +37,7 @@ test('knowledge base api creates a session on the first turn and reuses it on fo
         // be omitted entirely, never sent as an empty string (the backend
         // treats an omitted param as "start a new session").
         assert.equal(sessionId, null);
+        assert.equal(body.request_id, 'test-request-one');
         return res.end(JSON.stringify({
           answer: 'First answer.',
           sources: [{ source_index: 1, chunk_id: 'c1', score: 0.9 }],
@@ -68,12 +69,14 @@ test('knowledge base api creates a session on the first turn and reuses it on fo
   const capabilities = await knowledgeBaseApi.getCapabilities();
   assert.equal(capabilities.conversationHistory, true);
 
-  const first = await knowledgeBaseApi.chat({ question: 'first question' });
+  const first = await knowledgeBaseApi.chat({ question: 'first question', requestId: 'test-request-one' });
   assert.equal(first.available, true);
   assert.equal(first.sessionId, SESSION_ID);
   assert.equal(first.message.content, 'First answer.');
   assert.equal(first.message.sources[0].sourceType, 'knowledge-base');
   assert.equal(first.message.sources[0].citationId, 'c1');
+  const replay = await knowledgeBaseApi.chat({ question: 'first question', requestId: 'test-request-one' });
+  assert.equal(replay.message.content, first.message.content);
 
   // The real session id a chat page would have captured and remembered
   // after that first turn - passed straight through on the next call.
