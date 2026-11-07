@@ -424,3 +424,21 @@ def test_a_website_given_without_https_is_a_usable_address():
     assert web_address("http://x.com; https://y.com") == "http://x.com"
     assert web_address("not a site") is None and web_address(None) is None
     assert Candidate(name="Luna Rossa", source="openstreetmap", source_ref="node/1", website="tottis.jo").website == "https://tottis.jo"
+
+
+def test_merge_normalises_each_candidate_once_not_once_per_entity(monkeypatch):
+    # Profiled: re-normalising every candidate against every entity was ~30% of the API's CPU in a
+    # competitor refresh (0.9 s for 739 real Overture candidates). The rules are unchanged.
+    from src.market_scraper.market_discovery import matching
+    from src.market_scraper.market_discovery.models import Candidate
+
+    calls = []
+    real = matching.normalize_name
+    monkeypatch.setattr(matching, "normalize_name", lambda name: calls.append(name) or real(name))
+    candidates = [Candidate(name=f"Shop {i}", source="openstreetmap", source_ref=f"node/{i}",
+                            latitude=31.95 + i * 0.01, longitude=35.91) for i in range(120)]
+    candidates.append(Candidate(name="SHOP 7 ", source="overture", source_ref="o/7", latitude=31.95 + 7 * 0.01,
+                                longitude=35.91))
+    entities = matching.merge(candidates)
+    assert len(entities) == 120 and any(len(e.candidates) == 2 for e in entities)
+    assert len(calls) < 10 * len(candidates), f"{len(calls)} normalisations for {len(candidates)} candidates"

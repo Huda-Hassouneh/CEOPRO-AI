@@ -142,15 +142,23 @@ class Entity:
         return [c.industry_key for c in self.candidates if c.industry_key]
 
 
-def _same(entity: Entity, candidate: Candidate) -> bool:
-    if domain_key(candidate.website) and domain_key(candidate.website) in entity.domain_keys:
-        return True
-    if candidate.raw.get("social") and domain_key(candidate.source_url) in entity.domain_keys:
-        return True
-    if phone_key(candidate.phone) and phone_key(candidate.phone) in entity.phone_keys:
-        return True
+def _candidate_keys(candidate: Candidate):
+    """What _same() compares, worked out once per candidate rather than once per entity it is
+    compared with (merge() compares each candidate with every entity so far)."""
     names = {normalize_name(candidate.name)} | ({normalize_name(candidate.name_ar)} if candidate.name_ar else set())
     names.discard("")
+    social = domain_key(candidate.source_url) if candidate.raw.get("social") else None
+    return domain_key(candidate.website), social, phone_key(candidate.phone), names
+
+
+def _same(entity: Entity, candidate: Candidate, keys=None) -> bool:
+    domain, social, phone, names = keys if keys is not None else _candidate_keys(candidate)
+    if domain and domain in entity.domain_keys:
+        return True
+    if candidate.raw.get("social") and social in entity.domain_keys:
+        return True
+    if phone and phone in entity.phone_keys:
+        return True
     if names & entity.name_keys:
         return True
     if candidate.latitude is None:
@@ -173,7 +181,8 @@ def merge(candidates: List[Candidate]) -> List[Entity]:
             "n:" + normalize_name(candidate.name)) if not k.endswith(":")]
         entity = next((e for e in quick if e is not None), None)
         if entity is None:
-            entity = next((e for e in entities if _same(e, candidate)), None)
+            keys = _candidate_keys(candidate)
+            entity = next((e for e in entities if _same(e, candidate, keys)), None)
         if entity is None:
             entity = Entity(name=candidate.name)
             entities.append(entity)
