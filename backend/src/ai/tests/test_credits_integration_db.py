@@ -1093,10 +1093,11 @@ def test_search_limiter_outage_does_not_disable_ai_credit_settlement(sys_conn, m
     provider = _ai_provider(sys_conn)
     def down(**kw): raise ConnectionError('fixture')
     monkeypatch.setattr(search_safety, 'get_shared_redis_client', down)
+    monkeypatch.setattr(search_safety, '_local', search_safety._LocalLimiter())
     with credits.metering(tenant, 'fixture'):
-        with pytest.raises(search_safety.SearchCapacityError):
-            provider_billing.metered_request('https://overpass-api.de/api/interpreter',
-                                            lambda: pytest.fail('Search must not send'))
+        # Free providers keep working on the in-process limiter during the outage.
+        assert provider_billing.metered_request('https://overpass-api.de/api/interpreter',
+                                                lambda: {'free': True}) == {'free': True}
         with credits.provider_call(credits.AI, provider, 'fixture_model', {'input_token': 100, 'output_token': 20}) as call:
             call.sent()
             call.measured({'input_token': 100, 'output_token': 20})

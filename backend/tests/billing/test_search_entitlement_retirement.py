@@ -178,12 +178,20 @@ def test_concurrent_requests_cannot_overshoot_budget(capacity, monkeypatch):
         assert sum(pool.map(request, range(8))) == 1
 
 
-def test_redis_outage_is_fail_closed(monkeypatch):
+def test_redis_outage_keeps_free_search_and_refuses_priced(monkeypatch):
+    # Approved policy: a Redis outage must not stop competitor discovery. Free
+    # providers continue on the in-process limiter; priced ones stay closed.
     def down(**kw): raise ConnectionError('fixture')
     monkeypatch.setattr(search_safety, 'get_shared_redis_client', down)
+    monkeypatch.setattr(search_safety, '_local', search_safety._LocalLimiter())
     monkeypatch.setattr(credits, 'ensure_access', lambda *a: None)
-    with credits.metering(str(uuid4()), 'fixture'), pytest.raises(search_safety.SearchCapacityError, match='storage unavailable'):
-        with search_safety.admission('free', 'search', free=True): pytest.fail('Must not send')
+    sent = []
+    with credits.metering(str(uuid4()), 'fixture'):
+        with search_safety.admission('free', 'search', free=True):
+            sent.append('free')
+        with pytest.raises(search_safety.SearchCapacityError, match='storage unavailable'):
+            with search_safety.admission('priced', 'search', free=False): pytest.fail('Must not send')
+    assert sent == ['free']
 
 
 def test_research_fairness_storage_failure_does_not_allow_search(monkeypatch):
@@ -194,21 +202,30 @@ def test_research_fairness_storage_failure_does_not_allow_search(monkeypatch):
     assert research._tenant_budget_ok(str(uuid4())) is False
 
 
-@pytest.mark.parametrize('url', ['https://overpass-api.de/api/interpreter', 'https://api.tavily.com/search'])
-def test_limiter_outage_never_sends_free_or_paid_requests(monkeypatch, url):
+def test_limiter_outage_sends_free_requests_but_never_paid_ones(monkeypatch):
     def down(**kw): raise ConnectionError('fixture')
     monkeypatch.setattr(search_safety, 'get_shared_redis_client', down)
+    monkeypatch.setattr(search_safety, '_local', search_safety._LocalLimiter())
     monkeypatch.setattr(credits, 'ensure_access', lambda *a: None)
-    with credits.metering(str(uuid4()), 'fixture'), pytest.raises(search_safety.SearchCapacityError):
-        provider_billing.metered_request(url, lambda: pytest.fail('No request may leave during limiter outage'))
+    with credits.metering(str(uuid4()), 'fixture'):
+        assert provider_billing.metered_request('https://overpass-api.de/api/interpreter', lambda: 'osm') == 'osm'
+        with pytest.raises(search_safety.SearchCapacityError):
+            provider_billing.metered_request('https://api.tavily.com/search',
+                                             lambda: pytest.fail('No paid request may leave during limiter outage'))
 
 
 def test_bad_limiter_storage_is_fail_closed_without_disabling_other_redis_work(capacity):
     client, provider, tid = capacity
     key = 'keel:search:safety:tenant:' + search_safety.fingerprint(tid) + ':minute'
     client.set(key, 'invalid-counter', ex=60)
+    # Unreadable limiter state: priced calls are refused; free ones degrade to
+    # the in-process limiter instead of stopping discovery.
     with credits.metering(tid, 'fixture'), pytest.raises(search_safety.SearchCapacityError):
-        with search_safety.admission(provider, 'search', free=True): pytest.fail('Must not send')
+        with search_safety.admission(provider, 'search', free=False): pytest.fail('Must not send')
+    sent = []
+    with credits.metering(tid, 'fixture'):
+        with search_safety.admission(provider, 'search', free=True): sent.append(1)
+    assert sent == [1]
     other = 'fixture:unrelated:' + uuid4().hex
     assert client.ping()
     client.set(other, 'available', ex=60)
@@ -245,10 +262,10 @@ def test_search_limiter_outage_does_not_disable_marketing_copy_or_image_generati
     monkeypatch.setattr(image_generation.httpx, 'post', lambda *a, **kw: _response(content=PNG))
     monkeypatch.setattr(image_generation, '_cooling_down', lambda *a: False)
     monkeypatch.setenv('HUGGINGFACE_API_TOKEN', 'fixture-only')
+    monkeypatch.setattr(search_safety, '_local', search_safety._LocalLimiter())
     with credits.metering(str(uuid4()), 'fixture'):
-        with pytest.raises(search_safety.SearchCapacityError):
-            provider_billing.metered_request('https://overpass-api.de/api/interpreter',
-                                            lambda: pytest.fail('Search must not send'))
+        # Free search continues in degraded mode; copy and images are unaffected.
+        assert provider_billing.metered_request('https://overpass-api.de/api/interpreter', lambda: 'osm') == 'osm'
         copy = content_generator.generate_campaign_content('A round white dial and black strap.')
         image = image_generation.generate_campaign_image('A watch on a desk', provider='huggingface')
     assert copy.variants_by_platform['INSTAGRAM']
