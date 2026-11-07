@@ -168,6 +168,34 @@ The same pattern can run `python -m src.market_scraper.connector_worker`, or uvi
 
 ## Configuration
 
+### Offline onboarding location catalog
+
+The shared country picker uses the 249 current ISO alpha-2 codes. Onboarding
+loads only the selected country's city-name snapshot; its search shows up to
+200 matching choices. Data comes from GeoNames via `geonamescache==3.0.0`
+(`cities500`, populated places over 500 people plus administrative seats), with
+duplicate names within a country collapsed because the existing profile stores
+only a city string, not a state or GeoNames identifier. This is broad coverage,
+not an exhaustive address/village database. Countries without listed cities
+show an explicit empty state. No geolocation, provider key or network lookup is
+used at runtime. Historical translated choices and saved strings remain readable.
+
+To reproduce the snapshot without installing or executing the upstream package:
+
+```powershell
+python -m pip download --no-deps --only-binary=:all: geonamescache==3.0.0 --dest .dev/location-catalog
+python tools/generate_location_catalog.py .dev/location-catalog/geonamescache-3.0.0-py3-none-any.whl
+```
+
+The generator checks the pinned wheel digest; upgrades require an explicit data
+review and digest update. Source: [GeoNames](https://www.geonames.org/), data
+licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), accessed via
+[geonamescache](https://github.com/yaph/geonamescache) (MIT).
+
+This region step continues to save ISO country codes and city slugs/strings in
+`companies.onboarding_profile`. It does not rewrite `companies.country_code`,
+the company search city, currency or timezone; company settings remain separate.
+
 Ports and per-checkout secrets live only in `.dev/config.json`. Change ports while down, then restart; URLs/CORS/proxy are derived together. Optional settings are literal `NAME=value` lines in `.dev/integrations.env`, never shell expressions. Infrastructure/authority overrides are refused. Root/backend/frontend `.env` files and inherited provider keys are not loaded by this workflow.
 
 `setup --models` installs the existing AI requirements. Tesseract OCR and optional browser-assisted scraping need OS binaries; see integrations. Setup itself installs dependencies; startup migrations initialize approved catalogs as described above.
