@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from src.ai.billing import webhooks
+from src.ai.billing.stripe_gateway import _checkout
 
 
 class Cursor:
@@ -42,7 +43,7 @@ def test_verified_custom_checkout_session_binds_only_current_accepted_attempt():
                      "custom_quote_id": "quote-1", "custom_quote_revision_id": "revision-1",
                      "quote_attempt_id": "attempt-1"},
     }
-    webhooks._record_custom_checkout_session(conn, session, "tenant-1", "evt_verified")
+    webhooks._record_custom_checkout_session(conn, _checkout(session), "tenant-1", "evt_verified")
     statements = conn._cursor.statements
     assert len(statements) == 3
     assert "UPDATE public.billing_custom_quote_checkout_attempts" in statements[1][0]
@@ -58,5 +59,5 @@ def test_custom_checkout_session_rejects_mismatched_tenant_before_database_acces
                             "custom_quote_id": "quote-1", "custom_quote_revision_id": "revision-1",
                             "quote_attempt_id": "attempt-1"}}
     with pytest.raises(webhooks.WebhookRetry):
-        webhooks._record_custom_checkout_session(conn, session, "tenant-1", "evt_verified")
+        webhooks._record_custom_checkout_session(conn, _checkout(session), "tenant-1", "evt_verified")
     assert conn._cursor.statements == []
