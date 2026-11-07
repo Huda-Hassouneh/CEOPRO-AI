@@ -24,8 +24,14 @@ def connect():
 
 
 def runtime_connection():
+    # Mirror src.ai.db.auth_lookup_connection(): the restricted role plus the
+    # session-level app.auth_lookup flag that the pre-authentication flows use
+    # to reach auth_tokens (migration 20261119000000_harden_cross_tenant_isolation).
     conn=connect()
-    with conn.cursor()as cur:cur.execute('SET ROLE ceopro_app')
+    with conn.cursor()as cur:
+        cur.execute('SET ROLE ceopro_app')
+        cur.execute("SELECT set_config('app.auth_lookup','on',false)")
+    conn.commit()
     return conn
 
 
@@ -588,6 +594,8 @@ def test_native_http_customer_invitation_reuses_and_creates_identities(monkeypat
     monkeypatch.setattr(auth_throttle,'record_failure',lambda *a:False)
     monkeypatch.setattr(auth_throttle,'reset',lambda *a:None)
     owner_payload,existing_payload=registration(),registration()
+    existing_password='ExistingPass1!'
+    existing_payload['password_hash']=security.hash_password(existing_password)
     pending('register',owner_payload);owner=pending('verify',owner_payload)
     pending('register',existing_payload);existing=pending('verify',existing_payload)
     auth._start_free_trial(owner['tenant_id'],owner['user_id'])
@@ -607,7 +615,12 @@ def test_native_http_customer_invitation_reuses_and_creates_identities(monkeypat
     raw_existing,existing_email=invitations[0]
     raw_new,new_email=invitations[1]
     with TestClient(app)as client:
-        reused=client.post(f'/auth/invitations/{raw_existing}/accept',json={})
+        # An existing identity must prove it owns the invited address.
+        unproven=client.post(f'/auth/invitations/{raw_existing}/accept',json={})
+        assert unproven.status_code==401
+        wrong=client.post(f'/auth/invitations/{raw_existing}/accept',json={'password':'NotTheirPass1!'})
+        assert wrong.status_code==401
+        reused=client.post(f'/auth/invitations/{raw_existing}/accept',json={'password':existing_password})
         assert reused.status_code==200
         assert reused.json()['user_id']==existing['user_id']
         assert reused.json()['role_key']=='staff'
