@@ -53,7 +53,7 @@ def _verify_synthetic_account(client: Client, company, email: str, password: str
 
     captured_codes = {}
 
-    def capture_verification_code(recipient: str, code: str) -> bool:
+    def capture_verification_code(recipient: str, code: str, **_delivery_options) -> bool:
         if recipient.casefold() == email.casefold():
             captured_codes[recipient.casefold()] = code
             return True

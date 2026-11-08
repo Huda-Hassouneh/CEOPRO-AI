@@ -27,6 +27,7 @@ from src.infrastructure.public_urls import frontend_origin
 import logging
 import os
 import smtplib
+from typing import Optional
 from email.mime.text import MIMEText
 
 logger = logging.getLogger("CEOPRO_AI_NOTIFICATIONS")
@@ -89,27 +90,80 @@ def send_email(to_address: str, subject: str, body: str) -> bool:
     return True
 
 
-def send_password_reset_email(to_address: str, code: str) -> bool:
-    return send_email(
-        to_address, "Your KEEL password reset code",
-        f"Your password reset code is: {code}\n\nThis code expires soon. If you didn't request this, you can ignore this email.",
-    )
+def email_language(language: Optional[str]) -> str:
+    """'ar' for an Arabic reader, otherwise 'en' (the two languages KEEL is written in)."""
+    return "ar" if str(language or "").strip().lower().startswith("ar") else "en"
 
 
-def send_email_verification_email(to_address: str, code: str) -> bool:
-    return send_email(
-        to_address, "Verify your KEEL email address",
-        f"Your email verification code is: {code}",
-    )
+def _duration(minutes: int, language: str) -> str:
+    """How long a code or link stays valid, in words, with Arabic counted nouns agreeing with the number."""
+    minutes = max(1, int(minutes))
+    if minutes % (24 * 60) == 0:
+        count, unit = minutes // (24 * 60), ("day", "days", "يوم واحد", "يومان", "أيام", "يومًا")
+    elif minutes % 60 == 0:
+        count, unit = minutes // 60, ("hour", "hours", "ساعة واحدة", "ساعتان", "ساعات", "ساعة")
+    else:
+        count, unit = minutes, ("minute", "minutes", "دقيقة واحدة", "دقيقتان", "دقائق", "دقيقة")
+    if language != "ar":
+        return f"{count} {unit[0] if count == 1 else unit[1]}"
+    if count == 1:
+        return unit[2]
+    if count == 2:
+        return unit[3]
+    return f"{count} {unit[4] if 3 <= count % 100 <= 10 else unit[5]}"
 
 
-def send_team_invitation_email(to_address: str, business_name: str, invite_token: str) -> bool:
+def _account_code_email(kind: str, code: str, language: str, minutes: int) -> tuple:
+    valid = _duration(minutes, language)
+    if language == "ar":
+        if kind == "reset":
+            return ("رمز إعادة تعيين كلمة المرور في KEEL",
+                    f"رمز إعادة تعيين كلمة المرور الخاص بك هو: {code}\n\n"
+                    f"مدة صلاحية هذا الرمز {valid}. إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة.")
+        return ("تأكيد عنوان بريدك الإلكتروني في KEEL",
+                f"رمز تأكيد بريدك الإلكتروني هو: {code}\n\n"
+                f"مدة صلاحية هذا الرمز {valid}. إذا لم تنشئ حسابًا في KEEL، يمكنك تجاهل هذه الرسالة.")
+    if kind == "reset":
+        return ("Your KEEL password reset code",
+                f"Your password reset code is: {code}\n\n"
+                f"This code is valid for {valid}. If you didn't request a password reset, you can ignore this email.")
+    return ("Verify your KEEL email address",
+            f"Your email verification code is: {code}\n\n"
+            f"This code is valid for {valid}. If you didn't create a KEEL account, you can ignore this email.")
+
+
+def send_password_reset_email(to_address: str, code: str, language: Optional[str] = None,
+                              minutes: Optional[int] = None) -> bool:
+    from src.ai.core.security import PASSWORD_RESET_CODE_EXPIRE_MINUTES
+    subject, body = _account_code_email("reset", code, email_language(language),
+                                        minutes or PASSWORD_RESET_CODE_EXPIRE_MINUTES)
+    return send_email(to_address, subject, body)
+
+
+def send_email_verification_email(to_address: str, code: str, language: Optional[str] = None,
+                                  minutes: Optional[int] = None) -> bool:
+    from src.ai.core.security import EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES
+    subject, body = _account_code_email("verify", code, email_language(language),
+                                        minutes or EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES)
+    return send_email(to_address, subject, body)
+
+
+def send_team_invitation_email(to_address: str, business_name: str, invite_token: str,
+                               language: Optional[str] = None, minutes: Optional[int] = None) -> bool:
+    from src.ai.core.security import TEAM_INVITATION_EXPIRE_MINUTES
     frontend_base_url = frontend_origin()
     # A company name is the owner's own text: collapse line breaks so it can never reach a mail header
     # (the stdlib would refuse the whole message) or start a header-looking line in the body.
     name = " ".join(str(business_name).split())
+    link = f"{frontend_base_url}/invitation/{invite_token}"
+    lang = email_language(language)
+    valid = _duration(minutes or TEAM_INVITATION_EXPIRE_MINUTES, lang)
+    if lang == "ar":
+        return send_email(to_address, f"دعوة للانضمام إلى {name} على KEEL",
+                          f"تمت دعوتك للانضمام إلى {name} على KEEL. اقبل الدعوة من هنا: {link}\n\n"
+                          f"مدة صلاحية هذه الدعوة {valid}.")
     return send_email(
         to_address, f"You've been invited to join {name} on KEEL",
-        f"You've been invited to join {name} on KEEL. "
-        f"Accept your invitation here: {frontend_base_url}/invitation/{invite_token}",
+        f"You've been invited to join {name} on KEEL. Accept your invitation here: {link}\n\n"
+        f"This invitation is valid for {valid}.",
     )

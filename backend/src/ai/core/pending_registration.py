@@ -46,7 +46,8 @@ def _limits():
 
 def _deliver(email, code):
     try:
-        return bool(notifications.send_email_verification_email(email, code))
+        from src.infrastructure.request_language import get_request_language
+        return bool(notifications.send_email_verification_email(email, code, language=get_request_language()))
     except Exception as exc:  # Durable pending state remains retryable; no identity was created.
         # The type only: SMTP server text can echo the login.
         logger.warning("Pending registration email delivery failed (%s)", type(exc).__name__)

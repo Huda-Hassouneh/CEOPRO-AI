@@ -624,7 +624,9 @@ def invite_team_member(body: InviteTeamMemberRequest, ctx: TenantContext = Depen
         # sign-in codes and platform invitations: report it, log only the error type (relay text can
         # echo credentials).
         try:
-            email_sent = notifications.send_team_invitation_email(body.email, business_name, raw_token)
+            from src.infrastructure.request_language import get_request_language
+            email_sent = notifications.send_team_invitation_email(body.email, business_name, raw_token,
+                                                                  language=get_request_language())
         except Exception as exc:  # noqa: BLE001 - delivery is reported, never raised
             logger.warning("Team invitation email not delivered (%s) to=%s", type(exc).__name__,
                            notifications.mask_address(body.email))

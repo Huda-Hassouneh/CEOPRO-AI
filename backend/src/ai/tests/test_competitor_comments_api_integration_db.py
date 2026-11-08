@@ -18,7 +18,7 @@ def _signup(client, label):
 
     codes = []
     with patch("src.ai.core.notifications.send_email_verification_email",
-               side_effect=lambda address, code: codes.append(code) or True):
+               side_effect=lambda address, code, **_kw: codes.append(code) or True):
         response = client.post("/auth/signup", json={"full_name": "Owner", "business_name": f"{label} Co", "email": email,
                                                       "country_code": "JO", "primary_currency": "JOD", "password": "Comments!Test2026"})
         body = response.json()
