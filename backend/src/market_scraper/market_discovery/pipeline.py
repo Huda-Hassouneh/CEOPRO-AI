@@ -778,6 +778,12 @@ def get_run(conn, tenant_id: str, run_id: Optional[str] = None) -> Optional[dict
             "sources_checked", "sources_answered", "coverage")
     run = dict(zip(keys, row))
     run["run_id"] = str(run["run_id"])
+    # A run whose process died (out of memory, restart) is never closed in the database. Report it
+    # as timed out - the same verdict start_run records - so the screen stops showing it as in
+    # progress, stops polling it, and lets the owner start a new scan. Read only: start_run closes it.
+    if run["status"] in ("queued", "running") and run["created_at"] is not None \
+            and run["created_at"] < datetime.now(timezone.utc) - timedelta(minutes=STALE_RUN_MINUTES):
+        run["status"], run["error"] = "failed", "timed_out"
     for key in ("created_at", "started_at", "finished_at"):
         run[key] = run[key].isoformat() if run[key] else None
     return run
