@@ -364,12 +364,16 @@ def to_candidate(row: dict, query: DiscoveryQuery, matched_category: bool, name_
     )
 
 
-# Where Overture is read (OVERTURE_EXECUTION): "auto" (default) - on the external processor when
-# OFFLOAD_PROCESSOR_URL is set, otherwise in this process only on a machine with enough memory;
-# "remote" - only on the processor; "local" - always in this process (the processor itself, development).
-# Reading the dataset in a small API container is what ran keelai.net's 512 MB API out of memory and
-# restarted it mid-request, so there it is skipped instead and the other sources still run.
-LOCAL_MIN_MEMORY_MB = int(os.getenv("OVERTURE_LOCAL_MIN_MEMORY_MB", "1536"))
+# Where Overture is read (OVERTURE_EXECUTION):
+#   "auto" (default) - on the external processor when OFFLOAD_PROCESSOR_URL is set, otherwise skipped
+#                      (reason "needs_processor"; the other sources still run). Never in this process.
+#   "remote"         - only on the processor.
+#   "local"          - in this process. Only for the processor itself (Dockerfile.processor sets it) and
+#                      development machines that set it on purpose. Never the production API.
+# Reading the dataset takes 1-1.7 GB. In the API process it competes with every customer's requests
+# and ran keelai.net's 512 MB API out of memory twice (Nov 2026). Whether a host is "big enough" isn't
+# decided by detecting memory: limits aren't always readable, and even a large host shouldn't let one
+# background job starve the API. The API only ever delegates this work.
 REMOTE_DEADLINE_SECONDS = float(os.getenv("OVERTURE_REMOTE_DEADLINE_SECONDS", "200"))  # under search_all's 240 s
 
 
@@ -379,12 +383,7 @@ def execution_mode() -> str:
         return mode
     from src.offload import client as offload
 
-    if offload.configured():
-        return "remote"
-    from src.ai.core import ml_runtime
-
-    limit = ml_runtime.container_memory_limit_mb()
-    return "local" if limit is None or limit >= LOCAL_MIN_MEMORY_MB else "unsafe"
+    return "remote" if offload.configured() else "unsafe"
 
 
 def search(query: DiscoveryQuery) -> ProviderResult:
