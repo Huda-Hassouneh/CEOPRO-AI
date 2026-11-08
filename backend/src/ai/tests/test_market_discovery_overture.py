@@ -1,6 +1,8 @@
 """Overture Maps places as a discovery source: which places count as
 competitors, their names and links, and the parts of the dataset read.
 Rows below have the shape of the real dataset's rows."""
+import pytest
+
 from src.market_scraper.market_discovery import industries, pipeline
 from src.market_scraper.market_discovery.models import DiscoveryQuery
 from src.market_scraper.market_discovery.providers import osm, overture
@@ -133,15 +135,39 @@ def test_a_small_api_container_never_reads_overture_itself(monkeypatch):
     assert (result.status, result.reason) == ("skipped", "needs_processor")
 
 
-def test_a_large_machine_still_reads_overture_itself(monkeypatch):
+@pytest.mark.parametrize("limit_mb", [None, 512, 16384, 1 << 20])
+def test_the_api_never_reads_overture_itself_whatever_memory_it_reports(monkeypatch, limit_mb):
+    """1-1.7 GB of Overture in the API process ran the 512 MB production API out of memory. The decision
+    must not depend on reading the host's memory limit: unreadable, small or huge, the API delegates."""
     from src.ai.core import ml_runtime
-    from src.market_scraper.market_discovery.models import ProviderResult
 
     monkeypatch.delenv("OVERTURE_EXECUTION", raising=False)
     monkeypatch.delenv("OFFLOAD_PROCESSOR_URL", raising=False)
-    monkeypatch.setattr(ml_runtime, "container_memory_limit_mb", lambda: 16384)
+    monkeypatch.setattr(ml_runtime, "container_memory_limit_mb", lambda: limit_mb)
+    monkeypatch.setattr(overture, "search_local", lambda q: (_ for _ in ()).throw(AssertionError("read in the API")))
+    assert overture.execution_mode() == "unsafe"
+    result = overture.search(_query())
+    assert (result.status, result.reason) == ("skipped", "needs_processor")
+
+
+@pytest.mark.parametrize("setting", ["auto", "AUTO ", "", "something-else"])
+def test_only_an_explicit_local_setting_reads_overture_in_process(monkeypatch, setting):
+    from src.market_scraper.market_discovery.models import ProviderResult
+
+    monkeypatch.delenv("OFFLOAD_PROCESSOR_URL", raising=False)
+    monkeypatch.setenv("OVERTURE_EXECUTION", setting)
+    assert overture.execution_mode() == "unsafe"
+    monkeypatch.setenv("OVERTURE_EXECUTION", "local")  # the processor image, or a development machine on purpose
     monkeypatch.setattr(overture, "search_local", lambda q: ProviderResult("overture", "ok"))
-    assert overture.search(_query()).status == "ok"
+    assert overture.execution_mode() == "local" and overture.search(_query()).status == "ok"
+
+
+def test_with_a_processor_configured_auto_delegates_to_it(monkeypatch):
+    from src.offload import client as offload
+
+    monkeypatch.delenv("OVERTURE_EXECUTION", raising=False)
+    monkeypatch.setattr(offload, "configured", lambda: True)
+    assert overture.execution_mode() == "remote"
 
 
 def test_with_a_processor_configured_overture_runs_there_and_returns_the_same_candidates(monkeypatch):

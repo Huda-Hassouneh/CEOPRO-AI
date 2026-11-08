@@ -80,3 +80,13 @@ WooCommerce store credentials are per-source vaulted business configuration, not
 Regenerate with `python tools/dev/environment_inventory.py`; check freshness with `--check`. Dynamic provider/catalog settings are identified separately; they cannot be inferred safely as one universal credential.
 
 Every advanced setting is tied to its source module; absence uses its recorded default or follows that module's validation branch. Runtime flags do not override approved financial/privacy/automation policy. In particular KEEL_ALLOW_DISPOSABLE_PROVIDER_PROMOTION is never enabled by the local launcher.
+
+## Competitor discovery: isolation and limits
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OVERTURE_EXECUTION` | `auto` | `auto`: on the external processor when `OFFLOAD_PROCESSOR_URL` is set, otherwise skipped; never in the API process. `remote`: processor only. `local`: in-process - the processor image and development machines only, never the production API. |
+| `DISCOVERY_MAX_CONCURRENT` | `1` | Discovery runs allowed at once in one API process (button and scheduled refresh together). |
+| `DISCOVERY_SLOT_WAIT_SECONDS` | `600` | How long a queued run waits for a slot before it is closed as `busy` (capped below the 15-minute stale-run limit). |
+
+See `docs/EXTERNAL_PROCESSOR.md`.

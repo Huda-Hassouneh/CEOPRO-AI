@@ -486,3 +486,94 @@ def test_live_and_finished_runs_keep_their_status(status, age, expected):
     run = pipeline.get_run(_RunConn(_run_row(status, age, error="unreachable" if status == "failed" else None)), "t")
     assert run["status"] == expected
     assert run["error"] == ("unreachable" if status == "failed" else None)
+
+
+# --- Admission control: discovery can't pile up inside the API process -------------------------------
+
+class _SlotConn:
+    def __init__(self):
+        self.statements, self.commits = [], 0
+
+    def cursor(self):
+        conn = self
+
+        class _Cursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def execute(self, sql, params=None):
+                conn.statements.append((sql, params))
+        return _Cursor()
+
+    def commit(self):
+        self.commits += 1
+
+
+def _fresh_slots(monkeypatch, n=1):
+    import threading
+    from src.market_scraper.market_discovery import pipeline
+    monkeypatch.setattr(pipeline, "_run_slots", threading.BoundedSemaphore(n))
+    return pipeline
+
+
+def test_runs_never_overlap_beyond_the_slot_limit(monkeypatch):
+    import threading
+    import time
+    pipeline = _fresh_slots(monkeypatch, 1)
+    active, peak, lock = [0], [0], threading.Lock()
+
+    def fake_execute(conn, tenant_id, run_id, radius_km=None, **kwargs):
+        with lock:
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+        time.sleep(0.05)
+        with lock:
+            active[0] -= 1
+        return {"run_id": run_id}
+
+    monkeypatch.setattr(pipeline, "execute_run", fake_execute)
+    threads = [threading.Thread(target=pipeline.run_with_slot, args=(_SlotConn(), f"t{i}", f"r{i}"),
+                                kwargs={"wait_seconds": 5}) for i in range(6)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert peak[0] == 1
+
+
+def test_a_run_that_gets_no_slot_in_time_is_closed_as_busy_and_never_charged(monkeypatch):
+    pipeline = _fresh_slots(monkeypatch, 1)
+    monkeypatch.setattr(pipeline, "execute_run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("ran without a slot")))
+    assert pipeline._run_slots.acquire(timeout=1)  # another run holds the only slot
+    try:
+        conn = _SlotConn()
+        assert pipeline.run_with_slot(conn, "tenant", "run-1", wait_seconds=0.05) is None
+    finally:
+        pipeline._run_slots.release()
+    sql, params = conn.statements[-1]
+    assert "status = 'failed'" in sql and "error = 'busy'" in sql and "status = 'queued'" in sql  # only a still-queued run
+    assert params == ("run-1", "tenant") and conn.commits == 1
+
+
+def test_a_crashing_run_gives_its_slot_back(monkeypatch):
+    pipeline = _fresh_slots(monkeypatch, 1)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("provider exploded")
+
+    monkeypatch.setattr(pipeline, "execute_run", boom)
+    with pytest.raises(RuntimeError):
+        pipeline.run_with_slot(_SlotConn(), "tenant", "run-1", wait_seconds=0.05)
+    monkeypatch.setattr(pipeline, "execute_run", lambda *a, **k: {"ok": True})
+    assert pipeline.run_with_slot(_SlotConn(), "tenant", "run-2", wait_seconds=0.05) == {"ok": True}
+
+
+def test_the_slot_wait_always_stays_under_the_stale_run_threshold():
+    from src.market_scraper.market_discovery import pipeline
+    assert pipeline.SLOT_WAIT_SECONDS < pipeline.STALE_RUN_MINUTES * 60
+
+
+def test_a_busy_run_reads_as_a_plain_try_again_message():
+    from src.ai.market_inputs import public_sources
+    assert public_sources.public_run({"status": "failed", "error": "busy", "providers": {}})["error"] == "generic"

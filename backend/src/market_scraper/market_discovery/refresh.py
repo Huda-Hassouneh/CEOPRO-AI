@@ -94,8 +94,8 @@ def refresh_once(system_connection=None, tenant_connection=None, now: Optional[d
         try:
             run_id = pipeline.start_run(conn, tenant_id, user_id, radius_km)
             conn.commit()
-            pipeline.execute_run(conn, tenant_id, run_id, radius_km, providers=providers or pipeline.PROVIDERS)
-            result["refreshed"] += 1
+            ran = pipeline.run_with_slot(conn, tenant_id, run_id, radius_km, providers=providers or pipeline.PROVIDERS)
+            result["refreshed" if ran is not None else "busy"] += 1
         except pipeline.DiscoveryBusy:
             conn.rollback()
             result["busy"] += 1

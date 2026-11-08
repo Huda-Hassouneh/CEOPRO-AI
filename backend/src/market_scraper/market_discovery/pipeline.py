@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -497,6 +498,36 @@ def _failure_reason(query: DiscoveryQuery, results: List[ProviderResult]) -> str
         # A city was given but couldn't be placed on the map, or nothing was given.
         return "location_not_found" if query.city else "no_location"
     return "no_sources"
+
+
+# --- Admission control ------------------------------------------------
+# Every discovery run in this process - "Refresh scan" and the scheduled weekly refresh alike - takes one of
+# a fixed number of slots, so a burst of companies scanning at once can't exhaust the API's memory or
+# threads. A run that can't get a slot stays "queued" and waits; if none frees within SLOT_WAIT_SECONDS
+# (kept well under STALE_RUN_MINUTES, so a waiting run is never mistaken for a dead one) it is closed as
+# failed with error "busy" and nothing is charged: execute_run (which meters) never started.
+MAX_CONCURRENT_RUNS = max(1, int(os.getenv("DISCOVERY_MAX_CONCURRENT", "1")))
+SLOT_WAIT_SECONDS = min(float(os.getenv("DISCOVERY_SLOT_WAIT_SECONDS", "600")), STALE_RUN_MINUTES * 60 * 0.8)
+_run_slots = threading.BoundedSemaphore(MAX_CONCURRENT_RUNS)
+
+
+def run_with_slot(conn, tenant_id: str, run_id: str, radius_km: Optional[float] = None, *, wait_seconds=None, **kwargs):
+    """execute_run once a slot is free; returns its summary, or None when no slot freed in time."""
+    wait = SLOT_WAIT_SECONDS if wait_seconds is None else wait_seconds
+    if not _run_slots.acquire(timeout=wait):
+        logger.warning("discovery run %s waited %.0f s for a slot; closed as busy", run_id, wait)
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "UPDATE discovery_runs SET status = 'failed', error = 'busy', finished_at = CURRENT_TIMESTAMP "
+                "WHERE run_id = %s AND tenant_id = %s AND status = 'queued';",
+                (run_id, tenant_id),
+            )
+        conn.commit()
+        return None
+    try:
+        return execute_run(conn, tenant_id, run_id, radius_km, **kwargs)
+    finally:
+        _run_slots.release()
 
 
 @credits.metered("market_discovery")

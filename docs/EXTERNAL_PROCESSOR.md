@@ -30,9 +30,18 @@ browser ──► API (Render, 512 MiB, light)                     processor (ex
 ```
 
 - **API side** (`src/offload/client.py`, `providers/overture.py`): `OVERTURE_EXECUTION=auto`
-  sends Overture to the processor when `OFFLOAD_PROCESSOR_URL` is set; with no processor, a
-  container under 1.5 GB **never reads Overture in-process** (source skipped with
-  `needs_processor`) - this alone stops the out-of-memory restarts. Retries with backoff and
+  sends Overture to the processor when `OFFLOAD_PROCESSOR_URL` is set; with no processor the
+  source is skipped (`needs_processor`) and the other sources still run. **The API never reads
+  Overture in-process**, whatever memory the host reports: a limit isn't always readable, and even
+  a large host shouldn't let one background job starve customer requests. Only an explicit
+  `OVERTURE_EXECUTION=local` reads it in-process - the processor image sets it, and a development
+  machine may; never the production API. After a deploy, `GET /health/processor` shows
+  `"overture": "unsafe"` (no processor) or `"remote"`.
+- **Admission control** (`market_discovery/pipeline.py::run_with_slot`): every discovery run in
+  the API process - "Refresh scan" and the scheduled weekly refresh - takes one of
+  `DISCOVERY_MAX_CONCURRENT` slots (default 1). Others wait as "queued"; a run that gets no slot
+  within `DISCOVERY_SLOT_WAIT_SECONDS` (default 600, always under the 15-minute stale-run limit)
+  is closed as failed (`busy`) without being charged. Retries with backoff and
   `Retry-After`, a hard deadline (200 s, inside discovery's 240 s), and a circuit breaker
   (3 failures → no calls for 60 s; callers get the fallback in < 1 ms).
 - **Processor** (`src/offload/processor.py`, `Dockerfile.processor`): HMAC-SHA256 signed
