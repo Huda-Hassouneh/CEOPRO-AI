@@ -533,3 +533,119 @@ def test_a_run_holds_its_lease_while_executing_and_releases_it_after():
         assert not redis_client.exists(pipeline._lease_key(run_id))
     finally:
         conn.close()
+
+
+def test_only_the_configured_number_of_runs_execute_at_once_and_the_rest_wait_queued(monkeypatch):
+    # Measured: three refreshes at once on a 0.1-CPU host pushed user requests to 9.9 s.
+    import threading
+
+    _redis_or_skip()
+    monkeypatch.setattr(pipeline, "_RUN_SLOTS", threading.BoundedSemaphore(1))
+    first_inside, release_first = threading.Event(), threading.Event()
+
+    class Blocking(FakeProvider):
+        def search(self, query):
+            first_inside.set()
+            release_first.wait(20)
+            return super().search(query)
+
+    (t1, u1), (t2, u2) = _company("bakery", "bakery"), _company("bakery", "bakery")
+    c1, c2 = db.dedicated_tenant_connection(t1, u1), db.dedicated_tenant_connection(t2, u2)
+    try:
+        r1, r2 = pipeline.start_run(c1, t1, u1), pipeline.start_run(c2, t2, u2)
+        c1.commit(); c2.commit()
+        second_entered = threading.Event()
+
+        class Second(FakeProvider):
+            def search(self, query):
+                second_entered.set()
+                return super().search(query)
+
+        a = threading.Thread(target=pipeline.execute_run, args=(c1, t1, r1),
+                             kwargs={"providers": (Blocking("openstreetmap", [_place("A", "node/91", industry="bakery")]),),
+                                     "site_reader": _no_website, "news_reader": _no_news})
+        b = threading.Thread(target=pipeline.execute_run, args=(c2, t2, r2),
+                             kwargs={"providers": (Second("openstreetmap", [_place("B", "node/92", industry="bakery")]),),
+                                     "site_reader": _no_website, "news_reader": _no_news})
+        a.start(); assert first_inside.wait(10)
+        b.start()
+        assert not second_entered.wait(1.5), "the second run must wait for the slot"
+        assert _run_row(r2)[0] == "queued"
+        assert pipeline._lease_redis().exists(pipeline._lease_key(r2)), "a waiting run keeps its lease"
+        release_first.set(); a.join(30); b.join(30)
+        assert second_entered.is_set()
+        assert _run_row(r1)[0] in ("completed", "partial") and _run_row(r2)[0] in ("completed", "partial")
+    finally:
+        release_first.set()
+        c1.close(); c2.close()
+
+
+def test_isolated_runs_get_only_ids_on_a_low_priority_command_line():
+    from src.market_scraper.market_discovery import isolation
+
+    command = isolation._command("t-1", None, "r-1", 5.0)
+    assert command[-6:] == ["-m", "src.market_scraper.market_discovery.isolation", "t-1", "-", "r-1", "5.0"]
+    if command[0].endswith("nice"):
+        assert command[1:3] == ["-n", "19"]
+    assert not any("postgres" in part or "secret" in part.lower() for part in command)
+
+
+def test_a_child_that_dies_leaves_the_run_failed_and_frees_the_slot(monkeypatch, tmp_path):
+    # What an out-of-memory kill of the child looks like from the API: exit 137, nothing recorded.
+    import sys
+    from src.market_scraper.market_discovery import isolation
+
+    _redis_or_skip()
+    monkeypatch.setenv("DISCOVERY_RUN_ISOLATION", "process")
+    crash = tmp_path / "crash.py"
+    crash.write_text("import os\nos._exit(137)\n")
+    monkeypatch.setattr(isolation, "_command", lambda *a: [sys.executable, str(crash)])
+    tenant, user = _company("tailor", "tailor")
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        run_id = pipeline.start_run(conn, tenant, user)
+        conn.commit()
+        assert isolation.execute(conn, tenant, user, run_id) == 137
+        assert _run_row(run_id) == ("failed", "interrupted")
+        assert pipeline._RUN_SLOTS.acquire(timeout=1), "the slot was released"
+        pipeline._RUN_SLOTS.release()
+        fresh = pipeline.start_run(conn, tenant, user)  # the company can refresh again at once
+        conn.commit()
+        assert fresh != run_id
+    finally:
+        conn.close()
+
+
+def test_a_real_child_process_completes_the_run(monkeypatch, tmp_path):
+    # The child is a separate interpreter with the API's environment; sources are replaced by a
+    # fake (as everywhere in this file) through a tiny entry point, the rest is the real code path.
+    import sys
+    from src.market_scraper.market_discovery import isolation
+
+    _redis_or_skip()
+    monkeypatch.setenv("DISCOVERY_RUN_ISOLATION", "process")
+    entry = tmp_path / "child.py"
+    entry.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(isolation.BACKEND_DIR)!r})\n"
+        "from src.market_scraper.market_discovery import isolation, pipeline\n"
+        "from src.market_scraper.market_discovery.models import Candidate, ProviderResult\n"
+        "class P:\n"
+        "    NAME = 'openstreetmap'\n"
+        "    def available(self): return True, None\n"
+        "    def search(self, q): return ProviderResult('openstreetmap', 'ok', [Candidate(name='Child Bakery', source='openstreetmap', source_ref='node/501', latitude=31.955, longitude=35.912, industry_key='bakery')], requests=1)\n"
+        "_real = pipeline.execute_run\n"
+        "pipeline.execute_run = lambda *a, **k: _real(*a, **k, providers=(P(),), site_reader=lambda u: {'facts': [], 'pages_read': [], 'pages_blocked': 0, 'error': 'unreachable'}, news_reader=lambda *x: {'articles': [], 'requests': 0, 'answered': 0, 'status': 'skipped', 'reason': 'disabled'})\n"
+        "sys.exit(isolation._main(sys.argv[1:]))\n")
+    monkeypatch.setattr(isolation, "_command", lambda t, u, r, k: [sys.executable, str(entry), t, u or "-", r, "-"])
+    tenant, user = _company("bakery", "bakery")
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        run_id = pipeline.start_run(conn, tenant, user)
+        conn.commit()
+        assert isolation.execute(conn, tenant, user, run_id) == 0
+        assert _run_row(run_id)[0] in ("completed", "partial")
+        names = [c["name"] for c in discovered_competitors.list_competitors(conn, tenant)["competitors"]]
+        assert "Child Bakery" in names
+    finally:
+        conn.close()

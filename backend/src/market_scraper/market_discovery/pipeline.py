@@ -57,6 +57,13 @@ class DiscoveryBusy(Exception):
 # stops renewing it, so the next request can replace it at once instead of answering
 # "already running" until STALE_RUN_MINUTES pass. Without Redis nothing is ever declared
 # dead early: the STALE_RUN_MINUTES rule alone applies, as before.
+# Runs executing at once in this process. Each run is CPU-heavy Python (matching, scoring, reading
+# websites); measured in a 512 MiB / 0.1-CPU box, three at once pushed user requests to 9.9 s,
+# past Render's 5 s health check. Further runs wait as 'queued' (holding their lease) and start
+# in turn; one that cannot start within STALE_RUN_MINUTES fails as timed_out.
+MAX_CONCURRENT_RUNS = max(1, int(os.getenv("DISCOVERY_MAX_CONCURRENT_RUNS", "1")))
+_RUN_SLOTS = __import__("threading").BoundedSemaphore(MAX_CONCURRENT_RUNS)
+
 LEASE_SECONDS = 45
 LEASE_RENEW_SECONDS = 15
 LEASE_GRACE_SECONDS = 90  # a queued run's thread may not have taken its first lease yet
@@ -574,7 +581,14 @@ def execute_run(conn, tenant_id: str, run_id: str, radius_km: Optional[float] = 
     """Runs a queued discovery to completion on `conn` (a tenant connection).
     `site_reader` / `news_reader` replace intel.collect / news.collect (tests)."""
     with _RunLease(run_id):
-        return _execute_run(conn, tenant_id, run_id, radius_km, providers, site_reader, news_reader)
+        if not _RUN_SLOTS.acquire(timeout=STALE_RUN_MINUTES * 60):
+            logger.warning("discovery run %s could not start within %s minutes", run_id, STALE_RUN_MINUTES)
+            _update_run(conn, run_id, status="failed", error="timed_out", finished_at=datetime.now(timezone.utc))
+            return {"status": "failed", "error": "timed_out"}
+        try:
+            return _execute_run(conn, tenant_id, run_id, radius_km, providers, site_reader, news_reader)
+        finally:
+            _RUN_SLOTS.release()
 
 
 def _execute_run(conn, tenant_id: str, run_id: str, radius_km, providers, site_reader, news_reader) -> dict:

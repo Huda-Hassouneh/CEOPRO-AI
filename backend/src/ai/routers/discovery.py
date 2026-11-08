@@ -23,9 +23,12 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 
 def _run_in_background(tenant_id: str, user_id: str, run_id: str, radius_km: Optional[float]) -> None:
+    from src.market_scraper.market_discovery import isolation
+
     conn = db.dedicated_tenant_connection(tenant_id, user_id)
     try:
-        pipeline.execute_run(conn, tenant_id, run_id, radius_km)
+        # Its own low-priority process, so the chat and every screen stay responsive (isolation.py).
+        isolation.execute(conn, tenant_id, user_id, run_id, radius_km)
     except Exception:  # noqa: BLE001 - recorded on the run row
         pass
     finally:

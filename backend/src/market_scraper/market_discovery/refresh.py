@@ -94,7 +94,10 @@ def refresh_once(system_connection=None, tenant_connection=None, now: Optional[d
         try:
             run_id = pipeline.start_run(conn, tenant_id, user_id, radius_km)
             conn.commit()
-            pipeline.execute_run(conn, tenant_id, run_id, radius_km, providers=providers or pipeline.PROVIDERS)
+            from src.market_scraper.market_discovery import isolation
+
+            if isolation.execute(conn, tenant_id, user_id, run_id, radius_km, providers=providers) != 0:
+                raise RuntimeError("isolated discovery run did not finish")
             result["refreshed"] += 1
         except pipeline.DiscoveryBusy:
             conn.rollback()
