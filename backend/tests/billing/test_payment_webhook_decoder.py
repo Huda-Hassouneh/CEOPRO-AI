@@ -134,6 +134,7 @@ def test_payment_boundary_wiring_is_scoped_and_contract_has_no_infrastructure_im
                         "ai/billing/payment_bindings.py", "ai/billing/trial_checkouts.py",
                         "ai/billing/customer_operations.py", "ai/billing/stripe_api.py",
                         "ai/billing/stripe_verification.py",  # Optional dormant B2 observer only.
+                        "ai/billing/verification_observations.py",  # Dormant restricted B3 storage only.
                     }, str(path)
                     assert "stripe_webhooks" not in used, "Provider decoding is composed at payment_runtime"
     contracts = ast.parse((src / "ai/billing/payment_contracts.py").read_text(encoding="utf-8"))
