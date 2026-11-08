@@ -1425,3 +1425,96 @@ verify_multi_gateway_billing.py, test_sandbox_runtime.py,
 test_sandbox_runtime_db.py, the three existing import-boundary test files
 (test_payment_webhook_decoder.py, test_provider_verification_contracts.py,
 test_verification_observations.py), and this report. All remain uncommitted.
+
+## Paddle Sandbox catalog parity - 2026-11-08
+
+Platform Owner Billing's existing `/platform/billing/plans` commands persist
+approved KEEL plan/price rows. They do not call Stripe. The Stripe publication
+boundary is `python -m scripts.stripe_sync_catalog`: reconcile/adopt/create on the
+operator socket, then persist `stripe_price_id`. Its source and behavior are
+unchanged. Paddle previously had neither catalog creation/discovery nor a sync
+command, although protected provider-neutral `billing_price_references` existed.
+
+`python -m scripts.paddle_sync_catalog --manifest PRIVATE_MANIFEST` now provides
+the corresponding operator boundary. It is LOCAL PLAN ONLY by default (no HTTP).
+`--execute` separately permits bound Sandbox account/catalog GETs; adding
+`--apply --expected-catalog REVIEWED_DIGEST` permits Product/Price creation and
+mapping. A current authenticated Platform Owner token is supplied through stdin,
+as with the existing billing-admin CLI; a Tenant Owner alone is insufficient.
+There is no new web route, frontend control, runtime factory, privileged fallback,
+production support or ordinary runtime SQL grant.
+
+The manifest requires provider=paddle, environment=test, database, binding_id,
+merchant_account_id, explicit unique plan_keys, provider_operations_authorization,
+merchant_approval_reference, reason, tax_category=saas and tax_mode=external.
+The tax choices must be explicitly approved; other tax policies remain unsupported.
+The binding must already be installed and match the exact Sandbox merchant.
+The operator process uses its isolated installer DATABASE_URL, APP_DB_PASSWORD,
+JWT/session configuration and KEEL_SANDBOX_PADDLE_API_KEY; these credentials must
+never be installed into an ordinary application process as an admin workaround.
+The existing synthetic customer is not automatically promoted to Platform Owner.
+
+All commercial values come from current persisted, active, self-serve KEEL prices,
+including owner-created Standard Plans. No client amount is accepted, template is
+republished, inactive plan enabled, Stripe ID modified or historical price retired.
+Decimal conversion rejects unsupported fractional minor units. The supported
+subset is USD/EUR/GBP, existing 1/3/6/12-month intervals, quantity one and the
+approved 14-day card-required free trial. The isolated session's `enterprise`
+currently retains a 7-day legacy trial: it is explicitly blocked, never rewritten
+to 14 days. `starter`/`growth` have persisted 14-day trials and can be selected for
+the first test. Custom negotiated confirmation remains outside this catalog path.
+
+Migration `20261211000000_billing_catalog_operations.sql` is forward-only and
+orders after migration 176; all 176 historical SQL files are unchanged. Its
+provider-neutral journal is FORCE RLS, with no runtime grants/policies or PUBLIC
+trigger EXECUTE. Product identity and price request snapshots are immutable;
+prepared -> submitted is committed before POST. Neither a timeout, process loss
+nor subsequent empty listing can authorize a second POST. Recovery paginates all
+active/archived objects using exact server metadata, original binding and complete
+terms; duplicate/contradictory/unbound lookalikes fail closed. Successful price
+identities are inserted into the existing immutable mapping table. No provider
+objects are patched/deleted. The operator must designate one catalog-writing
+installation per merchant; no distributed cross-database uniqueness is claimed.
+
+The existing catalog session lock serializes Stripe/Paddle publication in this
+installation. Current Platform Owner authority and frozen terms are rechecked
+under the existing platform authority lock at send election and mapping commit.
+No transaction/row/activation locks cross provider requests. A submitted intent is
+already authorized; later demotion blocks completion/new sends until an authorized
+owner reconciles it, without erasing its original approval provenance.
+
+Paddle's documented free-trial response may include explicit
+requires_payment_method=true, null unit_price and empty trial overrides. The
+Checkout adapter now accepts precisely these fields as well as the previous
+minimal response, while still rejecting paid/cardless trials or unknown fields.
+It does not convert catalog creation or an attached card into recurring authority.
+
+Focused verification evidence is in `.dev/evidence/paddle-catalog/`. Initial 35
+offline cases passed, followed by six native cases; the final expanded selection
+passed 52 cases (41 catalog offline, seven native, four affected regressions).
+Three additional multi-month cases and four import/migration-boundary checks
+also passed: 59 distinct focused cases. The final seven native cases were rechecked
+after removing shared-catalog fixture mutations (overlapping evidence, not extra
+coverage). This covers catalog recovery, actual password-denied runtime writes, owner revocation,
+terms changes, concurrent election, immutable mappings, documented trial fields
+and the affected existing Checkout encoder/recovery checks. Fresh 177, populated
+176->177, replay, transactional rollback and unsafe-installer rejection passed;
+effective existing EXECUTE privileges and role attributes remained unchanged.
+The ordinary development database was never connected. A recoverable pg_dump of
+the owned disposable session was hashed and its pg_restore catalog verified before
+upgrade. The existing session database's private suffix was also corrected to the
+accepted test-name format, without relaxing the safety guard. No provider APIs
+were called and no real catalog objects, binding approvals or legal policies were
+installed. Full production restricted installation remains unproved.
+
+Real synchronization still requires an approved original merchant binding, a
+current Platform Owner session, the reviewed plan digest/manifest, reviewed SaaS
+tax classification and explicit authorization for Sandbox catalog reads/creates.
+Manual Paddle Products/Prices are not required. Legal approval remains a separate
+Customer/Checkout gate; catalog sync never enables Checkout, confirmation,
+subscription rights, Credits or entitlements. The running acceptance backend keeps
+its provider-egress denial and default-off flags until separately authorized.
+
+Provider contract references: [Paddle Product/Price creation](https://developer.paddle.com/build/products/create-products-prices/),
+[price listing/pagination](https://developer.paddle.com/api-reference/prices/list-prices/),
+[account identity and permissions](https://developer.paddle.com/changelog/2026/account-settings-api/).

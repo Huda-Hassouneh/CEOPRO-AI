@@ -30,6 +30,18 @@ def money(value,currency):
     return C.Money(Decimal(value)/100,currency)
 
 
+def free_card_trial(value,days=14):
+    """Normalize documented free-trial fields without accepting paid/cardless trials.
+
+    Older API fixtures contain only interval/frequency. Current Paddle may also
+    return explicit requires_payment_method, null unit_price and empty overrides.
+    """
+    return (type(value) is dict and not set(value)-{'interval','frequency','requires_payment_method','unit_price','unit_price_overrides'}
+        and value.get('interval')=='day' and type(value.get('frequency')) is int and value['frequency']==days
+        and value.get('requires_payment_method',True) is True and value.get('unit_price') is None
+        and value.get('unit_price_overrides',[])==[])
+
+
 def unique_object(pairs):
     result={}
     for k,v in pairs:
@@ -323,7 +335,7 @@ class PaddleJourneyGateway(PaddleCancellationGateway):
         _bound_namespace(self.binding,self.transport)
         price=self._read('GET','/prices/'+r['provider_price_id'])
         trial=price.get('trial_period');cycle=price.get('billing_cycle');unit=price.get('unit_price')
-        if (price.get('id')!=r['provider_price_id'] or price.get('status')!='active' or trial!={'interval':'day','frequency':14}
+        if (price.get('id')!=r['provider_price_id'] or price.get('status')!='active' or not free_card_trial(trial)
                 or r['trial_duration_days']!=14 or not cycle or cycle['interval'] not in ('month','year')
                 or type(cycle['frequency']) is not int or cycle['frequency']*(12 if cycle['interval']=='year' else 1)!=terms['interval_months']
                 or not unit or money(unit['amount'],unit['currency_code'])!=C.Money(Decimal(str(terms['approved_amount'])),terms['currency'])
@@ -353,7 +365,7 @@ class PaddleJourneyGateway(PaddleCancellationGateway):
         if (money(unit.get('amount'),unit.get('currency_code'))!=C.Money(Decimal(str(terms['approved_amount'])),terms['currency'])
                 or cycle.get('interval') not in ('month','year') or type(cycle.get('frequency')) is not int
                 or cycle['frequency']*(12 if cycle['interval']=='year' else 1)!=terms['interval_months']
-                or price.get('trial_period')!={'interval':'day','frequency':14}):raise ValueError('Frozen transaction price changed')
+                or not free_card_trial(price.get('trial_period'))):raise ValueError('Frozen transaction price changed')
         if metadata!=expected['custom_data'] or value.get('collection_mode')!='automatic' or value.get('customer_id')!=d['provider_customer_id']:
             raise ValueError('Original transaction scope required')
         ref=lambda v:C.ProviderReference('paddle',v,binding=self.binding) if v else None
