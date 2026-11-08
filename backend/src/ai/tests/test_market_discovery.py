@@ -2,6 +2,8 @@
 shapes those APIs really return, de-duplication across sources and
 languages, scoring, and the rule that nothing is invented when a source
 is unavailable."""
+import pytest
+
 from src.market_scraper.market_discovery import industries, matching, pipeline, scoring
 from src.market_scraper.market_discovery.models import Candidate, DiscoveryQuery, ProviderResult
 from src.market_scraper.market_discovery.providers import apify_maps, google_places, osm, web_search
@@ -424,3 +426,63 @@ def test_a_website_given_without_https_is_a_usable_address():
     assert web_address("http://x.com; https://y.com") == "http://x.com"
     assert web_address("not a site") is None and web_address(None) is None
     assert Candidate(name="Luna Rossa", source="openstreetmap", source_ref="node/1", website="tottis.jo").website == "https://tottis.jo"
+
+
+# --- A run whose process died is reported as timed out (live: a scan "running" for 30 hours) ----------
+
+class _RunCursor:
+    def __init__(self, row):
+        self.row = row
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, sql, params=None):
+        assert sql.lstrip().upper().startswith("SELECT"), "get_run must stay read only"
+
+    def fetchone(self):
+        return self.row
+
+
+class _RunConn:
+    def __init__(self, row):
+        self.row = row
+
+    def cursor(self):
+        return _RunCursor(self.row)
+
+
+def _run_row(status, age_minutes, error=None):
+    from datetime import datetime, timedelta, timezone
+    created = datetime.now(timezone.utc) - timedelta(minutes=age_minutes)
+    return ("6da7bcb8-dc2d-4710-97f2-d8f9aba5b227", status, None, None, None, None, {}, {}, 0, 0, 0, 0, error,
+            created, created, None, 0, 0, None)
+
+
+@pytest.mark.parametrize("status", ["queued", "running"])
+def test_an_abandoned_run_reads_as_timed_out_so_the_owner_can_scan_again(status):
+    from src.ai.market_inputs import public_sources
+    from src.market_scraper.market_discovery import pipeline
+
+    run = pipeline.get_run(_RunConn(_run_row(status, pipeline.STALE_RUN_MINUTES + 1)), "tenant")
+    assert run["status"] == "failed" and run["error"] == "timed_out"
+    # The screen gets the existing "couldn't finish, try again" message; the internal reason stays hidden.
+    assert public_sources.public_run(run)["error"] == "generic"
+
+
+@pytest.mark.parametrize("status,age,expected", [
+    ("running", 1, "running"),        # a live scan keeps its spinner
+    ("queued", 0, "queued"),
+    ("completed", 600, "completed"),  # finished runs are never rewritten
+    ("partial", 600, "partial"),
+    ("failed", 600, "failed"),
+])
+def test_live_and_finished_runs_keep_their_status(status, age, expected):
+    from src.market_scraper.market_discovery import pipeline
+
+    run = pipeline.get_run(_RunConn(_run_row(status, age, error="unreachable" if status == "failed" else None)), "t")
+    assert run["status"] == expected
+    assert run["error"] == ("unreachable" if status == "failed" else None)
