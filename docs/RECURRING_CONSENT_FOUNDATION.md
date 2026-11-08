@@ -389,3 +389,92 @@ Exact B2 integration dependencies (all remain blocked until separately implement
   real Stripe TEST recurring readiness/capabilities, legacy webhook fallthrough/local
   trial cutover protection, native coordinator/RLS acceptance, browser/RTL flows and
   the full production restricted installer. B1 resolves none of these release gates.
+
+
+## Phase 1.3D-B2a - dormant customer status and terms preview
+
+Implemented from clean `8664da96995cd4ea54826b2943a71c4fc58e56e7` on
+`integration/main-consolidation`. Changes remain uncommitted. Both new gates
+remain off by default; no configuration was enabled:
+`RECURRING_JOURNEY_PREVIEW_ENABLED` (backend, explicit `true` only) and
+`VITE_RECURRING_JOURNEY_PREVIEW_ENABLED` (frontend build, exact `true` only).
+
+`GET /billing/trial-journeys/{operation_id}` authenticates through the existing
+JWT/revocation/current-principal boundary. The exact UUID is only a lookup key;
+there is no creation, latest-operation discovery, tenant override or client terms.
+It reuses B1's unchanged reservation/Checkout SELECT: current active billing
+membership (owner/admin/accountant), original initiating user, tenant RLS and
+original binding. Another tenant or actor, demotion, removal or suspension hides
+the row. Authorization is checked at the read snapshot; this is not a locked
+preflight authorization for a later mutation. No new lock protocol was added.
+
+A strict read-only `ceopro_billing_setup` socket has no administrative fallback,
+uses the existing fixed-role verifier, and decodes numeric JSONB as Decimal.
+It uses existing SELECT privileges; no role, ACL, SECURITY DEFINER function,
+checkpoint SQL, migration or runtime EXECUTE grant changed. All 172 migrations
+and the B1 coordinator source remain unchanged. The scoped socket is closed
+on success/failure. The response uses the coordinator's single captured read,
+whitelists persisted plan/payment currency/renewal amount/interval/trial duration,
+and compares them with the reservation columns. No binary-float monetary
+conversion, current catalog/provider selection, analysis currency, provider IDs,
+raw payloads, challenges, consent or confirmation evidence are returned. Success
+responses prohibit caching. Missing credentials/infrastructure fail closed.
+
+The onboarding payment page adds only a default-off, read-only panel and an
+optional `trial_operation` UUID selector. It has no action buttons or issuance
+logic. Existing plan selection, signup, local-trial, Standard/Custom Checkout,
+webhooks and onboarding completion remain unchanged while disabled. English and
+Arabic/RTL follow the existing i18n provider. Query keys include tenant, actor and
+exact operation; cancellation is forwarded, retries disabled, inactive data is
+not retained, and refresh/error states hide old terms.
+
+`eligible` means **reserved terms available for review**, displayed as "Ready for
+terms review"; it is not current purchase eligibility, consent or access authority.
+Known or ambiguous Checkout identities display pending verification. Persisted
+Checkout expiry displays expired; released/historical-confirmed checkpoints stay
+blocked. Scope/frozen-term contradictions display conflict without terms. No TTL,
+agreement version, legal text, quantity or trial-start policy is invented.
+Protected Customer/A1/B3 status readers are deliberately not wired: this projection
+covers reservation/Checkout checkpoints only. A known session remains pending even
+if protected evidence later becomes ready or conflicts. B2b requires an explicitly
+authorized, narrow status projection before exposing those additional facts.
+
+Changed files: `backend/src/ai/db.py`, `routers/billing.py`, new
+`routers/trial_journey_preview.py`; `backend/tests/billing/test_trial_coordinator.py`
+(exact read-only import exception), new `test_trial_journey_preview.py`;
+`frontend/src/features/billing/api/trialJourneyApi.js`,
+`components/TrialJourneyPreview.jsx`, `pages/OnboardingPaymentPage.jsx`;
+`frontend/src/assets/locales/{en,ar}.json`,
+`frontend/tests/trialJourneyPreview.test.mjs`,
+`frontend/tests/browser/trial-journey-preview.mjs`, and this report.
+
+Verification: focused offline backend selection initially **104 passed** (four
+existing syntax warnings); the subsequently added missing-credential HTTP test
+and renamed import guard passed **3 final focused checks** (one existing syntax warning). Existing offline
+Standard/Custom Checkout regressions: **14 passed**, four native-only cases
+intentionally deselected. One initial Custom Checkout failure lacked the public
+origin in the scrubbed test environment; only that case was rerun with a synthetic
+loopback origin and passed. Frontend selected Node tests: **18 passed**, including
+locales, existing Checkout/local-trial API contracts and onboarding routing.
+Offline Chromium acceptance: **10 checks passed** across English and Arabic,
+using the real panel/query/client with all network requests intercepted; no API,
+provider or database was contacted. Changed frontend files passed ESLint.
+Evidence: `.dev/evidence/phase1-3d-b2a/3c1d364d7c26/result.json`.
+
+No new SQL or migrations require a native run. Reused native proof:
+`.dev/evidence/phase1-3d-b1-review/79603e501939/result.json` (29 checks,
+172-migration disposable PG17 fixture, actual restricted-password setup/app
+identities, FORCE RLS, wrong actor/tenant and revocation/suspension denial).
+Its checkpoint source SHA-256 still matches. The new read-only connection factory
+and exact Decimal decoder are tested with doubles, not newly claimed native
+acceptance. `dev.ps1 status` reports Docker unavailable; no services were started.
+
+B2b/cutover remain blocked on server-owned operation issuance/recovery, approved
+legal/language/trial-start and return-URL policies, authenticated consent collection
+and withdrawal fencing, scoped protected status reads, single-sender bound Checkout
+dispatch and ambiguous recovery, authorized B3/B4 handoff, durable SetupIntent
+correlation after the pending pointer disappears, real Stripe TEST recurring
+readiness/capability acceptance, legacy webhook/local-trial cutover protection and
+full production restricted-installer verification. This GET/panel resolves none
+of those activation gates and never creates consent, VERIFIED evidence, Customer,
+Checkout, subscriptions, entitlements or Credits.

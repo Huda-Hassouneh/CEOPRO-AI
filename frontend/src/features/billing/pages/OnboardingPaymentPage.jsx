@@ -4,6 +4,7 @@ import { useI18n } from '../../../app/providers/I18nProvider.jsx';
 import { routePaths } from '../../../app/router/routePaths.js';
 import { useAuthStore } from '../../auth/store/authStore.js';
 import { billingApi, errorReason } from '../api/billingApi.js';
+import { TrialJourneyPreview } from '../components/TrialJourneyPreview.jsx';
 import { PlanSummaryCard } from '../components/PlanSummaryCard.jsx';
 import { toOriginalPlan } from '../api/originalBillingModel.js';
 import { CouponInput } from '../components/CouponInput.jsx';
@@ -95,6 +96,7 @@ export function OnboardingPaymentPage() {
   return (
     <OnboardingPageShell wide showProgress={false}>
       <header className="ceopro-payment-heading"><Link to={routePaths.onboardingPlan}>{t('billing.payment.backToPlans')}</Link><h1>{t('billing.payment.title')}</h1></header>
+      <TrialJourneyPreview operationId={searchParams.get('trial_operation')} />
       <div className="ceopro-payment-layout">
         <div>
           {errorMessage && <div className="billing-provider-note is-warning" role="alert">{errorMessage}</div>}

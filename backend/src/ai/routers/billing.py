@@ -20,9 +20,11 @@ from src.ai import db
 from src.ai.billing import config, credits, custom_offers, custom_plan_pricing_service, promotions, service, store, webhooks, self_service
 from src.ai.core import feature_rights, usage
 from src.ai.core.security import TenantContext, get_tenant_context
+from src.ai.routers.trial_journey_preview import router as trial_preview_router
 
 logger = logging.getLogger("APEX_BILLING")
 router = APIRouter(prefix="/billing", tags=["billing"])
+router.include_router(trial_preview_router)
 
 _BILLING_ROLES = {"owner", "admin", "accountant"}
 

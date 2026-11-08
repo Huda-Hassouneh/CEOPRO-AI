@@ -1958,6 +1958,21 @@
     }
   },
   "billing": {
+    "trialJourney": {
+      "title": "Reserved trial terms",
+      "eligible": "Ready for terms review",
+      "pending_verification": "Verification pending",
+      "conflict": "Operation needs review",
+      "expired": "Checkout expired",
+      "blocked": "Preview unavailable",
+      "plan": "Reserved plan",
+      "renewal": "Approved renewal amount",
+      "interval": "Billing interval",
+      "months": "{{count}} month(s)",
+      "duration": "Reserved trial duration",
+      "days": "{{count}} day(s)",
+      "note": "This preview does not start a trial or confirm a subscription. Agreement and trial-start details remain unavailable."
+    },
     "pricingStudio": {
       "tierInternal": {
         "title": "Internal-cost assumptions by plan",
