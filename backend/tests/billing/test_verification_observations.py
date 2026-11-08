@@ -35,7 +35,7 @@ def test_missing_frozen_context_and_arbitrary_connections_are_rejected():
 def test_dormant_persistence_has_no_runtime_consumers_or_provider_calls():
     root=Path(__file__).resolve().parents[2]/'src'
     for path in root.rglob('*.py'):
-        if 'tests' in path.parts or path.name in ('verification_observations.py','trial_confirmation.py'):continue
+        if 'tests' in path.parts or path.name in ('verification_observations.py','trial_confirmation.py','trial_coordinator.py'):continue
         tree=ast.parse(path.read_text(encoding='utf-8-sig'))
         for node in ast.walk(tree):
             if isinstance(node,ast.ImportFrom):

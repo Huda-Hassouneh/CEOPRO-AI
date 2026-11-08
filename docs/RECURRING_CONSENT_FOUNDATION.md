@@ -307,3 +307,85 @@ disposable superuser; full production restricted runner/post-install validation
 remains an unverified merge/release gate. No provider API calls or normal application
 services were started. A2 is ready for focused security review, remains dormant and
 uncommitted, and does not authorize runtime activation.
+
+## Phase 1.3D-B1 - dormant backend coordinator
+
+Implemented 2026-11-08 (Asia/Amman) from clean HEAD
+`e46ad34d76d31b3fb4300ce7c71faba6addc5039` on
+`integration/main-consolidation`. No commit or runtime registration/enable flag.
+
+Changes: `backend/src/ai/billing/trial_coordinator.py`, new focused
+`backend/tests/billing/test_trial_coordinator.py`, this report, and narrowly scoped
+coordinator allowlist additions in `test_payment_webhook_decoder.py`,
+`test_provider_verification_contracts.py`, `test_verification_observations.py`.
+The new import-boundary test forbids all other source from importing the coordinator.
+Active signup/trial/Checkout/webhook/onboarding source, A1/A2 implementations and all
+172 migrations are unchanged. No new schema, credentials, permissions or contracts
+in `payment_contracts.py` were needed.
+
+The internal coordinator composes existing reservations, A1 presentation/association,
+durable Customer resolution and B3 observation commands. Stable server-owned journey
+UUIDs are mandatory; retries reuse original frozen terms/binding. Customer UUIDs are
+deterministic per tenant/original binding, observation UUIDs per attempt, presentation
+UUIDs per attempt/policy. No replacement identity or provider default is chosen.
+`status` reconstructs persisted checkpoints without provider calls, collection or
+mutation. `advance` rechecks its integration boundaries instead of treating status
+as authorization. The read-only reservation view uses existing setup/RLS privileges,
+active billing membership and the original initiating user. No new authorization
+or lock protocol replaces the existing commands; repository transactions end before
+provider work. The protected consent reader must also end its transaction on return.
+
+Consent collection/acceptance is absent. An absent protected consent reader blocks
+advancement; its future trusted snapshot is an immutable CustomerPayload containing
+exact A1 acceptance/presentation/invalidation rows, not request JSON or a Boolean.
+The coordinator validates original actor/tenant/attempt/binding/frozen terms. Existing
+A1 association performs the authoritative post-Checkout validation. Presentation
+challenges remain one-time; deterministic duplicate presentation fails closed rather
+than inventing a recovered challenge. Durable Customer work delegates to the existing
+resolver; ambiguous Customer outcomes remain pending with the same operation identity.
+
+**Checkout sending remains an explicit B2 block:** current generic Checkout encoding
+lacks a bound approved trial-policy adapter and the existing submission marker alone
+cannot elect one external sender. B1 has no Checkout sender/replay method. An ambiguous
+submission with no recorded session stops before any Customer/provider work; it never
+creates a replacement Customer or Checkout. Known sessions can be read through the
+original binding and exact B3 context; A1 association precedes the claim/provider GET.
+Conflicts, stale claims, authorization errors and insufficient readiness/capabilities
+remain pending/blocked. Provider-emitted VERIFIED trial evidence or local consent is
+rejected. Even complete synthetic provider prerequisites stop at a trusted-confirmation
+handoff. B1 imports no B4 attestor/confirmer and cannot grant subscriptions, entitlements
+or Credits. Existing confirmed state is reported only as a historical B4 checkpoint.
+
+Executed tests (all provider/DB interactions mocked): initial seven-module targeted
+selection **307 passed**, six existing syntax warnings. After the read-only status
+addition, **33 coordinator tests passed**, one existing syntax warning; unaffected
+regressions were not rerun. Coverage includes stable identities/terms, ambiguity,
+consent/scope conflicts, one-time presentation response limits, original binding,
+permission/stale-claim refusal, non-verified outcomes, absent activation and dormant
+imports. New read-only SQL was source-reviewed and tested with DB-API doubles; native
+restricted-role coordinator acceptance is not claimed. No DB schema changed, so no
+migration or disposable-database suite was run. Earlier accepted A1/A2 native security
+and migration evidence is reused. Whitespace checks include the new files.
+
+Exact B2 integration dependencies (all remain blocked until separately implemented):
+
+* Authenticate tenant/actor, issue/persist the server-owned journey UUID, own scoped
+  repository factories and preserve that UUID on lost responses. Never route client
+  fields into service GUCs, protected consent snapshots or gateway selection.
+* Approve legal/language/policy versions, explicit collection/session/CSRF protections,
+  protected A1 read/retry lifecycle and withdrawal/supersession fencing. Implement the
+  consent reader with current authorization/validity checks and atomic consent validity
+  at future dispatch/confirmation; a preflight read alone is insufficient.
+* Supply a bound Checkout encoder with approved trial-start/return-URL/commercial
+  policy, protected single-sender dispatch election, frozen transport persistence and
+  exact ambiguous-outcome reconciliation. Do not auto-resubmit after submission or
+  adopt a different Customer/session. Existing Customer provenance and changed account
+  contact data require explicit review; existing SQL can also block first Customer
+  creation if selection changed after reservation, rather than switch its binding.
+* Coordinate B3 recovery/claims and a separately authorized B4 handoff with complete
+  trusted provider evidence, original consent, current authorization and withdrawal
+  fencing. Do not fabricate VERIFIED, local consent or all nine capabilities.
+* Independently prove durable SetupIntent correlation after its pointer disappears,
+  real Stripe TEST recurring readiness/capabilities, legacy webhook fallthrough/local
+  trial cutover protection, native coordinator/RLS acceptance, browser/RTL flows and
+  the full production restricted installer. B1 resolves none of these release gates.
