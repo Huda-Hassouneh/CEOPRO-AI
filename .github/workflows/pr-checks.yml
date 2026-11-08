@@ -36,6 +36,21 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # A second, empty cluster only for test_managed_postgres_migrations_integration_db.py:
+      # it rebuilds the schema as a non-superuser owner (how Neon runs migrations)
+      # and resets the cluster-wide KEEL roles, so it cannot share the one above.
+      postgres_managed:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_test_managed_admin_password
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
       # Closes a real gap: test_consumer.py's 16 live-Redis tests were
       # always skipped in CI for lack of a Redis service, never because
       # they didn't work - confirmed by running them against a real local
@@ -58,6 +73,7 @@ jobs:
       # a secret protecting anything real.
       DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
       AI_TEST_DATABASE_URL: postgresql://ceopro_admin:ci_test_admin_password@127.0.0.1:5432/keel_billing_test_ci
+      AI_TEST_MANAGED_PG_ADMIN_URL: postgresql://postgres:ci_test_managed_admin_password@127.0.0.1:5433/postgres
       APP_DB_PASSWORD: ci_test_app_password
       # Dedicated restricted worker login, only for this disposable CI database.
       IMAGE_WORKER_DB_PASSWORD: ci_test_image_worker_password
