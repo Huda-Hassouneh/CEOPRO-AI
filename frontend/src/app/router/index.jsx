@@ -9,6 +9,7 @@ import { PublicLayout } from '../layouts/PublicLayout.jsx';
 import { AuthLayout } from '../layouts/AuthLayout.jsx';
 import { DashboardLayout } from '../layouts/DashboardLayout.jsx';
 import { AppErrorPage } from '../../shared/components/feedback/ErrorBoundary.jsx';
+import { PaddlePaymentPage } from '../../features/billing/pages/PaddlePaymentPage.jsx';
 import { platformAdminRoute } from '../../features/platform-admin/routes.jsx';
 
 import { LoginPage } from '../../features/auth/pages/LoginPage.jsx';
@@ -80,6 +81,7 @@ const OwnerBillingRedirect = () => {
 };
 
 const routes = [
+  { path: '/billing/paddle-payment', element: <ProtectedRoute><PaddlePaymentPage /></ProtectedRoute> },
   // Old billing and onboarding-plan addresses: payment now happens on
   // Stripe-hosted Checkout from Billing.
   ...['/choose-plan', '/checkout', '/payment-success', '/payment-failed', '/onboarding/*']

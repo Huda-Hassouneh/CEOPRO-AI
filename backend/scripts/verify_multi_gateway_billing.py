@@ -26,7 +26,7 @@ from scripts.billing_verification import is_test_database_name
 from scripts.verify_recurring_consent import local_docker_endpoint
 
 ROOT=Path(__file__).resolve().parents[2]
-NEW='20261209000000_neutral_subscription_lifecycle.sql'
+NEW='20261210000000_paddle_customer_single_dispatch.sql'
 
 
 def main():
@@ -80,14 +80,14 @@ def main():
         logging.getLogger('CEOPRO_MIGRATION_RUNNER').setLevel(logging.WARNING)
         source=M.MIGRATIONS_DIR
         with closing(connect(fresh)) as conn:
-            report['fresh']=len(M.run(conn));assert report['fresh']==175 and M.run(conn)==[]
+            report['fresh']=len(M.run(conn));assert report['fresh']==176 and M.run(conn)==[]
         with tempfile.TemporaryDirectory(dir=target) as tmp:
             for path in source.glob('*.sql'):
                 if path.name!=NEW:shutil.copyfile(path,Path(tmp)/path.name)
-            assert len(list(Path(tmp).glob('*.sql')))==174
+            assert len(list(Path(tmp).glob('*.sql')))==175
             M.MIGRATIONS_DIR=Path(tmp)
             try:
-                with closing(connect(upgrade)) as conn:assert len(M.run(conn))==174
+                with closing(connect(upgrade)) as conn:assert len(M.run(conn))==175
             finally:M.MIGRATIONS_DIR=source
         with closing(connect(upgrade)) as conn:
             conn.autocommit=True
@@ -100,9 +100,11 @@ def main():
                 q.execute("INSERT INTO billing_trials(tenant_id,plan_key,started_at,ends_at,started_by_user_id) VALUES(%s,'growth',now()-interval '30 days',now()-interval '16 days',%s)",(tid,uid))
                 q.execute('SELECT to_jsonb(t)::text FROM billing_trials t WHERE tenant_id=%s',(tid,));history=q.fetchone()
             conn.autocommit=False
+            with conn.cursor() as q:
+                q.execute("SELECT pg_get_functiondef('billing_customer_command(uuid,bigint,text,uuid,jsonb)'::regprocedure)"); original=q.fetchone()
             try:
                 with conn.cursor() as q:
-                    q.execute('ALTER ROLE ceopro_trial_confirmer LOGIN')
+                    q.execute('ALTER ROLE ceopro_trial_issuer LOGIN')
                     q.execute((source/NEW).read_text(encoding='utf-8'))
             except psycopg2.errors.InsufficientPrivilege:conn.rollback()
             else:raise AssertionError('Unsafe installer role model accepted')
@@ -112,7 +114,7 @@ def main():
             except psycopg2.errors.DivisionByZero:conn.rollback()
             else:raise AssertionError('Expected rollback failure')
             with conn.cursor() as q:
-                q.execute("SELECT to_regprocedure('billing_lifecycle_apply(uuid)')");assert q.fetchone()==(None,)
+                q.execute("SELECT pg_get_functiondef('billing_customer_command(uuid,bigint,text,uuid,jsonb)'::regprocedure)");assert q.fetchone()==original
             conn.rollback();report['rollback']='PASS'
             assert M.run(conn)==[NEW] and M.run(conn)==[]
             after=authority(conn);assert all(after[k]==v for k,v in before.items())
@@ -133,7 +135,7 @@ def main():
                 q.execute("SELECT has_function_privilege('public','billing_consent_consumption_fence()','EXECUTE')");assert q.fetchone()==(False,)
                 for role in ('ceopro_billing_observer','ceopro_trial_attestor','ceopro_trial_confirmer','ceopro_consent_service'):
                     q.execute(sql.SQL('ALTER ROLE {} LOGIN PASSWORD %s').format(sql.Identifier(role)),(runtime,))
-            report.update(upgrade='174 -> 175',existing_runtime_execute_unchanged=True,new_runtime_authority="no ordinary runtime EXECUTE/writes; tenant-scoped app settlement SELECT only",dormant_roles_no_memberships=True,historical_trial_unchanged=True)
+            report.update(upgrade='175 -> 176',existing_runtime_execute_unchanged=True,new_runtime_authority="no ordinary runtime EXECUTE/writes; tenant-scoped app settlement SELECT only",dormant_roles_no_memberships=True,historical_trial_unchanged=True)
         def dsn(role):return f'postgresql://{role}:{password if role=="postgres" else runtime}@127.0.0.1:{port}/{upgrade}'
         test_env=dict(safe,PYTHONPATH=str(ROOT/'backend'),PYTHONDONTWRITEBYTECODE='1',JWT_SECRET='synthetic-journey-local-only-secret-at-least-32-bytes',
             BILLING_DATABASE_TESTS='1',BILLING_TEST_DATABASE_URL=dsn('postgres'),SCRAPER_DATABASE_URL=dsn('ceopro_app'),DATABASE_URL=dsn('ceopro_app'),
@@ -143,7 +145,7 @@ def main():
         # Reuse the accepted socket/libpq guard, but allow only this owned PG port.
         tree=ast.parse((ROOT/'backend/scripts/verify_recurring_consent.py').read_text())
         guard=next(n.value.value for n in ast.walk(tree) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='guard' for t in n.targets))
-        selected=['tests/billing/test_multi_gateway_lifecycle_db.py','tests/billing/test_multi_gateway_adapters.py',
+        selected=['tests/billing/test_paddle_completion_db.py','tests/billing/test_customer_operations_db.py','tests/billing/test_multi_gateway_lifecycle_db.py','tests/billing/test_multi_gateway_adapters.py',
             'tests/billing/test_trial_confirmation_db.py::test_atomic_confirmation_and_exact_repeat_preserve_cutoff_and_credits',
             'tests/billing/test_consent_withdrawal_db.py',
             'tests/billing/test_subscription_journey_db.py',

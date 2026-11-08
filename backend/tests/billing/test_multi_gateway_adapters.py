@@ -170,6 +170,7 @@ def test_paddle_single_sender_encoder_has_no_unproved_idempotency_or_negative_re
     from src.ai.billing.paddle_gateway import PaddleJourneyGateway
     class Transport(PaddleReader):
         def request(self,method,path,body=None,**kwargs):
+            if method=='GET' and path=='/transactions':return dict(items=[],has_more=False)
             if path.startswith('/prices/'):
                 return dict(id='pri_test',status='active',trial_period=dict(interval='day',frequency=14),billing_cycle=dict(interval='month',frequency=1),unit_price=dict(amount='5900',currency_code='USD'))
             assert method=='POST' and path=='/transactions'

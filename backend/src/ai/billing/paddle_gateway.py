@@ -101,14 +101,23 @@ class BoundPaddleTransport:
         self._client=client or httpx.Client(timeout=5,follow_redirects=False)
 
     def request(self,method,path,body=None,*,params=None):
-        if method not in ('GET','POST','PATCH') or not re.fullmatch(r'/(account|transactions|prices/[a-zA-Z0-9_]+|subscriptions/[a-zA-Z0-9_]+(?:/cancel)?|transactions/[a-zA-Z0-9_]+)',path):
+        listing = method == 'GET' and path in ('/customers','/transactions')
+        if method not in ('GET','POST','PATCH') or not re.fullmatch(r'/(account|customers|customers/[a-zA-Z0-9_]+|transactions|prices/[a-zA-Z0-9_]+|subscriptions/[a-zA-Z0-9_]+(?:/cancel)?|transactions/[a-zA-Z0-9_]+)',path):
             raise ValueError('Unsupported Paddle operation')
-        if params is not None and (params!={'include':'adjustments'} or not path.startswith('/transactions/')):raise ValueError('Unsupported Paddle query')
+        if listing:
+            allowed={'after','per_page','status','email'} if path=='/customers' else {'after','per_page','customer_id'}
+            if not params or set(params)-allowed:raise ValueError('Unsupported Paddle list query')
+        elif params is not None and (params!={'include':'adjustments'} or not path.startswith('/transactions/')):
+            raise ValueError('Unsupported Paddle query')
         try:
             response=self._client.request(method,self.origin+path,json=body,params=params,
                 headers={'Authorization':'Bearer '+self._key,'Paddle-Version':'1'},timeout=5,follow_redirects=False)
-            if response.status_code!=200:raise ValueError()
-            data=response.json()['data']
+            if response.status_code not in ((200,201) if method=='POST' else (200,)):raise ValueError()
+            result=response.json();data=result['data']
+            if listing:
+                more=result['meta']['pagination']['has_more']
+                if type(data) is not list or type(more) is not bool:raise ValueError()
+                return deepcopy(dict(items=data,has_more=more))
             if type(data) is not dict:raise ValueError()
             return deepcopy(data)
         except Exception:
@@ -203,9 +212,47 @@ class PaddleVerificationGateway:
             request.subscription,self.clock(),'paddle-billing-v1','1'),outcome,caps,**facts)
 
     def observe_trial_checkout(self,request):
-        # No independent reusable-authority/consent proof has been accepted.
+        # Exact provider associations and trial dates can be observed without
+        # claiming reusable off-session authority from a saved/attached card.
+        facts={};outcome=C.VerificationOutcome.UNAVAILABLE
+        caps=C.GatewayCapabilities(authoritative_reconciliation=C.CapabilityState.SUPPORTED)
+        try:
+            if type(request) is not C.TrialObservationRequest or request.binding!=self.binding:raise ValueError()
+            _bound_namespace(self.binding,self.reader)
+            t=self._read('GET','/transactions/'+request.checkout.opaque_id,params={'include':'adjustments'})
+            if (t['id']!=request.checkout.opaque_id or t['customer_id']!=request.customer.opaque_id
+                    or t.get('collection_mode')!='automatic' or (t.get('custom_data') or {}).get('keel_journey_operation')!=request.checkout_attempt_id
+                    or (t.get('custom_data') or {}).get('tenant_id')!=request.tenant_id):raise ValueError('Original trial transaction required')
+            state=C.CheckoutState.COMPLETE if t['status']=='completed' else C.CheckoutState.EXPIRED if t['status']=='canceled' else C.CheckoutState.OPEN
+            facts=dict(customer=request.customer,checkout=request.checkout,checkout_state=state)
+            outcome=C.VerificationOutcome.PENDING
+            if state is C.CheckoutState.EXPIRED:outcome=C.VerificationOutcome.CONFLICT
+            elif state is C.CheckoutState.COMPLETE:
+                sub=self.ref(t['subscription_id'])
+                if request.subscription is not None and request.subscription!=sub:raise ValueError('Original subscription required')
+                sr=C.SubscriptionObservationRequest(request.tenant_id,self.binding,request.customer,sub)
+                subscription,observed=self._subscription(sr)
+                terms=observed['terms'];items=t['items'];totals=t['details']['totals']
+                if (request.expected_terms is None or terms!=request.expected_terms or t['currency_code']!=terms.amount.currency
+                        or len(items)!=1 or items[0]['price']['id']!=terms.price.opaque_id or type(items[0]['quantity']) is not int or items[0]['quantity']!=1
+                        or money(items[0]['price']['unit_price']['amount'],items[0]['price']['unit_price']['currency_code'])!=terms.amount
+                        or t.get('discount_id') or 'adjustments' not in t or t['adjustments'] or t.get('revised_at')
+                        or any(Decimal(totals[k])!=0 for k in ('total','grand_total','subtotal','tax','discount','credit','credit_to_balance'))):
+                    raise ValueError('Unsupported initial trial financial facts')
+                trial=subscription['items'][0]['trial_dates']
+                start,end=instant(trial['starts_at']),instant(trial['ends_at'])
+                from datetime import timedelta
+                if end-start!=timedelta(days=request.approved_terms.trial_duration_days) or observed['subscription_state'] is not C.SubscriptionState.TRIALING:
+                    raise ValueError('Exact original trial required')
+                facts.update(observed,trial=C.ObservedTrialWindow(start,end,end))
+                # A completed $0 transaction establishes no recurring authority.
+                # Paddle's saved-method API exposes Customer association, not an
+                # independently verified mandate bound to this subscription.
+                facts['recurring_authorization']=C.RecurringAuthorizationEvidence(request.customer,sub)
+        except (ValueError,KeyError,TypeError,ArithmeticError):facts={};outcome=C.VerificationOutcome.CONFLICT
+        except Exception:facts={};outcome=C.VerificationOutcome.UNAVAILABLE
         return C.ProviderVerificationObservation(request,C.ObservationProvenance(C.ObservationSource.AUTHORITATIVE_LOOKUP,
-            request.checkout,self.clock(),'paddle-billing-v1','1'),C.VerificationOutcome.UNSUPPORTED,C.GatewayCapabilities())
+            request.checkout,self.clock(),'paddle-billing-v1','1'),outcome,caps,**facts)
 
 
 class PaddleCancellationGateway:
@@ -334,9 +381,109 @@ class PaddleJourneyGateway(PaddleCancellationGateway):
         return self._snapshot(self._read('GET','/transactions/'+d['provider_checkout_id']),d)
 
     def recover(self,d):
-        return self.retrieve(d) if d.get('provider_checkout_id') else None
+        if d.get('provider_checkout_id'):return self.retrieve(d)
+        _bound_namespace(self.binding,self.transport)
+        # All statuses, every bounded page; metadata discovery is never proof of
+        # non-creation. Ambiguous/incomplete scans cannot elect another sender.
+        matches=[]
+        for value in _pages(self.binding,self.transport,'/transactions',{'customer_id':d['provider_customer_id'],'per_page':30}):
+            if (value.get('custom_data') or {}).get('keel_journey_operation')==d['attempt_id']:
+                matches.append(value)
+        if len(matches)!=1:return None
+        value=self._read('GET','/transactions/'+matches[0]['id'])
+        if value.get('id')!=matches[0]['id']:raise ValueError('Transaction discovery changed')
+        return self._snapshot(value,d)
 
     def expire(self,session,d,*,authorize):
         self.validate(session,d);_bound_namespace(self.binding,self.transport);authorize()
         result=self._snapshot(self._read('PATCH','/transactions/'+session.reference.opaque_id,{'status':'canceled'}),d)
         if result.state is not C.CheckoutState.EXPIRED:raise ValueError('Paddle cancellation unconfirmed')
+
+
+def _pages(binding,reader,path,params):
+    """Never follow remote next URLs; scoped cursor reads only. Bounded failure
+    is unresolved, never permission to create again or accept a partial scan.
+    """
+    query=dict(params);seen=set()
+    for _ in range(100):
+        page=_bound_request(binding,reader,'GET',path,params=query)
+        if type(page.get('items')) is not list or type(page.get('has_more')) is not bool:raise ValueError('Malformed discovery')
+        for value in page['items']:
+            identifier=value.get('id')
+            if not isinstance(identifier,str) or identifier in seen:raise ValueError('Ambiguous discovery cursor')
+            seen.add(identifier)
+            yield value
+        if not page['has_more']:return
+        if not page['items']:raise ValueError('Empty discovery cursor')
+        query['after']=page['items'][-1]['id']
+    raise ValueError('Discovery incomplete')
+
+
+class PaddleDurableCustomerGateway:
+    """Existing durable Customer coordinator, single POST; recovery is GET-only.
+
+    No provider idempotency guarantee is claimed. Migration 176 permits one
+    original Paddle dispatch; an empty list NEVER establishes non-creation.
+    """
+    encoder_version='paddle-customer-v1-single-send'
+    def __init__(self,binding,transport,*,merchant_reviewed=False,clock=lambda:datetime.now(timezone.utc)):
+        if binding.provider!='paddle' or binding.environment is not C.GatewayEnvironment.TEST or transport.binding!=binding:
+            raise ValueError('Original sandbox Customer transport required')
+        self.binding,self.transport,self.merchant_reviewed,self.clock=binding,transport,merchant_reviewed,clock
+
+    def prepare_customer(self,intent):
+        if intent.binding!=self.binding:raise ValueError('Original Customer binding required')
+        payload=dict(email=intent.email,name=intent.company_name,custom_data=dict(tenant_id=intent.tenant_id,keel_customer_operation_id=intent.operation_id))
+        return C.FrozenCustomerRequest(intent.tenant_id,intent.operation_id,self.binding,'keel-customer-'+intent.operation_id,
+            intent.logical_request(),C.CustomerPayload.freeze(payload),self.encoder_version,'1',C.CapabilityState.UNKNOWN,0,5)
+
+    def _check(self,r):
+        payload=r.transport.unpack();logical=r.logical.unpack()
+        if (r.binding!=self.binding or r.encoder_version!=self.encoder_version or r.api_version!='1'
+                or r.idempotency_key!='keel-customer-'+r.operation_id or r.replay_support is not C.CapabilityState.UNKNOWN
+                or r.replay_window_seconds!=0 or r.dispatch_timeout_seconds!=5
+                or payload!=dict(email=logical['email'],name=logical['name'],custom_data=dict(tenant_id=r.tenant_id,keel_customer_operation_id=r.operation_id))):
+            raise ValueError('Frozen Customer request conflict')
+        _bound_namespace(self.binding,self.transport)
+
+    def _snapshot(self,value,r,kind):
+        if (value.get('status')!='active' or not isinstance(value.get('id'),str) or not value['id'].startswith('ctm_')
+                or value.get('custom_data')!=r.transport.unpack()['custom_data']
+                or value.get('email')!=r.logical.unpack()['email'] or value.get('name')!=r.logical.unpack()['name']):
+            raise ValueError('Customer lineage conflict')
+        return C.CustomerSnapshot(C.ProviderReference('paddle',value['id'],binding=self.binding),r.tenant_id,r.operation_id,kind,value['id'])
+
+    def submit_customer(self,r,*,deadline,authorize):
+        if self.merchant_reviewed is not True:raise ValueError('Merchant Customer acceptance required')
+        self._check(r)
+        if (deadline-self.clock()).total_seconds()<=7:raise ValueError('Customer dispatch budget expired')
+        receipt=authorize()
+        if (receipt.get('state')!='submitted' or receipt.get('dispatch_count')!=1
+                or receipt.get('operation_id')!=r.operation_id or receipt.get('tenant_id')!=r.tenant_id
+                or receipt.get('binding')!=dict(provider='paddle',environment='test',merchant_account_id=self.binding.merchant_account_id,binding_id=self.binding.binding_id)
+                or receipt.get('idempotency_key')!=r.idempotency_key
+                or receipt.get('transport_request')!=r.transport.canonical.decode('utf-8')
+                or instant(receipt['replay_deadline'])!=deadline or (deadline-self.clock()).total_seconds()<=7):
+            raise ValueError('Original single-sender authorization required')
+        return self._snapshot(_bound_request(self.binding,self.transport,'POST','/customers',r.transport.unpack()),r,'create_response')
+
+    def retrieve_customer(self,reference,r):
+        self._check(r)
+        if reference.binding!=self.binding:raise ValueError('Original Customer reference required')
+        value=_bound_request(self.binding,self.transport,'GET','/customers/'+reference.opaque_id)
+        snapshot=self._snapshot(value,r,'retrieved')
+        if snapshot.reference!=reference:raise ValueError('Customer reference changed')
+        return snapshot
+
+    def recover_customer(self,r):
+        self._check(r);matches=[]
+        for value in _pages(self.binding,self.transport,'/customers',dict(email=r.logical.unpack()['email'],status='active,archived',per_page=200)):
+            metadata=value.get('custom_data') or {}
+            if metadata.get('keel_customer_operation_id')==r.operation_id:
+                matches.append(value)
+        if len(matches)>1:status=C.CustomerRecoveryStatus.CONFLICT;snapshot=None
+        elif not matches:status=C.CustomerRecoveryStatus.INCONCLUSIVE;snapshot=None
+        else:
+            ref=C.ProviderReference('paddle',matches[0]['id'],binding=self.binding)
+            snapshot=self.retrieve_customer(ref,r);status=C.CustomerRecoveryStatus.MATCH
+        return C.CustomerRecoveryResult(status,self.binding,r.tenant_id,r.operation_id,snapshot)

@@ -22,6 +22,11 @@ class ApprovedPolicyCatalog:
             raise CollectionBlocked('policy_bundle_digest_conflict')
         for d in snapshot: d.values()
         self._documents = snapshot
+        self._bundle_digest = pinned_bundle_digest
+
+    @property
+    def bundle_digest(self):
+        return self._bundle_digest
 
     def __call__(self, row, language, policy_id=None):
         matches = [d for d in self._documents if d.values()['language_tag']==language

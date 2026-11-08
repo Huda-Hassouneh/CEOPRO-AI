@@ -130,3 +130,10 @@ def cancellation(operation_id: UUID, request: Request, response: Response, ctx: 
 def cleanup(operation_id: UUID, request: Request, response: Response, ctx: TenantContext=Depends(get_tenant_context)):
     with _journey(request,response,ctx) as journey:
         return _invoke(lambda:journey.cleanup(operation_id))
+
+
+@router.get('/trial-journeys/{operation_id}/checkout')
+def checkout_details(operation_id: UUID, request: Request, response: Response, language: Literal['en','ar']='en',
+                     ctx: TenantContext=Depends(get_tenant_context)):
+    with _journey(request,response,ctx) as journey:
+        return _invoke(lambda:journey.checkout_details(operation_id,language))

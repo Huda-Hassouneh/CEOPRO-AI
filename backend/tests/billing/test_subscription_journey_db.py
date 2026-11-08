@@ -365,3 +365,77 @@ def test_bound_signed_http_webhook_drives_actual_journey_and_replay(client,owner
     finally:
         del client.app.state.subscription_journey_webhook_decoder
         del client.app.state.subscription_journey_webhook_handler
+
+
+@pytest.mark.parametrize('block',['withdrawn','revoked','unrelated_actor'])
+def test_checkout_page_handoff_rechecks_protected_consent_and_current_actor(owner_db,journey,block):
+    s=journey;p=accepted(s);s.flow.advance(s.operation,'en');before=fingerprint(owner_db)
+    details=s.flow.checkout_details(s.operation,'en')
+    assert details==dict(operation_id=str(s.operation),provider='stripe',environment='test',binding_id=s.binding.binding_id,transaction_id=next(iter(s.transport.sessions)))
+    assert len(s.transport.sent)==1 and fingerprint(owner_db)==before
+    if block=='withdrawn':s.collection.withdraw(s.operation,uuid.UUID(p['presentation_id']))
+    elif block=='revoked':
+        with owner_db.cursor() as q:q.execute("UPDATE tenant_users SET role_key='staff' WHERE tenant_id=%s AND user_id=%s",s.party)
+    else:s.collection.actor=str(uuid.uuid4())
+    with pytest.raises((CollectionBlocked,psycopg2.Error,R.ConsentError,ValueError)):
+        s.flow.checkout_details(s.operation,'en')
+    assert len(s.transport.sent)==1
+
+
+def test_actual_paddle_customer_checkout_and_trial_observation_compose_without_fabricated_readiness(owner_db,parties,monkeypatch):
+    from . import test_subscription_journey_db as J
+    from .test_paddle_completion import CustomerReader
+    from src.ai.billing.paddle_gateway import PaddleDurableCustomerGateway,PaddleJourneyGateway,PaddleVerificationGateway
+    with owner_db.cursor() as q:
+        q.execute('UPDATE billing_gateway_bindings SET reservation_enabled=false WHERE reservation_enabled')
+        bid='paddle_'+uuid.uuid4().hex
+        q.execute("INSERT INTO billing_gateway_bindings(binding_id,provider,environment,merchant_account_id,reservation_enabled,provenance) VALUES(%s,'paddle','test',%s,true,'SYNTHETIC acceptance')",(bid,bid))
+        q.execute("INSERT INTO billing_lifecycle_provider_approvals(binding_id,evidence_reference) VALUES(%s,'SYNTHETIC only')",(bid,))
+        q.execute("INSERT INTO billing_price_references(binding_id,price_id,provider_price_id,provenance) SELECT %s,price_id,'pri_'||replace(price_id::text,'-',''),'SYNTHETIC only' FROM billing_plan_prices WHERE plan_key='growth' AND period_code='monthly' AND retired_at IS NULL",(bid,))
+        q.execute("SELECT amount FROM billing_plan_prices WHERE plan_key='growth' AND period_code='monthly' AND retired_at IS NULL");amount=q.fetchone()[0]
+    readers={}
+    class API(CustomerReader):
+        def __init__(self,b):super().__init__(b);self.transactions=[];self.complete=False
+        def price(self,identifier):return dict(id=identifier,status='active',billing_cycle=dict(interval='month',frequency=1),unit_price=dict(amount=str(int(amount*100)),currency_code='USD'),trial_period=dict(interval='day',frequency=14))
+        def request(self,method,path,body=None,*,params=None):
+            if path=='/customers' or path.startswith('/customers/'):return super().request(method,path,body,params=params)
+            self.calls.append((method,path,deepcopy(body),deepcopy(params)))
+            if path.startswith('/prices/'):return self.price(path.rsplit('/',1)[1])
+            if method=='POST' and path=='/transactions':
+                value=dict(deepcopy(body),id='txn_'+'a'*26,status='ready',currency_code='USD',items=[dict(quantity=1,price=self.price(body['items'][0]['price_id']))],
+                    adjustments=[],details=dict(totals={k:'0' for k in ('total','grand_total','subtotal','tax','discount','credit','credit_to_balance')}))
+                value['checkout']['url']+='&_ptxn='+value['id'];self.transactions.append(value)
+                return deepcopy(value)
+            if path=='/transactions':return dict(items=deepcopy(self.transactions),has_more=False)
+            if path.startswith('/transactions/'):
+                value=deepcopy(self.transactions[0])
+                if self.complete:value.update(status='completed',subscription_id='sub_original')
+                return value
+            if path=='/subscriptions/sub_original':
+                value=self.transactions[0];start=datetime.now(timezone.utc);end=start+timedelta(days=14)
+                return dict(id='sub_original',customer_id=value['customer_id'],status='trialing',collection_mode='automatic',discount=None,scheduled_change=None,
+                    current_billing_period=dict(starts_at=start.isoformat(),ends_at=end.isoformat()),
+                    items=[dict(quantity=1,price=value['items'][0]['price'],trial_dates=dict(starts_at=start.isoformat(),ends_at=end.isoformat()))])
+            raise AssertionError('Unexpected synthetic API')
+    def api(b):return readers.setdefault(b.binding_id,API(b))
+    monkeypatch.setattr(J,'Gateway',lambda b:PaddleDurableCustomerGateway(b,api(b),merchant_reviewed=True))
+    monkeypatch.setattr(J,'CheckoutTransport',api)
+    monkeypatch.setattr(J,'StripeJourneyGateway',lambda b,t,**kw:PaddleJourneyGateway(b,t,merchant_reviewed=True,checkout_page_ready=True,approved_checkout_origin='https://keel.example.test'))
+    monkeypatch.setattr(J,'Observer',lambda b:PaddleVerificationGateway(b,api(b)))
+    generator=J.journey.__wrapped__(owner_db,parties);s=next(generator)
+    try:
+        accepted(s);before=fingerprint(owner_db)
+        assert s.flow.advance(s.operation,'en')['state']=='checkout_ready'
+        assert s.flow.advance(s.operation,'en')['state']=='checkout_ready'
+        t=readers[bid];t.complete=True
+        result=s.flow.advance(s.operation,'en')
+        assert result['state']=='blocked' and result['reason']=='provider_capabilities_unproved'
+        assert sum(c[0]=='POST' and c[1]=='/customers' for c in t.calls)==1
+        assert sum(c[0]=='POST' and c[1]=='/transactions' for c in t.calls)==1
+        assert fingerprint(owner_db)==before
+        with owner_db.cursor() as q:
+            q.execute("SELECT outcome,evidence->>'subscription' FROM billing_verification_observations WHERE operation_id=%s",(str(observation_identity(s.operation)),))
+            assert q.fetchall()==[('pending','sub_original')]
+    finally:
+        try:next(generator)
+        except StopIteration:pass

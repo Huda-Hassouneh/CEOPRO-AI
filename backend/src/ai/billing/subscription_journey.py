@@ -137,6 +137,23 @@ class SubscriptionJourney:
             return self._result(operation, 'expired', 'provider_checkout_expired')
         return self.reconcile(operation, language)
 
+    def checkout_details(self, operation, language):
+        """Authenticated read-only payment page handoff. Never provider discovery.
+        Consent/actor/current billing authority are rechecked by protected reads.
+        """
+        row, accepted, policy = self._accepted(operation, language)
+        if row['reservation']['state']!='pending':raise CollectionBlocked('reservation_terminal')
+        binding=_binding(row)
+        d=self.dispatches.command(operation,'read')
+        if (binding.environment is not C.GatewayEnvironment.TEST
+                or d and (d['expired_at'] or d['acceptance_id']!=accepted['acceptance_id'])):
+            raise CollectionBlocked('original_checkout_required')
+        result=dict(operation_id=str(operation),provider=binding.provider,environment='test',
+            binding_id=binding.binding_id, transaction_id=d['provider_checkout_id'] if d else None)
+        bundle=getattr(self.collection.policies,'bundle_digest',None)
+        if bundle is not None:result['policy_bundle_digest']=bundle
+        return result
+
     def reconcile(self, operation, language):
         row, accepted, policy = self._accepted(operation, language)
         request = V.trial_request(self.observations.context(operation))
@@ -221,7 +238,9 @@ class SubscriptionJourney:
         elif d and d['submitted_at']:
             op=self.observations.read(observation_identity(operation))
             state='conflict' if op and op['has_conflict'] else 'pending'
-        return self._result(operation,state,'durable_checkpoint_only')
+        binding=_binding(row)
+        return self._result(operation,state,'durable_checkpoint_only',provider=binding.provider,
+            binding_id=binding.binding_id,environment=binding.environment.value)
 
     def cleanup(self,operation):
         """Best-effort remote compensation after pre-confirmation withdrawal.
