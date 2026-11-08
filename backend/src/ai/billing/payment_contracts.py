@@ -724,6 +724,9 @@ class TrialObservationRequest:
     customer: ProviderReference = field(repr=False)
     customer_operation_id: str | None = field(default=None, repr=False)
     subscription: ProviderReference | None = field(default=None, repr=False)
+    # Optional for B1 compatibility. B2 cannot compare price/amount/quantity
+    # against the digest alone; future trusted persistence supplies this view.
+    expected_terms: "ObservedRecurringTerms | None" = field(default=None, repr=False, kw_only=True)
 
     def __post_init__(self):
         _observation_type(self, TrialObservationRequest)
@@ -737,6 +740,12 @@ class TrialObservationRequest:
         if not all(isinstance(v, ProviderReference) for v in (self.checkout, self.customer)):
             raise ValueError("Exact Checkout and Customer references required")
         _observation_scope(self.approved_terms.binding, self.checkout, self.customer, self.subscription)
+        if self.expected_terms is not None:
+            _observation_type(self.expected_terms, ObservedRecurringTerms)
+            _observation_scope(self.binding, self.expected_terms.price)
+            if (self.expected_terms.amount.currency != self.approved_terms.currency
+                    or self.expected_terms.interval_months != self.approved_terms.interval_months):
+                raise ValueError("Expected recurring terms disagree with approved trial summary")
 
     @property
     def binding(self) -> GatewayBinding:
@@ -834,6 +843,13 @@ class RecurringAuthorizationEvidence:
             raise ValueError("Recorded consent requires reference and terms revision")
 
 
+class SettlementPurpose(str, Enum):
+    INITIAL_SUBSCRIPTION = "initial_subscription"
+    RENEWAL = "renewal"
+    ADJUSTMENT = "adjustment"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True)
 class ObservedSettlement:
     """Immutable subset of invoice evidence, separate from trial/setup readiness.
@@ -851,6 +867,7 @@ class ObservedSettlement:
     initial_subscription_invoice: bool | None = None
     paid_at: datetime | None = None
     coverage: tuple[tuple[datetime, datetime], ...] = ()
+    purpose: SettlementPurpose = field(default=SettlementPurpose.UNKNOWN, kw_only=True)
 
     def __post_init__(self):
         _observation_type(self, ObservedSettlement)
@@ -858,6 +875,12 @@ class ObservedSettlement:
             raise ValueError("Scoped settlement references required")
         _observation_scope(self.invoice.binding, self.invoice, self.customer, self.subscription)
         _observation_money(self.amount_paid)
+        if not isinstance(self.purpose, SettlementPurpose):
+            raise ValueError("Explicit settlement purpose required")
+        if (self.purpose is SettlementPurpose.INITIAL_SUBSCRIPTION and self.initial_subscription_invoice is not True
+                or self.purpose in (SettlementPurpose.RENEWAL, SettlementPurpose.ADJUSTMENT)
+                and self.initial_subscription_invoice is not False):
+            raise ValueError("Settlement purpose and initial invoice evidence disagree")
         if (not isinstance(self.payment_state, PaymentState)
                 or type(self.settlement_confirmed) is not bool
                 or (self.initial_subscription_invoice is not None and type(self.initial_subscription_invoice) is not bool)):
@@ -904,6 +927,12 @@ class ProviderVerificationObservation:
     payment_method: PaymentMethodEvidence | None = field(default=None, repr=False)
     recurring_authorization: RecurringAuthorizationEvidence | None = field(default=None, repr=False)
     settlement: ObservedSettlement | None = field(default=None, repr=False)
+    # B1 lacked these authoritative lifecycle facts. Optional, dormant additions
+    # preserve old constructors; no period or cancellation is inferred.
+    period_start: datetime | None = field(default=None, kw_only=True)
+    period_end: datetime | None = field(default=None, kw_only=True)
+    cancel_at_period_end: bool | None = field(default=None, kw_only=True)
+    cancelled_at: datetime | None = field(default=None, kw_only=True)
 
     def __post_init__(self):
         _observation_type(self, ProviderVerificationObservation)
@@ -916,6 +945,19 @@ class ProviderVerificationObservation:
             raise ValueError("Typed observation context and outcome required")
         binding = self.request.binding
         _observation_scope(binding, self.provenance.reference, self.customer, self.checkout, self.subscription)
+        for name in ("period_start", "period_end", "cancelled_at"):
+            if getattr(self, name) is not None:
+                object.__setattr__(self, name, _observation_time(getattr(self, name)))
+        if (self.period_start is None) != (self.period_end is None):
+            raise ValueError("Both observed billing period boundaries required")
+        if self.period_start is not None and self.period_end <= self.period_start:
+            raise ValueError("Positive observed billing period required")
+        if self.cancel_at_period_end is not None and type(self.cancel_at_period_end) is not bool:
+            raise ValueError("Explicit cancellation state required")
+        if self.subscription is None and any(v is not None for v in (
+            self.period_start, self.period_end, self.cancel_at_period_end, self.cancelled_at
+        )):
+            raise ValueError("Lifecycle evidence requires exact subscription association")
         if self.customer is not None and self.customer != self.request.customer:
             raise ValueError("Observed Customer association conflict")
         if self.request.subscription is not None and self.subscription is not None and self.subscription != self.request.subscription:
