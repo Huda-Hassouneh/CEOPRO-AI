@@ -439,3 +439,38 @@ def test_a_competitors_published_prices_reach_the_product_comparison():
         conn.close()
     assert by_name["Reem Grill"]["name"] == "Reem Grill"
     assert landscape["products_covered"] == 2 and landscape["catalog_size"] == 3
+
+
+def test_a_run_left_running_by_a_crashed_process_unblocks_the_scan_button():
+    """Production, 7-8 Nov 2026: the API was killed mid-scan; its run stayed 'running' for 30 hours, the
+    screen kept its spinner and disabled "Refresh scan", and polled the run every 2 s."""
+    from datetime import datetime, timedelta, timezone
+
+    tenant, user = _company("grocery", "supermarket")
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        run_id = pipeline.start_run(conn, tenant, user)
+        conn.commit()
+        assert pipeline.get_run(conn, tenant, run_id)["status"] == "queued"  # fresh: still in progress
+    finally:
+        conn.close()
+    abandoned = datetime.now(timezone.utc) - timedelta(minutes=pipeline.STALE_RUN_MINUTES + 5)
+    with psycopg2.connect(DATABASE_URL) as admin, admin.cursor() as cursor:  # what the crash leaves behind
+        cursor.execute("UPDATE discovery_runs SET status='running', created_at=%s, started_at=%s WHERE run_id=%s;",
+                       (abandoned, abandoned, run_id))
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        for run in (pipeline.get_run(conn, tenant), pipeline.get_run(conn, tenant, run_id)):  # status screen, polling
+            assert run["status"] == "failed" and run["error"] == "timed_out"
+            assert public_sources.public_run(run)["error"] == "generic"
+        with conn.cursor() as cursor:  # reading never rewrites the stored row
+            cursor.execute("SELECT status FROM discovery_runs WHERE run_id=%s;", (run_id,))
+            assert cursor.fetchone()[0] == "running"
+        new_run = pipeline.start_run(conn, tenant, user)  # the owner can scan again
+        conn.commit()
+        assert new_run != run_id
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT status, error FROM discovery_runs WHERE run_id=%s;", (run_id,))
+            assert cursor.fetchone() == ("failed", "timed_out")
+    finally:
+        conn.close()
