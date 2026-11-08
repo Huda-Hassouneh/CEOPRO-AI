@@ -25,7 +25,7 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 def _run_in_background(tenant_id: str, user_id: str, run_id: str, radius_km: Optional[float]) -> None:
     conn = db.dedicated_tenant_connection(tenant_id, user_id)
     try:
-        pipeline.execute_run(conn, tenant_id, run_id, radius_km)
+        pipeline.run_with_slot(conn, tenant_id, run_id, radius_km)
     except Exception:  # noqa: BLE001 - recorded on the run row
         pass
     finally:
