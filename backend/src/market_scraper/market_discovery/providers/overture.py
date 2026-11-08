@@ -28,7 +28,7 @@ import os
 import json
 import re
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from typing import Dict, List, Optional, Tuple
 
 import httpx
@@ -375,6 +375,10 @@ def to_candidate(row: dict, query: DiscoveryQuery, matched_category: bool, name_
 # decided by detecting memory: limits aren't always readable, and even a large host shouldn't let one
 # background job starve the API. The API only ever delegates this work.
 REMOTE_DEADLINE_SECONDS = float(os.getenv("OVERTURE_REMOTE_DEADLINE_SECONDS", "200"))  # under search_all's 240 s
+# Reading is memory-bounded: at most READ_WORKERS parts in flight, each decoded READ_BATCH_ROWS rows at a time.
+READ_WORKERS = max(1, int(os.getenv("OVERTURE_READ_WORKERS", "2")))
+READ_BATCH_ROWS = max(256, int(os.getenv("OVERTURE_READ_BATCH_ROWS", "2048")))
+_RELEVANCE_COLUMNS = ["names", "basic_category", "taxonomy"]  # all that the relevance pre-check reads
 
 
 def execution_mode() -> str:
@@ -418,6 +422,30 @@ def search_remote(query: DiscoveryQuery) -> ProviderResult:
                           requests=int(result.get("requests") or 1))
 
 
+def _candidates(rows, query, wanted, phrases, name_re, box, radius) -> list:
+    """(distance, candidate) for one part's rows that are open, confident, relevant competitors."""
+    out = []
+    for row in rows:
+        b = row.get("bbox") or {}
+        if not (box[0] <= (b.get("xmin") or 999) <= box[1] and box[2] <= (b.get("ymin") or 999) <= box[3]):
+            continue
+        if (row.get("operating_status") or "open") not in ("open", None) or (row.get("confidence") or 0) < MIN_CONFIDENCE:
+            continue
+        matched_category = category_matches(row, wanted, phrases) and _category_trusted(row)
+        text = " ".join(_all_names(row))
+        name_match = bool(name_re and name_re.search(text))
+        if not (matched_category or name_match):
+            continue
+        candidate = to_candidate(row, query, matched_category, name_match)
+        if candidate is None or not candidate.source_url:
+            continue  # nothing a person could open to check it
+        away = distance_km(query.latitude, query.longitude, candidate.latitude, candidate.longitude)
+        if away is not None and away > radius:
+            continue
+        out.append((away if away is not None else radius, candidate))
+    return out
+
+
 def search_local(query: DiscoveryQuery) -> ProviderResult:
     ok, reason = available()
     if not ok:
@@ -440,38 +468,55 @@ def search_local(query: DiscoveryQuery) -> ProviderResult:
         return ProviderResult(NAME, "failed", reason="unreachable", requests=1)
 
     def read(item):
+        # Memory is bounded by one batch, not one row group: a row group (~20,000 places with nested
+        # names, addresses and sources) decoded whole cost 100+ MB, and six at once ran the API out of
+        # memory. Rows outside the box are dropped in Arrow before any Python object exists, and of the
+        # rest only the three fields that decide relevance become Python objects; full rows (nested
+        # addresses, sources, socials) are built only for places that could be competitors. The check
+        # here is a superset of _candidates' (category trust is left to it), so results are unchanged.
         key, size, group = item
-        reader = pq.ParquetFile(_RangeFile(BASE_URL + key, _client(), size))
-        return _in_box(reader.read_row_group(group, columns=COLUMNS), box).to_pylist()
+        reader = pq.ParquetFile(_RangeFile(BASE_URL + key, _client(), size), pre_buffer=False)
+        rows = []
+        for batch in reader.iter_batches(batch_size=READ_BATCH_ROWS, row_groups=[group], columns=COLUMNS,
+                                         use_threads=False):
+            kept = _in_box(batch, box)
+            if not kept.num_rows:
+                continue
+            relevant = [i for i, light in enumerate(kept.select(_RELEVANCE_COLUMNS).to_pylist())
+                        if category_matches(light, wanted, phrases)
+                        or (name_re is not None and name_re.search(" ".join(_all_names(light))))]
+            if relevant:
+                rows.extend(kept.take(relevant).to_pylist())
+        return rows
 
     found, failures = [], 0
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        futures = [pool.submit(read, g) for g in groups]
-        for future in futures:
-            try:
-                rows = future.result()
-            except Exception as exc:  # noqa: BLE001 - one part failing leaves the rest
-                failures += 1
-                logger.warning("Overture part failed: %s", type(exc).__name__)
-                continue
-            for row in rows:
-                b = row.get("bbox") or {}
-                if not (box[0] <= (b.get("xmin") or 999) <= box[1] and box[2] <= (b.get("ymin") or 999) <= box[3]):
+    pending, remaining = set(), iter(groups)
+
+    def top_up(pool):
+        # A bounded window of reads in flight; each finished part is turned into candidates and
+        # dropped at once (holding every part's rows until the end was the other half of the peak).
+        while len(pending) < READ_WORKERS:
+            item = next(remaining, None)
+            if item is None:
+                return
+            pending.add(pool.submit(read, item))
+
+    with ThreadPoolExecutor(max_workers=READ_WORKERS) as pool:
+        top_up(pool)
+        while pending:
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for future in done:
+                pending.discard(future)
+                try:
+                    rows = future.result()
+                except Exception as exc:  # noqa: BLE001 - one part failing leaves the rest
+                    failures += 1
+                    logger.warning("Overture part failed: %s", type(exc).__name__)
                     continue
-                if (row.get("operating_status") or "open") not in ("open", None) or (row.get("confidence") or 0) < MIN_CONFIDENCE:
-                    continue
-                matched_category = category_matches(row, wanted, phrases) and _category_trusted(row)
-                text = " ".join(_all_names(row))
-                name_match = bool(name_re and name_re.search(text))
-                if not (matched_category or name_match):
-                    continue
-                candidate = to_candidate(row, query, matched_category, name_match)
-                if candidate is None or not candidate.source_url:
-                    continue  # nothing a person could open to check it
-                away = distance_km(query.latitude, query.longitude, candidate.latitude, candidate.longitude)
-                if away is not None and away > radius:
-                    continue
-                found.append((away if away is not None else radius, candidate))
+                found.extend(_candidates(rows, query, wanted, phrases, name_re, box, radius))
+                del rows
+            done = None
+            top_up(pool)
     if groups and failures == len(groups):
         return ProviderResult(NAME, "failed", reason="unreachable", requests=len(groups) + 1)
     found.sort(key=lambda pair: pair[0])
