@@ -42,8 +42,10 @@ def catalog(owner_db):
         key='catalog_'+uuid.uuid4().hex
         q.execute("INSERT INTO billing_gateway_bindings(binding_id,provider,environment,merchant_account_id,provenance) VALUES(%s,'paddle','test',%s,'SYNTHETIC catalog test')",(key,key))
         q.execute('SELECT current_database()');database=q.fetchone()[0]
+        q.execute("SELECT price_id::text FROM billing_plan_prices WHERE plan_key='growth' AND retired_at IS NULL")
+        price_ids=[row[0] for row in q.fetchall()]
     conn=psycopg2.connect(dsn)
-    manifest=dict(deepcopy(MANIFEST),database=database,binding_id=key,merchant_account_id=key)
+    manifest=dict(deepcopy(MANIFEST),database=database,binding_id=key,merchant_account_id=key,price_ids=price_ids)
     repo=P.CatalogRepository(conn,str(party[1]),str(party[0]),manifest)
     rows,expected=repo.snapshot()
     assert rows and all(row['plan_key']=='growth' for row in rows)

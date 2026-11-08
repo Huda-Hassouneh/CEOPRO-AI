@@ -35,6 +35,14 @@ def validate_manifest(v):
     plans=v.get('plan_keys')
     if (type(plans) is not list or not plans or any(type(k) is not str or not k.strip() for k in plans)
             or len(plans)!=len(set(plans))):raise CatalogBlocked('Explicit unique Standard plan selection required')
+    prices=v.get('price_ids')
+    if (type(prices) is not list or not prices
+            or any(type(k) is not str for k in prices)):
+        raise CatalogBlocked('Explicit unique persisted price selection required')
+    try:
+        if any(str(UUID(k))!=k for k in prices) or len(prices)!=len(set(prices)):raise ValueError()
+    except ValueError:
+        raise CatalogBlocked('Explicit unique persisted price selection required') from None
     if not is_test_database_name(v['database']):raise CatalogBlocked('Isolated TEST database required')
     return C.GatewayBinding('paddle',C.GatewayEnvironment.TEST,v['merchant_account_id'],v['binding_id'])
 
@@ -161,8 +169,13 @@ class CatalogRepository:
             q.execute("""SELECT p.price_id,p.plan_key,u.display_name,p.period_code,p.interval_months,p.amount,p.currency,u.trial_days
              FROM public.billing_plan_prices p JOIN public.usage_plans u USING(plan_key)
              WHERE p.retired_at IS NULL AND u.self_serve AND u.is_active AND u.plan_key=ANY(%s)
-             ORDER BY u.tier_level,p.interval_months,p.price_id""",(self.manifest['plan_keys'],))
-            return [dict(r,price_id=str(r['price_id'])) for r in q.fetchall()]
+               AND p.price_id=ANY(%s::uuid[])
+             ORDER BY u.tier_level,p.interval_months,p.price_id""",(self.manifest['plan_keys'],self.manifest['price_ids']))
+            rows=[dict(r,price_id=str(r['price_id'])) for r in q.fetchall()]
+        if ({r['price_id'] for r in rows}!=set(self.manifest['price_ids'])
+                or {r['plan_key'] for r in rows}!=set(self.manifest['plan_keys'])):
+            raise CatalogBlocked('Every selected price must belong to the selected active self-serve plans')
+        return rows
 
     def snapshot(self):
         self.authorize();rows=self.rows();self.conn.commit()

@@ -1518,3 +1518,47 @@ its provider-egress denial and default-off flags until separately authorized.
 Provider contract references: [Paddle Product/Price creation](https://developer.paddle.com/build/products/create-products-prices/),
 [price listing/pagination](https://developer.paddle.com/api-reference/prices/list-prices/),
 [account identity and permissions](https://developer.paddle.com/changelog/2026/account-settings-api/).
+
+### Authorized Starter monthly Sandbox catalog acceptance — 2026-11-09
+
+Catalog manifests now also require explicit, unique canonical `price_ids`.
+Selection intersects those persisted IDs with active self-serve `plan_keys`;
+missing, retired, wrong-plan or partially matched selections fail closed. A
+plan-only manifest no longer authorizes every billing period. The same exact
+selection is rechecked at submission and mapping, and its frozen rows enter the
+reviewed digest. Existing broad manifests must be explicitly updated before use.
+No migration, runtime permission or Stripe behavior changes.
+
+The owner explicitly approved Starter monthly only: KEEL Standard, SaaS tax
+classification, external (tax-exclusive) tax mode, USD 29/month, quantity one,
+14-day free card-required trial, and at most one Product plus one Price for the
+confirmed Sandbox merchant. After normal Platform Owner authentication, merchant
+and empty-catalog rechecks, owned-database verification and a hashed pg_dump with
+verified restore catalog, the existing durable catalog journal created exactly
+one Product and one Price (both HTTP 201). Exact-object GET readbacks (HTTP 200)
+verified identity, tax, amount, interval, explicit payment-method requirement,
+trial and quantity. Both operations succeeded and the exact monthly price mapping
+was persisted in the disposable database. The original binding remains disabled
+for reservations. Other plans/periods, production/development databases and
+runtime grants were untouched; no Customer, Checkout, subscription or trial was
+created. Provider IDs and private execution evidence remain in
+`.dev/evidence/paddle-discovery/` and the existing private session state.
+
+Focused verification: 53 network-free catalog cases passed, plus four read-only
+native PostgreSQL scope checks (exact monthly selection, unknown ID, wrong plan,
+partial match). Earlier migration/ACL evidence is reused; no broad suites or
+migrations were rerun. The local API and frontend returned HTTP 200, as did the
+existing public payment page. Webhook GET returned 405; this proves routing only,
+not a configured decoder or genuine signed delivery.
+
+Remaining gates before Customer -> Checkout -> signed webhook -> pending
+observation: install the genuinely approved legal/operator/language/refund and
+trial-start bundle (the policy registry is empty and bundle digest absent);
+review the exact synthetic-user/operation authorization manifest and original
+binding selection; separately authorize the isolated acceptance composition,
+limited provider egress and journey/Checkout flags while keeping confirmation
+disabled; verify the Paddle destination/default payment link still use the
+current tunnel and the installed secret belongs to that destination. API key,
+webhook secret and public TEST token are present, but genuine signed delivery is
+still unproved. Complete recurring authority, B4 capability proof and subscription
+activation remain outside this pending-observation test.

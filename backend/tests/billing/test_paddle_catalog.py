@@ -15,7 +15,7 @@ B=C.GatewayBinding('paddle',C.GatewayEnvironment.TEST,'seller_fixture','catalog_
 ROW=dict(price_id=str(uuid.uuid4()),plan_key='growth',display_name='Plus',period_code='monthly',
     interval_months=1,amount=Decimal('140.00'),currency='USD',trial_days=14)
 MANIFEST=dict(provider='paddle',environment='test',binding_id=B.binding_id,merchant_account_id=B.merchant_account_id,
-    database='keel_billing_test_catalog',plan_keys=['growth'],tax_category='saas',tax_mode='external',
+    database='keel_billing_test_catalog',plan_keys=['growth'],price_ids=[ROW['price_id']],tax_category='saas',tax_mode='external',
     provider_operations_authorization='SYNTHETIC catalog authorization',merchant_approval_reference='SYNTHETIC',reason='Synthetic test')
 
 
@@ -234,3 +234,29 @@ def test_cli_default_is_local_only_and_never_constructs_provider_transport(tmp_p
 def test_cli_apply_requires_separate_execution_and_reviewed_hash(tmp_path):
     from scripts import paddle_sync_catalog as command
     with pytest.raises(SystemExit):command.main(['--manifest',str(tmp_path/'none'),'--apply'])
+
+
+@pytest.mark.parametrize('selection',[None,[],['not-a-uuid'],[ROW['price_id']]*2,[1]])
+def test_price_scope_must_be_explicit_unique_persisted_ids(selection):
+    with pytest.raises(P.CatalogBlocked,match='price selection'):
+        P.validate_manifest(dict(MANIFEST,price_ids=selection))
+
+
+@pytest.mark.parametrize('problem',[None,'missing','wrong-plan','extra-period'])
+def test_repository_limits_query_and_rejects_incomplete_or_unexpected_price_scope(problem):
+    row=deepcopy(ROW)
+    if problem=='wrong-plan':row['plan_key']='starter'
+    rows=[] if problem=='missing' else [row]
+    if problem=='extra-period':rows.append(dict(row,price_id=str(uuid.uuid4()),period_code='quarterly',interval_months=3))
+    class Cursor:
+        def __enter__(self):return self
+        def __exit__(self,*args):pass
+        def execute(self,sql,params):
+            assert 'p.price_id=ANY(%s::uuid[])' in sql
+            assert params==(['growth'],[ROW['price_id']])
+        def fetchall(self):return rows
+    conn=SimpleNamespace(cursor=lambda **kw:Cursor())
+    repo=P.CatalogRepository(conn,str(uuid.uuid4()),str(uuid.uuid4()),deepcopy(MANIFEST))
+    if problem:
+        with pytest.raises(P.CatalogBlocked,match='Every selected price'):repo.rows()
+    else:assert repo.rows()==[ROW]
