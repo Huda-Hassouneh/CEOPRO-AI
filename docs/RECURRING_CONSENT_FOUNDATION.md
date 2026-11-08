@@ -478,3 +478,139 @@ readiness/capability acceptance, legacy webhook/local-trial cutover protection a
 full production restricted-installer verification. This GET/panel resolves none
 of those activation gates and never creates consent, VERIFIED evidence, Customer,
 Checkout, subscriptions, entitlements or Credits.
+
+
+## Phase 1.3D-B2b-2 - dormant authenticated consent and withdrawal
+
+Implemented from clean `fcecb9b8b6535bd6c8e93b11c10312cf9f44f881` on
+`integration/main-consolidation`; all changes remain uncommitted. No Downloads
+files were accessed, copied or published. No policy revisions/text were approved
+or seeded, no provider was contacted and no normal service was started.
+
+Owner-approved business decisions are recorded as requirements: B2B only;
+14-day eligible-business trial; explicit advance consent for automatic paid
+renewal; paid cancellation stops future renewal and preserves paid-period access;
+refund-review requests within 14 days of the first paid charge, without a refund
+guarantee and subject to applicable law and seller/provider obligations; initially
+unchecked recurring-consent control plus any additional provider-required consent.
+These decisions do not establish legal copy, current eligibility or provider readiness.
+
+New `authenticated_consent.py` composes the existing reservation and protected A1
+repositories. Current authenticated tenant/actor must own the exact reservation,
+Checkout and original binding. It requires a trusted B2B eligibility attestor and
+an immutable approved policy catalog, a 14-day frozen duration, matching language,
+full agreement-text SHA256, installed A1 approved revision/disclosure/trial-start/
+retention references and approval reference, plus operator/refund versions.
+The catalog's approval reference MUST pin the entire immutable bundle. DTOs and
+client Booleans are not an approval source; no runtime implementation of this
+catalog or business attestor is installed. Legal/language versions, operator
+information, trial-start rules and required disclosures remain unapproved.
+
+Default-off routes below `/billing/trial-journeys/{operation_id}/consent` provide
+GET `preparation` and JSON POST `present`, `accept`, `withdraw`. They use existing
+JWT, fail-closed session revocation/current-principal validation and B2a's initiating-
+actor/current-billing-role read. Both the B2a preview gate and new
+`RECURRING_CONSENT_ENABLED` must be explicitly true. Request models reject actor,
+amount, terms, timestamps and extra fields; acknowledgement must be a strict
+Boolean true. SecretStr masks challenge representations. Responses disable caching.
+Only a future trusted `app.state.recurring_consent_factory(ctx)` context manager
+may supply scoped repositories/catalog; no factory, service login, credential
+resolver, role switch or runtime consent-writing/confirmation grant is installed.
+Missing approval/factory blocks actual presentation/acceptance. Withdrawal requires
+the protected service boundary but does not require new legal approval.
+
+A1 owns random challenge creation/hash-only persistence, expiry, database timestamps,
+immutable full terms/digest, stabilized billing authorization and one-time acceptance.
+Presentation IDs reuse B1's deterministic operation/policy UUID; acceptance UUIDs
+are deterministic per presentation. Lost-response/duplicate acceptances fail closed;
+no automatic new presentation, accepted identity, Customer or Checkout is created.
+The new protected `billing_consent_read` returns exact scoped evidence/invalidation
+without challenge or challenge digest. No discovery/latest-operation endpoint exists.
+
+Forward migration `20261207000000_consent_withdrawal_fencing.sql` is migration 173,
+after A2; all 172 historical migrations remain unchanged. It appends no policy or
+commercial data and retains all accepted/associated/attested evidence. Invalidation
+now locks reservation FOR UPDATE, then presentation, then uses A1's existing
+NOWAIT/TRY authorization stabilization. Matching withdrawal retries return the
+original invalidation; conflicting retries fail. Invalidated presentations cannot
+be accepted or associated again, including exact association retries.
+
+New SECURITY DEFINER insert triggers fence A1-origin B4 attestations/confirmations.
+They check current tenant and invalidation while retaining a reservation SHARE
+lock through COMMIT. Attestation already owns its observation row, so the new
+reservation edge is NOWAIT: it cannot introduce a blocking reverse lock cycle.
+Confirmation already holds the exclusive reservation lock. Withdrawal first denies
+consumption; confirmation first completes atomically and later withdrawal returns
+55000, requiring subscription cancellation instead of rewriting historical consent.
+A trigger refusal rolls back all provisional subscription/trial/entitlement writes
+in the existing B4 transaction. Exact reads/retries of an already recorded historical
+attestation are not new authorization; confirmation still fences it. Pre-A1 trusted
+B4 evidence keeps its existing contract; no new writer for that authority is added.
+
+The new helper revokes PUBLIC EXECUTE, uses `pg_catalog,public,pg_temp`, and is owned
+by the existing NOLOGIN consent owner. Only that owner receives a tenant-scoped
+attestation SELECT policy; only the existing dormant NOLOGIN consent service receives
+the new read EXECUTE. Ordinary runtime and attestor/confirmer EXECUTEs are unchanged.
+No provider work occurs in these transactions. Full production restricted-installer
+verification remains unproven; isolated migrations use fixture installation authority.
+
+The onboarding page adds `TrialConsentPanel`, off unless both
+`VITE_RECURRING_CONSENT_ENABLED` and the existing preview build flag are true.
+It displays persisted payment terms, explicitly lists eight missing approval areas,
+and starts its labeled checkbox unchecked/disabled until an approved presentation
+exists. Only exact presentation/challenge/acknowledgement fields are submitted.
+Tenant/actor/operation/language isolate query and UI state; challenges stay in memory.
+English/Arabic/RTL and local consent versus provider readiness/cancellation are
+separate. No legal pages were added. Existing legacy Checkout remains unchanged;
+its future coordinated cutover must enforce the new consent before dispatch.
+
+Focused verification (no historical broad suite rerun): **177 passed** in the
+six-module auth/A1/B4/native selection; one new lock fixture correctly failed because
+the consent-service role cannot directly lock tables. Using the disposable installer
+as that test's lock holder, its **one targeted retry passed**. Thus all 178 selected
+cases passed across those runs; one unrelated signup compatibility case was explicitly
+deselected. Initial collection failure from a misread UTF-8 test marker was corrected
+before that run. The directly affected migration-count guard also passed separately.
+Existing warnings are retained in evidence; an undersized synthetic JWT secret in
+an earlier run was enlarged in the final verifier. No runtime implementation fix
+was needed after the 177 passing cases.
+
+Fresh **173** install/replay, populated legacy-trial **172 -> 173** upgrade/replay,
+injected rollback, unchanged effective existing runtime EXECUTEs, no new runtime
+function grants, NOLOGIN/membership checks and historical trial preservation passed.
+Native tests include real restricted password identities, FORCE RLS/ACLs, revoked
+roles, expiry/replay, reservation/binding/terms, synchronized acceptance/withdrawal
+in both orders via pg_blocking_pids, associated withdrawal and exact-reassociation
+refusal, new attestation denial, confirmation rollback, post-confirmation cancellation
+boundary and recoverable NOWAIT. Synthetic provider/legal evidence is explicitly
+not real customer or Stripe acceptance. Containers were unique, loopback-only,
+tmpfs, --pull=never and stopped; inherited credentials were cleared and the accepted
+socket/libpq network guard reused. No application/shared database was accessed.
+
+Evidence: `.dev/evidence/phase1-3d-b2b2/bbbd6bbceca3/` (177 passed + fixture failure)
+and `3712780d80b7/` (corrected single-case PASS, fresh/upgrade/rollback PASS and
+migration-count log). Command: from backend,
+`python -B -m scripts.verify_authenticated_consent --isolated-local`;
+`--select tests/billing/test_consent_withdrawal_db.py::test_busy_attestation_fence_is_nowait_and_recoverable`
+reproduces only the corrected test. Frontend: **11 Node tests passed**, **8 offline
+Chromium checks passed** (English/Arabic missing policies, frozen amount, initially
+unchecked control, synthetic approved acknowledgement and withdrawal; all requests
+intercepted), and changed-file ESLint passed after removing one unused test constant.
+
+Changed source: new collection adapter/router; A1 repository read; billing router
+registration; forward withdrawal migration; consent panel/API and onboarding insert;
+English/Arabic labels. Tests: new collection/native/browser/API cases, narrowly scoped
+consent import exception, new withdrawal expectation and 172 -> 173 count assertion;
+new isolated verifier and this existing report. No signup, active trial/Checkout/
+webhook/subscription/Credit/entitlement command or B1/A2 implementation changed.
+
+B2b-3/release gates: approve/install/pin the full immutable legal/operator/language/
+refund/retention/trial-start bundle; prove B2B eligibility; review dedicated collection
+service provisioning/factory/session lifecycle (no activation here); complete safe
+presentation/challenge/lost-response recovery; bind protected status reads and atomic
+consent/withdrawal validity to future dispatch; single-sender Checkout with ambiguous
+recovery and withdrawal coordination/remote compensation; preserve additional provider
+consent; prove durable SetupIntent correlation and genuine Stripe TEST capabilities;
+review trusted B3/B4 handoff, legacy webhook/local-trial cutover and full restricted
+production installation. Implement paid cancellation/refund review through approved
+existing provider/customer workflows, not this pre-confirmation invalidation command.

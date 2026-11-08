@@ -87,3 +87,7 @@ class ConsentRepository:
 
     def associate(self, acceptance_id: uuid.UUID, operation_id: uuid.UUID) -> C.CustomerPayload:
         return self._call('SELECT public.billing_consent_associate(%s,%s)', (str(acceptance_id), str(operation_id)))
+
+
+    def read(self, attempt_id: uuid.UUID, presentation_id: uuid.UUID) -> C.CustomerPayload:
+        return self._call('SELECT public.billing_consent_read(%s,%s)', (str(attempt_id), str(presentation_id)))

@@ -27,7 +27,7 @@ def test_identity_and_input_validation_before_persistence():
 def test_dormant_import_and_provider_boundaries():
     root = Path(__file__).resolve().parents[2]/'src'
     for path in root.rglob('*.py'):
-        if 'tests' in path.parts or path.name == 'recurring_consent.py':
+        if 'tests' in path.parts or path.relative_to(root).as_posix() in ('ai/billing/recurring_consent.py', 'ai/billing/authenticated_consent.py', 'ai/routers/trial_consent.py'):
             continue
         for node in ast.walk(ast.parse(path.read_text(encoding='utf-8-sig'))):
             if isinstance(node, ast.ImportFrom):

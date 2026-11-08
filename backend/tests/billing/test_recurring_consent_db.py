@@ -360,8 +360,9 @@ def test_exact_append_only_bridge_and_no_verification_or_access(owner_db, associ
         assert cur.fetchone() == (0,)
     with pytest.raises(R.ConsentError):
         associate(party, a, dict(operation, operation_id=str(uuid.uuid4())))
-    with pytest.raises(R.ConsentError):
-        invalidate(party, p, R.ConsentState.WITHDRAWN)
+    assert invalidate(party, p, R.ConsentState.WITHDRAWN)['reason'] == 'withdrawn'
+    with pytest.raises(R.ConsentError, match='consent_22023'):
+        associate(party, a, operation)
     for table, key, identity in [('billing_consent_acceptances', 'acceptance_id', a['acceptance_id']),
                                  ('billing_consent_associations', 'acceptance_id', a['acceptance_id']),
                                  ('billing_trial_consents', 'consent_id', a['acceptance_id'])]:
