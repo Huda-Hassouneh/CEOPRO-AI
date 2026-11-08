@@ -145,6 +145,63 @@ def _allow_owner_role_management(conn) -> None:
     conn.commit()
 
 
+# KEEL's restricted roles (ceopro_app, the billing roles, keel_notification_fn_owner, ...). The migration owner
+# needs to act as them only while migrations run (ALTER FUNCTION ... OWNER TO, CREATE OR REPLACE of their
+# functions); afterwards it must not stay a member of them (least privilege).
+_RESTRICTED_ROLE_PATTERN = r"^(ceopro|keel)_"
+
+
+def _non_superuser_16_plus(conn) -> bool:
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT current_setting('is_superuser') = 'on', current_setting('server_version_num')::int")
+        is_superuser, server_version = cursor.fetchone()
+    return not is_superuser and server_version >= 160000
+
+
+def _borrow_restricted_roles(conn) -> None:
+    """For this run only, give the non-superuser migration owner SET/INHERIT on the restricted roles it
+    administers (it created them, so it holds the ADMIN option). Roles created during the run get the same
+    through createrole_self_grant. _return_restricted_roles takes all of it back at the end."""
+    if not _non_superuser_16_plus(conn):
+        return
+    from psycopg2 import sql
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT r.rolname FROM pg_roles r WHERE r.rolname ~ %s AND r.rolname <> current_user "
+            "AND pg_has_role(current_user, r.oid, 'USAGE WITH ADMIN OPTION') ORDER BY 1;",
+            (_RESTRICTED_ROLE_PATTERN,),
+        )
+        roles = [row[0] for row in cursor.fetchall()]
+        for role in roles:
+            cursor.execute(sql.SQL("GRANT {} TO CURRENT_USER WITH INHERIT TRUE, SET TRUE").format(sql.Identifier(role)))
+    conn.commit()
+    if roles:
+        logger.info("Migration owner acting for %d restricted role(s) during this run.", len(roles))
+
+
+def _return_restricted_roles(conn) -> None:
+    """Revoke every SET/INHERIT membership the migration owner granted itself in a restricted role, whether
+    by _borrow_restricted_roles or createrole_self_grant. The creator's ADMIN option stays (it is what lets
+    the runner set the restricted roles' passwords); it carries neither SET nor INHERIT."""
+    if not _non_superuser_16_plus(conn):
+        return
+    from psycopg2 import sql
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT r.rolname FROM pg_auth_members a JOIN pg_roles r ON r.oid = a.roleid "
+            "WHERE a.member = (SELECT oid FROM pg_roles WHERE rolname = current_user) "
+            "AND a.grantor = (SELECT oid FROM pg_roles WHERE rolname = current_user) "
+            "AND (a.set_option OR a.inherit_option) AND r.rolname ~ %s ORDER BY 1;",
+            (_RESTRICTED_ROLE_PATTERN,),
+        )
+        roles = [row[0] for row in cursor.fetchall()]
+        for role in roles:
+            cursor.execute(sql.SQL("REVOKE {} FROM CURRENT_USER GRANTED BY CURRENT_USER").format(sql.Identifier(role)))
+    conn.commit()
+    if roles:
+        logger.info("Migration owner released %d restricted role(s).", len(roles))
+
+
 def _role_exists(conn, role_name: str) -> bool:
     with conn.cursor() as cursor:
         cursor.execute("SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = %s);", (role_name,))
@@ -161,6 +218,7 @@ def run(conn=None) -> list:
         from src.ai.billing.standard_plan_catalog import load_catalog
         load_catalog()  # Fail before any schema/data write for malformed source.
         _allow_owner_role_management(conn)
+        _borrow_restricted_roles(conn)
         fresh_plan_catalog = not _table_exists(conn, "usage_plans")
         if _table_exists(conn, BASE_SCHEMA_MARKER_TABLE):
             logger.info(f"Base schema already present (table '{BASE_SCHEMA_MARKER_TABLE}' exists) - skipping Final_schema.sql.")
@@ -214,6 +272,12 @@ def run(conn=None) -> list:
         logger.info(f"Migration run complete. Applied {len(applied_this_run)} new migration(s).")
         return applied_this_run
     finally:
+        # Success or failure, the owner never keeps acting for the restricted roles.
+        try:
+            conn.rollback()
+            _return_restricted_roles(conn)
+        except Exception as err:  # noqa: BLE001 - reported; the original outcome stands
+            logger.error("Could not release restricted roles after the migration run: %s", type(err).__name__)
         if owns_connection:
             conn.close()
 
