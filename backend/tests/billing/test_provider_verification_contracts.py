@@ -408,7 +408,7 @@ def test_new_verification_contracts_remain_unused_by_active_or_dormant_runtime_m
     for path in (src / "ai").rglob("*.py"):
         if "tests" in path.parts or path.name in {"payment_contracts.py", "stripe_verification.py", "verification_observations.py", "trial_confirmation.py", "trial_coordinator.py"}:
             continue
-        if path.relative_to(src).as_posix() in ('ai/billing/subscription_journey.py','ai/billing/subscription_lifecycle.py','ai/billing/paddle_gateway.py'):continue
+        if path.relative_to(src).as_posix() in ('ai/billing/subscription_journey.py','ai/billing/subscription_lifecycle.py','ai/billing/paddle_gateway.py','ai/billing/sandbox_runtime.py'):continue
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Name):

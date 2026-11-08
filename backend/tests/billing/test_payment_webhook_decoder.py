@@ -139,6 +139,7 @@ def test_payment_boundary_wiring_is_scoped_and_contract_has_no_infrastructure_im
                         "ai/billing/recurring_consent.py",  # Dormant restricted A1 evidence only.
                         "ai/billing/trial_coordinator.py",  # Unregistered B1 composition only.
                         "ai/billing/subscription_journey.py", "ai/billing/stripe_journey.py",
+                        "ai/billing/sandbox_runtime.py",  # Explicit local TEST-only installer.
                         "ai/billing/journey_webhooks.py", "ai/billing/subscription_lifecycle.py", "ai/billing/paddle_gateway.py",
                         "ai/routers/subscription_journey.py",  # Default-off bound signature endpoint.
                     }, str(path)

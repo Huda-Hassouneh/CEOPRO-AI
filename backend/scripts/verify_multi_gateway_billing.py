@@ -133,7 +133,7 @@ def main():
                 q.execute("SELECT rolcanlogin FROM pg_roles WHERE rolname='ceopro_consent_service'");assert q.fetchone()==(False,)
                 q.execute("SELECT count(*) FROM pg_auth_members WHERE roleid IN ('ceopro_consent_service'::regrole,'ceopro_consent_owner'::regrole)");assert q.fetchone()==(0,)
                 q.execute("SELECT has_function_privilege('public','billing_consent_consumption_fence()','EXECUTE')");assert q.fetchone()==(False,)
-                for role in ('ceopro_billing_observer','ceopro_trial_attestor','ceopro_trial_confirmer','ceopro_consent_service'):
+                for role in ('ceopro_billing_observer','ceopro_trial_attestor','ceopro_trial_confirmer','ceopro_consent_service','ceopro_journey_router'):
                     q.execute(sql.SQL('ALTER ROLE {} LOGIN PASSWORD %s').format(sql.Identifier(role)),(runtime,))
             report.update(upgrade='175 -> 176',existing_runtime_execute_unchanged=True,new_runtime_authority="no ordinary runtime EXECUTE/writes; tenant-scoped app settlement SELECT only",dormant_roles_no_memberships=True,historical_trial_unchanged=True)
         def dsn(role):return f'postgresql://{role}:{password if role=="postgres" else runtime}@127.0.0.1:{port}/{upgrade}'
@@ -145,7 +145,7 @@ def main():
         # Reuse the accepted socket/libpq guard, but allow only this owned PG port.
         tree=ast.parse((ROOT/'backend/scripts/verify_recurring_consent.py').read_text())
         guard=next(n.value.value for n in ast.walk(tree) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='guard' for t in n.targets))
-        selected=['tests/billing/test_paddle_completion_db.py','tests/billing/test_customer_operations_db.py','tests/billing/test_multi_gateway_lifecycle_db.py','tests/billing/test_multi_gateway_adapters.py',
+        selected=['tests/billing/test_sandbox_runtime_db.py','tests/billing/test_paddle_completion_db.py','tests/billing/test_customer_operations_db.py','tests/billing/test_multi_gateway_lifecycle_db.py','tests/billing/test_multi_gateway_adapters.py',
             'tests/billing/test_trial_confirmation_db.py::test_atomic_confirmation_and_exact_repeat_preserve_cutoff_and_credits',
             'tests/billing/test_consent_withdrawal_db.py',
             'tests/billing/test_subscription_journey_db.py',

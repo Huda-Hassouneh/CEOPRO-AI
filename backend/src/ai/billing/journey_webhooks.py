@@ -1,6 +1,5 @@
 """Fail-closed cohort guard. Never returns a protected event to legacy billing."""
 from src.ai.billing.payment_contracts import VerifiedPaymentEvent
-import hashlib
 from dataclasses import replace
 
 
@@ -78,6 +77,7 @@ class JourneyWebhookReconciler:
             d=journey.dispatches.command(operation,'read')
             if (d is None or event.customer and event.customer.opaque_id!=d['provider_customer_id']
                     or event.checkout and event.checkout.opaque_id!=d['provider_checkout_id']
+                    or event.provider=='paddle' and event.invoice and row['reservation']['state']!='confirmed' and event.invoice.opaque_id!=d['provider_checkout_id']
                     or event.subscription and d['provider_subscription_id'] and event.subscription.opaque_id!=d['provider_subscription_id']):
                 raise ValueError('Original event identity required')
             from src.ai.billing.payment_contracts import PaymentEventKind
@@ -100,8 +100,9 @@ class JourneyWebhookReconciler:
                 if row['reservation']['state']=='confirmed':
                     raise ValueError('Original observation required')
                 op=journey.observations.begin(oid,trial_request(journey.observations.context(operation)))
+            from src.ai.billing.paddle_gateway import notification_digest
             journey.observations.notification(op,event.event_id,
-                'sha256:'+hashlib.sha256(event.raw_payload).hexdigest(),event.occurred_at)
+                notification_digest(event),event.occurred_at)
             if row['reservation']['state']=='confirmed':
                 from src.ai.billing.payment_contracts import PaymentEventKind
                 if event.kind is PaymentEventKind.CHECKOUT_COMPLETED and event.checkout and event.customer:

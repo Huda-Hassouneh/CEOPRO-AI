@@ -1282,3 +1282,146 @@ Changed-file manifest (reviewed scope):
 - `frontend/src/features/billing/utils/paddleCheckout.js`
 - `frontend/tests/browser/paddle-payment.mjs`
 - `frontend/tests/paddleCheckout.test.mjs`
+
+## Local TEST/Sandbox runtime wiring - 2026-11-08 (uncommitted)
+
+Baseline `28dffd2e8b87626405395e0a9a882382d68754d9`. Copilot's finding is confirmed:
+startup installed neither the guarded webhook decoder/handler map nor the journey
+factory. Paddle had no bound signing-secret configuration. The new local installer
+connects these existing boundaries without changing legacy Stripe composition.
+
+`sandbox_runtime.install()` runs from FastAPI lifespan, disabled by default. It
+performs configuration validation only, with no startup database/provider calls.
+It requires an isolated loopback test database, development environment, explicit
+TEST account/binding/API version and a reviewed synthetic tenant/actor allowlist.
+Hosted environments, LIVE credentials, application database names, missing secrets,
+unsafe role attributes/memberships and schema replacement privileges fail closed.
+Existing role passwords are used directly; there is no admin fallback or SET ROLE.
+No role, grant, policy, binding, migration or feature flag is provisioned.
+
+Customer/Checkout reuse the accepted durable adapters. Contact is read using the
+ordinary tenant-scoped app role: setup correctly lacks users-table SELECT and
+receives no new grant. Signed-event routing uses existing router SELECT authority,
+then rechecks the persisted initiating actor/current billing authority. Provider
+tenant metadata never supplies connection context. Database UUID text is normalized.
+An uncertain Checkout submission is recovered by GET only after original consent
+and authority checks; no new sender is elected. A conflicting positive signed
+Checkout ID cannot be persisted. Initial Paddle receipt hashing now uses the same
+immutable event core as shared lifecycle, so delivery-only notification_id changes
+do not corrupt replay identity. Raw signature bytes remain unchanged.
+
+Verification (selections overlap; synthetic providers only):
+
+- PASS 32 focused network-free runtime cases, including real signature handlers,
+  configuration/namespace/actor denials, safe ambiguity recovery, withdrawal,
+  Paddle delivery replay and effective role checks. Final XML:
+  `.dev/evidence/sandbox-runtime/offline-final.xml`.
+  Eleven final overlapping namespace/recovery cases also pass in
+  `namespace-final.xml`, including a mismatched persisted merchant under the same
+  binding ID. The full persisted namespace is checked before any recovery read
+  or association write, in addition to the reconciler's existing binding fence.
+- PASS three affected import-boundary checks in small selections; only the new
+  explicitly guarded runtime module was allowlisted. Prior suites were reused.
+- PASS two new restricted-password PG17 cases, one per provider. Startup-installed
+  composition executes consent -> one Customer -> one Checkout -> signed HTTP ->
+  original SQL routing -> B3 persistence. Two deliveries produce one immutable
+  receipt and two preserved observations. Incomplete readiness returns retry 500,
+  never acknowledgement-as-confirmation or access. Wrong Customer and demotion
+  fail; subscription/entitlement/Credit fingerprints remain unchanged.
+  Evidence: `.dev/evidence/multi-gateway-billing/671da69dabd4/result.json`.
+  Earlier SQL-only proof: `90d896630fba`. The retained runner also verifies its
+  fresh 176/175->176/replay/rollback/ACL invariants; no schema changed here.
+- Failed iterations remain recorded. Native tests exposed the contact permission
+  and UUID-decoding gaps fixed above; other failures were fixture imports and a
+  synthetic timeout-field collision. All owned disposable containers are stopped.
+  Production restricted installation and real provider acceptance remain unproved.
+
+### Exact configuration for a separately authorized local acceptance run
+
+Nothing below is enabled or populated by this change. The previous acceptance
+driver and reviewed manifest are reused. Read actual ports from dev.ps1 status.
+
+| Scope | Exact settings |
+| --- | --- |
+| Installer | `KEEL_SANDBOX_ACCEPTANCE_ENABLED=true`, `KEEL_SANDBOX_CONFIG=<private reviewed JSON path>` |
+| Local guard | `KEEL_DEV_ISOLATED=1`, `SENTRY_ENVIRONMENT=development`, `DATABASE_URL=<loopback URL with explicit owned port and keel_billing_test_* database>`; APP_ENV/ENVIRONMENT absent or dev/development/test/testing; no hosted flags |
+| Ordinary sockets | `APP_DB_PASSWORD`, `BILLING_SETUP_DB_PASSWORD` |
+| Dedicated local sockets | `KEEL_SANDBOX_CONSENT_DB_PASSWORD`, `KEEL_SANDBOX_OBSERVER_DB_PASSWORD`, `KEEL_SANDBOX_ROUTER_DB_PASSWORD` for existing ceopro_consent_service/ceopro_billing_observer/ceopro_journey_router respectively |
+| Stripe | `KEEL_SANDBOX_STRIPE_API_KEY` (TEST), `KEEL_SANDBOX_STRIPE_WEBHOOK_SECRET` (exact destination/CLI secret) |
+| Paddle | `KEEL_SANDBOX_PADDLE_API_KEY` (sandbox), `KEEL_SANDBOX_PADDLE_WEBHOOK_SECRET` (exact sandbox notification destination secret) |
+| Approved policy bundle | `KEEL_SANDBOX_POLICY_BUNDLE_DIGEST=sha256:<whole approved bundle digest>` when policies are supplied |
+| Server journey | `RECURRING_JOURNEY_ENABLED=true`, `RECURRING_CONSENT_ENABLED=true`, `RECURRING_JOURNEY_PREVIEW_ENABLED=true` |
+| Frontend journey | `VITE_RECURRING_JOURNEY_ENABLED=true`, `VITE_RECURRING_CONSENT_ENABLED=true`, `VITE_RECURRING_JOURNEY_PREVIEW_ENABLED=true` |
+| Paddle frontend | `VITE_PADDLE_CHECKOUT_ENABLED=true`, `VITE_PADDLE_CLIENT_TOKEN=<public TEST token>`, `VITE_PADDLE_CHECKOUT_ORIGIN=<approved HTTPS origin>` |
+| Browser origins | `VITE_API_BASE_URL=<reviewed reachable API origin>`, `CORS_ALLOWED_ORIGINS=<approved frontend origin>` |
+| Driver | `KEEL_SANDBOX_ACCESS_TOKEN=<private short-lived initiating-user session>` and previously documented manifest |
+
+Configure only providers actually installed. Legacy Stripe continues to use its
+existing STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET and public-origin configuration.
+The guarded installer never falls back to those credentials or changes
+`/billing/webhook`. Configure genuine signed notifications at
+`/billing/trial-journeys/webhook/stripe` and `/billing/trial-journeys/webhook/paddle`.
+The earlier unqualified guarded endpoint is not installed by this runtime.
+Approved HTTPS forwarding must preserve the raw signature body and header.
+
+Private JSON contains: environment=test; provider_operations_authorization
+reference; synthetic_businesses as exact tenant_id/actor_id UUID pairs; gateways
+as provider/binding_id/merchant_account_id/api_version/merchant_reviewed/return_urls;
+and optional policies. Each provider has two server-owned HTTPS return URLs. Paddle
+also requires checkout_origin and a first URL at /billing/paddle-payment on that
+origin. Stripe can use /onboarding/payment; return URLs are separate per provider.
+One original binding per installed provider is supported; persisted selection
+controls new reservations and cannot rebind old operations.
+
+Stripe API versions remain the existing 2026-01-28.clover or 2026-08-26.dahlia;
+Paddle uses 1. Stripe's customer_replay_window_seconds must be explicitly reviewed,
+positive (>7) and within provider guarantees; the default zero intentionally blocks
+Customer dispatch. The coordinator still never automatically resubmits after
+ambiguity. Paddle claims no provider replay window. Stripe API v1 documents
+idempotency-key retention of at least 24 hours; no operating budget is guessed.
+
+Policies use the existing PolicyDocument fields: policy_id, agreement_text,
+operator_details_version, refund_review_version, registry and trial_start_mode.
+They must match approved immutable A1 registry rows and the whole-bundle digest.
+Absent policies remain blocked. Merchant-reviewed flags default false. Config
+references/Booleans do not prove legal or merchant acceptance. Build the synthetic
+cohort/account with provider work disabled, capture IDs, then review configuration.
+Existing dedicated local roles require separately authorized password/LOGIN
+provisioning on disposable infrastructure, preserving attributes/ACLs; the app never
+performs that provisioning. No production attestor/confirmer is installed.
+
+### Testable scope and remaining blocks
+
+After approved policies, merchant consent, original price/binding mappings, local
+credentials and authorized HTTPS endpoints are supplied, both providers can exercise
+Customer -> Checkout -> signed notification -> durable pending provider observation
+through KEEL. Paddle also needs its approved domain/default payment link/public
+client token and notification secret. Signature rejection is testable independently
+of readiness. Post-confirmation cancellation requires an existing trusted
+confirmation and current authorized initiating user, using the accepted adapter.
+
+Full initial confirmation remains BLOCKED: actual observers do not prove all nine
+B4 capabilities; Paddle lacks accepted subscription-bound reusable authority, and
+Stripe needs its exact original SetupIntent source with successful off-session
+setup. An attached card never supplies that proof. No runtime attestor/confirmer is
+installed. New-cohort paid lifecycle consumption therefore remains quarantined;
+its shared domain is covered by prior evidence but cannot bypass initial trusted
+confirmation or authority. Historical Stripe subscriptions/renewals keep the
+unchanged legacy path. Genuine complete subscription acceptance is not claimed.
+
+External gates remain: approved legal/operator/language/refund/MoR/trial-start
+bundle; merchant/provider-specific consent; real TEST/Sandbox readiness/capability
+evidence; Custom initial confirmation; unsupported financial adjustments/refunds/
+reversals/paid withdrawal compensation; production restricted installation,
+coordinated cutover and LIVE approval. No real APIs, deployment, activation or Git
+commit occurred in this milestone.
+
+Primary references checked without provider API operations:
+[Stripe idempotency](https://docs.stripe.com/api/idempotent_requests),
+[Paddle signatures](https://developer.paddle.com/webhooks/about/signature-verification/).
+
+Changed files: sandbox_runtime.py, journey_webhooks.py, main.py,
+verify_multi_gateway_billing.py, test_sandbox_runtime.py,
+test_sandbox_runtime_db.py, the three existing import-boundary test files
+(test_payment_webhook_decoder.py, test_provider_verification_contracts.py,
+test_verification_observations.py), and this report. All remain uncommitted.

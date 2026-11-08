@@ -36,7 +36,7 @@ def test_dormant_persistence_has_no_runtime_consumers_or_provider_calls():
     root=Path(__file__).resolve().parents[2]/'src'
     for path in root.rglob('*.py'):
         if 'tests' in path.parts or path.name in ('verification_observations.py','trial_confirmation.py','trial_coordinator.py'):continue
-        if path.relative_to(root).as_posix() in ('ai/billing/subscription_journey.py','ai/billing/journey_webhooks.py'):continue
+        if path.relative_to(root).as_posix() in ('ai/billing/subscription_journey.py','ai/billing/journey_webhooks.py','ai/billing/sandbox_runtime.py'):continue
         tree=ast.parse(path.read_text(encoding='utf-8-sig'))
         for node in ast.walk(tree):
             if isinstance(node,ast.ImportFrom):
