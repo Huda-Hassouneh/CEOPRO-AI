@@ -260,7 +260,7 @@ def test_attached_method_unrelated_setup_and_metadata_do_not_manufacture_consent
     if change == "null_setup":
         assert result.payment_method.readiness is C.PaymentMethodReadiness.ATTACHED
         assert ("setup_intent", "seti_A") not in reader.calls
-    elif change in ("on_session", "no_method"):
+    elif change == "on_session":
         assert result.payment_method.readiness is C.PaymentMethodReadiness.UNKNOWN
 
 
@@ -840,3 +840,40 @@ def test_adapter_remains_optional_read_only_and_unimported_by_active_runtime():
         and n.func.attr in {"create", "modify", "delete", "confirm", "cancel", "execute", "commit"} for n in ast.walk(tree))
     assert "StripeVerificationGateway" not in (src / "ai/billing/payment_runtime.py").read_text(encoding="utf-8")
     assert not hasattr(C.SubscriptionPaymentGateway, "observe_trial_checkout")
+
+
+@pytest.mark.parametrize("bad", [None, "wrong_customer", "on_session", "not_card"])
+def test_subscription_linked_setup_method_without_default_fails_closed(bad):
+    reader = Reader()
+    reader.data["subscription", "sub_A"]["default_payment_method"] = None
+    if bad is None:
+        reader.data["setup_intent", "seti_A"]["payment_method"] = None
+    elif bad == "wrong_customer":
+        reader.data["payment_method", "pm_A"]["customer"] = "cus_other"
+    elif bad == "on_session":
+        reader.data["setup_intent", "seti_A"]["usage"] = "on_session"
+    else:
+        reader.data["payment_method", "pm_A"]["type"] = "us_bank_account"
+    result = observe(reader)
+    assert result.outcome is not C.VerificationOutcome.VERIFIED
+    assert result.payment_method is None or result.payment_method.readiness is not C.PaymentMethodReadiness.REUSABLE_AUTHORITY_CONFIRMED
+
+
+def test_linked_setup_pending_to_ready_keeps_consent_and_capabilities_unresolved():
+    reader = Reader()
+    reader.data["subscription", "sub_A"]["default_payment_method"] = None
+    reader.data["setup_intent", "seti_A"]["status"] = "processing"
+    pending = observe(reader)
+    reader.data["setup_intent", "seti_A"]["status"] = "succeeded"
+    ready = observe(reader)
+    assert pending.recurring_authorization.readiness is C.PaymentMethodReadiness.PENDING_SETUP
+    assert ready.payment_method.payment_method == ref("pm_A")
+    assert ready.recurring_authorization.readiness is C.PaymentMethodReadiness.REUSABLE_AUTHORITY_CONFIRMED
+    assert ready.outcome is C.VerificationOutcome.PENDING
+    assert ready.recurring_authorization.consent is C.RecurringConsentState.UNKNOWN
+    assert not ready.capabilities.supports_card_backed_trial()
+    reader.data["subscription", "sub_A"]["pending_setup_intent"] = None
+    reader.data["subscription", "sub_A"]["default_payment_method"] = "pm_A"
+    unresolved = observe(reader)
+    assert unresolved.payment_method.readiness is C.PaymentMethodReadiness.ATTACHED
+    assert unresolved.outcome is C.VerificationOutcome.PENDING

@@ -20,7 +20,7 @@ from src.ai.billing import payment_contracts as C
 
 
 API_VERSIONS = frozenset({"2026-01-28.clover", "2026-08-26.dahlia"})
-ADAPTER_VERSION = "stripe-observation-v1-no-trial-consent"
+ADAPTER_VERSION = "stripe-observation-v2-no-trial-consent"
 _STATES = {
     "trialing": C.SubscriptionState.TRIALING, "active": C.SubscriptionState.ACTIVE,
     "past_due": C.SubscriptionState.PAST_DUE, "incomplete": C.SubscriptionState.PENDING,
@@ -380,6 +380,15 @@ class StripeVerificationGateway:
             elif status == "canceled":
                 readiness = C.PaymentMethodReadiness.REJECTED
             elif status == "succeeded":
+                # The original subscription itself supplied this SetupIntent.
+                # Its successful off-session setup may identify the method even
+                # before a subscription/customer default has been populated.
+                if setup.get("usage") == "off_session" and method is None and setup.get("payment_method"):
+                    method = self._object("payment_method", _identifier(setup["payment_method"]))
+                    if _identifier(method.get("customer")) != request.customer.opaque_id:
+                        _conflict()
+                    if method.get("type") != "card":
+                        _unsupported()
                 if setup.get("usage") != "off_session" or method is None:
                     readiness = C.PaymentMethodReadiness.UNKNOWN
                 elif _identifier(setup.get("payment_method")) != method["id"]:

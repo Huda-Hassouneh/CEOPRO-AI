@@ -223,3 +223,87 @@ migration count and one dormant import-allowlist entry. No staged changes. No
 historical migration, existing production implementation, provider configuration
 or application database changed. The initial integration checkout used for
 temporary staging was restored to its original clean Git state.
+
+## Phase 1.3D-A2 - dormant evidence progression
+
+Implemented 2026-11-08 (Asia/Amman), starting from clean
+`integration/main-consolidation` HEAD
+`45b26f149c5849d371506dcc0b99b1d8b32926be`. No separate 1.3D cutover
+assessment was found in the current documentation. A1 low-priority cleanup
+findings and all 171 historical migrations are unchanged.
+
+**Root cause:** B4's replacement B3 recorder compared the latest two observations
+with exact `billing_confirmation_semantic` equality. The attestor compared every
+historical observation with the latest using that same equality. Only the payment
+method retrieval timestamp was ignored. Missing facts becoming known, Checkout
+open becoming complete, and pending setup becoming ready therefore poisoned
+ordinary progression despite unchanged identity/commercial facts.
+
+**Change manifest:**
+
+* `backend/src/infrastructure/database/migrations/20261206000000_trial_evidence_progression.sql`:
+  forward migration 172 adds a restricted immutable comparison helper and replaces
+  only the B3 recorder/B4 attestor definitions. Same original operation/request,
+  binding, protected roles, row-lock ordering, freshness/claim fencing and exact
+  latest-provider-facts comparison remain. No new runtime grant or role is added.
+* `backend/src/ai/billing/stripe_verification.py`: versioned dormant reader can
+  retrieve a card from the original subscription-linked, successful off-session
+  SetupIntent when a default is absent; Customer, mode, object and method checks
+  still apply. It does not discover/adopt arbitrary same-Customer SetupIntents.
+* `backend/tests/billing/test_evidence_progression_db.py`: focused native
+  progression, material identity/financial contradictions, source refinement,
+  repeated/stale/concurrent reads, scope, capabilities and consent/rights checks.
+* `backend/tests/billing/test_stripe_verification.py`: focused reader progression
+  and negative correlation tests; one existing absent-default expectation updated.
+* `backend/tests/billing/test_verification_observations.py`: count 171 -> 172 only.
+* `backend/scripts/verify_evidence_progression.py`: focused disposable verifier,
+  reusing A1's reviewed socket/libpq guard and local Docker endpoint predicate.
+* This existing report records A2 evidence and remaining gates.
+
+Trial-only progression permits missing facts to fill, explicit unknown capabilities
+to resolve, open -> complete, pending -> trialing, and unknown/attached/pending setup
+readiness to refine toward confirmed reusable authority. An unresolved subscription
+source may refine to a correlated setup source; an already-positive setup or payment
+identity cannot change. Known Customer/Checkout/subscription/payment identities,
+terms, trial/period dates, settlement and cancellation facts cannot change or vanish.
+B3 compares **all** earlier rows, retains every stored observation/digest, preserves
+sticky conflict flags and rejects out-of-order trial reads. Subscription-observation
+comparison is unchanged. B4 still requires the exact latest provider facts, live
+claim, trusted local consent, all nine supported capabilities and financial checks;
+its history comparison now admits the explicit refinements. New evidence continues
+to fence old attestations through claim/version and full history digest checks.
+
+**Executed verification:** clean-environment offline Stripe/contracts/B3/B4 boundary
+selection: **424 passed**, four existing syntax warnings. Command from `backend`:
+
+```powershell
+..\.dev\venv\Scripts\python.exe -B -m scripts.verify_evidence_progression --isolated-local
+```
+
+Final native evidence: `.dev/evidence/phase1-3d-a2/05f3b41bae93/`
+(`result.json`, `pytest.log`, `junit.xml`): **125 passed, zero failures/errors/skips**.
+Fresh PG17 chain 172, populated paid/trial 171 -> 172 upgrade, replay, injected DDL
+rollback, all existing public-table fingerprints, existing runtime EXECUTE ACLs and
+role attributes passed. Real password sessions exercised B3/B4, selected A1 ACL/RLS
+checks and A2 behavior. Owned PG17/Redis containers used random loopback-only ports,
+tmpfs/no persistent volumes, scrubbed credentials and no image downloads; both were
+stopped. The first run is retained at `36754a515146`: migration/ACL checks and 87
+existing tests passed, while 30 A2 cases had missing imported fixture dependencies;
+test wiring was corrected before the final passing run. A1's full 1,077-test evidence
+was reused, not rerun. Unstaged and new-file whitespace checks passed.
+
+**Still blocked:** when `pending_setup_intent` disappears, no durable trusted
+subscription-to-SetupIntent recovery association exists in these foundations.
+An attached/default card or metadata cannot fill that gap: readiness stays
+unconfirmed. Actual Stripe TEST acceptance must establish supported API shapes,
+SetupIntent lifecycle/correlation and merchant-specific recurring capabilities;
+this implementation still emits PENDING for trial Checkout, advertises only proven
+authoritative reconciliation, and never fabricates VERIFIED or all nine capabilities.
+Provider readiness remains distinct from local consent and confirmation authority.
+Unknown commercial/legal policy is not invented. A1 authenticated collection,
+post-association withdrawal, legacy local-trial/webhook cutover, browser/RTL and real
+provider acceptance remain activation gates. Fresh/upgrade installation here used a
+disposable superuser; full production restricted runner/post-install validation
+remains an unverified merge/release gate. No provider API calls or normal application
+services were started. A2 is ready for focused security review, remains dormant and
+uncommitted, and does not authorize runtime activation.

@@ -49,7 +49,7 @@ def test_dormant_persistence_has_no_runtime_consumers_or_provider_calls():
 def test_migration_is_forward_only_and_has_no_activation_or_runtime_grants():
     root=Path(__file__).resolve().parents[2]
     files=list((root/'src/infrastructure/database/migrations').glob('*.sql'))
-    assert len(files)==171
+    assert len(files)==172
     source=next(p for p in files if p.name=='20261203000000_trusted_trial_observations.sql').read_text()
     assert source.count('CREATE ROLE %I NOLOGIN')==1
     for forbidden in ('INSERT INTO public.billing_trials','INSERT INTO public.billing_subscriptions',
