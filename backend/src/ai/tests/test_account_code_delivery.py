@@ -151,3 +151,68 @@ def test_the_per_account_database_send_budget_is_reported_not_hidden():
         response = client.post("/auth/password/forgot", json={"email": EMAIL})
     assert response.status_code == 429
     send.assert_not_called()
+
+
+# --- Emails in the reader's language, with the real validity period (8 Nov 2026) ------------------------------
+
+from src.ai.core import notifications as _n  # noqa: E402
+
+
+@pytest.mark.parametrize("minutes, en, ar", [
+    (1, "1 minute", "دقيقة واحدة"), (2, "2 minutes", "دقيقتان"), (5, "5 minutes", "5 دقائق"),
+    (30, "30 minutes", "30 دقيقة"), (60, "1 hour", "ساعة واحدة"), (120, "2 hours", "ساعتان"),
+    (14 * 24 * 60, "14 days", "14 يومًا"), (3 * 24 * 60, "3 days", "3 أيام"),
+])
+def test_validity_reads_naturally_in_both_languages(minutes, en, ar):
+    assert _n._duration(minutes, "en") == en
+    assert _n._duration(minutes, "ar") == ar
+
+
+@pytest.mark.parametrize("language, expected", [("ar", "ar"), ("ar-JO", "ar"), ("AR", "ar"), ("en", "en"),
+                                                ("fr", "en"), (None, "en"), ("", "en")])
+def test_email_language_falls_back_to_english(language, expected):
+    assert _n.email_language(language) == expected
+
+
+@pytest.mark.parametrize("sender, args, en_subject, ar_subject", [
+    (_n.send_password_reset_email, ("123456",), "Your KEEL password reset code", "رمز إعادة تعيين كلمة المرور في KEEL"),
+    (_n.send_email_verification_email, ("123456",), "Verify your KEEL email address", "تأكيد عنوان بريدك الإلكتروني في KEEL"),
+])
+def test_account_code_emails_are_written_in_the_readers_language_and_state_the_expiry(monkeypatch, sender, args, en_subject, ar_subject):
+    sent = []
+    monkeypatch.setattr(_n, "send_email", lambda to, subject, body: sent.append((subject, body)) or True)
+    sender("a@example.com", *args, language="ar", minutes=30)
+    sender("a@example.com", *args, language="en", minutes=60)
+    sender("a@example.com", *args)  # no language known
+    (ar_s, ar_b), (en_s, en_b), (default_s, _default_b) = sent
+    assert ar_s == ar_subject and "123456" in ar_b and "30 دقيقة" in ar_b
+    assert en_s == en_subject and "123456" in en_b and "valid for 1 hour" in en_b
+    assert default_s == en_subject
+
+
+def test_team_invitation_email_follows_the_language_and_states_the_validity(monkeypatch):
+    sent = []
+    monkeypatch.setattr(_n, "send_email", lambda to, subject, body: sent.append((subject, body)) or True)
+    monkeypatch.setattr(_n, "frontend_origin", lambda: "https://keelai.net")
+    _n.send_team_invitation_email("b@example.com", "متجر الزيتون", "tok", language="ar", minutes=14 * 24 * 60)
+    _n.send_team_invitation_email("b@example.com", "Olive Shop", "tok", language="en", minutes=14 * 24 * 60)
+    (ar_s, ar_b), (en_s, en_b) = sent
+    assert ar_s == "دعوة للانضمام إلى متجر الزيتون على KEEL" and "https://keelai.net/invitation/tok" in ar_b and "14 يومًا" in ar_b
+    assert en_s == "You've been invited to join Olive Shop on KEEL" and "valid for 14 days" in en_b
+
+
+def test_a_reset_email_uses_the_accounts_saved_language(smtp_configured):
+    factory, server = _smtp()
+    with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=_conn()), \
+         patch("src.ai.routers.auth._fetch_user_by_email", return_value=("u1", "hash", "Jane", "ar")), \
+         patch("src.ai.routers.auth._send_account_code", return_value=CODE), \
+         patch("src.ai.routers.auth._cancel_active_codes"), \
+         patch("src.ai.core.notifications.smtplib.SMTP", factory), \
+         patch.object(auth_throttle, "ensure_allowed"), \
+         patch.object(auth_throttle, "record_failure", return_value=False):
+        response = client.post("/auth/password/forgot", json={"email": EMAIL}, headers={"x-app-language": "en"})
+    assert response.status_code == 200
+    import email as _email
+    message = _email.message_from_string(server.sendmail.call_args[0][2])
+    subject = str(_email.header.make_header(_email.header.decode_header(message["Subject"])))
+    assert subject == "رمز إعادة تعيين كلمة المرور في KEEL"  # the account's language wins over the app's

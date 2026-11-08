@@ -19,6 +19,7 @@ the same reason this repo's other optional third-party integrations
 than guessed at.
 """
 
+import functools
 import logging
 import smtplib
 import uuid
@@ -31,6 +32,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from src.ai import db
+from src.infrastructure.request_language import get_request_language
 from src.ai.core import auth_throttle, notifications, usage
 from src.ai.core.calendar import default_timezone_for_country
 from src.ai.core import security
@@ -73,6 +75,12 @@ def _account_not_found_response() -> JSONResponse:
 def _delivery_failed_response() -> JSONResponse:
     return JSONResponse(status_code=503, content={"code": "EMAIL_DELIVERY_FAILED", "detail": _DELIVERY_FAILED_DETAIL},
                         headers={"Retry-After": "60"})
+
+
+def _reader_language(user_row) -> str:
+    """The account's own language for its emails, else the language the app is being used in."""
+    saved = user_row[3] if user_row is not None and len(user_row) > 3 else None
+    return saved or get_request_language()
 
 
 def _deliver_account_code(send, email: str, code: str) -> bool:
@@ -583,8 +591,10 @@ def forgot_password(body: ForgotPasswordRequest):
         user_row = _fetch_user_by_email(conn, body.email)
         if user_row is None:
             return _account_not_found_response()
-        delivered = _issue_and_deliver_code(conn, body.email, user_row[0], "PASSWORD_RESET",
-                                            PASSWORD_RESET_CODE_EXPIRE_MINUTES, notifications.send_password_reset_email)
+        delivered = _issue_and_deliver_code(
+            conn, body.email, user_row[0], "PASSWORD_RESET", PASSWORD_RESET_CODE_EXPIRE_MINUTES,
+            functools.partial(notifications.send_password_reset_email, language=_reader_language(user_row),
+                              minutes=PASSWORD_RESET_CODE_EXPIRE_MINUTES))
     except HTTPException:
         conn.rollback()
         raise
@@ -659,9 +669,10 @@ def resend_email_verification(body: ResendVerificationRequest):
         user_row = _fetch_user_by_email(conn, body.email)
         if user_row is None:
             return _account_not_found_response()
-        delivered = _issue_and_deliver_code(conn, body.email, user_row[0], "EMAIL_VERIFICATION",
-                                            EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES,
-                                            notifications.send_email_verification_email)
+        delivered = _issue_and_deliver_code(
+            conn, body.email, user_row[0], "EMAIL_VERIFICATION", EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES,
+            functools.partial(notifications.send_email_verification_email, language=_reader_language(user_row),
+                              minutes=EMAIL_VERIFICATION_CODE_EXPIRE_MINUTES))
     except HTTPException:
         conn.rollback()
         raise

@@ -27,8 +27,8 @@ def sent(monkeypatch):
     from src.ai.core import notifications
 
     codes = {}
-    monkeypatch.setattr(notifications, "send_email_verification_email", lambda to, code: codes.__setitem__(to, code) or True)
-    monkeypatch.setattr(notifications, "send_password_reset_email", lambda to, code: codes.__setitem__(("reset", to), code) or True)
+    monkeypatch.setattr(notifications, "send_email_verification_email", lambda to, code, **_kw: codes.__setitem__(to, code) or True)
+    monkeypatch.setattr(notifications, "send_password_reset_email", lambda to, code, **_kw: codes.__setitem__(("reset", to), code) or True)
     return codes
 
 
@@ -83,7 +83,7 @@ def test_registration_remains_pending_when_email_delivery_is_unavailable(client,
     from src.ai.core import notifications
 
     monkeypatch.setattr(notifications, "is_configured", lambda: False)
-    monkeypatch.setattr(notifications, "send_email_verification_email", lambda _email, _code: False)
+    monkeypatch.setattr(notifications, "send_email_verification_email", lambda _email, _code, **_kw: False)
     email, registration = _signup(client)
     assert registration["delivery"] == "unavailable"
     assert registration["email_verification_required"] is True
@@ -119,7 +119,7 @@ def test_accepting_an_invitation_confirms_the_address(client, sent, monkeypatch)
 
     links = {}
     monkeypatch.setattr(notifications, "send_team_invitation_email",
-                        lambda to, business, token: links.__setitem__(to, token) or True)
+                        lambda to, business, token, **_kw: links.__setitem__(to, token) or True)
     owner_email, registration = _signup(client)
     assert client.post("/auth/email/verify", json={
         "email": owner_email, "registration_token": registration["registration_token"], "code": sent[owner_email],

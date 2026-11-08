@@ -95,7 +95,7 @@ def queue(monkeypatch):
     client = TestClient(app)
     verification_codes = {}
     monkeypatch.setattr(notifications, "send_email_verification_email",
-                        lambda address, code: verification_codes.__setitem__(address, code) or True)
+                        lambda address, code, **_kw: verification_codes.__setitem__(address, code) or True)
 
     tenants = []
 

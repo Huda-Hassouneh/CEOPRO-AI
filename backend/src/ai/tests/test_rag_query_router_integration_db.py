@@ -52,7 +52,7 @@ def client(monkeypatch):
 
     codes = {}
     monkeypatch.setattr(notifications, "send_email_verification_email",
-                        lambda address, code: codes.__setitem__(address, code) or True)
+                        lambda address, code, **_kw: codes.__setitem__(address, code) or True)
     app.state.test_verification_codes = codes
     return TestClient(app)
 

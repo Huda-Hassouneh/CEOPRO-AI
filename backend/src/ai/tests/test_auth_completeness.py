@@ -175,7 +175,10 @@ def test_forgot_password_sends_a_code_for_a_registered_email():
     assert response.json()["status"] == "sent"
     send_code.assert_called_once()
     assert send_code.call_args.args[1:4] == ("jane@example.com", "u1", "PASSWORD_RESET")
-    mock_send.assert_called_once_with("jane@example.com", "123456")
+    # The email goes out in the account's own language and states how long the code is valid.
+    from src.ai.core.security import PASSWORD_RESET_CODE_EXPIRE_MINUTES
+    mock_send.assert_called_once_with("jane@example.com", "123456", language="en",
+                                      minutes=PASSWORD_RESET_CODE_EXPIRE_MINUTES)
 
 
 def test_forgot_password_tells_an_unregistered_address_to_sign_up_without_issuing_a_code():

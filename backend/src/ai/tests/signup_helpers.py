@@ -6,7 +6,7 @@ def create_verified_test_account(client, payload):
     sent_codes = []
     with patch(
         "src.ai.core.notifications.send_email_verification_email",
-        side_effect=lambda _email, code: sent_codes.append(code) or True,
+        side_effect=lambda _email, code, **_kwargs: sent_codes.append(code) or True,
     ):
         pending = client.post("/auth/signup", json=payload)
 
