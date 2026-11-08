@@ -54,7 +54,7 @@ def classify(connection,event):
         customer=event.customer.opaque_id if event.customer else (session.customer.opaque_id if session and session.customer else None),
         checkout=event.checkout.opaque_id if event.checkout else (session.reference.opaque_id if session else None),
         subscription=event.subscription.opaque_id if event.subscription else None,
-        metadata=session.metadata if session else (event.raw_evidence.get('data',{}).get('object',{}).get('metadata') or {}))
+        metadata=session.metadata if session else ((event.raw_evidence.get('data') or {}).get('custom_data') or (event.raw_evidence.get('data',{}).get('object',{}).get('metadata') or {})))
 
 
 class JourneyWebhookReconciler:
@@ -80,6 +80,15 @@ class JourneyWebhookReconciler:
                     or event.checkout and event.checkout.opaque_id!=d['provider_checkout_id']
                     or event.subscription and d['provider_subscription_id'] and event.subscription.opaque_id!=d['provider_subscription_id']):
                 raise ValueError('Original event identity required')
+            from src.ai.billing.payment_contracts import PaymentEventKind
+            if row['reservation']['state']=='confirmed' and event.kind is not PaymentEventKind.CHECKOUT_COMPLETED:
+                if journey.lifecycle is None:raise ValueError('Trusted lifecycle reconciliation required')
+                # Receipt ownership moves to the exact subscription operation;
+                # never claim the same provider event on the old trial operation.
+                result=journey.lifecycle.reconcile(row['reservation']['confirmation_id'],event)
+                if 'version' not in result or 'subscription_id' not in result:
+                    raise ValueError('Trusted lifecycle confirmation pending')
+                return result
             # B3 owns immutable authenticated receipt identity independently of
             # provider observations and local consent. Exact retries return the
             # same receipt; changed body/time under an event ID fails closed.
@@ -97,7 +106,7 @@ class JourneyWebhookReconciler:
                 from src.ai.billing.payment_contracts import PaymentEventKind
                 if event.kind is PaymentEventKind.CHECKOUT_COMPLETED and event.checkout and event.customer:
                     return dict(duplicate=True,journey=True)
-                raise ValueError('Trusted lifecycle reconciliation required')
+                raise ValueError('Original completed Checkout retry required')
             result=journey.reconcile(operation,language)
             if result['state']!='confirmed':
                 raise ValueError('Trusted confirmation pending')

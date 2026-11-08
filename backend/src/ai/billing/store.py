@@ -308,7 +308,7 @@ def tenant_for_subscription(sys_conn, stripe_subscription_id: str) -> Optional[s
 _SUB_COLUMNS = (
     "subscription_id, stripe_subscription_id, stripe_customer_id, plan_key, period_code, status, "
     "current_period_start, current_period_end, trial_end, cancel_at_period_end, cancelled_at, "
-    "scheduled_plan_key, scheduled_period_code"
+    "scheduled_plan_key, scheduled_period_code, gateway_binding_id, provider_subscription_id, provider_customer_id, provider_price_id"
 )
 
 
@@ -520,18 +520,24 @@ def payments(conn, tenant_id: str, limit: int = 24) -> list:
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT stripe_invoice_id, amount, currency, status, paid_at, failure_reason, hosted_invoice_url,
-                   invoice_pdf_url, period_start, period_end, created_at
-            FROM billing_payments WHERE tenant_id = %s ORDER BY created_at DESC LIMIT %s;
+            SELECT * FROM (
+             SELECT stripe_invoice_id, amount, currency, status, paid_at, failure_reason, hosted_invoice_url,
+                    invoice_pdf_url, period_start, period_end, created_at,'stripe' AS provider,NULL::text AS binding_id
+             FROM billing_payments WHERE tenant_id = %s
+             UNION ALL
+             SELECT provider_invoice_id,amount,currency,'succeeded',paid_at,NULL,NULL,NULL,period_start,period_end,created_at,provider,binding_id
+             FROM billing_lifecycle_payments WHERE tenant_id = %s
+            ) p ORDER BY created_at DESC LIMIT %s;
             """,
-            (tenant_id, limit),
+            (tenant_id, tenant_id, limit),
         )
         rows = cursor.fetchall()
     keys = ("invoice_id", "amount", "currency", "status", "paid_at", "failure_reason", "hosted_invoice_url",
-            "invoice_pdf_url", "period_start", "period_end", "created_at")
+            "invoice_pdf_url", "period_start", "period_end", "created_at", "provider", "binding_id")
     out = []
     for row in rows:
         item = dict(zip(keys, row))
+        item["exact_amount"] = str(item["amount"])
         item["amount"] = float(item["amount"])
         for key in ("paid_at", "period_start", "period_end", "created_at"):
             item[key] = item[key].isoformat() if item[key] else None
@@ -594,10 +600,10 @@ def finish_event(sys_conn, event_id: str, tenant_id: Optional[str], error: Optio
 
 def subscription_price_snapshot(conn, tenant_id: str) -> dict:
     with conn.cursor() as cur:
-        cur.execute("""SELECT COALESCE(p.amount,(r.commercial_terms->>'paymentAmountUsd')::numeric,
+        cur.execute("""SELECT COALESCE((s.approved_terms->>'approved_amount')::numeric,p.amount,(r.commercial_terms->>'paymentAmountUsd')::numeric,
                        (r.commercial_terms->>'monthlyPriceUsd')::numeric),
-                       COALESCE(p.currency,CASE WHEN r.revision_id IS NOT NULL THEN 'USD' END),
-                       COALESCE(p.interval_months,(r.commercial_terms->>'billingPeriodMonths')::integer)
+                       COALESCE(s.approved_terms->>'currency',p.currency,CASE WHEN r.revision_id IS NOT NULL THEN 'USD' END),
+                       COALESCE((s.approved_terms->>'interval_months')::integer,p.interval_months,(r.commercial_terms->>'billingPeriodMonths')::integer)
           FROM billing_subscriptions s
           LEFT JOIN billing_plan_prices p ON p.stripe_price_id=s.stripe_price_id
           LEFT JOIN billing_custom_quote_checkout_attempts a
@@ -608,6 +614,7 @@ def subscription_price_snapshot(conn, tenant_id: str) -> dict:
           (tenant_id,list(config.CURRENT_STATUSES)))
         row=cur.fetchone()
     return {'amount':float(row[0]) if row and row[0] is not None else None,
+            'exactAmount':str(row[0]) if row and row[0] is not None else None,
             'currency':row[1] if row and row[1] else 'USD','intervalUnit':'month',
             'intervalCount':row[2] if row and row[2] else 1}
 

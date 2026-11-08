@@ -6,7 +6,7 @@ import { expireTrialSnapshot } from '../utils/onboardingRouting.js';
 export function useSubscription(companyId, options = {}) {
   const query = useQuery({ queryKey: ['subscription', companyId], queryFn: billingApi.getSubscription, enabled: Boolean(companyId), ...options });
   const [, render] = useReducer((n) => n + 1, 0);
-  const end = query.data?.billingStatus === 'trialing' ? (query.data.trialEndsAtExact || query.data.trialEndsAt) : null;
+  const end = query.data?.accessEndsAt || (query.data?.billingStatus === 'trialing' ? (query.data.trialEndsAtExact || query.data.trialEndsAt) : null);
   const refetch = query.refetch;
   useEffect(() => {
     if (!end) return;

@@ -160,7 +160,7 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
                 DEFAULT_PLAN_KEY, "none", None, None, None, "monthly", None, None)
         # Stripe trial access also expires without a timely webhook. A date-only
         # assignment cannot silently keep a trial alive after its provider cutoff.
-        if status == "trialing" and source == "stripe":
+        if status == "trialing" and source in ("stripe", "gateway"):
             cursor.execute("SELECT trial_end FROM billing_subscriptions WHERE tenant_id=%s AND status='trialing' "
                            "ORDER BY created_at DESC LIMIT 1", (tenant_id,))
             provider_trial = cursor.fetchone()
@@ -211,6 +211,14 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
                 entitlements = sorted(set(custom_entitlements[0]))
     if not (period_start and period_end and period_start <= today <= period_end):
         period_start, period_end = _month_bounds(today)
+    access_ends_at = trial_ends_at if status == 'trialing' else None
+    if status == 'active' and source in ('stripe','gateway'):
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT paid_through FROM billing_subscriptions WHERE tenant_id=%s AND gateway_binding_id IS NOT NULL AND status='active'",(tenant_id,))
+            paid = cursor.fetchone()
+        if paid:
+            access_ends_at = paid[0]
+            if access_ends_at is None or access_ends_at <= now:status='expired'
     trialing = status == "trialing"
     features = {}
     for _name, code, unit, agg, cycle, limit, trial_limit, override in rows:
@@ -224,7 +232,7 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
         "plan_key": plan_key, "display_name": rows[0][0] if rows else plan_key, "status": status,
         "assigned": row is not None, "period_start": period_start, "period_end": period_end, "features": features,
         "source": source, "period_code": period_code or "monthly", "entitlements": entitlements,
-        "trial_ends_at": trial_ends_at,
+        "trial_ends_at": trial_ends_at, "access_ends_at": access_ends_at,
     }
 
 

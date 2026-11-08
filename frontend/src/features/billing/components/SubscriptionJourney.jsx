@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { journeyState, journeyCheckoutUrl } from '../utils/subscriptionJourneyState.js';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useI18n } from '../../../app/providers/I18nProvider.jsx';
@@ -28,14 +29,12 @@ function Journey({ tenant, actor, plan, period }) {
     onSuccess: (data) => {
       progress.refetch();
       // Server-owned provider URL is validated again before browser navigation.
-      if (data.state === 'checkout_ready' && data.url) {
-        const url = new URL(data.url);
-        if (url.protocol === 'https:' && url.hostname === 'checkout.stripe.com') window.location.assign(url.href);
-      }
+      const url = journeyCheckoutUrl(data);
+      if (url) window.location.assign(url);
     } });
   const cancel = useMutation({ retry: false, mutationFn: () => api.cancel(operation) });
   const cleanup = useMutation({ retry: false, mutationFn: () => api.cleanup(operation) });
-  const state = progress.isError ? 'blocked' : progress.data?.state === 'confirmed' ? 'confirmed' : advance.data?.state || progress.data?.state || 'pending';
+  const state = journeyState(progress, advance);
   useEffect(() => {
     if (progress.data?.state === 'confirmed' && !progress.isError) {
       // Refresh the actual rights projection; a redirect/checkpoint cannot grant.

@@ -36,3 +36,29 @@ test('exact trial cutoff removes cached browser access; redirect and checkpoint 
   const paid={assigned:true,hasAccess:true,billingStatus:'active',trialEndsAtExact:end};
   assert.equal(expireTrialSnapshot(paid,now),paid);
 });
+
+
+test('durable conflict expiry and confirmation override cached advance results', async () => {
+  const { journeyState } = await import('../src/features/billing/utils/subscriptionJourneyState.js');
+  for (const state of ['conflict','expired','confirmed','blocked']) {
+    assert.equal(journeyState({data:{state}}, {data:{state:'checkout_ready'}}),state);
+  }
+  assert.equal(journeyState({isError:true,data:{state:'confirmed'}},{data:{state:'checkout_ready'}}),'blocked');
+});
+
+test('neutral paid access expires without a webhook and paid cancellation preserves the cutoff', () => {
+  const end='2026-11-08T12:00:00Z',now=Date.parse(end);
+  const paid={assigned:true,hasAccess:true,billingStatus:'active',accessEndsAt:end,cancelAtPeriodEnd:true};
+  assert.equal(hasActivePlanAccess(expireTrialSnapshot(paid,now-1)),true);
+  assert.equal(hasActivePlanAccess(expireTrialSnapshot(paid,now)),false);
+});
+
+
+test('Checkout navigation requires the bound provider and explicitly installed Paddle origin', async () => {
+  const { journeyCheckoutUrl } = await import('../src/features/billing/utils/subscriptionJourneyState.js');
+  const paddle = {state:'checkout_ready',provider:'paddle',url:'https://merchant.example.test/payment?_ptxn=txn_synthetic'};
+  assert.equal(journeyCheckoutUrl(paddle),null);
+  assert.equal(journeyCheckoutUrl(paddle,'https://merchant.example.test'),paddle.url);
+  assert.equal(journeyCheckoutUrl({...paddle,url:'https://user@merchant.example.test/payment'},'https://merchant.example.test'),null);
+  assert.equal(journeyCheckoutUrl({...paddle,url:'https://wrong.example.test'},'https://merchant.example.test'),null);
+});

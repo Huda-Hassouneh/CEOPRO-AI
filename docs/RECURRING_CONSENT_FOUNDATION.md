@@ -823,3 +823,196 @@ Exact changed-file manifest (all uncommitted; no staging or commit):
 - `frontend/src/features/billing/utils/onboardingRouting.js`
 - `frontend/tests/browser/subscription-journey.mjs`
 - `frontend/tests/subscriptionJourney.test.mjs`
+
+
+## Unified multi-gateway lifecycle - 2026-11-08 (uncommitted)
+
+Baseline `c3da109cead9cb0c58a07e7ca70c8313e79c9244`, branch
+`integration/main-consolidation`. This implements executable, default-off domain
+integration. It does **not** make either merchant commercially approved or enable
+production payments. No factory, credential, policy, provider approval, feature flag,
+LOGIN or runtime attestor/confirmer is installed.
+
+Completed behavior:
+
+- Fixed the confirmed UI LOW finding: durable conflict/expired/blocked/confirmed
+  states override cached advance results. English/Arabic browser checks exercise
+  both conflict and expiry, and disable Continue. Paid and trial caches expire at
+  their exact authoritative access cutoff; redirects never grant access.
+- Forward migration **175**, `20261209000000_neutral_subscription_lifecycle.sql`,
+  adds original-binding Customer/subscription/price identities and immutable approved
+  terms alongside nullable historical Stripe columns. Paddle IDs are never stored
+  in Stripe columns. All 174 historical migration files and historical customer data
+  remain unchanged. There is no guessed binding/backfill for unscoped legacy rows.
+  The existing global one-current-subscription index covers both providers; scoped
+  Customer and subscription/tenant/binding composite FKs protect associations.
+- B4's initial confirmation retains its complete freshness, original actor,
+  eligibility, financial, authorization, locking, global exclusivity, frozen-rights
+  and withdrawal checks. Its forward replacement can persist Paddle TEST identities
+  only with a separate immutable installation approval reference and the same nine
+  independently proven capabilities. No approval rows are shipped. Actual Paddle
+  trial verification returns UNSUPPORTED; real Stripe capabilities remain limited.
+  Synthetic all-capability fixtures are explicitly **not provider acceptance**.
+- `SubscriptionLifecycle` connects bound signed notifications, immutable B3
+  receipts/authoritative observations, separate dormant attestor and confirmer
+  sockets, atomic lifecycle consumption, frozen assignments and entitlements.
+  Confirmed journey webhooks use this consumer when explicitly installed; their
+  receipt belongs to the exact subscription operation, never both trial and
+  subscription operations. Unsupported non-Stripe events cannot reach legacy
+  Stripe processing. Both bound HTTP signature paths reach actual restricted SQL
+  in synthetic integration tests, including replay, transient-read retry and bad-signature denial.
+- B3 subscription observations may now progress through legitimate state, period
+  and settlement changes. All history is retained. Every historical positive
+  Customer/subscription/price/currency/amount/interval/quantity/trial fact remains
+  consistent. An invoice identity cannot acquire different payment/coverage facts,
+  including across an incomplete intervening observation. Older observation times
+  are refused. Trial observation rules remain unchanged.
+- Shared lifecycle SQL requires the original B4 confirmation and current initiating
+  billing authority. It consumes only fresh immutable authoritative observations,
+  exact bound receipts and the expected subscription version. Paid access requires
+  positive, exact renewal settlement and exact calendar-period coverage (original UTC anchor, including month-end clamping) after the
+  original trial; zero invoices, status labels, missing evidence and stale events
+  cannot extend access. Reconciliation of an unchanged already paid period can reuse
+  its existing cutoff, without extending it. Payment failure denies access;
+  verified recovery restores the frozen paid allowances. Cancellation preserves
+  already settled access through its cutoff. No Credit balances/usage are reset.
+- A FORCE-RLS, append-only neutral settlement ledger feeds the existing invoice
+  read alongside historical Stripe payments. It keeps exact amounts and bound
+  invoice identities. Unique conflicts are rechecked **after** the index wait so
+  a foreign winner hidden by RLS cannot authorize another tenant. Invoice URLs are
+  absent where no provider document capability has been accepted. Frozen current
+  price preview prefers original approved payment terms over today's catalog.
+- Paddle API v1 adapter pins sandbox origin/version, checks `/account` against the
+  original merchant, disables redirects/retries, sanitizes failures and rejects LIVE.
+  Its HMAC decoder checks original bytes, constant-time digest comparison, a five-
+  second timestamp window and duplicate JSON/header ambiguity. Receipt commitment
+  excludes delivery-only `notification_id`, retaining the complete immutable event
+  core and original signed bytes in the DTO. Provider snapshots are not consent.
+- Paddle renewal proof requires the exact subscription/Customer, a completed
+  automatically collected recurring transaction, captured payments, precise unit
+  price and totals, exact coverage and explicit zero adjustments. The GET requests
+  include adjustments; refunds/revisions, taxes, discounts, credits, proration,
+  unsupported currencies and multi-item arrangements fail closed. Supported monetary
+  parsing is deliberately USD/EUR/GBP only, not invented universal currency support.
+- Paddle's elected Checkout encoder uses its transaction API and a separately
+  approved/installed merchant payment page. It verifies the bound catalog price,
+  original frozen request and returned transaction terms. It invents no provider
+  idempotency header or non-creation proof. Unknown transaction recovery returns
+  unresolved and never resubmits. Browser navigation additionally requires an
+  explicit installed Paddle origin; it defaults absent. This does not install
+  Paddle.js, a merchant payment page or a durable Paddle Customer dispatcher.
+- Completed-Checkout withdrawal compensation has a protected durable one-sender
+  intent. Open Checkout cleanup remains supported. Completed **trial** subscriptions
+  may be canceled immediately through a reviewed bound adapter; a lost response is
+  recovered by GET without another POST. Local invalidation/history remain intact.
+  Paid or scheduled compensation requires review; no automatic refund is inferred.
+  Post-confirmation cancellation remains a separate durable action. Paddle uses its
+  `effective_from` semantics; it does not inherit Stripe's cancellation payload.
+
+Security/installation boundaries:
+
+- No ordinary runtime EXECUTE, protected write, subscription-confirmation or consent
+  authority is added. The only new application table privilege is tenant-scoped
+  SELECT on the settlement ledger. Existing NOLOGIN split services receive narrowly
+  scoped commands; PUBLIC EXECUTE is revoked, FORCE RLS applies, owners retain no
+  schema CREATE, and no credentials/memberships are provisioned. Installation rejects
+  pre-existing LOGIN, privileged, inherited/member or schema-replacement role models.
+- Lifecycle uses billing-tenant -> subscription -> TRY platform authorization /
+  company-user-membership SHARE NOWAIT -> observation locking. Authorization is
+  rechecked after blocking locks and stabilized until commit. Attestation and
+  confirmation stay separate; all provider requests occur after repository commits.
+  Busy/stale claims fail explicitly and cannot select a legacy activation fallback.
+- Same-agent adversarial review checked forged consent/VERIFIED authority, original
+  binding substitution, stale/rebound invoices, foreign unique-index winners under
+  RLS, replay/receipt ownership, acknowledgement-before-consumption, revocation, compensation ambiguity and paid cutoff
+  bypass. The receipt-ownership and post-conflict recheck boundaries were tightened
+  during implementation. This is not an independent external security audit.
+
+Verification (selections overlap; counts are not additive):
+
+- PASS: 104-case isolated affected selection, including B4, withdrawal, connected
+  journeys, both provider identities, concurrency and legacy Standard/Custom paid
+  activation, failure/recovery, downgrade and Credits. Subsequent affected selections
+  passed 41 and 9 cases. Final ledger/signed-adapter/cross-tenant selection passed six
+  cases on the final schema. Evidence under `.dev/evidence/multi-gateway-billing/`:
+  `49d415a08b39`, `e954ae9df768`, `c4d88886cca8`, `859a5fdea72a`.
+  Subsequent signed retry and unsafe-role checks passed (`96cb0376a069`,
+  `03871043c5c5`). Final original-anchor/clamping plus signed adapter-to-SQL
+  checks passed three cases (`52105815b346`); final line-total/price consistency
+  checks additionally reject contradictory Paddle calculated line items. Final
+  signed retry/adapter-to-SQL cases passed (`625b2e52301e`).
+  Two final native revocation cases passed (`9408c45e8bf0`): a pending demotion
+  prevents stabilization; stabilization first fences demotion until commit, and
+  committed demotion denies subsequent consumption. An initial fixture used a
+  masked DSN and was corrected; no runtime authorization fix was needed.
+- PASS: fresh 175, populated 174 -> 175, replay, injected rollback, effective existing
+  EXECUTEs, password-authenticated restricted roles, RLS/ACL denials and preserved
+  historical trial. Each verifier owns a new loopback-only PG17 tmpfs container,
+  no volumes/provider calls, clears inherited credentials and uses the accepted
+  network guard. Owned containers are stopped; failed iterations are retained.
+  A negative unsafe-LOGIN installer fixture is rejected before DDL. Production
+  restricted-installer installation is **not verified**.
+- Offline affected selection: 303 passed; one existing contract fixture lacked
+  PUBLIC_FRONTEND_ORIGIN. Its configured targeted retry passed. Final adapter tests:
+  **45 passed** (`adapters-final.xml`); the configured 39-case targeted result includes
+  that retry (`offline-final.xml`). No provider acceptance is implied.
+- PASS: 12 focused Node tests, 16 intercepted Chromium checks (English/Arabic),
+  changed frontend ESLint and whitespace. Existing application services remain
+  stopped/unavailable. No normal application/shared database was contacted.
+
+Commands: backend `python -B -m scripts.verify_multi_gateway_billing --isolated-local`
+(with bounded `--select` for targeted evidence), pytest modules
+`test_multi_gateway_adapters.py` / `test_multi_gateway_lifecycle_db.py`; frontend
+`node --test tests/subscriptionJourney.test.mjs tests/trialConsent.test.mjs
+tests/trialJourneyPreview.test.mjs`, `node tests/browser/subscription-journey.mjs`.
+
+External/release blockers (not simulated success): approved legal/operator/language,
+refund/retention/trial-start and MoR/tax policy bundles; real Stripe TEST / Paddle
+sandbox merchant/additional-consent and recurring-authority capability acceptance;
+durable Paddle Customer submission/recovery consistent with the accepted Customer
+contract; no-history Stripe SetupIntent association; installation/acceptance of the
+Paddle payment page and webhook destination/secret/account scope; ambiguous Paddle
+transaction discovery; Custom initial confirmation/approved amendments (existing B4
+is Standard self-serve trial only); tax/discount/credit/proration/other currencies;
+refund/chargeback/reversal policy and reconciliation, paid/scheduled withdrawal
+compensation and administrator recovery; explicitly approved legacy binding mapping;
+full production restricted installation, permission/webhook cutover and LIVE approval.
+Existing legacy Custom and Stripe flows are preserved, not certified as Paddle flows.
+Neither provider is ready for unrestricted E2E activation from this change alone.
+
+Paddle primary references checked during implementation:
+[API/version/sandbox](https://developer.paddle.com/api-reference/about/),
+[account identity](https://developer.paddle.com/api-reference/account/get-account/),
+[signature verification](https://developer.paddle.com/webhooks/about/signature-verification/),
+[transaction creation](https://developer.paddle.com/api-reference/transactions/create-transaction/),
+[transaction settlement/adjustments](https://developer.paddle.com/api-reference/transactions/get-transaction/),
+[cancellation](https://developer.paddle.com/api-reference/subscriptions/cancel-subscription/).
+
+Changed-file manifest (all uncommitted; no staging or commit):
+
+- `backend/scripts/verify_multi_gateway_billing.py`
+- `backend/src/ai/billing/journey_webhooks.py`
+- `backend/src/ai/billing/paddle_gateway.py`
+- `backend/src/ai/billing/store.py`
+- `backend/src/ai/billing/stripe_api.py`
+- `backend/src/ai/billing/stripe_journey.py`
+- `backend/src/ai/billing/subscription_journey.py`
+- `backend/src/ai/billing/subscription_lifecycle.py`
+- `backend/src/ai/billing/webhooks.py`
+- `backend/src/ai/core/entitlements.py`
+- `backend/src/ai/core/usage.py`
+- `backend/src/ai/routers/billing.py`
+- `backend/src/ai/routers/subscription_journey.py`
+- `backend/src/infrastructure/database/migrations/20261209000000_neutral_subscription_lifecycle.sql`
+- `backend/tests/billing/test_multi_gateway_adapters.py`
+- `backend/tests/billing/test_multi_gateway_lifecycle_db.py`
+- `backend/tests/billing/test_payment_webhook_decoder.py`
+- `backend/tests/billing/test_provider_verification_contracts.py`
+- `backend/tests/billing/test_verification_observations.py`
+- `docs/RECURRING_CONSENT_FOUNDATION.md`
+- `frontend/src/features/billing/components/SubscriptionJourney.jsx`
+- `frontend/src/features/billing/hooks/useSubscription.js`
+- `frontend/src/features/billing/utils/onboardingRouting.js`
+- `frontend/src/features/billing/utils/subscriptionJourneyState.js`
+- `frontend/tests/browser/subscription-journey.mjs`
+- `frontend/tests/subscriptionJourney.test.mjs`

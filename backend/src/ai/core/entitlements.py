@@ -47,7 +47,7 @@ def _versions(conn, tenant_id: str) -> tuple[int, int]:
 
 
 def _trial_cache_expired(summary: dict, now: datetime) -> bool:
-    expires_at = summary.get("trial_ends_at")
+    expires_at = summary.get("access_ends_at") or summary.get("trial_ends_at")
     return expires_at is not None and now >= expires_at
 
 
@@ -74,10 +74,11 @@ def _plan(tenant_id: str, user_id: str) -> dict:
         conn.close()
     summary = {
         "status": plan["status"],
+        "access_ends_at": plan.get("access_ends_at"),
         "entitlements": set(plan["entitlements"]),
         "trial_ends_at": (
             plan.get("trial_ends_at")
-            if plan.get("status") == "trialing" and plan.get("source") in ("trial", "stripe")
+            if plan.get("status") == "trialing" and plan.get("source") in ("trial", "stripe", "gateway")
             else None
         ),
     }

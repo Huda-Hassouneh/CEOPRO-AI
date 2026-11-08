@@ -121,6 +121,23 @@ class StripeJourneyGateway:
         if updated.get('current_period_end')!=before:raise CollectionBlocked('cancellation_period_changed')
         return updated.get('cancel_at_period_end') is True
 
+    def compensate(self,session,dispatch,*,submit,authorize):
+        self.check_cancellation();self.validate(session,dispatch);self.transport.verify_namespace()
+        if session.state is not C.CheckoutState.COMPLETE or session.subscription is None:
+            raise CollectionBlocked('completed_original_checkout_required')
+        sid=session.subscription.opaque_id
+        def valid(v):
+            if v.get('id')!=sid or v.get('customer')!=dispatch['provider_customer_id'] or v.get('livemode') is not False:
+                raise CollectionBlocked('compensation_lineage_conflict')
+        value=self.transport.subscription_retrieve(sid);valid(value)
+        if value.get('status')=='canceled':return True
+        if value.get('status')!='trialing' or value.get('schedule'):
+            raise CollectionBlocked('paid_or_scheduled_compensation_requires_review')
+        if not submit:return False
+        authorize()
+        result=self.transport.subscription_cancel_immediately(sid,'keel-withdraw-'+dispatch['attempt_id']);valid(result)
+        return result.get('status')=='canceled'
+
     def check_cancellation(self):
         if self.binding.environment is not C.GatewayEnvironment.TEST:
             raise CollectionBlocked('live_cancellation_not_authorized')

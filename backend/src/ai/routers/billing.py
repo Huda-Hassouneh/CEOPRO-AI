@@ -470,7 +470,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         subscription = store.current_subscription(conn, ctx.tenant_id)
         price_snapshot = store.subscription_price_snapshot(conn, ctx.tenant_id) if subscription else None
         trial = store.trial(conn, ctx.tenant_id)
-        has_customer = store.customer_id(conn, ctx.tenant_id) is not None
+        has_customer = bool(subscription and subscription.get('provider_customer_id')) or store.customer_id(conn, ctx.tenant_id) is not None
         role = _role(conn, ctx.tenant_id, ctx.user_id)
         can_manage = role in _BILLING_ROLES
         budgets = credits.summary(conn, ctx.tenant_id)
@@ -503,6 +503,8 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     return {
         "available": True,
         "subscriptionJourneyRequired": journey_required,
+        "accessEndsAt": _iso(plan.get("access_ends_at")),
+        "gatewayBindingId": subscription.get("gateway_binding_id") if subscription else None,
         "planId": plan["plan_key"],
         "planName": plan["display_name"],
         "status": plan["status"],
