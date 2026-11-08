@@ -227,6 +227,7 @@ class StripeVerificationGateway:
     binding: C.GatewayBinding
     _reader: object = field(repr=False)
     _clock: object = field(default=lambda: datetime.now(timezone.utc), repr=False)
+    _setup_source: object = field(default=None, repr=False)
     _api_version: str = field(init=False, repr=False)
     _read: object = field(init=False, repr=False)
 
@@ -255,6 +256,18 @@ class StripeVerificationGateway:
         if type(value) is not dict:
             _unavailable()
         return deepcopy(value)
+
+    def checkout_window(self, request, observed):
+        if observed.request != request or request.binding != self.binding:
+            raise ValueError('Original Checkout evidence required')
+        self._namespace()
+        session = self._object('checkout', request.checkout.opaque_id)
+        if (session.get('status') != 'complete' or _identifier(session.get('customer')) != request.customer.opaque_id
+                or _identifier(session.get('subscription')) != observed.subscription.opaque_id):
+            raise ValueError('Checkout completion conflict')
+        # First authoritative completion observation is an upper bound on
+        # completion, not a fabricated provider completed_at timestamp.
+        return observed.provenance.observed_at, _time(session.get('expires_at'))
 
     def _object(self, kind, identifier):
         identifier = _identifier(identifier)
@@ -360,6 +373,10 @@ class StripeVerificationGateway:
         source = self._ref(subscription["id"])
         method_id = subscription.get("default_payment_method") or (customer.get("invoice_settings") or {}).get("default_payment_method")
         setup_id = subscription.get("pending_setup_intent")
+        if not setup_id and self._setup_source is not None:
+            # Trusted, exact-operation B3 history only; still retrieve current
+            # SetupIntent truth and verify customer/method/usage below.
+            setup_id = self._setup_source(request, self._ref(subscription['id']))
         readiness, kind = C.PaymentMethodReadiness.UNKNOWN, C.RecurringAuthorizationKind.UNKNOWN
         method = None
         if method_id:

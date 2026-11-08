@@ -26,8 +26,13 @@ class PolicyDocument:
     operator_details_version: str
     refund_review_version: str
     registry: tuple  # sorted immutable (key, scalar) pairs from approved catalog
+    trial_start_mode: str | None = None  # No default legal/business start rule.
 
     def values(self):
+        if (type(self.registry) is not tuple or any(type(p) is not tuple or len(p)!=2
+                or type(p[0]) is not str or type(p[1]) is not str for p in self.registry)
+                or len({p[0] for p in self.registry})!=len(self.registry)):
+            raise CollectionBlocked('immutable_policy_registry_required')
         values = dict(self.registry)
         required = ('agreement_reference','agreement_revision','language_tag','agreement_digest',
             'cancellation_reference','renewal_disclosure_reference','trial_start_rule_reference',
@@ -66,6 +71,8 @@ class ConsentCollection:
         document = self.policies(row, language, policy_id)
         if type(document) is not PolicyDocument:
             raise CollectionBlocked('policy_not_approved')
+        if document.trial_start_mode != 'checkout_completion':
+            raise CollectionBlocked('approved_trial_start_rule_required')
         values = document.values()
         if values['language_tag'] != language or (policy_id and str(document.policy_id) != str(policy_id)):
             raise CollectionBlocked('policy_version_conflict')

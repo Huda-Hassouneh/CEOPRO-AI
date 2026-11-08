@@ -45,7 +45,14 @@ def _flow(request, ctx):
     factory = getattr(request.app.state, 'recurring_consent_factory', None)
     try:
         if factory is None:
-            yield None
+            journey_factory = getattr(request.app.state, 'subscription_journey_factory', None)
+            if journey_factory is not None and os.getenv('RECURRING_JOURNEY_ENABLED','').lower() == 'true':
+                if getattr(ctx,'email_verified',False) is not True:
+                    raise HTTPException(403,'Verified account required')
+                with journey_factory(ctx) as journey:
+                    yield journey.collection
+            else:
+                yield None
         else:
             with factory(ctx) as flow:
                 yield flow

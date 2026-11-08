@@ -1,5 +1,6 @@
 """Email-bound pending registration using the existing Python identity and trial services."""
 import logging
+import os
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -19,6 +20,8 @@ def _call(action, payload):
     try:
         conn = db.auth_lookup_connection()
         with conn.cursor() as cursor:
+            cursor.execute("SELECT set_config('app.recurring_journey_required',%s,true)",
+                ('true' if os.getenv('RECURRING_JOURNEY_ENABLED','').lower()=='true' else 'false',))
             cursor.execute("SELECT keel_pending_registration(%s, %s);", (action, Json(payload)))
             result = cursor.fetchone()[0]
         # Failed-code counters are committed too; raising before commit would erase attempts.

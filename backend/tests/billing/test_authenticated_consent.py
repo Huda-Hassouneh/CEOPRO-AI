@@ -20,7 +20,7 @@ def collection(scenario):
         agreement_digest='sha256:'+hashlib.sha256(b'SYNTHETIC-NOT-LEGAL').hexdigest(),
         cancellation_reference='synthetic',renewal_disclosure_reference='synthetic',trial_start_rule_reference='synthetic',
         retention_policy_reference='synthetic',approval_reference='ISOLATED TEST ONLY')
-    document = A.PolicyDocument(s.policy,'SYNTHETIC-NOT-LEGAL','synthetic-operator','synthetic-refund',tuple(sorted(values.items())))
+    document = A.PolicyDocument(s.policy,'SYNTHETIC-NOT-LEGAL','synthetic-operator','synthetic-refund',tuple(sorted(values.items())),trial_start_mode='checkout_completion')
     registry = dict(values,policy_id=str(s.policy),status='approved')
     presented = dict(s.presentation, policy_id=str(s.policy), terms_digest='sha256:'+'a'*64,
         challenge='x'*72, expires_at='synthetic-db-expiry', policy=registry)

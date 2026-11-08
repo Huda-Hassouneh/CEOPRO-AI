@@ -145,9 +145,14 @@ def get_plan(conn, tenant_id: str, today: Optional[date] = None, now: Optional[d
             (tenant_id,),
         )
         row = cursor.fetchone()
+        journey_required = False
+        if row is None and _unassigned_access() == 'default':
+            cursor.execute('SELECT subscription_journey_required FROM companies WHERE tenant_id=%s',(tenant_id,))
+            cohort = cursor.fetchone()
+            journey_required = cohort is None or cohort[0]
         if row:
             plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = row
-        elif _unassigned_access() == "default":
+        elif _unassigned_access() == "default" and not journey_required:
             plan_key, status, period_start, period_end, source, period_code, trial_ends_at, catalog_snapshot = (
                 DEFAULT_PLAN_KEY, "active", None, None, None, "monthly", None, None)
         else:

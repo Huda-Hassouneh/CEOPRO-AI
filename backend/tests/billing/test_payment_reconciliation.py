@@ -62,6 +62,9 @@ class Provider:
 def reconciliation(monkeypatch):
     provider, connection = Provider(), MagicMock()
     connection.verified_webhook_only = False
+    # This fixture models unrelated legacy subscriptions; protected cohort
+    # classification and failure behavior are exercised by journey native tests.
+    connection.cursor.return_value.__enter__.return_value.fetchone.return_value = (False,)
     receipts, completed, applied, payments = [], set(), [], []
 
     def claim(conn, event):

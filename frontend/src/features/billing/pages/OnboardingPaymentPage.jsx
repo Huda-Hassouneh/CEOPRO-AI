@@ -6,6 +6,7 @@ import { useAuthStore } from '../../auth/store/authStore.js';
 import { billingApi, errorReason } from '../api/billingApi.js';
 import { TrialConsentPanel } from '../components/TrialConsentPanel.jsx';
 import { TrialJourneyPreview } from '../components/TrialJourneyPreview.jsx';
+import { SubscriptionJourney } from '../components/SubscriptionJourney.jsx';
 import { PlanSummaryCard } from '../components/PlanSummaryCard.jsx';
 import { toOriginalPlan } from '../api/originalBillingModel.js';
 import { CouponInput } from '../components/CouponInput.jsx';
@@ -97,6 +98,7 @@ export function OnboardingPaymentPage() {
   return (
     <OnboardingPageShell wide showProgress={false}>
       <header className="ceopro-payment-heading"><Link to={routePaths.onboardingPlan}>{t('billing.payment.backToPlans')}</Link><h1>{t('billing.payment.title')}</h1></header>
+      {subscriptionQuery.data?.subscriptionJourneyRequired ? <SubscriptionJourney plan={planId} period={billingPeriod} /> : <>
       <TrialJourneyPreview operationId={searchParams.get('trial_operation')} />
       <TrialConsentPanel operationId={searchParams.get('trial_operation')} />
       <div className="ceopro-payment-layout">
@@ -121,6 +123,7 @@ export function OnboardingPaymentPage() {
         </div>
         <PlanSummaryCard promotionEntered={Boolean(promoCode.trim())} plan={{...toOriginalPlan(plan),trialPeriodValue:subscriptionQuery.data.checkoutTrialEndsAt?Math.ceil((subscriptionQuery.data.checkoutTrialEndsAt*1000-Date.now())/86400000):0}} billingPeriod={billingPeriod} checkoutMode={subscriptionQuery.data.checkoutTrialEndsAt?'trial':'paid'}/>
       </div>
+      </>}
     </OnboardingPageShell>
   );
 }

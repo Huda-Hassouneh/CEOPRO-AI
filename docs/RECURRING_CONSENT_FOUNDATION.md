@@ -614,3 +614,212 @@ consent; prove durable SetupIntent correlation and genuine Stripe TEST capabilit
 review trusted B3/B4 handoff, legacy webhook/local-trial cutover and full restricted
 production installation. Implement paid cancellation/refund review through approved
 existing provider/customer workflows, not this pre-confirmation invalidation command.
+
+
+## Coordinated customer journey integration - 2026-11-08 (uncommitted)
+
+Baseline: `integration/main-consolidation`,
+`9b24a9279cae0efcac66de04aa03e305ca37db90`. This is executable dormant
+integration, not production activation. No policy bundle, service factory,
+credentials, LOGIN, frontend flag or runtime attestor/confirmer is installed.
+
+The connected synthetic Standard-plan path now executes reservation -> actual A1
+presentation/acceptance -> durable Customer -> one elected original-binding Checkout
+submission -> immutable authenticated B3 receipt and fresh provider observation ->
+A1 association -> B4 attestation/atomic confirmation -> frozen access and exact trial
+expiry. Mock provider/legal fixtures are explicitly synthetic and prove no merchant,
+Stripe or legal acceptance. Registration/email/company creation reuse the accepted
+identity system; native tests separately verify creation-time cohort selection.
+The HTTP journey additionally requires a verified account, current tenant principal,
+initiating actor and billing authority. It accepts plan/period selectors, a retry nonce
+and language, never actor, price, provider identity, commercial terms or acceptance time.
+
+`RECURRING_JOURNEY_ENABLED` defaults off. Only companies created while explicitly
+selected are marked by the immutable `companies.subscription_journey_required` flag.
+Existing companies remain in their original journey; changing the application flag
+cannot clear or enroll an existing company. Pending email verification and workspace
+creation set the cohort in the company-creation transaction. Automatic local trials,
+legacy Checkout/Custom actions and legacy subscription/assignment writers are fenced
+for that cohort. Legacy accounts keep their existing flows. Even the optional legacy
+unassigned-default plan cannot grant access to a new-cohort company.
+
+The new authenticated `/billing/trial-journeys` POST derives the operation UUID from
+server tenant/actor context plus the client retry nonce. Exact retries preserve the
+original reservation/binding/terms; conflicting plan changes fail. `/progress` is
+read-only with no provider calls; `/advance` performs explicit work, `/cancellation`
+stops supported future renewals, and `/cleanup` performs withdrawn-Checkout recovery.
+The context-managed `app.state.subscription_journey_factory(ctx)` remains absent.
+When explicitly installed in an authorized environment, its collection also serves
+the existing consent routes. No privileged connection fallback or credential resolver
+was added. Existing preview/consent gates remain required for those endpoints.
+
+Checkout payloads and idempotency keys are frozen before a transactional one-time
+sender election. Authorization/withdrawal are rechecked before POST; every command
+commits before provider work. After any submission marker, all retries are GET-only,
+even if no object is found or a sender crashed before POST. Customer recovery retains
+its accepted earlier no-resubmission contract. Returned sessions must match the
+original bound Customer, operation and metadata. Persisted transport is revalidated
+against frozen price/quantity/trial/Customer/binding/key before sending. Return URLs
+carry original operation/plan/period selectors and never confer rights. Authoritative
+Checkout expiry is durable and cannot cause another submission. The Stripe journey
+adapter rejects LIVE construction and supports no hypothetical second provider.
+
+SetupIntent correlation reuses an earlier immutable authoritative observation of the
+**same original operation, binding, Customer and exact subscription**. After
+`pending_setup_intent` disappears, a fresh bound GET must still prove successful
+`off_session` setup, matching Customer and payment method. An attached card alone is
+insufficient. If no trustworthy earlier association exists, readiness remains pending;
+no customer-wide search or inferred link fills the gap. Real Stripe still proves only
+its existing supported capability subset; this integration does not mark all nine B4
+capabilities supported. Provider observations cannot supply local consent or VERIFIED
+trial authority. The local handoff changes only authenticated consent fields, and B4
+still validates complete capabilities, financial facts, immutable history, freshness,
+eligibility, exclusivity, authorization and withdrawal atomically.
+
+New-cohort webhooks are classified before legacy event handling. A marker, persisted
+identity match, failed lookup or unavailable trusted reconciler cannot fall through
+to legacy activation. Cross-namespace ambiguity quarantines conservatively. The
+explicit `JourneyWebhookReconciler` uses B3 immutable authenticated receipts (including
+body-digest/time replay checks), fresh observations and the same consent/B4 workflow.
+Matching completed-Checkout retries are harmless; changed identity/body fails. Paid
+invoice/subscription lifecycle events remain quarantined until a supported trusted
+paid-period contract exists, rather than treating provider status as payment proof.
+The existing HTTP webhook has no new production reconciler installed. A separate
+`POST /billing/trial-journeys/webhook` is connected to the trusted reconciler through
+explicit `app.state.subscription_journey_webhook_decoder` and
+`subscription_journey_webhook_handler` dependencies, both absent by default. It
+requires the feature gate and an original merchant-scoped TEST signing secret;
+its decoder reuses the accepted signature decoder, rejects LIVE/wrong-account
+notifications and binds every reference to the installed original binding. This
+endpoint cannot dispatch legacy processing even on an unknown association. A native
+HTTP test verifies the actual SDK signature over original bytes, actual restricted
+SQL confirmation, exact replay and invalid-signature refusal. Evidence:
+`dc27b6689c29/result.json`; six final decoder/import checks passed in
+`offline/bound-endpoint-final.xml`. The remaining native unknown-event receipt check
+passed in `590a66ca60ae/result.json`. No bound decoder/handler was installed in a
+running application.
+
+Supported cancellation has a durable one-time intent and stable key, retrieves the
+original bound subscription, requests only `cancel_at_period_end=true`, rejects
+unhandled schedules and changed period boundaries, and recovers ambiguity by GET.
+It neither shortens local access nor rewrites confirmed consent/subscriptions. No
+refund is promised or automatically issued. Pre-confirmation withdrawal retains A1's
+append-only invalidation/B4 fences. Cleanup can find and expire a late **open**
+Checkout; a completed Checkout requiring remote subscription compensation remains
+explicitly blocked. A paused external sender cannot be fenced by a local deadline.
+
+Forward migration `20261208000000_subscription_journey_dispatch.sql` is migration
+**174**, ordered after all 173 historical migrations, which are unchanged. It adds
+two FORCE-RLS protected checkpoint tables, cohort/rights fences, a scoped issuer helper,
+a dormant consent-service dispatch/cancellation command and an observer history read.
+The original Checkout scope guard and historical B4/A1/A2 functions are unchanged.
+PUBLIC EXECUTE and inherited default app table-write grants are explicitly revoked.
+Existing runtime function EXECUTEs are unchanged; the ordinary webhook role receives
+only the new boolean cohort-classification read, never write/confirmation authority.
+The new global read owner is NOLOGIN/NOINHERIT/NOBYPASSRLS with no role memberships or
+retained schema CREATE. Authorization uses A1 READ COMMITTED, reservation-first locks
+and current company/user/membership SHARE NOWAIT plus advisory TRY stabilization.
+Provider work happens after commit. B4 locking/withdrawal protection is retained.
+
+English/Arabic onboarding consumes the durable server cohort flag, keeps consent
+initially unchecked, uses exact frozen decimal display and separates acceptance,
+verification and cancellation. Tenant/actor/operation scope query and UI state.
+Confirmed checkpoints refresh the actual subscription projection; browser redirects
+cannot grant access. Backend entitlement caches now expire provider trials at their
+exact cutoff, and the frontend subscription hook expires cached trial access and
+refetches at that instant. Existing paid/legacy commercial calculations are unchanged.
+
+Verification:
+
+- **PASS:** 625 distinct offline cases across focused selections; 48 final targeted
+  checks and two final import-boundary checks passed. Five database-only offline
+  skips were tested separately in disposable PostgreSQL. An extra selection initially
+  lacked PUBLIC_FRONTEND_ORIGIN for one existing test; its targeted configured retry
+  passed. Initial implementation/fixture failures remain in private evidence, not
+  erased. Existing AST SyntaxWarning messages are retained.
+- **PASS:** the final 73-case isolated selection had zero failures/errors/skips,
+  including connected synthetic confirmation, missing policy/unchecked consent,
+  tenant/role failures, concurrency, withdrawal, ambiguity, frozen transport,
+  stale/conflicting evidence, expiry, cancellation, legacy Standard/Custom paid
+  activation, paid renewal/failure/recovery, trial downgrade and Credit integrity.
+  A subsequent two-case run proved durable webhook receipt/replay fencing and the
+  LIVE adapter refusal; the remaining native unknown-event legacy receipt check
+  was run separately. These counts overlap and are not additive provider evidence.
+- **PASS:** fresh 174, populated 173 -> 174, replay, injected rollback, effective
+  existing EXECUTEs, restricted-password roles, RLS/ACL denial and preserved historical
+  trial data. Containers were newly created PG17, loopback-only, tmpfs, no volumes,
+  --pull=never, inherited credentials cleared, accepted network guard, owned cleanup.
+  Full production restricted-installer verification is still **BLOCKED**.
+- **PASS:** nine focused Node tests, ten fully intercepted Chromium checks in English
+  and Arabic (including actual hook expiry and account-switch disclosure), changed
+  frontend ESLint, UTF-8 and whitespace checks. No normal application service was
+  started; local application services remained stopped/unavailable.
+
+Commands: from backend, `python -B -m scripts.verify_subscription_journey
+--isolated-local` (bounded `--select` also supported); from frontend,
+`node --test tests/subscriptionJourney.test.mjs tests/trialConsent.test.mjs
+tests/trialJourneyPreview.test.mjs` and `node tests/browser/subscription-journey.mjs`.
+Recorded evidence is under `.dev/evidence/phase1-3d-journey/`, especially
+`0c1ca3c7d91b/result.json` (73), `22e153647828/result.json` (two targeted) and
+`offline/` (offline logs/JUnit). The combined result/manifest records subsequent
+checks and final source hashes. No application/shared DB or real provider was used.
+
+Focused same-agent adversarial review checked original identity/price substitution,
+role revocation and lock order, receipt/replay ambiguity, default privileges,
+legacy activation fallthrough, unassigned access, withdrawal and positive setup
+correlation. Identified defects were corrected and targeted checks passed; this is
+not an external security audit or production certification.
+
+Launch/acceptance remains **BLOCKED**. Do not enable enrollment or provision the
+factories until owner/operator/legal/language/refund/retention/trial-start bundles
+are approved, pinned and installed, and B2B eligibility is proven. Further gates:
+real Stripe TEST merchant/additional-consent and all required capability evidence;
+no-history SetupIntent association; trusted paid-renewal settlement/lifecycle handling;
+completed-Checkout withdrawal compensation and abandoned/challenge-loss recovery;
+provider cancellation/schedule and authorized administrator recovery acceptance;
+Custom cohort confirmation (existing B4 has no Custom trial coverage); restricted
+production installation, coordinated permission/webhook cutover, merchant/LIVE
+approval. Unsupported Custom journeys fail closed without changing legacy Custom
+pricing or paid flows. The supported Standard synthetic journey is executable, but
+this is **not yet ready for full authorized Stripe TEST E2E confirmation**.
+
+Exact changed-file manifest (all uncommitted; no staging or commit):
+
+- `backend/scripts/verify_subscription_journey.py`
+- `backend/src/ai/billing/authenticated_consent.py`
+- `backend/src/ai/billing/journey_policies.py`
+- `backend/src/ai/billing/journey_webhooks.py`
+- `backend/src/ai/billing/stripe_api.py`
+- `backend/src/ai/billing/stripe_journey.py`
+- `backend/src/ai/billing/stripe_verification.py`
+- `backend/src/ai/billing/subscription_journey.py`
+- `backend/src/ai/billing/verification_observations.py`
+- `backend/src/ai/billing/webhooks.py`
+- `backend/src/ai/core/entitlements.py`
+- `backend/src/ai/core/pending_registration.py`
+- `backend/src/ai/core/usage.py`
+- `backend/src/ai/routers/auth.py`
+- `backend/src/ai/routers/billing.py`
+- `backend/src/ai/routers/subscription_journey.py`
+- `backend/src/ai/routers/trial_consent.py`
+- `backend/src/infrastructure/database/migrations/20261208000000_subscription_journey_dispatch.sql`
+- `backend/tests/billing/test_authenticated_consent.py`
+- `backend/tests/billing/test_contract.py`
+- `backend/tests/billing/test_payment_reconciliation.py`
+- `backend/tests/billing/test_payment_webhook_decoder.py`
+- `backend/tests/billing/test_provider_verification_contracts.py`
+- `backend/tests/billing/test_recurring_consent.py`
+- `backend/tests/billing/test_subscription_journey.py`
+- `backend/tests/billing/test_subscription_journey_db.py`
+- `backend/tests/billing/test_trial_coordinator.py`
+- `backend/tests/billing/test_verification_observations.py`
+- `docs/RECURRING_CONSENT_FOUNDATION.md`
+- `frontend/src/assets/locales/ar.json`
+- `frontend/src/assets/locales/en.json`
+- `frontend/src/features/billing/api/subscriptionJourneyApi.js`
+- `frontend/src/features/billing/components/SubscriptionJourney.jsx`
+- `frontend/src/features/billing/hooks/useSubscription.js`
+- `frontend/src/features/billing/pages/OnboardingPaymentPage.jsx`
+- `frontend/src/features/billing/utils/onboardingRouting.js`
+- `frontend/tests/browser/subscription-journey.mjs`
+- `frontend/tests/subscriptionJourney.test.mjs`

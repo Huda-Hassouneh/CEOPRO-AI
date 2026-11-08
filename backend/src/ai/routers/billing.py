@@ -22,11 +22,13 @@ from src.ai.core import feature_rights, usage
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.routers.trial_journey_preview import router as trial_preview_router
 from src.ai.routers.trial_consent import router as trial_consent_router
+from src.ai.routers.subscription_journey import router as subscription_journey_router
 
 logger = logging.getLogger("APEX_BILLING")
 router = APIRouter(prefix="/billing", tags=["billing"])
 router.include_router(trial_preview_router)
 router.include_router(trial_consent_router)
+router.include_router(subscription_journey_router)
 
 _BILLING_ROLES = {"owner", "admin", "accountant"}
 
@@ -159,6 +161,14 @@ def _require_billing_role(conn, ctx: TenantContext) -> None:
         raise HTTPException(status_code=403, detail="Only the company owner, an admin or the accountant can manage billing.")
 
 
+def _require_legacy_journey(conn, ctx):
+    with conn.cursor() as q:
+        q.execute('SELECT subscription_journey_required FROM companies WHERE tenant_id=%s',(ctx.tenant_id,))
+        row=q.fetchone()
+    if row is None or row[0]:
+        raise HTTPException(409,'Protected subscription journey required; unsupported actions remain blocked')
+
+
 def _to_http(err: service.BillingError) -> HTTPException:
     return HTTPException(status_code=err.status, detail={"reason": err.code, "message": err.message})
 
@@ -262,6 +272,7 @@ def automatic_custom_checkout(body: CustomAutomaticCheckout, ctx: TenantContext 
     setup = None
     try:
         _require_billing_role(conn, ctx)
+        _require_legacy_journey(conn, ctx)
         service._require_payments()
         if store.current_subscription(conn, ctx.tenant_id):
             raise service.BillingError(409, "subscription_exists", "Use the existing subscription's recovery or plan-change action.")
@@ -463,6 +474,10 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         role = _role(conn, ctx.tenant_id, ctx.user_id)
         can_manage = role in _BILLING_ROLES
         budgets = credits.summary(conn, ctx.tenant_id)
+        with conn.cursor() as q:
+            q.execute('SELECT subscription_journey_required FROM companies WHERE tenant_id=%s',(ctx.tenant_id,))
+            cohort=q.fetchone()
+        journey_required=bool(cohort and cohort[0])
         conn.commit()
     finally:
         conn.close()
@@ -470,7 +485,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     # Only for an active member: the check below runs on the billing
     # service's connection, which would answer for any company named in a
     # token (e.g. a removed member's, until it expires).
-    if role and not trial and not subscription:
+    if role and not trial and not subscription and not journey_required:
         # The per-person check needs this person's other companies, which
         # this company's own connection can't see.
         sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
@@ -487,6 +502,7 @@ def get_subscription(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
         used[key] = _scaled(item["current_usage"], factor)
     return {
         "available": True,
+        "subscriptionJourneyRequired": journey_required,
         "planId": plan["plan_key"],
         "planName": plan["display_name"],
         "status": plan["status"],
@@ -553,6 +569,7 @@ def start_trial(body: TrialChoice, ctx: TenantContext = Depends(get_tenant_conte
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
+        _require_legacy_journey(conn, ctx)
         conn.commit()
     finally:
         conn.close()
@@ -628,6 +645,7 @@ def start_checkout(body: CheckoutChoice, ctx: TenantContext = Depends(get_tenant
     sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
+        _require_legacy_journey(conn, ctx)
         company_name, email = _company(conn, ctx.tenant_id, ctx.user_id)
         return service.create_checkout(conn, sys_conn, ctx.tenant_id, email, company_name,
                                        body.plan_key, body.period_code, body.promotion_code, ctx.user_id)
@@ -647,6 +665,7 @@ def open_portal(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
+        _require_legacy_journey(conn, ctx)
         return service.create_portal(conn, ctx.tenant_id)
     except service.BillingError as err:
         raise _to_http(err)
@@ -681,6 +700,7 @@ def cancel_pending_checkout(ctx: TenantContext = Depends(get_tenant_context)) ->
     sys_conn=db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn,ctx)
+        _require_legacy_journey(conn, ctx)
         return service.cancel_pending_checkout(conn,sys_conn,ctx.tenant_id)
     except service.BillingError as err:
         raise _to_http(err)
@@ -711,6 +731,7 @@ def change_plan(body: PlanChoice, ctx: TenantContext = Depends(get_tenant_contex
     sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
+        _require_legacy_journey(conn, ctx)
         return service.change_plan(conn, sys_conn, ctx.tenant_id, body.plan_key, body.period_code)
     except service.BillingError as err:
         raise _to_http(err)
@@ -729,6 +750,7 @@ def cancel_scheduled_change(ctx: TenantContext = Depends(get_tenant_context)) ->
     sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
+        _require_legacy_journey(conn, ctx)
         return service.cancel_scheduled_change(conn, sys_conn, ctx.tenant_id)
     except service.BillingError as err:
         raise _to_http(err)
@@ -745,6 +767,7 @@ def _set_cancellation(ctx: TenantContext, cancel: bool) -> dict:
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
+        _require_legacy_journey(conn, ctx)
         return service.set_cancellation(conn, ctx.tenant_id, cancel)
     except service.BillingError as err:
         raise _to_http(err)
@@ -849,6 +872,7 @@ def prepare_custom_offer_checkout_attempt(quote_id: UUID, body: CustomQuoteCheck
     sys_conn = db.billing_setup_connection(ctx.tenant_id, ctx.user_id)
     try:
         _require_billing_role(conn, ctx)
+        _require_legacy_journey(conn, ctx)
         company_name, email = _company(conn, ctx.tenant_id, ctx.user_id)
         result = service.create_custom_quote_checkout(conn, sys_conn, ctx.tenant_id, email,
             company_name, str(quote_id), body.idempotency_key)
