@@ -4130,7 +4130,7 @@
       "callbackFailed": "Shopify could not confirm the installation. Start the connection again.",
       "capacityReached": "Your plan has reached its connected-store limit.",
       "reconnect": "Reconnect",
-      "verifiedAt": "Verified {date}",
+      "verifiedAt": "Verified {{date}}",
       "status": {
         "verified": "Verified",
         "verification_required": "Reconnect to verify",
@@ -8446,7 +8446,7 @@
     "replaceWarning": "Replace the selected product URL? Existing observations will stay with the old mapping. The new source will need approval and the new match will need confirmation.",
     "history": "Previous product links",
     "historyHint": "These links are archived. Their prices do not contribute to the current comparison.",
-    "historyPrices": "{count} historical price records",
+    "historyPrices": "{{count}} historical price records",
     "lastCollected": "Latest recorded price (comparison may be unavailable)",
     "attributesHint": "Verify the model, size, flavour and number of units. A missing barcode does not establish an exact match.",
     "model": "Model",
@@ -8455,7 +8455,7 @@
     "variants": "Variant signals",
     "unknown": "Unknown",
     "coverage": "Checked scope only; this is not proof that the product is absent from the competitor’s full catalog.",
-    "coverageCount": "Products attempted: {checked} · Not checked: {unchecked}",
+    "coverageCount": "Products attempted: {{checked}} · Not checked: {{unchecked}}",
     "reasons": {
       "READY": "Page identity and a usable price were verified.",
       "NO_USABLE_PRICE": "Product recognized, but no usable price was found.",
