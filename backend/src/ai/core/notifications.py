@@ -105,8 +105,11 @@ def send_email_verification_email(to_address: str, code: str) -> bool:
 
 def send_team_invitation_email(to_address: str, business_name: str, invite_token: str) -> bool:
     frontend_base_url = frontend_origin()
+    # A company name is the owner's own text: collapse line breaks so it can never reach a mail header
+    # (the stdlib would refuse the whole message) or start a header-looking line in the body.
+    name = " ".join(str(business_name).split())
     return send_email(
-        to_address, f"You've been invited to join {business_name} on KEEL",
-        f"You've been invited to join {business_name} on KEEL. "
+        to_address, f"You've been invited to join {name} on KEEL",
+        f"You've been invited to join {name} on KEEL. "
         f"Accept your invitation here: {frontend_base_url}/invitation/{invite_token}",
     )

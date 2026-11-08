@@ -560,3 +560,71 @@ def test_an_invitation_saved_without_an_email_says_so():
     assert response.status_code == 200
     assert response.json() == {"ok": True, "email_sent": False}
     conn.commit.assert_called_once()
+
+
+# --- A real mail failure after the invitation is saved (found 8 Nov 2026) --------------------------------
+
+import smtplib as _smtplib  # noqa: E402
+import socket as _socket  # noqa: E402
+
+import pytest as _pytest  # noqa: E402
+
+_RELAY_SECRET = "relay-secret-value"
+_RELAY_FAILURES = {
+    "timeout": dict(connect=_socket.timeout("timed out")),
+    "connection_refused": dict(connect=ConnectionRefusedError("refused")),
+    "authentication_failure": dict(login=_smtplib.SMTPAuthenticationError(535, f"bad login {_RELAY_SECRET}".encode())),
+    "recipient_rejected": dict(sendmail=_smtplib.SMTPRecipientsRefused({"new@example.com": (550, b"rejected")})),
+    "message_rejected": dict(sendmail=_smtplib.SMTPDataError(554, b"message refused")),
+}
+
+
+def _relay(*, connect=None, login=None, sendmail=None):
+    server = MagicMock()
+    server.login.side_effect = login
+    server.sendmail.side_effect = sendmail
+    factory = MagicMock(side_effect=connect)
+    if connect is None:
+        factory.return_value.__enter__.return_value = server
+    return factory, server
+
+
+def _invite_through_the_real_sender(monkeypatch, business_name, factory):
+    from src.ai.core import notifications as real_notifications
+    monkeypatch.setattr(real_notifications, "SMTP_HOST", "smtp.example.test")
+    monkeypatch.setattr(real_notifications, "SMTP_USERNAME", "relay-login")
+    monkeypatch.setattr(real_notifications, "SMTP_PASSWORD", _RELAY_SECRET)
+    conn = _fake_conn()
+    _cursor(conn).fetchone.return_value = (business_name,)
+    with patch("src.ai.routers.settings.db.app_role_connection", return_value=conn), \
+         patch("src.ai.routers.settings._require_role", return_value="owner"), \
+         patch("src.ai.routers.settings._ensure_seat_for_invitation"), \
+         patch("src.ai.core.notifications.smtplib.SMTP", factory):
+        response = client.post("/settings/team/invitations", headers=_auth_header(),
+                               json={"email": "new@example.com", "role_key": "staff"})
+    return response, conn
+
+
+@_pytest.mark.parametrize("failure", sorted(_RELAY_FAILURES))
+def test_a_mail_failure_keeps_the_invitation_and_says_it_was_not_sent(monkeypatch, caplog, failure):
+    factory, _ = _relay(**_RELAY_FAILURES[failure])
+    with caplog.at_level("DEBUG"):
+        response, conn = _invite_through_the_real_sender(monkeypatch, "Jane's Shop", factory)
+    assert response.status_code == 200, response.text  # was a 500 with the invitation already saved
+    assert response.json() == {"ok": True, "email_sent": False}
+    conn.commit.assert_called_once()
+    conn.rollback.assert_not_called()
+    assert "Team invitation email not delivered" in caplog.text
+    for secret in (_RELAY_SECRET, "relay-login", "bad login", "new@example.com"):
+        assert secret not in caplog.text and secret not in response.text
+
+
+def test_a_company_name_with_a_line_break_still_sends_a_clean_subject(monkeypatch):
+    factory, server = _relay()
+    response, _ = _invite_through_the_real_sender(monkeypatch, "Evil\r\nBcc: victim@example.com", factory)
+    assert response.json() == {"ok": True, "email_sent": True}
+    sent = server.sendmail.call_args[0][2].replace("\r\n", "\n")
+    headers, _, body = sent.partition("\n\n")
+    assert server.sendmail.call_args[0][1] == ["new@example.com"]  # the only recipient
+    assert "\nBcc:" not in "\n" + headers and "\nBcc:" not in "\n" + body
+    assert "Subject: You've been invited to join Evil Bcc: victim@example.com on KEEL" in sent

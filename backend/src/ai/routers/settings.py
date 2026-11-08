@@ -619,7 +619,16 @@ def invite_team_member(body: InviteTeamMemberRequest, ctx: TenantContext = Depen
         # The invitation is saved either way; say whether the email went out
         # (no email service configured, or the send failed) so the screen
         # never reports "sent" for an invitation nobody received.
-        email_sent = notifications.send_team_invitation_email(body.email, business_name, raw_token)
+        # The invitation is committed; a mail failure (relay down, login refused, message rejected) must
+        # not turn that into a 500 the owner retries into a second invitation. Same contract as the
+        # sign-in codes and platform invitations: report it, log only the error type (relay text can
+        # echo credentials).
+        try:
+            email_sent = notifications.send_team_invitation_email(body.email, business_name, raw_token)
+        except Exception as exc:  # noqa: BLE001 - delivery is reported, never raised
+            logger.warning("Team invitation email not delivered (%s) to=%s", type(exc).__name__,
+                           notifications.mask_address(body.email))
+            email_sent = False
         return {"ok": True, "email_sent": bool(email_sent)}
     except HTTPException:
         conn.rollback()
