@@ -202,3 +202,106 @@ def test_an_unavailable_processor_fails_only_the_overture_source(monkeypatch):
     monkeypatch.setattr(offload, "get_client", lambda: DownClient())
     result = overture.search(_query())
     assert (result.status, result.reason, result.candidates) == ("failed", "processor_unavailable", [])
+
+
+# --- The in-process reader is memory-bounded (measured on real data 8 Nov 2026: Dubai 15 km 1,002 MB -> 279 MB,
+#     identical candidates). These tests pin the properties that made that true. --------------------------------
+
+def _fake_dataset(monkeypatch, parts, fail=()):
+    """search_local over `parts` (each a list of rows) with no network: a fake ParquetFile streams each part."""
+    import threading
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    state = {"active": 0, "peak": 0, "whole_group_reads": 0, "batch_sizes": []}
+    lock = threading.Lock()
+
+    class FakeFile:
+        def __init__(self, source, pre_buffer=True):
+            self.part = int(source.url.rsplit("/", 1)[-1])
+            assert pre_buffer is False, "a whole row group must not be buffered up front"
+
+        def read_row_group(self, *args, **kwargs):
+            state["whole_group_reads"] += 1
+            raise AssertionError("decoding a whole row group is what ran the API out of memory")
+
+        def iter_batches(self, batch_size, row_groups, columns, use_threads=True):
+            with lock:
+                state["active"] += 1
+                state["peak"] = max(state["peak"], state["active"])
+            try:
+                if self.part in fail:
+                    raise OSError("part unreachable")
+                rows = parts[self.part]
+                for start in range(0, len(rows), batch_size):
+                    state["batch_sizes"].append(len(rows[start:start + batch_size]))
+                    yield pa.RecordBatch.from_pylist(rows[start:start + batch_size]).select(columns)
+            finally:
+                with lock:
+                    state["active"] -= 1
+
+    class FakeRange:
+        def __init__(self, url, client, size=None):
+            self.url = url
+
+    monkeypatch.setattr(pq, "ParquetFile", FakeFile)
+    monkeypatch.setattr(overture, "_RangeFile", FakeRange)
+    monkeypatch.setattr(overture, "available", lambda: (True, None))
+    monkeypatch.setattr(overture, "_client", lambda: None)
+    monkeypatch.setattr(overture, "_load_index", lambda client: {})
+    monkeypatch.setattr(overture, "_row_groups", lambda index, box: [(str(i), 1, 0) for i in range(len(parts))])
+    return state
+
+
+def _old_full_row_result(rows, query):
+    """What the previous reader returned for the same rows (every in-box row turned into a full dict)."""
+    wanted, phrases = overture.match_words(query), overture.match_phrases(query)
+    pattern = overture._name_pattern(query.keywords, by_word=query.industry_key == industries.CUSTOM)
+    import re
+    name_re = re.compile(pattern, re.IGNORECASE) if pattern else None
+    box, radius = overture._box(query), min(query.radius_km, overture.MAX_RADIUS_KM)
+    return sorted(c.source_ref for _d, c in overture._candidates(rows, query, wanted, phrases, name_re, box, radius))
+
+
+def _mixed_rows(prefix, n):
+    rows = []
+    for i in range(n):
+        if i % 3 == 0:
+            rows.append(_row(f"{prefix} Pharmacy {i}", "pharmacy", ["meta"], record=f"{prefix}{i}", socials=[f"https://facebook.com/{prefix}{i}"]))
+        elif i % 3 == 1:
+            rows.append(_row(f"{prefix} Burger {i}", "fast_food_restaurant", ["meta"], record=f"{prefix}{i}", socials=[f"https://facebook.com/{prefix}{i}"]))
+        else:
+            rows.append(_row(f"صيدلية {prefix}{i}", "pharmacy", ["Microsoft"], record=f"{prefix}{i}", socials=[f"https://facebook.com/{prefix}{i}"]))  # name agrees
+    return rows
+
+
+@pytest.mark.parametrize("workers", [1, 2, 3])
+def test_reads_stream_in_batches_with_a_bounded_number_in_flight(monkeypatch, workers):
+    parts = [_mixed_rows(f"p{n}", 25) for n in range(8)]
+    state = _fake_dataset(monkeypatch, parts)
+    monkeypatch.setattr(overture, "READ_WORKERS", workers)
+    monkeypatch.setattr(overture, "READ_BATCH_ROWS", 10)
+    result = overture.search_local(_query())
+    assert result.status == "ok"
+    assert state["whole_group_reads"] == 0
+    assert 1 <= state["peak"] <= workers
+    assert max(state["batch_sizes"]) <= 10
+
+
+def test_bounded_reading_returns_exactly_what_full_rows_returned(monkeypatch):
+    parts = [_mixed_rows(f"p{n}", 30) for n in range(5)]
+    _fake_dataset(monkeypatch, parts)
+    monkeypatch.setattr(overture, "READ_BATCH_ROWS", 7)
+    query = _query()
+    got = sorted(c.source_ref for c in overture.search_local(query).candidates)
+    assert got and got == _old_full_row_result([row for part in parts for row in part], query)
+
+
+def test_one_unreachable_part_leaves_the_others_and_all_failing_is_reported(monkeypatch):
+    parts = [_mixed_rows(f"p{n}", 9) for n in range(4)]
+    _fake_dataset(monkeypatch, parts, fail={1})
+    result = overture.search_local(_query())
+    assert result.status == "ok" and result.candidates
+    assert not any(c.source_ref.startswith("p1") for c in result.candidates)
+    _fake_dataset(monkeypatch, parts, fail={0, 1, 2, 3})
+    assert (overture.search_local(_query()).status, overture.search_local(_query()).reason) == ("failed", "unreachable")
