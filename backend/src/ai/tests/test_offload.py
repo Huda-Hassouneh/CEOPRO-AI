@@ -89,6 +89,21 @@ def test_the_processor_refuses_unsigned_and_wrongly_signed_requests(processor):
     assert processor.get("/healthz").json()["ok"] is True  # uptime checks need no secret
 
 
+def test_an_oversized_body_is_refused_before_it_is_read_or_verified(processor):
+    from src.offload import processor as processor_module
+
+    big = b"x" * (processor_module.MAX_BODY_BYTES + 1)
+    assert processor.post("/v1/jobs", content=big).status_code == 413  # declared length
+
+    def chunked():  # no Content-Length: refused once the stream passes the limit
+        for _ in range(processor_module.MAX_BODY_BYTES // 1024 + 2):
+            yield b"x" * 1024
+
+    assert processor.post("/v1/jobs", content=chunked()).status_code == 413
+    ok = _submit(processor, "test.sleep", {"seconds": 0.01})  # normal signed work still accepted
+    assert ok.status_code in (200, 202)
+
+
 def test_a_task_runs_in_a_child_process_and_its_result_comes_back(processor):
     response = _submit(processor, "test.sleep", {"seconds": 0.1})
     assert response.status_code == 202

@@ -237,9 +237,18 @@ def create_app(secret: Optional[str] = None, **options) -> FastAPI:
     app.state.processor = processor
 
     async def _authorized(request: Request) -> bytes:
-        body = await request.body()
-        if len(body) > MAX_BODY_BYTES:
+        # Bound the read before anything else: an unsigned client must not make the processor
+        # buffer an arbitrarily large body (declared or chunked) just to be refused afterwards.
+        declared = request.headers.get("content-length")
+        if declared is not None and (not declared.isdigit() or int(declared) > MAX_BODY_BYTES):
             raise HTTPException(status_code=413, detail="body too large")
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > MAX_BODY_BYTES:
+                raise HTTPException(status_code=413, detail="body too large")
+            chunks.append(chunk)
+        body = b"".join(chunks)
         if not protocol.verify(secret, request.method, request.url.path, body,
                                request.headers.get(protocol.TIMESTAMP_HEADER),
                                request.headers.get(protocol.SIGNATURE_HEADER)):
