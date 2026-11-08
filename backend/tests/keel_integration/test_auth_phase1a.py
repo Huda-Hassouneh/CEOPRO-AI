@@ -211,12 +211,17 @@ def test_password_change_invalidates_old_token_without_revoking_account(monkeypa
 
 
 @pytest.mark.parametrize('path',['/auth/password/forgot','/auth/email/resend-verification'])
-def test_durable_send_limit_does_not_reveal_account_existence(api,monkeypatch,path):
+def test_durable_send_limit_discloses_no_more_than_the_existence_policy(api,monkeypatch,path):
+    # Existence policy (routers/auth.py, above _CODE_SENT_DETAIL, 2026-11-06): these endpoints may say an address
+    # has no account - signup already discloses that with 409 - but never names, verification state or codes.
     conn=MagicMock();monkeypatch.setattr(auth.db,'auth_lookup_connection',lambda:conn)
-    monkeypatch.setattr(auth,'_fetch_user_by_email',lambda *a:('u','hash','Owner','en'))
+    monkeypatch.setattr(auth,'_fetch_user_by_email',lambda *a:('u','hash','Owner Name','en'))
     def limited(*a,**kwargs):raise HTTPException(429,'budget exhausted')
     monkeypatch.setattr(auth,'_send_account_code',limited)
     known=api.post(path,json={'email':'known@example.test'})
     monkeypatch.setattr(auth,'_fetch_user_by_email',lambda *a:None)
     unknown=api.post(path,json={'email':'unknown@example.test'})
-    assert known.status_code==unknown.status_code==200 and known.json()==unknown.json()
+    assert known.status_code==429 and known.json()=={'detail':'budget exhausted'}
+    assert unknown.status_code==404 and unknown.json()=={'code':'ACCOUNT_NOT_FOUND','detail':auth._ACCOUNT_NOT_FOUND_DETAIL}
+    for response in (known,unknown):
+        assert 'Owner Name' not in response.text and 'hash' not in response.text
