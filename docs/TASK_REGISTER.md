@@ -95,7 +95,7 @@ owner (agent merges are refused by the permission check).
 |---|---|---|---|
 | CI-equivalent stack incl. object storage | — | PASS | PG17 ×2 + Redis 7 (Docker) and **MinIO built natively** from CI's pinned source with the host's Go 1.24 (`go install github.com/minio/minio@v0.0.0-20260212201848-7aac2a2c5b7c`) - removes the "MinIO cannot be built here" blocker |
 | Backend suites on `main` + #104 + #105 (merge-preview) | — | PASS | fresh clusters, MinIO up: `src/` 5,269 passed, 0 failed, 23 skipped; `tests/` 546 passed. (A first run without MinIO: 27 failed + 6 errors, all MinIO-backed; the 7 files then 69 passed) |
-| Real-data discovery, 2nd business type: a pharmacy | `feat/discovery-health-trades` [#113](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/113) (on #105) | PASS, CI re-running on `60959ea` (earlier head green) | `docs/REAL_DATA_DISCOVERY_TEST_2026-11-08.md` § pharmacy: other health trades listed 30 → 4, among the 10 auto-tracked 4 → 0, real pharmacies removed 0, self excluded; café re-run: 0 removed, 0 relationship changes, 2 mistyped cafés recovered. Root causes: 2-level health paths scored 0.5 (= competing bar); map type always beat the name inside a domain; Arabic article/letter forms never matched. Unit tests 858 + 564 passed; full `src/` on main+#104+#105+this: 5,269 passed, 0 failed |
+| Real-data discovery, 2nd business type: a pharmacy | `feat/discovery-health-trades` [#113](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/113) (on #105) | PASS, CI on `60959ea`: gitleaks + frontend green, backend/browser/images running (10:56) | `docs/REAL_DATA_DISCOVERY_TEST_2026-11-08.md` § pharmacy: other health trades listed 30 → 4, among the 10 auto-tracked 4 → 0, real pharmacies removed 0, self excluded; café re-run: 0 removed, 0 relationship changes, 2 mistyped cafés recovered. Root causes: 2-level health paths scored 0.5 (= competing bar); map type always beat the name inside a domain; Arabic article/letter forms never matched. Unit tests 858 + 564 passed; full `src/` on main+#104+#105+this: 5,269 passed, 0 failed |
 | IDOR sweep extended (object storage, campaigns, documents, import batches, notifications, data-source sub-routes, catalog, quotes) | `test/idor-sweep-extension` [#112](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/112) | PASS, CI green | `docs/SECURITY_MULTI_TENANT_TEST.md` § 2026-11-09: `attack.py` 401 req ×2 dirs, `idor_extended.py` (new, the 43 id routes never named) 57 req ×2 dirs, 0 findings / 0 oracle diffs / 0 changed victim rows; RLS matrix 115 tables `FAILS: []`; xref 0 cross-tenant refs / 6,553 ids |
 | **Finding (Low):** `POST /competitors/{other company's id}/enrich` → 500 / connection reset | `fix/enrich-foreign-competitor-404` [#111](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/111) | FIXED, CI green | Receipt authorization refused correctly but was unmapped; now 404 like data-status. New test fails before (2/2) / passes after; competitor + receipt tests 139 passed; harness re-run 0 server errors. No data exposed |
 | Platform routes: Tenant Owner got 422 with the admin schema (Low) | `fix/platform-router-gate` [#114](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/114) | FIXED, CI green | router-level gate before body validation: 403 on all 60 gated routes, 401 anonymous, invitations still public; 42/120 new checks fail without it; `src/` 5,252 passed 0 failed; `tests/` 666 passed + 3 pre-existing `main` failures fixed by #104 |
@@ -107,10 +107,12 @@ owner (agent merges are refused by the permission check).
 
 ### Open questions for the owner (Session 2 successor)
 
-1. **#107 decision (owner):** for this exposure-driven rotation, rotate `JWT_SECRET` without the overlap (everyone
-   signs in once), or first fix future `auth_time` and previous-key renewal (see the review row above).
-2. Pharmacies named as such but typed otherwise on the map (39 in the test) stay `INDIRECT`; say if they should be
-   direct by default too.
+Decided by the owner (2026-11-09 ~10:55 UTC):
+1. **#107: no overlap.** The exposed old signing key must stop being accepted at once; re-login is acceptable.
+   Relayed to Session 3 with the runbook/verification changes this implies (the pre-deploy tab must now get 401).
+   Session 2 successor re-reviews the final head (including the forged-renewal probe) before recommending deployment.
+2. **Pharmacies by name only stay `INDIRECT`** (the 39 typed "health care" etc.) unless reliable category evidence
+   confirms them. Already the behaviour of #113; no change.
 
 ## Next steps — Session 2 successor (updated 2026-11-09)
 
