@@ -193,6 +193,8 @@ merge #125, then close #105, #111, #112, #113 and #114 as superseded by #125. Th
 - frontend: 282/282.
 - `tools/dev/environment_inventory.py --check`: matches.
 - CI on #125 head `c3095941`: **6/6 green** (gitleaks, frontend, backend, browser-smoke, images ×2; finished 16:22 UTC).
+- 16:30 UTC: `main` moved to `40e5d7b4` (#116 merged). #125 still merges cleanly (`git merge-tree`), but its CI ran on
+  base `b3ae37b9`: use GitHub's "Update branch" on #125 (or merge `main` into it) so CI re-runs on the combined tree before merging.
 
 **What the work does:**
 - Discovery: adaptive radius, relevance fixes (map type vs name, health trades separated, Arabic folding).
