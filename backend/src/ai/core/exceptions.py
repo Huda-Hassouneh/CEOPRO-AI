@@ -52,14 +52,19 @@ def _cors_headers_for(request: Request) -> dict:
         from starlette.middleware.cors import CORSMiddleware
 
         for middleware in getattr(request.app, "user_middleware", []):
-            if middleware.cls is CORSMiddleware:
+            if isinstance(middleware.cls, type) and issubclass(middleware.cls, CORSMiddleware):
                 options = getattr(middleware, "kwargs", None) or getattr(middleware, "options", {})
-                cors = CORSMiddleware(app=None, **options)
+                cors = middleware.cls(app=None, **options)
                 if not cors.is_allowed_origin(origin):
                     return {}
                 headers = {k: v for k, v in cors.simple_headers.items() if k.lower() != "access-control-allow-origin"}
-                headers["Access-Control-Allow-Origin"] = "*" if cors.allow_all_origins and not options.get("allow_credentials") else origin
-                headers["Vary"] = "Origin"
+                # Starlette's own rule (CORSMiddleware.send): with "*" the origin is
+                # echoed only for a request carrying cookies; otherwise "*".
+                if cors.allow_all_origins and "cookie" not in request.headers:
+                    headers["Access-Control-Allow-Origin"] = "*"
+                else:
+                    headers["Access-Control-Allow-Origin"] = origin
+                    headers["Vary"] = "Origin"
                 return headers
     except Exception:  # noqa: BLE001 - an error response must never fail on its own headers
         logger.exception("Could not compute CORS headers for an error response")

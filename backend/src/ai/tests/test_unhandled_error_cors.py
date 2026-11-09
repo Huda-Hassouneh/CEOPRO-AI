@@ -74,3 +74,42 @@ def test_the_real_api_configuration_is_used():
     headers = _cors_headers_for(request("http://localhost:5173"))
     assert headers["Access-Control-Allow-Origin"] == "http://localhost:5173"
     assert _cors_headers_for(request("https://evil.example")) == {}
+
+
+def _wildcard_app(middleware_class=CORSMiddleware):
+    app = FastAPI()
+    app.add_middleware(middleware_class, allow_origins=["*"], allow_credentials=True,
+                       allow_methods=["*"], allow_headers=["*"])
+    register_exception_handlers(app)
+
+    @app.post("/boom")
+    def boom():
+        raise RuntimeError("boom")
+
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_a_wildcard_configuration_follows_starlettes_own_rule_on_errors():
+    """With allow_origins=["*"] Starlette echoes the origin only for a request with
+    cookies and otherwise answers "*" - the 500 must be no looser than that."""
+    without_cookie = _wildcard_app().post("/boom", headers={"Origin": "https://any.example"})
+    assert without_cookie.status_code == 500
+    assert without_cookie.headers["access-control-allow-origin"] == "*"
+    with_cookie = _wildcard_app().post("/boom", headers={"Origin": "https://any.example", "Cookie": "a=b"})
+    assert with_cookie.headers["access-control-allow-origin"] == "https://any.example"
+
+
+def test_a_cors_middleware_subclass_is_still_found():
+    class AppCORS(CORSMiddleware):
+        pass
+
+    app = FastAPI()
+    app.add_middleware(AppCORS, allow_origins=[ALLOWED], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+    register_exception_handlers(app)
+
+    @app.post("/boom")
+    def boom():
+        raise RuntimeError("boom")
+
+    response = TestClient(app, raise_server_exceptions=False).post("/boom", headers={"Origin": ALLOWED})
+    assert response.status_code == 500 and response.headers["access-control-allow-origin"] == ALLOWED
