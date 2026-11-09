@@ -2,12 +2,16 @@ from copy import deepcopy
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from src.ai.routers import billing
 
 
 class _Connection:
-    def __init__(self, role="owner"):
+    def __init__(self, role="owner", journey_required=False):
         self.role = role
+        self.journey_required = journey_required
+        self.query = ""
         self.closed = False
 
     def cursor(self):
@@ -20,9 +24,11 @@ class _Connection:
         return False
 
     def execute(self, _query, _params=None):
-        pass
+        self.query = _query
 
     def fetchone(self):
+        if "subscription_journey_required" in self.query:
+            return (self.journey_required,)
         return (self.role,)
 
     def commit(self):
@@ -65,12 +71,13 @@ def _plan():
     }
 
 
-def test_subscription_exposes_versioned_established_rights_without_changing_existing_fields(monkeypatch):
+@pytest.mark.parametrize("journey_required", [False, True])
+def test_subscription_exposes_versioned_established_rights_without_changing_existing_fields(monkeypatch, journey_required):
     tenant_id = "tenant-b2"
     user_id = "user-b2"
     plan = _plan()
     original_plan = deepcopy(plan)
-    app_conn = _Connection()
+    app_conn = _Connection(journey_required=journey_required)
     system_conn = _Connection()
     calls = {"plan": [], "credits": 0, "current_usage": 0}
     legacy_features = [{
@@ -85,7 +92,7 @@ def test_subscription_exposes_versioned_established_rights_without_changing_exis
             else (_ for _ in ()).throw(AssertionError("wrong tenant connection"))
         ),
     )
-    monkeypatch.setattr(billing.db, "system_connection", lambda: system_conn)
+    monkeypatch.setattr(billing.db, "system_connection", lambda: pytest.fail("Unscoped connection reached subscription read"))
     monkeypatch.setattr(billing.db, "billing_setup_connection", lambda *_: system_conn)
     monkeypatch.setattr(
         billing.usage, "get_plan",
@@ -148,5 +155,9 @@ def test_subscription_exposes_versioned_established_rights_without_changing_exis
     assert calls["current_usage"] == 1
     assert calls["credits"] == 1
     assert plan == original_plan
-    assert app_conn.closed and system_conn.closed
+    assert result["subscriptionJourneyRequired"] is journey_required
+    assert result["trialAvailable"] is (not journey_required)
+    assert app_conn.closed
+    # The cohort gate must avoid opening the separate legacy eligibility connection.
+    assert system_conn.closed is (not journey_required)
     assert "tenant_id" not in rights
