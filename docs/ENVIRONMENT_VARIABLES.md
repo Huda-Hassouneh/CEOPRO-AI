@@ -103,3 +103,13 @@ Every advanced setting is tied to its source module; absence uses its recorded d
 | `DISCOVERY_SLOT_WAIT_SECONDS` | `600` | How long a queued run waits for a slot before it is closed as `busy` (capped below the 15-minute stale-run limit). |
 
 See `docs/EXTERNAL_PROCESSOR.md`.
+
+## Competitor discovery: Overture mirror
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OVERTURE_MIRROR_URL` | unset | Folder of the published mirror, e.g. `https://github.com/Huda-Hassouneh/CEOPRO-AI/releases/download/overture-mirror-<release>`. When set, `OVERTURE_EXECUTION=auto` reads Overture from it inside the API (bounded, no pyarrow). |
+| `OVERTURE_MIRROR_MAX_TILES` | `120` | Most 0.1° tiles one search may read (a 30 km search needs ~60). |
+| `OVERTURE_MIRROR_MAX_TILE_BYTES` | `8388608` | Largest tile the API agrees to read. |
+| `OVERTURE_MIRROR_INDEX_TTL_SECONDS` | `43200` | How long `cells.json` and cell indexes are cached. |
+

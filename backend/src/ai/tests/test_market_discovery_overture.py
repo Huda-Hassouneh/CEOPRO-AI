@@ -1,6 +1,8 @@
 """Overture Maps places as a discovery source: which places count as
 competitors, their names and links, and the parts of the dataset read.
 Rows below have the shape of the real dataset's rows."""
+import json
+
 import pytest
 
 from src.market_scraper.market_discovery import industries, pipeline
@@ -305,3 +307,176 @@ def test_one_unreachable_part_leaves_the_others_and_all_failing_is_reported(monk
     assert not any(c.source_ref.startswith("p1") for c in result.candidates)
     _fake_dataset(monkeypatch, parts, fail={0, 1, 2, 3})
     assert (overture.search_local(_query()).status, overture.search_local(_query()).reason) == ("failed", "unreachable")
+
+
+# --- Compact mirror (cell packs): what the API reads in production --------------------------------------------
+# Measured 9 Nov 2026 on real data (release 2026-10-21.0): Amman 5 km 0.8 s / +16 MB, Dubai 15 km 2.2 s / +25 MB,
+# identical candidates to reading Overture directly; pyarrow never loaded in the API process.
+
+def _pack_fixture(tmp_path, rows):
+    import pyarrow as pa
+    from scripts.overture_mirror import build
+
+    stem = "cell_40_20"
+    index = build.write_pack(pa.Table.from_pylist(rows), str(tmp_path / f"{stem}.pack"))
+    files = {
+        "cells.json": json.dumps({"format": 1, "cells": {stem: {"places": len(rows)}}}).encode(),
+        f"{stem}.idx.json": json.dumps({"format": 1, "tiles": index}).encode(),
+        f"{stem}.pack": (tmp_path / f"{stem}.pack").read_bytes(),
+    }
+    return files, index
+
+
+def _serve(monkeypatch, files, calls=None, fail=()):
+    import httpx
+
+    def handler(request):
+        name = request.url.path.rsplit("/", 1)[-1]
+        if calls is not None:
+            calls.append(name)
+        if name in fail:
+            return httpx.Response(503)
+        if name not in files:
+            return httpx.Response(404)
+        body = files[name]
+        rng = request.headers.get("Range")
+        if rng:
+            start, end = (int(v) for v in rng.split("=")[1].split("-"))
+            return httpx.Response(206, content=body[start:end + 1])
+        return httpx.Response(200, content=body)
+
+    monkeypatch.setattr(overture, "MIRROR_URL", "https://mirror.test/r")
+    monkeypatch.setattr(overture, "_mirror_cache", {})
+    monkeypatch.setattr(overture, "_client", lambda: httpx.Client(transport=httpx.MockTransport(handler)))
+    monkeypatch.delenv("OVERTURE_EXECUTION", raising=False)
+
+
+def _mirror_rows():
+    rows = _mixed_rows("m", 30)
+    for i, row in enumerate(rows):
+        row["bbox"] = {"xmin": 46.68 + i * 0.0001, "xmax": 46.68 + i * 0.0001, "ymin": 24.72, "ymax": 24.72}
+    return rows
+
+
+def test_the_mirror_is_the_default_when_configured_and_returns_what_full_rows_return(monkeypatch, tmp_path):
+    import sys
+    rows = _mirror_rows()
+    files, _ = _pack_fixture(tmp_path, rows)
+    _serve(monkeypatch, files)
+    assert overture.execution_mode() == "mirror"
+    query = _query()
+    result = overture.search(query)
+    assert result.status == "ok"
+    got = sorted(c.source_ref for c in result.candidates)
+    assert got and got == _old_full_row_result([overture_compact(r) for r in rows], query)
+
+
+def overture_compact(row):
+    from scripts.overture_mirror import build
+    return json.loads(json.dumps(build.compact_place(row)))
+
+
+def test_a_name_with_a_unicode_line_separator_stays_one_place(monkeypatch, tmp_path):
+    rows = _mirror_rows()
+    rows[0]["names"] = {"primary": "Nahdi Pharmacy\x85Branch", "common": None}
+    files, _ = _pack_fixture(tmp_path, rows)
+    _serve(monkeypatch, files)
+    result = overture.search(_query())
+    assert result.status == "ok"
+    assert any(c.source_ref == rows[0]["id"] for c in result.candidates)
+
+
+def test_a_damaged_place_is_skipped_not_the_search(monkeypatch, tmp_path):
+    import gzip
+    rows = _mirror_rows()
+    files, index = _pack_fixture(tmp_path, rows)
+    key, (offset, length, _n) = next(iter(index.items()))
+    text = gzip.decompress(files["cell_40_20.pack"][offset:offset + length]).decode()
+    damaged = gzip.compress(("{not json\n" + text).encode(), mtime=0)
+    files["cell_40_20.pack"] = damaged
+    files["cell_40_20.idx.json"] = json.dumps({"format": 1, "tiles": {key: [0, len(damaged), _n + 1]}}).encode()
+    _serve(monkeypatch, files)
+    result = overture.search(_query())
+    assert result.status == "ok" and result.candidates
+
+
+def test_the_mirror_failing_is_reported_and_never_raises(monkeypatch, tmp_path):
+    files, _ = _pack_fixture(tmp_path, _mirror_rows())
+    _serve(monkeypatch, files, fail={"cells.json"})
+    assert (overture.search(_query()).status, overture.search(_query()).reason) == ("failed", "unreachable")
+    _serve(monkeypatch, files, fail={"cell_40_20.pack"})
+    assert (overture.search(_query()).status, overture.search(_query()).reason) == ("failed", "unreachable")
+
+
+def test_a_cell_without_places_is_an_empty_result_not_a_failure(monkeypatch, tmp_path):
+    files, _ = _pack_fixture(tmp_path, _mirror_rows())
+    files["cells.json"] = json.dumps({"format": 1, "covered": ["cell_40_20"], "cells": {}}).encode()
+    calls = []
+    _serve(monkeypatch, files, calls)
+    result = overture.search(_query())
+    assert (result.status, result.candidates) == ("ok", [])
+    assert "cell_40_20.pack" not in calls
+
+
+def test_a_region_the_mirror_has_not_built_says_not_covered_never_empty(monkeypatch, tmp_path):
+    files, _ = _pack_fixture(tmp_path, _mirror_rows())
+    files["cells.json"] = json.dumps({"format": 1, "covered": ["cell_30_30"], "cells": {"cell_30_30": {}}}).encode()
+    _serve(monkeypatch, files)
+    result = overture.search(_query())
+    assert (result.status, result.reason, result.candidates) == ("skipped", "not_covered", [])
+
+
+def test_oversized_tiles_and_huge_boxes_are_refused_without_reading(monkeypatch, tmp_path):
+    files, _ = _pack_fixture(tmp_path, _mirror_rows())
+    calls = []
+    _serve(monkeypatch, files, calls)
+    monkeypatch.setattr(overture, "MIRROR_MAX_TILE_BYTES", 10)
+    assert overture.search(_query()).reason == "unreachable"
+    assert "cell_40_20.pack" not in calls
+    monkeypatch.setattr(overture, "MIRROR_MAX_TILES", 3)
+    assert overture.search(_query()).reason == "too_large"
+
+
+def test_reading_the_mirror_never_loads_pyarrow():
+    import subprocess
+    import sys
+    code = ("import sys; from src.market_scraper.market_discovery.providers import overture; "
+            "overture.search_mirror; print('pyarrow' in sys.modules)")
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "False"
+
+
+def test_cell_and_tile_lookup_covers_the_box_and_crosses_cell_edges():
+    tiles = overture._mirror_tiles((49.95, 50.05, 19.95, 20.05))
+    assert {stem for stem, _ in tiles} == {"cell_40_10", "cell_50_10", "cell_40_20", "cell_50_20"}
+    assert len(tiles) == 4
+
+
+def test_the_builder_keeps_only_what_discovery_reads_and_the_verifier_catches_damage(tmp_path):
+    import pyarrow as pa
+    from scripts.overture_mirror import build, verify
+
+    rows = _mirror_rows()
+    rows[0]["addresses"] = [{"freeform": "King Fahd Rd", "locality": "Riyadh", "country": "SA", "postcode": "12345"}]
+    place = build.compact_place(rows[0])
+    assert set(place) <= {"id", "names", "basic_category", "taxonomy", "bbox", "addresses", "websites", "socials",
+                          "phones", "sources", "confidence", "operating_status"}
+    assert place["addresses"] == [{"freeform": "King Fahd Rd", "locality": "Riyadh", "country": "SA"}]
+    assert build.tile_key(46.68, 24.72) == "247:466" and build.tile_key(-0.05, -0.05) == "-1:-1"
+
+    release = tmp_path / "2026-10-21.0"
+    release.mkdir()
+    index = build.write_pack(pa.Table.from_pylist(rows), str(release / "cell_40_20.pack"))
+    (release / "cell_40_20.idx.json").write_text(json.dumps({"format": 1, "tiles": index}))
+    (release / "cells.json").write_text(json.dumps({"format": 1, "covered": ["cell_40_20"],
+                                                    "cells": {"cell_40_20": {"places": len(rows)}}}))
+    assert verify.verify(str(release)) == []
+    (release / "cells.json").write_text(json.dumps({"format": 1, "covered": ["cell_40_20"],
+                                                    "cells": {"cell_40_20": {"places": len(rows) + 1}}}))
+    assert any("places" in p for p in verify.verify(str(release)))
+    data = bytearray((release / "cell_40_20.pack").read_bytes())
+    data[len(data) // 2] ^= 0xFF
+    (release / "cell_40_20.pack").write_bytes(bytes(data))
+    import pytest as _p
+    with _p.raises(Exception):
+        verify.verify(str(release))
