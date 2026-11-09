@@ -104,10 +104,15 @@ map type was wrong ("كافيه الجادور" typed burger restaurant, "الب
 
 ### Limits (pharmacy)
 
-- **Same-industry pharmacies are all `INDIRECT`, none `DIRECT`.** By design (relevance.py), DIRECT needs evidence of
-  the company's specialty: its products at a published price, or its product/description words in the listing. A
-  pharmacy with no products and no AI hints has neither. Whether "same industry" should count as direct for trades
-  without specialties (pharmacies, supermarkets) is a product decision for the owner, not changed here.
+- **Same industry without a specialty → `DIRECT` (owner decision, 2026-11-09).** Before, DIRECT needed evidence of the
+  company's specialty, so a company with no products got no direct competitors at all (pharmacy: 0 of 240). Now, when
+  the owner has given no products and no specialty words in the business type, a business of the same industry is
+  DIRECT by default (reason `same_industry_default`, shown in EN/AR). With products or a specialty the owner wrote,
+  the conservative rule stays. A default DIRECT is not evidence: it still has to be in the company's segment.
+  Re-run on the same data: pharmacy 191 DIRECT / 39 INDIRECT / 10 unverified (was 0 / 230 / 10), café 450 / 64 / 5
+  (was 0 / 514 / 5); the stored lists, the auto-tracked ten and the 4 remaining off-trade names are identical. The
+  39 still INDIRECT are named like pharmacies but typed otherwise (23 "health care", 3 "pharmaceutical company"):
+  the map does not confirm the industry, so they keep the conservative label.
 - 4 labelled names remain: a typo ("Biel Medical Supplie"), and names with no trade word ("MicroDent MENA",
   "Medical Life Solution industrial Company", "الكاملة للتكنولوجيا"). Reject candidate removes them.
 - Spelling variants of one brand at different addresses ("Salma Al Qosous" / "Salma Qsous", "Adam & Taym" / "Adam and
