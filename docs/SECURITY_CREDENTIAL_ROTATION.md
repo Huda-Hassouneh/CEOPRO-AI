@@ -9,7 +9,7 @@ This document lists setting **names only, never values**. Two incidents are cove
 ## 2026-11-09: production secrets in agent cloud environments
 
 `JWT_SECRET`, `DATABASE_URL` (contains the Neon owner password), `APP_DB_PASSWORD` (`ceopro_app`), `REDIS_URL`
-(Upstash password), `BREVO_API_KEY` / the Brevo SMTP key, `GROQ_API_KEY` (and `POSTGRES_PASSWORD`, per
+(Upstash password), `BREVO_API_KEY` / the Brevo SMTP key, `GROQ_API_KEY` (and `POSTGRES_PASSWORD`, `RENDER_API_KEY`, per
 `docs/TASK_REGISTER.md`) were plain environment variables in the agent environments `ceopro-ai` and `Default`,
 readable by every process an agent started. They must be treated as exposed. Already done: removed from `ceopro-ai`.
 Still open: `Default` - **only the owner** can remove them (claude.ai -> Settings -> environments -> Default ->
@@ -153,6 +153,18 @@ Several keys can exist at once: no window.
 2. Verify: the assistant gives an AI-written answer; Groq console shows usage on the new key.
 3. Then owner deletes the old key in Groq.
 - Rollback: before deleting the old key, put it back and deploy.
+
+### Step 6b - Render API key (`RENDER_API_KEY`)
+
+It was also a plaintext variable in `ceopro-ai` (removed 04:30). It can reach every service in the Render
+account, not only KEEL. Several keys can exist at once: no window.
+
+1. Owner, Render -> Account Settings -> API Keys: create a new key; save it as the proxy-injected network
+   secret for `api.render.com` on the agent environment (claude.ai -> environment -> network secrets; never as a
+   plain variable).
+2. Verify: Session 1 reads one KEEL deploy status through the proxy.
+3. Then owner deletes the old key in Render.
+- Rollback: before deleting the old key, restore it as the network secret.
 
 ### Step 7 - finish
 
