@@ -109,7 +109,10 @@ test answer quality. \*\* The campaign row and its copy were inserted as a synth
 real model). Generating, storing and serving the image used the real API and storage path.
 
 Automated: `test_object_storage.py` (offline + real MinIO), the new two-company summary regression test, the existing
-MinIO-backed upload/summary/marketing tests. Full backend suite: see the PR. Frontend: 282/282 tests, lint clean.
+MinIO-backed upload/summary/marketing tests. Full backend suite (`pytest src/`, CI layout incl. the second managed
+cluster and real MinIO): **5,267 passed, 23 skipped, 1 failed**. The failure is the PostgreSQL >= 17 assertion in
+`test_connected_source_capacity_integration_db.py` (the sandbox has 16); it fails the same way on `main`.
+Frontend: 282/282 tests, lint clean.
 
 ## 3. Owner steps (one time, about 10 minutes, no card)
 
