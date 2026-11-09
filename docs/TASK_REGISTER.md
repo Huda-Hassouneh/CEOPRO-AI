@@ -209,12 +209,12 @@ merge #125, then close #105, #111, #112, #113 and #114 as superseded by #125. Th
 - #107 / `main` `b3ae37b9`: security re-review PASS at `6e4590d4` (all 4 token-issuing routes refuse old-key
   sessions; future `auth_time` refused), CI 6/6 green.
 - #115 / `main` `d26b96c2`: no vulnerability; the listing-cap availability finding was verified fixed at `55f72c6d`.
-- #116 at `c0ef4d9f`: decompression finding verified fixed (398 KB tile +867 MB → +1 MB). CI was still running
-  at my last check, so its final PASS needs that CI confirmed.
+- #116 at `c0ef4d9f`: decompression finding verified fixed (398 KB tile +867 MB → +1 MB); CI 6/6 green
+  (checked ~16:15 UTC) → review PASS.
 
 **Not done / open (owner):**
 - Merge #125 (and #103, #104, #106, which stay open as they were).
-- #116: confirm CI green on `c0ef4d9f`, then decide on the merge and on publishing the mirror release.
+- #116: review PASS + CI green on `c0ef4d9f`; owner decides on the merge and on publishing the mirror release.
 - #115 is on `main` but not deployed. Before deploying:
   - the owner confirms the B2 bucket settings A1-A7 (private, SSE-B2, keep-last-version, no Object Lock, no CORS,
     a one-bucket key, $0 caps);
