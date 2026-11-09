@@ -5599,6 +5599,7 @@
   "discovery": {
     "widened": "Few competitors were near you, so KEEL searched up to {{to}} km instead of {{from}} km.",
     "fewNearby": "Only {{count}} competitors in your business type were found within {{radius}} km.",
+    "noneNearby": "No competitors in your business type were found within {{radius}} km.",
     "searchWider": "Search within {{km}} km",
     "eyebrow": "Market scan",
     "title": "Find competitors around you",
