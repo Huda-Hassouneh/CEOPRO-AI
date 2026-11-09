@@ -21,7 +21,11 @@ Candidate lists are identical; pyarrow is never loaded in the API process.
 - **Read** (`providers/overture.py::search_mirror`, mode `mirror`, the default whenever `OVERTURE_MIRROR_URL`
   is set): the API range-reads only the tiles covering a search and streams them line by line with the
   standard library. Guards: at most `OVERTURE_MIRROR_MAX_TILES` tiles per search, each at most
-  `OVERTURE_MIRROR_MAX_TILE_BYTES`; a damaged place is skipped, a failing tile is counted, an unreachable
+  `OVERTURE_MIRROR_MAX_TILE_BYTES` compressed and `OVERTURE_MIRROR_MAX_TILE_INFLATED_BYTES` inflated
+  (decompressed in chunks with a running count), lines at most `OVERTURE_MIRROR_MAX_LINE_BYTES`, every tile's
+  SHA-256 from the index checked after download (a replaced asset is refused), malformed index entries cost
+  only their tile, and only the nearest `MAX_CANDIDATES` are kept while reading. A damaged place is skipped,
+  a failing tile is counted, an unreachable
   mirror reports `unreachable` and the other sources still run. A region outside `covered` reports
   `not_covered`, never a false "no competitors".
 - **Coverage**: `backend/config/overture_mirror_cells.json` (initially 20°W–60°E, 10°N–40°N: the Gulf,

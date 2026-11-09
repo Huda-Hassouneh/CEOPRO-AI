@@ -110,6 +110,8 @@ See `docs/EXTERNAL_PROCESSOR.md`.
 |---|---|---|
 | `OVERTURE_MIRROR_URL` | unset | Folder of the published mirror, e.g. `https://github.com/Huda-Hassouneh/CEOPRO-AI/releases/download/overture-mirror-<release>`. When set, `OVERTURE_EXECUTION=auto` reads Overture from it inside the API (bounded, no pyarrow). |
 | `OVERTURE_MIRROR_MAX_TILES` | `120` | Most 0.1° tiles one search may read (a 30 km search needs ~60). |
-| `OVERTURE_MIRROR_MAX_TILE_BYTES` | `8388608` | Largest tile the API agrees to read. |
+| `OVERTURE_MIRROR_MAX_TILE_BYTES` | `16777216` | Largest compressed tile the API agrees to download (largest real tile: 6.4 MB). |
+| `OVERTURE_MIRROR_MAX_TILE_INFLATED_BYTES` | `100663296` | Largest size a tile may inflate to; a tile past it is refused (largest real: 32.3 MB). |
+| `OVERTURE_MIRROR_MAX_LINE_BYTES` | `65536` | Longest single place line; a longer one is skipped as damaged (longest real: ~4 KB). |
 | `OVERTURE_MIRROR_INDEX_TTL_SECONDS` | `43200` | How long `cells.json` and cell indexes are cached. |
 

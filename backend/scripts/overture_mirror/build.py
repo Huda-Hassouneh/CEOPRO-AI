@@ -14,6 +14,7 @@ plus index.json ([file, group, xmin, xmax, ymin, ymax] per row group, the same s
 """
 import argparse
 import gzip
+import hashlib
 import json
 import logging
 import math
@@ -119,7 +120,7 @@ if __name__ == "__main__":
 # range, so the API range-reads the few tiles a search covers and streams them with the standard library:
 # no pyarrow in the API, memory bounded by one tile.
 TILE_DEGREES = 0.1
-PACK_FORMAT = 1
+PACK_FORMAT = 2  # 2: tile entries carry a sha256
 
 
 def tile_key(lon: float, lat: float) -> str:
@@ -166,7 +167,8 @@ def write_pack(table, pack_path: str) -> dict:
         for key in sorted(tiles):
             member = gzip.compress(("\n".join(tiles[key]) + "\n").encode("utf-8"), compresslevel=9, mtime=0)
             handle.write(member)
-            index[key] = [offset, len(member), len(tiles[key])]
+            # [offset, length, places, sha256]: the API checks the hash, so a replaced asset is refused.
+            index[key] = [offset, len(member), len(tiles[key]), hashlib.sha256(member).hexdigest()]
             offset += len(member)
     return index
 

@@ -390,7 +390,8 @@ def test_a_damaged_place_is_skipped_not_the_search(monkeypatch, tmp_path):
     import gzip
     rows = _mirror_rows()
     files, index = _pack_fixture(tmp_path, rows)
-    key, (offset, length, _n) = next(iter(index.items()))
+    key, entry = next(iter(index.items()))
+    offset, length, _n = entry[:3]
     text = gzip.decompress(files["cell_40_20.pack"][offset:offset + length]).decode()
     damaged = gzip.compress(("{not json\n" + text).encode(), mtime=0)
     files["cell_40_20.pack"] = damaged
@@ -468,15 +469,97 @@ def test_the_builder_keeps_only_what_discovery_reads_and_the_verifier_catches_da
     release.mkdir()
     index = build.write_pack(pa.Table.from_pylist(rows), str(release / "cell_40_20.pack"))
     (release / "cell_40_20.idx.json").write_text(json.dumps({"format": 1, "tiles": index}))
-    (release / "cells.json").write_text(json.dumps({"format": 1, "covered": ["cell_40_20"],
+    (release / "cells.json").write_text(json.dumps({"format": 2, "covered": ["cell_40_20"],
                                                     "cells": {"cell_40_20": {"places": len(rows)}}}))
     assert verify.verify(str(release)) == []
-    (release / "cells.json").write_text(json.dumps({"format": 1, "covered": ["cell_40_20"],
+    (release / "cells.json").write_text(json.dumps({"format": 2, "covered": ["cell_40_20"],
                                                     "cells": {"cell_40_20": {"places": len(rows) + 1}}}))
     assert any("places" in p for p in verify.verify(str(release)))
     data = bytearray((release / "cell_40_20.pack").read_bytes())
     data[len(data) // 2] ^= 0xFF
     (release / "cell_40_20.pack").write_bytes(bytes(data))
-    import pytest as _p
-    with _p.raises(Exception):
-        verify.verify(str(release))
+    assert any("sha256 mismatch" in p for p in verify.verify(str(release)))  # caught before decompressing
+
+
+# --- Guards against a hostile or damaged tile (review finding 9 Nov 2026: a 398 KB tile inflated to +867 MB) ---
+
+def _one_tile_mirror(monkeypatch, tmp_path, member: bytes, with_hash=True, entry=None):
+    import hashlib
+    files, _ = _pack_fixture(tmp_path, _mirror_rows())
+    key = overture._mirror_tiles(overture._box(_query()))[0][1]
+    files["cell_40_20.pack"] = member
+    tile = entry if entry is not None else [0, len(member), 1] + ([hashlib.sha256(member).hexdigest()] if with_hash else [])
+    files["cell_40_20.idx.json"] = json.dumps({"format": 2, "tiles": {key: tile}}).encode()
+    _serve(monkeypatch, files)
+
+
+def test_a_tile_that_inflates_past_the_limit_is_refused(monkeypatch, tmp_path):
+    import gzip
+    bomb = gzip.compress(b'{"id":"x","bbox":{}}\n' * 300_000, mtime=0)  # ~6 MB inflated from a few KB
+    monkeypatch.setattr(overture, "MIRROR_MAX_TILE_INFLATED_BYTES", 1024 * 1024)
+    _one_tile_mirror(monkeypatch, tmp_path, bomb)
+    result = overture.search(_query())
+    assert (result.status, result.reason) == ("failed", "unreachable")  # the only tile was refused
+
+
+def test_an_over_long_line_is_one_damaged_place_and_the_rest_still_count(monkeypatch, tmp_path):
+    import gzip
+    from scripts.overture_mirror import build
+    good = [json.dumps(build.compact_place(r)) for r in _mirror_rows()]
+    member = gzip.compress(("\n".join(good[:5] + ["x" * 200_000] + good[5:]) + "\n").encode(), mtime=0)
+    monkeypatch.setattr(overture, "MIRROR_MAX_LINE_BYTES", 64 * 1024)
+    _one_tile_mirror(monkeypatch, tmp_path, member)
+    result = overture.search(_query())
+    assert result.status == "ok" and len(result.candidates) >= 10
+
+
+def test_a_tile_whose_hash_does_not_match_is_refused(monkeypatch, tmp_path):
+    import gzip
+    member = gzip.compress(b"{}\n", mtime=0)
+    _one_tile_mirror(monkeypatch, tmp_path, member, entry=[0, len(member), 1, "0" * 64])
+    assert overture.search(_query()).reason == "unreachable"
+
+
+@pytest.mark.parametrize("entry", ["not-a-list", [None, 3], ["a", "b", 1], [0, -5, 1], {"offset": 0}])
+def test_a_malformed_index_entry_costs_that_tile_never_the_search(monkeypatch, tmp_path, entry):
+    import gzip
+    _one_tile_mirror(monkeypatch, tmp_path, gzip.compress(b"{}\n", mtime=0), entry=entry)
+    result = overture.search(_query())
+    assert (result.status, result.reason) == ("failed", "unreachable")  # reported, nothing raised
+
+
+def test_keeping_only_the_nearest_matches_a_stable_sort_by_distance(monkeypatch, tmp_path):
+    rows = _mirror_rows()
+    files, _ = _pack_fixture(tmp_path, rows)
+    _serve(monkeypatch, files)
+    full = [c.source_ref for c in overture.search(_query()).candidates]
+    monkeypatch.setattr(overture, "MAX_CANDIDATES", 4)
+    monkeypatch.setattr(overture, "_mirror_cache", {})
+    assert [c.source_ref for c in overture.search(_query()).candidates] == full[:4]
+
+
+def test_an_inflation_bomb_cannot_grow_the_process_memory():
+    """The review's probe, as a test: a tile of a few hundred KB that inflates to ~400 MB, read by the real
+    reader in a separate process with the default limits. Peak memory growth must stay small."""
+    import subprocess
+    import sys
+    code = r'''
+import gzip, json, resource, sys
+from src.market_scraper.market_discovery.providers import overture
+bomb = gzip.compress(b'{"id":"x","bbox":{"xmin":0,"ymin":0}}\n' * 10_000_000, mtime=0)
+long_line = gzip.compress(b"y" * 400_000_000, mtime=0)
+before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+outcomes = []
+for member in (bomb, long_line):
+    try:
+        outcomes.append(sum(1 for _ in overture._tile_lines(member)))
+    except overture._TileTooLarge:
+        outcomes.append("refused")
+grown_mb = (resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - before) / 1024
+print(json.dumps({"compressed_kb": [len(bomb) // 1024, len(long_line) // 1024], "outcomes": outcomes, "grown_mb": grown_mb}))
+'''
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True, timeout=300)
+    result = json.loads(out.stdout.strip().splitlines()[-1])
+    assert result["outcomes"][0] == "refused"          # inflated past 96 MB -> refused
+    assert result["outcomes"][1] == "refused"          # 400 MB in one "line" also inflates past the cap
+    assert result["grown_mb"] < 40, result             # without the guards this grew by hundreds of MB

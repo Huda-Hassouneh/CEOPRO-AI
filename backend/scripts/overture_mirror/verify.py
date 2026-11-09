@@ -6,6 +6,7 @@ id and a bbox inside its tile, tile counts match, and no tile exceeds what the A
   python -m scripts.overture_mirror.verify <packs dir containing one <release>/ folder>
 """
 import gzip
+import hashlib
 import json
 import math
 import os
@@ -13,7 +14,9 @@ import sys
 
 from scripts.overture_mirror.build import CELL_DEGREES, PACK_FORMAT, TILE_DEGREES
 
-MAX_TILE_BYTES = int(os.getenv("OVERTURE_MIRROR_MAX_TILE_BYTES", str(8 * 1024 * 1024)))
+MAX_TILE_BYTES = int(os.getenv("OVERTURE_MIRROR_MAX_TILE_BYTES", str(16 * 1024 * 1024)))
+MAX_INFLATED_BYTES = int(os.getenv("OVERTURE_MIRROR_MAX_TILE_INFLATED_BYTES", str(96 * 1024 * 1024)))
+MAX_LINE_BYTES = int(os.getenv("OVERTURE_MIRROR_MAX_LINE_BYTES", str(64 * 1024)))
 
 
 def verify(release_dir: str) -> list:
@@ -34,12 +37,21 @@ def verify(release_dir: str) -> list:
         lon0, lat0 = (int(v) for v in stem.split("_")[1:3])
         places = 0
         with open(pack_path, "rb") as pack:
-            for key, (offset, length, count) in index["tiles"].items():
-                if length > MAX_TILE_BYTES or offset + length > size:
-                    problems.append(f"{stem} {key}: bad range or tile over {MAX_TILE_BYTES} bytes")
+            for key, entry in index["tiles"].items():
+                offset, length, count = entry[:3]
+                if len(entry) < 4 or length > MAX_TILE_BYTES or offset + length > size:
+                    problems.append(f"{stem} {key}: missing hash, bad range or tile over {MAX_TILE_BYTES} bytes")
                     continue
                 pack.seek(offset)
-                lines = gzip.decompress(pack.read(length)).decode("utf-8").split("\n")
+                member = pack.read(length)
+                if hashlib.sha256(member).hexdigest() != entry[3]:
+                    problems.append(f"{stem} {key}: sha256 mismatch")
+                    continue
+                raw = gzip.decompress(member)
+                if len(raw) > MAX_INFLATED_BYTES or max((len(x) for x in raw.split(b"\n")), default=0) > MAX_LINE_BYTES:
+                    problems.append(f"{stem} {key}: inflates past {MAX_INFLATED_BYTES} bytes or has a line over {MAX_LINE_BYTES}")
+                    continue
+                lines = raw.decode("utf-8").split("\n")
                 rows = [json.loads(line) for line in lines if line]
                 ty, tx = (int(v) for v in key.split(":"))
                 for row in rows:

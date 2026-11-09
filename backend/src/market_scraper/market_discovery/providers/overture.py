@@ -390,7 +390,14 @@ _RELEVANCE_COLUMNS = ["names", "basic_category", "taxonomy"]  # all that the rel
 MIRROR_URL = os.getenv("OVERTURE_MIRROR_URL", "").strip().rstrip("/")
 MIRROR_INDEX_TTL_SECONDS = float(os.getenv("OVERTURE_MIRROR_INDEX_TTL_SECONDS", str(12 * 3600)))
 MIRROR_MAX_TILES = int(os.getenv("OVERTURE_MIRROR_MAX_TILES", "120"))  # a 30 km search covers ~60
-MIRROR_MAX_TILE_BYTES = int(os.getenv("OVERTURE_MIRROR_MAX_TILE_BYTES", str(8 * 1024 * 1024)))
+MIRROR_MAX_TILE_BYTES = int(os.getenv("OVERTURE_MIRROR_MAX_TILE_BYTES", str(16 * 1024 * 1024)))
+# What a downloaded tile may inflate to and how long one place's line may be. The largest real tile (release
+# 2026-10-21.0, 24 cells) is 6.4 MB compressed / 32.3 MB inflated, the longest line ~4 KB; a tile that is small
+# compressed but inflates without bound (or one endless line) must never reach the API's memory.
+MIRROR_MAX_TILE_INFLATED_BYTES = int(os.getenv("OVERTURE_MIRROR_MAX_TILE_INFLATED_BYTES", str(96 * 1024 * 1024)))
+MIRROR_MAX_LINE_BYTES = int(os.getenv("OVERTURE_MIRROR_MAX_LINE_BYTES", str(64 * 1024)))
+_MIRROR_READ_CHUNK = 64 * 1024
+_MIRROR_CANDIDATE_BATCH = 256
 MIRROR_CELL_DEGREES, MIRROR_TILE_DEGREES = 10, 0.1
 _mirror_cache = {}  # url -> (loaded_at, json); cells.json + the few cell indexes in use
 _MIRROR_CACHE_MAX = 16
@@ -427,6 +434,44 @@ def _mirror_tiles(box) -> List[Tuple[str, str]]:
     return out
 
 
+class _TileTooLarge(ValueError):
+    """A tile inflated past MIRROR_MAX_TILE_INFLATED_BYTES."""
+
+
+def _tile_lines(content: bytes):
+    """Yields (line_bytes or None) from one gzip tile, bounded: decompressed in chunks with a running total
+    (over MIRROR_MAX_TILE_INFLATED_BYTES -> _TileTooLarge), and a line longer than MIRROR_MAX_LINE_BYTES is
+    yielded as None (a damaged place) without ever being held whole. Splits on b"\n" only, so a name holding
+    U+2028/U+0085 stays one place."""
+    import gzip
+
+    inflated, pending, skipping = 0, b"", False
+    with gzip.GzipFile(fileobj=io.BytesIO(content)) as stream:
+        while True:
+            chunk = stream.read(_MIRROR_READ_CHUNK)
+            if not chunk:
+                break
+            inflated += len(chunk)
+            if inflated > MIRROR_MAX_TILE_INFLATED_BYTES:
+                raise _TileTooLarge("tile inflates past the limit")
+            pending += chunk
+            while True:
+                cut = pending.find(b"\n")
+                if cut < 0:
+                    break
+                line, pending = pending[:cut], pending[cut + 1:]
+                if skipping:
+                    skipping = False  # the rest of an over-long line ends here
+                    continue
+                yield line if len(line) <= MIRROR_MAX_LINE_BYTES else None
+            if len(pending) > MIRROR_MAX_LINE_BYTES:
+                if not skipping:
+                    yield None  # report the over-long place once, then drop it up to its newline
+                pending, skipping = b"", True
+    if pending and not skipping:
+        yield pending if len(pending) <= MIRROR_MAX_LINE_BYTES else None
+
+
 def search_mirror(query: DiscoveryQuery) -> ProviderResult:
     import gzip
     import json as _json
@@ -441,7 +486,20 @@ def search_mirror(query: DiscoveryQuery) -> ProviderResult:
         logger.warning("Overture mirror search refused: %d tiles (limit %d)", len(tiles), MIRROR_MAX_TILES)
         return ProviderResult(NAME, "failed", reason="too_large", requests=0)
     client = _client()
-    found, requests, failures, read = [], 0, 0, 0
+    import heapq
+    import itertools
+
+    # The MAX_CANDIDATES nearest, ordered exactly as a stable sort by distance would (ties by arrival).
+    nearest, order, requests, failures, read = [], itertools.count(), 0, 0, 0
+
+    def keep(pairs):
+        for distance, candidate in pairs:
+            item = (-distance, -next(order), candidate)
+            if len(nearest) < MAX_CANDIDATES:
+                heapq.heappush(nearest, item)
+            elif item[:2] > nearest[0][:2]:
+                heapq.heapreplace(nearest, item)
+
     try:
         cells = _mirror_json(client, "cells.json")
         requests += 1
@@ -462,8 +520,17 @@ def search_mirror(query: DiscoveryQuery) -> ProviderResult:
                 entry = index["tiles"].get(key) if cell_stem == stem else None
                 if not entry:
                     continue
-                offset, length = int(entry[0]), int(entry[1])
-                if length <= 0 or length > MIRROR_MAX_TILE_BYTES:
+                try:
+                    if not isinstance(entry, (list, tuple)):
+                        raise TypeError("index entry is not a list")
+                    offset, length = int(entry[0]), int(entry[1])
+                    digest = entry[3] if len(entry) > 3 else None
+                    if digest is not None and not isinstance(digest, str):
+                        raise TypeError("tile hash is not text")
+                except (TypeError, ValueError, IndexError, KeyError):
+                    failures += 1  # one malformed index entry costs that tile, not the search
+                    continue
+                if offset < 0 or length <= 0 or length > MIRROR_MAX_TILE_BYTES:
                     failures += 1
                     continue
                 try:
@@ -471,15 +538,17 @@ def search_mirror(query: DiscoveryQuery) -> ProviderResult:
                                           headers={"Range": f"bytes={offset}-{offset + length - 1}"})
                     requests += 1
                     response.raise_for_status()
-                    if len(response.content) != length:
+                    content = response.content
+                    del response
+                    if len(content) != length:
                         raise ValueError("short tile read")
-                    # Streamed line by line, split on "\n" only: a dense city tile never sits in memory as
-                    # text, and a name holding U+2028/U+0085 (which str.splitlines would cut) stays whole.
-                    stream = io.TextIOWrapper(gzip.GzipFile(fileobj=io.BytesIO(response.content)),
-                                              encoding="utf-8", newline="\n")
+                    if digest is not None and hashlib.sha256(content).hexdigest() != digest:
+                        raise ValueError("tile checksum mismatch")  # replaced or damaged asset
                     rows, bad = [], 0
-                    for line in stream:
-                        line = line.rstrip("\n")
+                    for line in _tile_lines(content):
+                        if line is None:
+                            bad += 1
+                            continue
                         if not line:
                             continue
                         try:
@@ -487,28 +556,35 @@ def search_mirror(query: DiscoveryQuery) -> ProviderResult:
                         except ValueError:
                             bad += 1  # one damaged place is skipped, never the whole search
                             continue
+                        if not isinstance(row, dict):
+                            bad += 1
+                            continue
                         b = row.get("bbox") or {}
-                        if not (box[0] <= (b.get("xmin") or 999) <= box[1] and box[2] <= (b.get("ymin") or 999) <= box[3]):
+                        if not isinstance(b, dict) or not (box[0] <= (b.get("xmin") or 999) <= box[1]
+                                                           and box[2] <= (b.get("ymin") or 999) <= box[3]):
                             continue
                         if category_matches(row, wanted, phrases) or (
                                 name_re is not None and name_re.search(" ".join(_all_names(row)))):
                             rows.append(row)
+                            if len(rows) >= _MIRROR_CANDIDATE_BATCH:
+                                keep(_candidates(rows, query, wanted, phrases, name_re, box, radius))
+                                rows = []
+                    keep(_candidates(rows, query, wanted, phrases, name_re, box, radius))
+                    del rows, content
                     if bad:
                         logger.warning("Overture mirror tile %s: %d unreadable place(s) skipped", key, bad)
-                except (httpx.HTTPError, ValueError, OSError, EOFError) as exc:
+                except (httpx.HTTPError, ValueError, OSError, EOFError, TypeError, AttributeError) as exc:
                     failures += 1
                     logger.warning("Overture mirror tile failed: %s", type(exc).__name__)
                     continue
                 read += 1
-                found.extend(_candidates(rows, query, wanted, phrases, name_re, box, radius))
-                del rows, stream, response
     except (httpx.HTTPError, ValueError, OSError) as exc:
         logger.warning("Overture mirror unavailable: %s", type(exc).__name__)
         return ProviderResult(NAME, "failed", reason="unreachable", requests=max(1, requests))
     if failures and not read:
         return ProviderResult(NAME, "failed", reason="unreachable", requests=requests)
-    found.sort(key=lambda pair: pair[0])
-    return ProviderResult(NAME, "ok", [c for _d, c in found[:MAX_CANDIDATES]], requests=requests)
+    ranked = sorted(nearest, key=lambda item: (-item[0], -item[1]))
+    return ProviderResult(NAME, "ok", [c for _d, _o, c in ranked], requests=requests)
 
 
 def execution_mode() -> str:
