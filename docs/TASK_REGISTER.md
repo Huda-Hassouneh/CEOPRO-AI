@@ -62,6 +62,30 @@ Next: after #107 is deployed and verified, Session 1 + owner run runbook steps 1
 | Local end-to-end (real API, 2 synthetic companies, single-bucket mode) | same PR | PASS | upload -> download (byte-identical) -> anonymous 403 -> retry re-read -> assistant receives the text (model = labelled local mock); B isolated; image stored, served, 304, B 404, survives restart; ceiling -> 507; endpoint down -> 503, readiness unaffected |
 | Production setup | — | **needs owner** | owner creates B2 account + $0 caps + private bucket + bucket-scoped key (doc §3, keys only in Render); then Session 1 deploys, Session 2 verifies (doc §4) |
 
+## Session 1 — Overture, memory, deployments (2026-11-08/09)
+
+Session `session_01BF1evm6jhiwguiiZVnAHWT`. Only Session 1 deploys. Local = this cloud container; production = Render read-only checks.
+
+| Item | Branch / PR | Status | Evidence |
+|---|---|---|---|
+| Crashed scan locked "Refresh scan" (run stuck `running`) | [#96](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/96) | MERGED, **DEPLOYED** (in `99c213c`) | 7 tests (3 fail before); production `/health/processor` route present |
+| Overture never in the API + admission control (one slot, bounded wait, no charge when busy) | [#97](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/97) | MERGED, **DEPLOYED** | production `/health/processor` → `overture: unsafe` |
+| Team-invitation email failure returned 500 for a saved invitation | [#98](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/98) | MERGED, **DEPLOYED** | 6 tests through the real sender |
+| Platform-owner portal Arabic garbled (289 strings) | [#99](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/99) | MERGED, not deployed (keel-web still `375055c`) | integrity test; 282/282 frontend |
+| Overture reader memory-bounded (Dubai 1,002 → 279 MB, identical) | [#100](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/100) | MERGED, not deployed | real-data benchmark, 5 tests |
+| Migration owner keeps no restricted-role membership (Neon) + #81's integration test | [#101](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/101) | MERGED, not deployed; #81 CLOSED superseded | 5/5 on a dedicated cluster (4/5 before) |
+| Emails in the reader's language with real expiry | [#102](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/102) | MERGED, not deployed | 19 tests; CI caught 2 MinIO-only doubles, fixed |
+| **Compact Overture mirror** (cell packs, stdlib reader, no pyarrow in API; monthly workflow publishing a public pre-release) | `feat/overture-compact-mirror` [#116](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/116) | PR open, CI running | real release `2026-10-21.0`, 24 cells (20°W–60°E, 10°N–40°N), **4,577,681 places, every tile verified, 0 problems**; Amman 5 km 13.7 s/564 MB → 0.5–0.7 s/+5–16 MB, Dubai 15 km 15.2 s/1,002 MB → 1.6 s/+6–25 MB, candidates identical; full `src/` fresh DB 5,205 passed / 80 skipped / 0 failed |
+| Load test, local API (35 users × 60 s) | — | measured | normal 62.7 req/s 0 errors; Overture *inside* the API: −15% throughput, p95 5–10×, +125 MB; API never running it: +47 MB |
+| Production read-only check 10:50 UTC | — | PASS | `/health` 200; `/health/ready` DB 26 ms, Redis 88 ms; `/health/processor` `overture: unsafe`; memory 215–277 MB (6 h); deploys since Nov 7: only `99c213c`; keel-web untouched |
+
+**Session 1 deploy queue** (owner instruction 10:5x: no new deployment until told):
+1. Overture mirror: merge #116 → publish the release (workflow or upload of the verified packs) → set `OVERTURE_MIRROR_URL` on `ceopro-ai-new` → deploy → verify `/health/processor` and a real scan.
+2. `main` (5 migrations, rehearsed clean on a Neon-like non-superuser cluster): needs a production DB backup/branch first.
+3. #115 storage: after the owner's B2 account + merge (Session 4 handover, doc §4).
+4. #107 JWT rotation: **not before** the High finding above is fixed, re-reviewed and merged.
+5. keel-web: deploy `main` for #99 / #103.
+
 ## Session 2 successor — completed (2026-11-09)
 
 Session `session_01BF1evjasZyYcJBjuxhn6uJ`. Branches pushed after the owner's go-ahead; PRs follow. Merges stay with the
