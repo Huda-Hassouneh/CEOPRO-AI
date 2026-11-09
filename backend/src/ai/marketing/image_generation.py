@@ -798,7 +798,7 @@ def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, re
         raise ImageGenerationError("NOT_CONFIGURED", f"LOCAL_IMAGE_API must be 'openai' or 'a1111', not {api!r}.")
     try:
         response = httpx.post(url, json=body, headers={"Authorization": f"Bearer {key}"} if key else None,
-                              timeout=_LOCAL_IMAGE_TIMEOUT_SECONDS)
+                              timeout=_local_timeout())
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Local image server request failed: {type(err).__name__}") from err
     if response.status_code in (429, 503):  # busy with another image
@@ -934,17 +934,29 @@ def request_deadline(started: float, seconds: float = None):
         _deadline.reset(token)
 
 
+def _remaining_seconds() -> Optional[float]:
+    deadline = _deadline.get()
+    return None if deadline is None else deadline - time.monotonic()
+
+
+def _local_timeout() -> float:
+    """A self-hosted server's wait, never past the request deadline (on time-out
+    the caller's designed-poster fallback is used, as for any failed provider)."""
+    remaining = _remaining_seconds()
+    return _LOCAL_IMAGE_TIMEOUT_SECONDS if remaining is None else max(1.0, min(_LOCAL_IMAGE_TIMEOUT_SECONDS, remaining))
+
+
 def _worst_case_seconds(base: str) -> float:
     if base == "aihorde":
         return _HORDE_MAX_WAIT + _TIMEOUT_SECONDS
     if base == "local":
-        return _LOCAL_IMAGE_TIMEOUT_SECONDS
+        return 1.0  # its own wait is cut to the time left (_local_timeout), so it always fits if any is left
     return _TIMEOUT_SECONDS
 
 
 def _fits_deadline(base: str) -> bool:
-    deadline = _deadline.get()
-    return deadline is None or time.monotonic() + _worst_case_seconds(base) <= deadline
+    remaining = _remaining_seconds()
+    return remaining is None or _worst_case_seconds(base) <= remaining
 # Spending-policy refusals about one provider (its price, switch or cap):
 # the next provider may still be tried.
 _PROVIDER_SPECIFIC_REFUSALS = ("COST_NOT_CONFIGURED", "PROVIDER_DISABLED", "PROVIDER_CAP_REACHED")
