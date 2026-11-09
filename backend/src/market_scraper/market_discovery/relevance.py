@@ -166,8 +166,21 @@ def in_different_category(name: str, name_ar: Optional[str], categories: List[st
         value = raw.split(":", 1)[-1].split("=", 1)[-1].lower()
         types.append(value)
         words.append(value.replace("_", " "))
+    if name_names_another_domain(name, name_ar, paths):
+        return True
     categorization = categorize(" ".join([name or "", name_ar or "", *words]), types)
     if categorization is None:
         return False
     similarity = best_similarity(paths, categorization.path)
     return similarity is not None and similarity < MIN_COMPETING_SIMILARITY
+
+
+def name_names_another_domain(name: str, name_ar: Optional[str], paths) -> bool:
+    """A map listing's type can be wrong ("Mandeel for medical supplies" tagged as a cafe in open map data); a
+    name that by itself places the business in a different top-level domain (health vs food, electronics vs
+    food) outweighs that type. Deliberately coarse: sibling segments in one domain (a restaurant-cafe for a cafe)
+    are never ruled out by name, and a name the taxonomy cannot place rules nothing out."""
+    by_name = categorize(" ".join([name or "", name_ar or ""]), [])
+    if by_name is None or not paths:
+        return False
+    return all(path and path[0] != by_name.path[0] for path in paths)

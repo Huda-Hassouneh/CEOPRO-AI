@@ -23,6 +23,7 @@ import os
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -41,6 +42,16 @@ AUTO_TRACK_MAX = int(os.getenv("DISCOVERY_AUTO_TRACK_MAX", "10"))
 AUTO_TRACK_MIN_RELEVANCE = 0.6
 AUTO_TRACK_MIN_CONFIDENCE = 0.5
 MAX_RADIUS_KM = 30.0
+# Adaptive radius: when a sparse area yields fewer than DISCOVERY_MIN_DIRECT direct competitors AND fewer than
+# DISCOVERY_MIN_COMPETITORS direct + indirect (same-industry) ones, and the owner did not choose the radius, the
+# search widens (x2 per step, up to DISCOVERY_EXPANSION_STEPS, never past MAX_RADIUS_KM).
+# Only free sources are asked again, so widening never multiplies a company's metered (credit) searches, and no
+# step starts once the passes so far took DISCOVERY_EXPANSION_TIME_BUDGET_SECONDS (runs go stale after 15 min).
+MIN_DIRECT_COMPETITORS = int(os.getenv("DISCOVERY_MIN_DIRECT", "3"))
+MIN_COMPETITORS = int(os.getenv("DISCOVERY_MIN_COMPETITORS", "10"))
+EXPANSION_STEPS = int(os.getenv("DISCOVERY_EXPANSION_STEPS", "2"))
+EXPANSION_TIME_BUDGET_SECONDS = float(os.getenv("DISCOVERY_EXPANSION_TIME_BUDGET_SECONDS", "300"))
+FREE_SOURCES = {"openstreetmap", "overture", "place_search", "wikidata"}
 STALE_RUN_MINUTES = 15
 ARABIC_COUNTRIES = {"JO", "SA", "AE", "KW", "QA", "BH", "OM", "EG", "LB", "SY", "IQ", "PS", "YE", "MA", "DZ", "TN", "LY", "SD"}
 MAP_SOURCES = {"openstreetmap", "overture", "nominatim", "photon", "google_places", "apify_google_maps"}
@@ -201,6 +212,63 @@ def search_all(query: DiscoveryQuery, providers=PROVIDERS) -> List[ProviderResul
 
 # Placeholders mappers sometimes leave as a name, in the languages KEEL serves.
 _PLACEHOLDER_NAMES = {"خاص", "private", "closed", "مغلق", "unknown", "no name", "test", "shop", "store", "محل"}
+
+
+def _relationship(reasons):
+    return reasons[0].get("value") if reasons and reasons[0].get("code") == "relationship" else None
+
+
+def direct_count(ranked) -> int:
+    return sum(1 for *_head, reasons in ranked if _relationship(reasons) == relevance_rules.DIRECT)
+
+
+def competitor_count(ranked) -> int:
+    """Direct plus indirect (same-industry) competitors; related and unverified businesses do not count."""
+    return sum(1 for *_head, reasons in ranked if _relationship(reasons) in (relevance_rules.DIRECT, relevance_rules.INDIRECT))
+
+
+def _too_few(ranked) -> bool:
+    return direct_count(ranked) < MIN_DIRECT_COMPETITORS and competitor_count(ranked) < MIN_COMPETITORS
+
+
+def search_and_rank(query: DiscoveryQuery, providers=PROVIDERS, *, owner_radius: bool = False, clock=None):
+    """Searches, ranks and - for a local business whose radius the owner did not choose - widens the search while
+    too few competitors are found. An owner-chosen radius is never widened silently: a wider radius is suggested
+    instead. Returns (query, results, ranked, expanded_from_km, suggested_radius_km); `query.radius_km` is the
+    radius finally searched and each source's `requests` counts every pass."""
+    import time
+    clock = clock or time.monotonic
+    started = clock()
+    results = search_all(query, providers)
+    ranked = rank(query, results)
+    expanded_from = None
+    local = (industries.get(query.industry_key) or industries.get(industries.CUSTOM)).local
+    free = [p for p in providers if p.NAME in FREE_SOURCES]
+    for _step in range(max(0, EXPANSION_STEPS)):
+        if (owner_radius or not local or not free or not _too_few(ranked)
+                or query.radius_km >= MAX_RADIUS_KM or clock() - started >= EXPANSION_TIME_BUDGET_SECONDS
+                or not any(r.status == "ok" for r in results)):
+            break
+        wider = replace(query, radius_km=min(query.radius_km * 2, MAX_RADIUS_KM))
+        again = {r.provider: r for r in search_all(wider, free)}
+        merged = []
+        for previous in results:
+            fresh = again.get(previous.provider)
+            if fresh is None:
+                merged.append(previous)  # a metered source keeps its first, nearer answer
+            else:
+                merged.append(replace(fresh, requests=fresh.requests + previous.requests)
+                              if fresh.status == "ok" or previous.status != "ok"
+                              else replace(previous, requests=fresh.requests + previous.requests))
+        expanded_from = expanded_from or query.radius_km
+        query, results, ranked = wider, merged, rank(wider, merged)
+        logger.info("discovery widened to %.1f km: %d direct, %d direct+indirect competitors",
+                    query.radius_km, direct_count(ranked), competitor_count(ranked))
+    suggested = None
+    if (owner_radius and local and _too_few(ranked) and query.radius_km < MAX_RADIUS_KM
+            and any(r.status == "ok" for r in results)):
+        suggested = min(query.radius_km * 2, MAX_RADIUS_KM)
+    return query, results, ranked, expanded_from, suggested
 
 
 def _generic_name(name: str, query: DiscoveryQuery) -> bool:
@@ -550,8 +618,9 @@ def execute_run(conn, tenant_id: str, run_id: str, radius_km: Optional[float] = 
         query = with_category_words(build_query(tenant_id, profile, radius_km))
         from dataclasses import replace as _replace
         query = _replace(query, specialty_terms=relevance_rules.specialty_terms(profile, query))
-        results = search_all(query, providers)
-        ranked = rank(query, results)
+        owner_radius = radius_km is not None or profile.get("scope_level") == "CUSTOM"
+        query, results, ranked, expanded_from, suggested_radius = search_and_rank(query, providers,
+                                                                                  owner_radius=owner_radius)
         # 3b. Read the strongest candidates' own websites, then score again.
         enriched = enrich.enrich(ranked)
         if enriched["read"]:
@@ -572,7 +641,9 @@ def execute_run(conn, tenant_id: str, run_id: str, radius_km: Optional[float] = 
         summary = {
             "status": status, "industry_key": query.industry_key,
             "center_latitude": query.latitude, "center_longitude": query.longitude, "radius_km": query.radius_km,
-            "query": {"keywords": query.keywords, "city": query.city, "country_code": query.country_code},
+            "query": {"keywords": query.keywords, "city": query.city, "country_code": query.country_code,
+                      "expanded_from_km": expanded_from, "suggested_radius_km": suggested_radius,
+                      "competitors_found": competitor_count(ranked)},
             "providers": {r.provider: {"status": r.status, "reason": r.reason, "found": len(r.candidates), "requests": r.requests}
                           for r in results} | {"website": {"status": "ok" if enriched["checked"] else "skipped",
                                                            "reason": None, "found": enriched["read"],
