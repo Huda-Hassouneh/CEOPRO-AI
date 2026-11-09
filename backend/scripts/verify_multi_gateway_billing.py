@@ -26,7 +26,7 @@ from scripts.billing_verification import is_test_database_name
 from scripts.verify_recurring_consent import local_docker_endpoint
 
 ROOT=Path(__file__).resolve().parents[2]
-NEW='20261211000000_billing_catalog_operations.sql'
+NEW='20261212000000_definitive_checkout_retry.sql'
 
 
 def main():
@@ -79,15 +79,16 @@ def main():
         from scripts import apply_migrations as M
         logging.getLogger('CEOPRO_MIGRATION_RUNNER').setLevel(logging.WARNING)
         source=M.MIGRATIONS_DIR
+        migration_count=len(list(source.glob('*.sql')))
         with closing(connect(fresh)) as conn:
-            report['fresh']=len(M.run(conn));assert report['fresh']==177 and M.run(conn)==[]
+            report['fresh']=len(M.run(conn));assert report['fresh']==migration_count and M.run(conn)==[]
         with tempfile.TemporaryDirectory(dir=target) as tmp:
             for path in source.glob('*.sql'):
                 if path.name!=NEW:shutil.copyfile(path,Path(tmp)/path.name)
-            assert len(list(Path(tmp).glob('*.sql')))==176
+            assert len(list(Path(tmp).glob('*.sql')))==migration_count-1
             M.MIGRATIONS_DIR=Path(tmp)
             try:
-                with closing(connect(upgrade)) as conn:assert len(M.run(conn))==176
+                with closing(connect(upgrade)) as conn:assert len(M.run(conn))==migration_count-1
             finally:M.MIGRATIONS_DIR=source
         with closing(connect(upgrade)) as conn:
             conn.autocommit=True
@@ -135,7 +136,7 @@ def main():
                 q.execute("SELECT has_function_privilege('public','billing_consent_consumption_fence()','EXECUTE')");assert q.fetchone()==(False,)
                 for role in ('ceopro_billing_observer','ceopro_trial_attestor','ceopro_trial_confirmer','ceopro_consent_service','ceopro_journey_router'):
                     q.execute(sql.SQL('ALTER ROLE {} LOGIN PASSWORD %s').format(sql.Identifier(role)),(runtime,))
-            report.update(upgrade='176 -> 177',existing_runtime_execute_unchanged=True,new_runtime_authority="no ordinary runtime EXECUTE/writes; operator-only catalog journal",dormant_roles_no_memberships=True,historical_trial_unchanged=True)
+            report.update(upgrade=f'{migration_count-1} -> {migration_count}',existing_runtime_execute_unchanged=True,new_runtime_authority="no ordinary runtime EXECUTE/writes; operator-only definitive-rejection retry authorization; no ordinary runtime grant",dormant_roles_no_memberships=True,historical_trial_unchanged=True)
         def dsn(role):return f'postgresql://{role}:{password if role=="postgres" else runtime}@127.0.0.1:{port}/{upgrade}'
         test_env=dict(safe,PYTHONPATH=str(ROOT/'backend'),PYTHONDONTWRITEBYTECODE='1',JWT_SECRET='synthetic-journey-local-only-secret-at-least-32-bytes',
             BILLING_DATABASE_TESTS='1',BILLING_TEST_DATABASE_URL=dsn('postgres'),SCRAPER_DATABASE_URL=dsn('ceopro_app'),DATABASE_URL=dsn('ceopro_app'),
@@ -153,7 +154,7 @@ def main():
             'tests/billing/test_reconciliation_roles.py::test_custom_paid_activation_and_frozen_limits_use_webhook_role',
             'tests/billing/test_trial_plan_transitions.py::test_paid_downgrade_preserves_paid_period_and_failed_renewal_denies']
         if args.select:
-            allowed={s.split('::',1)[0] for s in selected}|{'tests/billing/test_paddle_catalog_db.py'}
+            allowed={s.split('::',1)[0] for s in selected}|{'tests/billing/test_paddle_catalog_db.py','tests/billing/test_checkout_retry_db.py'}
             assert all(node.split('::',1)[0] in allowed for node in args.select), 'Test selection outside focused boundary'
             selected=args.select
         else:

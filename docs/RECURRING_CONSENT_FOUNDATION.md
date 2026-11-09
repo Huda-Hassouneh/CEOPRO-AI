@@ -1593,3 +1593,29 @@ provider-specific wording and exact notice/execution approvals remain explicit.
 No address or approval reference is invented. Public-launch legal/operational gates
 are separated from the synthetic test; no policy is installed or treated as
 approved. Existing runtime flags remain off and confirmation credentials absent.
+
+### Isolated Paddle definitive-rejection retry — 2026-11-09
+
+Migration 178 adds an append-only, operator-authorized retry journal for the
+specific Paddle TEST HTTP 400 `transaction_checkout_url_domain_is_not_approved`
+rejection. The authenticated Platform Owner tool checks the original complete
+response and frozen request, then performs fresh merchant-bound, Customer-scoped
+GET recovery. Only a complete empty result permits authorization. Timeouts, 5xx,
+unknown outcomes, identity changes and partial recovery remain fenced.
+
+The existing restricted dispatch command consumes at most one authorization under
+its original reservation, authority and consent locks. It preserves the original
+submission timestamp, Customer, operation, request and all evidence. Withdrawal,
+revocation and expiry checks remain effective. No runtime authorization grant or
+confirmation capability is added. Paddle provider-side idempotency is not assumed;
+the durable single-sender election remains decisive after uncertainty.
+
+Focused evidence: 13 network-free cases passed; 18 restricted-password PostgreSQL
+cases passed, including concurrent election, replay, withdrawal, demotion,
+revocation and Stripe exclusion. The disposable PG17 verifier passed fresh 178,
+populated 177-to-178 upgrade, replay, rollback and unchanged runtime EXECUTE checks
+(`.dev/evidence/multi-gateway-billing/7fb41496cb1b/result.json`). Earlier count/fixture
+failures remain in private evidence. This does not certify production restricted
+installation or real provider retry success. The isolated acceptance session has
+separately approved Sandbox-only policies and test-scoped runtime composition;
+public policies, B4 confirmation and production activation remain blocked.
