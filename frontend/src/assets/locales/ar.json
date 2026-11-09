@@ -5743,6 +5743,7 @@
       "same_specialty": "التخصص نفسه: «{{term}}» في {{where}}",
       "same_trade": "قائمته تذكر نوع نشاطك",
       "same_industry": "القطاع نفسه دون ما يدل على تخصصك",
+      "same_industry_default": "نفس نوع نشاطك (لم تُحدَّد منتجات أو تخصص بعد)",
       "related_industry": "نوع نشاط قريب",
       "name_matches_industry": "اسمه يدل على أنه في قطاعك",
       "not_confirmed": "لا تؤكده أي فئة في القوائم",

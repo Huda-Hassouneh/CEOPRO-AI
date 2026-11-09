@@ -90,6 +90,20 @@ def specialty_terms(profile: dict, query, ask=None) -> Tuple[str, ...]:
     return terms
 
 
+def owner_specialty_terms(profile: dict, industry) -> Tuple[str, ...]:
+    """What the owner has said they specifically sell: their product names, and the words of their business type
+    beyond the industry itself ("Lebanese" in "Lebanese restaurant"; nothing in "Pharmacy"). Words an AI model
+    suggests are not counted - they are a guess, not something the owner specified."""
+    words = set()
+    for name in profile.get("product_names") or []:
+        words.update(tokens(name))
+    industry_words = set()
+    for phrase in (industry.key, industry.label_en, industry.label_ar, *industry.keywords_en, *industry.keywords_ar):
+        industry_words.update(tokens(phrase))
+    words.update(w for w in tokens(profile.get("business_type") or "") if w not in industry_words)
+    return tuple(sorted(w for w in words if len(w) >= 3 and w not in _GENERAL))
+
+
 def _category_text(categories: List[str]) -> str:
     return normalize(" ".join(c.split(":", 1)[-1].split("=", 1)[-1].replace("_", " ") for c in categories or []))
 
@@ -114,6 +128,10 @@ def classify(name: str, name_ar: Optional[str], categories: List[str], fit_reaso
         # The owner's own trade words are what matched: as specific as it gets.
         return DIRECT, [{"code": "same_trade"}]
     if fit_reason == "same_industry":
+        if not getattr(query, "owner_specialty", True):
+            # The owner has not said what they specialise in (no products, a plain business type): every business
+            # of the same industry competes for their customers (owner decision, 2026-11-09).
+            return DIRECT, [{"code": "same_industry_default"}]
         return INDIRECT, [{"code": "same_industry"}]
     if fit_reason == "related_industry":
         return RELATED, [{"code": "related_industry"}]

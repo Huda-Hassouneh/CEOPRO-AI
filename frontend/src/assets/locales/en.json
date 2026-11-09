@@ -5751,6 +5751,7 @@
       "same_specialty": "Same specialty: “{{term}}” in its {{where}}",
       "same_trade": "Its listing names your line of business",
       "same_industry": "Same industry, no sign of your specialty",
+      "same_industry_default": "Same kind of business as yours (no products or specialty set yet)",
       "related_industry": "A neighbouring kind of business",
       "name_matches_industry": "Its name says it is in your industry",
       "not_confirmed": "Not confirmed by any listing category",

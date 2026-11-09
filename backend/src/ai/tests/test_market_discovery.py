@@ -723,3 +723,38 @@ def test_a_name_decisive_trade_never_drops_a_business_of_the_same_trade():
                                       "country_code": "JO", "city": "Amman"})
     # Food listings are unaffected: siblings in one domain are still never ruled out by name alone.
     assert not relevance.in_different_category("Kepi Restaurant & Cafe", None, ["overture:cafe"], cafe)
+
+
+# --- owner decision 2026-11-09: no products and no specialty -> the same industry is a direct competitor ----------
+
+def _profile(business_type, products=(), industry_key=None):
+    return {"business_type": business_type, "industry_key": industry_key, "product_names": list(products),
+            "latitude": AMMAN[0], "longitude": AMMAN[1], "country_code": "JO", "city": "Amman"}
+
+
+@pytest.mark.parametrize("business_type,products,industry_key,owner_specialty", [
+    ("Pharmacy", (), "pharmacy", False),            # the industry itself, nothing more
+    ("صيدلية", (), "pharmacy", False),               # the same in Arabic
+    ("Cafe", (), None, False),
+    ("Bakery & sweets", (), None, False),           # the industry's own label
+    ("Lebanese restaurant", (), None, True),        # a specialty the owner wrote
+    ("Pharmacy", ("Panadol 500mg",), "pharmacy", True),  # products are what the owner sells
+])
+def test_owner_specialty_comes_from_products_and_the_business_type_only(business_type, products, industry_key, owner_specialty):
+    query = pipeline.build_query("t", _profile(business_type, products, industry_key))
+    assert query.owner_specialty is owner_specialty
+
+
+def test_without_a_specialty_the_same_industry_is_direct_and_otherwise_stays_conservative():
+    from src.market_scraper.market_discovery import relevance
+    plain = pipeline.build_query("t", _profile("Pharmacy", industry_key="pharmacy"))
+    assert relevance.classify("Rawhi Pharmacy", None, ["overture:pharmacy"], "same_industry", plain, ()) == (
+        relevance.DIRECT, [{"code": "same_industry_default"}])
+    # A neighbouring industry or an unconfirmed listing is unchanged by the default.
+    assert relevance.classify("Glow Cosmetics", None, ["overture:cosmetics_store"], "related_industry", plain, ())[0] == relevance.RELATED
+    assert relevance.classify("Some Place", None, [], None, plain, ())[0] == relevance.UNVERIFIED
+    # With a specialty the owner gave, the same industry still needs evidence of it to be direct.
+    lebanese = pipeline.build_query("t", _profile("Lebanese restaurant"))
+    terms = ("lebanese",)
+    assert relevance.classify("Pizza Roma", None, ["overture:restaurant"], "same_industry", lebanese, terms)[0] == relevance.INDIRECT
+    assert relevance.classify("Beirut Lebanese Grill", None, ["overture:restaurant"], "same_industry", lebanese, terms)[0] == relevance.DIRECT

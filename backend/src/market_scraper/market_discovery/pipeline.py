@@ -149,6 +149,7 @@ def build_query(tenant_id: str, profile: dict, radius_km: Optional[float] = None
         own_name=profile.get("name"), own_website=profile.get("website"),
         osm_tags=industry.osm_tags, google_types=industry.google_types,
         category_paths=tuple(categorize_catalog(profile.get("product_names") or [], profile.get("business_type"))),
+        owner_specialty=bool(profile.get("product_names")) or bool(relevance_rules.owner_specialty_terms(profile, industry)),
     )
 
 
@@ -320,7 +321,11 @@ def _classify(query: DiscoveryQuery, scored):
         # A business in a different segment (a donut shop for a burger
         # restaurant) is not a competitor - unless it has stronger evidence:
         # the same products at a published price, or the company's own specialty.
-        if relationship != relevance_rules.DIRECT and relevance_rules.in_different_category(
+        # A direct label by default (no specialty given, relevance.classify) is not such evidence: it still has to
+        # be in the company's segment.
+        evidence = relationship == relevance_rules.DIRECT and any(
+            w.get("code") in ("same_products", "same_specialty", "same_trade") for w in why)
+        if not evidence and relevance_rules.in_different_category(
                 entity.name, entity.first("name_ar"), entity.categories(), query):
             continue
         relevance = round(relevance_rules.adjusted_score(relevance, relationship), 4)
