@@ -26,7 +26,7 @@ anyone copies them back.
   and deploy ids only.
 - **Only KEEL services.** The Render account also holds unrelated services (360-Radar). Nobody lists, reads or
   changes them during this work; Session 1 works from the KEEL service ids it already knows.
-- **One secret per deploy**, verify, then the next. Each step below says what keeps customers working, how to
+- **One secret per deploy**, verify, then the next. Session 1 deploys only with the owner's separate approval for that deploy. Each step below says what keeps customers working, how to
   verify, and how to roll back. Keep the old value available (in the provider, not in chat) until the step is
   verified, except where the provider's reset destroys it (Neon, Upstash: see their rollback).
 - **Inventory first (step 0).** Session 1 records, by name, which KEEL Render services (API, processor, workers,
@@ -42,7 +42,7 @@ anyone copies them back.
 |---|---|
 | `GET https://<api>/health/ready` | 200, `database.ok` and `redis.ok` true |
 | Render deploy | the new deploy is `live`, logs show `Applying database schema and migrations...` then the server starting, no `[error]` config-check lines |
-| Sign-in | a test account signs in on keelai.net and the dashboard loads; a tab that was **already signed in before the deploy** keeps working (no sign-out) |
+| Sign-in | a test account signs in on keelai.net and the dashboard loads; a tab that was **already signed in before the deploy** keeps working (no sign-out) - except the JWT step, where it must be signed out |
 | Email | request a password-reset code for a test account: it arrives |
 | Assistant | ask the assistant one question: an AI-written answer (not the "sources only" fallback) |
 | Billing (read-only) | the Billing page loads for a test tenant; no Stripe action is needed |
@@ -51,14 +51,14 @@ anyone copies them back.
 
 1. Owner removes the variables from the `Default` agent environment (above).
 2. PR `fix/jwt-key-rotation-overlap` (adds `JWT_SECRET_PREVIOUS`) is merged by the owner and **deployed by
-   Session 1**; Session 2 verifies the deploy with the table above. Step 1 option B must not start before this: code
+   Session 1**; Session 2 verifies the deploy with the table above. Option B of step 1 (future routine rotations) must not be used before this: code
    without it ignores `JWT_SECRET_PREVIOUS` and the rotation would sign everyone out.
 3. Session 1 notes the current live deploy id of each KEEL service as the code rollback target, and completes
    the inventory above.
 4. Neon: confirm a restore point exists (Neon -> project -> Backup & Restore / branch history; free plan keeps a
    short history window). No data changes in this runbook, but the owner password grants full access.
 
-Step 1 option A and steps 2-6 do not depend on the PR and can go first if its merge is delayed.
+Step 1 (hard rotation, decided for this incident) and steps 2-6 do not depend on the PR and can go first if its merge is delayed.
 
 ### Step 1 - `JWT_SECRET`
 
@@ -75,32 +75,35 @@ finish what they are doing (up to `JWT_EXPIRE_MINUTES`, 120) first. No option is
 against someone who holds the old key - during the overlap that person can still mint sessions that last until
 the old key is removed.
 
-**Owner decision - choose one:**
+**Owner decision (2026-11-09 ~10:55 UTC, relayed by Session 2 and Session 1): hard rotation, no overlap.**
+The exposed key must stop being accepted immediately; everyone signing in again is acceptable.
+**Never set `JWT_SECRET_PREVIOUS` for this rotation.** The overlap (option B below) is kept only for future
+routine rotations of a key that is not known to be exposed.
 
-- **A. Hard rotation (recommended for this incident).** The old value was readable by every agent process
-  (and an older `JWT_SECRET` is in public Git history since 2026-10-19). Replace `JWT_SECRET`, do **not** set
-  `JWT_SECRET_PREVIOUS`. Every user is signed out at the deploy and signs in once. Old key accepted for 0
-  minutes. Does not need #107.
-- **B. Overlap.** Set `JWT_SECRET_PREVIOUS` as below; users are asked to sign in at their next renewal, within
-  `JWT_EXPIRE_MINUTES`. Old key accepted for the overlap (remove it after `JWT_EXPIRE_MINUTES` + 1 hour =
-  3 hours; never longer than `SESSION_MAX_HOURS`). Needs #107 deployed. Meant for routine rotations of a key that
-  is not known to be exposed.
+Steps for this rotation (A - hard rotation):
 
-Steps (B; for A skip everything about `JWT_SECRET_PREVIOUS`):
+1. Owner, Render dashboard -> `ceopro-ai-new` -> Environment: replace `JWT_SECRET` with a new value (Render's
+   *Generate* button, or `openssl rand -hex 32` on the owner's own machine). Repeat on every other KEEL service
+   that holds `JWT_SECRET`. Do not add `JWT_SECRET_PREVIOUS`. Save; Session 1 deploys (with owner deploy
+   approval) and watches it go live. `security.py` reads `JWT_SECRET` at start, so the new deploy uses it.
+2. Verify (Session 2, standard table plus):
+   - a tab signed in **before** the deploy gets 401 on its next request and is asked to sign in (proves the old
+     key is refused);
+   - a new sign-in works, and its renewal works (stay active ~10 minutes before expiry, or call
+     `POST /auth/refresh` with the new token: 200);
+   - the deploy logs show no `JWT_SECRET_PREVIOUS` line and no `[error] JWT_SECRET...` line.
+- Rollback: **never restore the old value** - it is exposed. If new sign-ins fail, the value in Render is wrong
+  (for example cut short): generate another, deploy. Fix forward.
+- Customer impact: every user signs in once, at the deploy.
+- Side effects: the Overture cache is signed with `JWT_SECRET` when `OVERTURE_CACHE_SIGNING_KEY` is unset, so
+  it is rebuilt once (performance only). Sign-out revocation entries are keyed by token id and simply expire.
+  Nothing else signs with `JWT_SECRET` (Shopify OAuth has its own key).
 
-1. Owner, Render dashboard -> `ceopro-ai-new` -> Environment: (B only) add `JWT_SECRET_PREVIOUS` with
-   **exactly** the current `JWT_SECRET` value (reveal and copy inside the dashboard); replace `JWT_SECRET` with a
-   new value (Render's *Generate* button, or `openssl rand -hex 32` on the owner's own machine). Repeat on every
-   other KEEL service that holds `JWT_SECRET`. Save; Session 1 deploys and watches it go live.
-2. Verify: standard table, with a **new** sign-in. (B) a tab signed in before the deploy still works, and is
-   asked to sign in again at its next renewal; the logs show one `[warning] JWT_SECRET_PREVIOUS: is set ...`
-   line (proves the variable is read) and no `[error] JWT_SECRET...` line. (A) that tab is signed out.
-3. (B) **Remove `JWT_SECRET_PREVIOUS` after 3 hours - step 7.**
-- Rollback: if new sign-ins fail after the deploy, the new value in Render is wrong (for example cut short):
-  generate another and deploy. Do not put the old value back. If the #107 code itself is at fault, Session 1
-  rolls back to the step-0 deploy id and the owner deletes `JWT_SECRET_PREVIOUS` (old code knows only one key);
-  the new `JWT_SECRET` stays.
-- Customer impact: one extra sign-in per user (A: at the deploy; B: within 2 hours).
+Option B - overlap, for future routine rotations only (needs #107 deployed): add `JWT_SECRET_PREVIOUS` with
+exactly the old value and set a new `JWT_SECRET`. Old-key tokens keep working until they expire (at most
+`JWT_EXPIRE_MINUTES`, 120) but are never renewed, so each user signs in once within 2 hours. Remove
+`JWT_SECRET_PREVIOUS` after `JWT_EXPIRE_MINUTES` + 1 hour (never longer than `SESSION_MAX_HOURS`). The logs
+show a `[warning] JWT_SECRET_PREVIOUS: is set ...` line while it is set.
 
 ### Step 2 - Neon owner password (`DATABASE_URL`, `POSTGRES_PASSWORD`)
 
@@ -185,8 +188,7 @@ account, not only KEEL. Several keys can exist at once: no window.
 
 ### Step 7 - finish
 
-1. (Option B only) 3 hours after step 1 went live: owner deletes `JWT_SECRET_PREVIOUS` in Render; Session 1
-   deploys; verify: standard table, and the `JWT_SECRET_PREVIOUS` warning line is gone from the logs.
+1. Confirm no KEEL service has `JWT_SECRET_PREVIOUS` set (nothing to remove for this hard rotation).
 2. Owner confirms no old value remains in any agent environment, `.dev/` file or password manager entry that is
    shared with agents.
 3. Session 2 runs the full read-only production verification and records it in `docs/TASK_REGISTER.md`.
