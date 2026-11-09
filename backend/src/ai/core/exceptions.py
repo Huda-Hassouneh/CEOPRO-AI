@@ -35,6 +35,37 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 logger = logging.getLogger("CEOPRO_AI_MAIN")
 
 
+def _cors_headers_for(request: Request) -> dict:
+    """CORS headers for a response built OUTSIDE CORSMiddleware.
+
+    Starlette serves the catch-all Exception handler from ServerErrorMiddleware,
+    the outermost layer - CORSMiddleware never sees that 500. Without these
+    headers the browser discards the response and the app only sees a network
+    error ("Couldn't reach KEEL") instead of a server error it can explain.
+    Uses the app's own CORSMiddleware settings, so an origin the API would
+    refuse is still refused here.
+    """
+    origin = request.headers.get("origin")
+    if not origin:
+        return {}
+    try:
+        from starlette.middleware.cors import CORSMiddleware
+
+        for middleware in getattr(request.app, "user_middleware", []):
+            if middleware.cls is CORSMiddleware:
+                options = getattr(middleware, "kwargs", None) or getattr(middleware, "options", {})
+                cors = CORSMiddleware(app=None, **options)
+                if not cors.is_allowed_origin(origin):
+                    return {}
+                headers = {k: v for k, v in cors.simple_headers.items() if k.lower() != "access-control-allow-origin"}
+                headers["Access-Control-Allow-Origin"] = "*" if cors.allow_all_origins and not options.get("allow_credentials") else origin
+                headers["Vary"] = "Origin"
+                return headers
+    except Exception:  # noqa: BLE001 - an error response must never fail on its own headers
+        logger.exception("Could not compute CORS headers for an error response")
+    return {}
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     from src.ai.core.usage import PlanLimitReached
 
@@ -127,4 +158,4 @@ def register_exception_handlers(app: FastAPI) -> None:
         # debugging, but the response is the same generic, safe shape
         # every other error already returns.
         logger.error("Unhandled exception on %s %s", request.method, request.url.path, exc_info=exc)
-        return JSONResponse(status_code=500, content={"detail": "Internal server error."})
+        return JSONResponse(status_code=500, content={"detail": "Internal server error."}, headers=_cors_headers_for(request))

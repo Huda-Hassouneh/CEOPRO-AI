@@ -38,6 +38,7 @@ image generation now is.
 import logging
 import os
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -279,6 +280,7 @@ def _name_in_language(value, language: str) -> Optional[str]:
 
 @router.post("/campaigns")
 def create_campaign_endpoint(body: CampaignCreateRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+    started = time.monotonic()  # the copy and the image share one request's time (image_generation.request_deadline)
     provided = [name for name, value in (("product_id", body.product_id), ("text", body.text), ("url", body.url)) if value]
     if len(provided) != 1:
         raise HTTPException(status_code=422, detail="Provide exactly one of product_id, text, or url.")
@@ -414,14 +416,33 @@ def create_campaign_endpoint(body: CampaignCreateRequest, ctx: TenantContext = D
             # that can't be made leaves a complete campaign with an honest
             # image status (and the allowance unused) - never a failed campaign.
             try:
-                image = _generate_image(conn, ctx, campaign_id, result,
-                                        image_format=body.image_format or image_generation.DEFAULT_IMAGE_FORMAT)
+                with image_generation.request_deadline(started):
+                    image = _generate_image(conn, ctx, campaign_id, result,
+                                            image_format=body.image_format or image_generation.DEFAULT_IMAGE_FORMAT)
             except (usage.PlanLimitReached, credits.BudgetError) as err:  # images, storage or AI Credits used up: copy kept
                 conn.rollback()
                 image = {"image_generation_blocked": err.as_http().detail}
             except HTTPException as err:  # the selected reference photo couldn't be read
                 conn.rollback()
                 image = {"image_generation_blocked": {"message": err.detail}}
+            except Exception:  # noqa: BLE001 - storage down/unconfigured, provider bug: the saved copy is still returned
+                # Before this, e.g. unconfigured or failing object storage raised out of
+                # here: the copy was already saved, yet the request ended in a 500 the
+                # browser showed as "Couldn't reach KEEL" and the campaign never opened.
+                conn.rollback()
+                diagnostic = uuid4().hex
+                logger.exception("Campaign image step failed diagnostic_id=%s tenant=%s campaign=%s",
+                                 diagnostic, ctx.tenant_id, campaign_id)
+                try:
+                    data_access.save_image_generation_failure(
+                        conn, ctx.tenant_id, campaign_id, status="PROVIDER_ERROR",
+                        error_message=f"The image could not be created or saved (diagnostic {diagnostic}).",
+                    )
+                    conn.commit()
+                except Exception:  # noqa: BLE001 - never lose the saved copy over the status note
+                    conn.rollback()
+                    logger.exception("Could not record the image failure (campaign=%s)", campaign_id)
+                image = {}
             result = {**data_access.get_campaign(conn, ctx.tenant_id, campaign_id), **{
                 k: v for k, v in image.items() if k in ("image_generation_blocked",)}}
             conn.commit()
@@ -922,6 +943,7 @@ def generate_campaign_image_endpoint(
     404/409 when the campaign doesn't exist or has no copy yet; 402 when the
     plan's image allowance or storage is used up.
     """
+    started = time.monotonic()
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     try:
         campaign = data_access.get_campaign(conn, ctx.tenant_id, campaign_id)
@@ -930,8 +952,9 @@ def generate_campaign_image_endpoint(
         if campaign["status"] != "COMPLETED":
             raise HTTPException(status_code=409, detail="Campaign content must be generated successfully before an image can be generated.")
         body = body or GenerateImageRequest()
-        return _generate_image(conn, ctx, campaign_id, campaign, image_format=body.image_format,
-                               prompt=body.prompt, channel=body.channel, attach=body.attach)
+        with image_generation.request_deadline(started):
+            return _generate_image(conn, ctx, campaign_id, campaign, image_format=body.image_format,
+                                   prompt=body.prompt, channel=body.channel, attach=body.attach)
     except HTTPException:
         conn.rollback()
         raise

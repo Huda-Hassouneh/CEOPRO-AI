@@ -89,6 +89,8 @@ is passed in, the result always says plainly whether it was actually used,
 never just "generated: true".
 """
 import base64
+import contextlib
+import contextvars
 import io
 import logging
 import os
@@ -821,6 +823,38 @@ _PROVIDERS = {
 }
 _KEYED = {name: (lambda n=name: bool(_credentials(n))) for name in ("cloudflare", "huggingface", "together", "gemini", "pollinations")}
 _TOTAL_BUDGET_SECONDS = float(os.getenv("MARKETING_IMAGE_TOTAL_SECONDS", "120"))
+
+# An image made inside a browser request (campaign creation, "Regenerate image")
+# must finish before the proxy in front of the API gives up: Cloudflare answers
+# 524 after 100 s, without CORS headers, and the browser then only reports a
+# network error ("Couldn't reach KEEL"). Inside request_deadline() a provider is
+# started only when its worst-case time still fits; otherwise the caller's
+# designed-poster fallback is used. Background workers set no deadline.
+SYNC_REQUEST_SECONDS = float(os.getenv("MARKETING_SYNC_REQUEST_SECONDS", "90"))
+_deadline: contextvars.ContextVar[Optional[float]] = contextvars.ContextVar("marketing_image_deadline", default=None)
+
+
+@contextlib.contextmanager
+def request_deadline(started: float, seconds: float = None):
+    """Images made in this block must be done `seconds` after `started` (time.monotonic())."""
+    token = _deadline.set(started + (SYNC_REQUEST_SECONDS if seconds is None else seconds))
+    try:
+        yield
+    finally:
+        _deadline.reset(token)
+
+
+def _worst_case_seconds(base: str) -> float:
+    if base == "aihorde":
+        return _HORDE_MAX_WAIT + _TIMEOUT_SECONDS
+    if base == "local":
+        return _LOCAL_IMAGE_TIMEOUT_SECONDS
+    return _TIMEOUT_SECONDS
+
+
+def _fits_deadline(base: str) -> bool:
+    deadline = _deadline.get()
+    return deadline is None or time.monotonic() + _worst_case_seconds(base) <= deadline
 # Spending-policy refusals about one provider (its price, switch or cap):
 # the next provider may still be tried.
 _PROVIDER_SPECIFIC_REFUSALS = ("COST_NOT_CONFIGURED", "PROVIDER_DISABLED", "PROVIDER_CAP_REACHED")
@@ -1004,6 +1038,10 @@ def generate_campaign_image(
         if attempts and time.monotonic() - started > _TOTAL_BUDGET_SECONDS:
             attempts.append({"provider": name, "reason": "out_of_time"})
             break
+        if not _fits_deadline(_split(name)[0]):
+            attempts.append({"provider": name, "reason": "out_of_time"})
+            retryable_attempts.append(True)
+            continue  # a quicker provider later in the chain may still fit
         logger.info("Generating marketing image via %s (reference_image=%s)", name, bool(reference_image))
         try:
             # Paid from the company's AI Credits (billed per BASE provider, never per

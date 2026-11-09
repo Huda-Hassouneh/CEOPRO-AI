@@ -237,6 +237,55 @@ def test_every_provider_failing_is_one_honest_error(monkeypatch):
     assert all(a["reason"] == "failed" for a in exc.value.attempts)
 
 
+
+# --- request deadline (images made inside a browser request) ---------------
+# Production incident (keelai.net, Nov 2026): a campaign created with its image
+# could run past the 100 s Cloudflare allows in front of api.keelai.net - the
+# browser then got a 524 without CORS headers and showed "Couldn't reach KEEL".
+
+def _scripted_chain(monkeypatch, calls):
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "aihorde, huggingface")
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    monkeypatch.setenv("MARKETING_IMAGE_FASTEST_FIRST", "false")
+    monkeypatch.setattr(image_generation.random, "shuffle", lambda items: None)
+
+    def provider(name):
+        def call(*a, **k):
+            calls.append(name)
+            return GeneratedImage(content=PNG, content_type="image/png", provider=name)
+        return call
+    return patch.dict(image_generation._PROVIDERS, {"aihorde": provider("aihorde"), "huggingface": provider("huggingface")})
+
+
+def test_inside_a_request_a_provider_that_cannot_finish_in_time_is_not_started(monkeypatch):
+    calls = []
+    with _scripted_chain(monkeypatch, calls):
+        # 90 s left: AI Horde can wait minutes, so it is skipped; a 60 s provider still fits.
+        with image_generation.request_deadline(image_generation.time.monotonic(), 90):
+            image = generate_campaign_image("x")
+    assert calls == ["huggingface"]
+    assert [(a["provider"], a["reason"]) for a in image.attempts] == [("aihorde", "out_of_time")]
+
+
+def test_with_no_time_left_no_provider_runs_and_the_error_is_honest(monkeypatch):
+    calls = []
+    with _scripted_chain(monkeypatch, calls):
+        with image_generation.request_deadline(image_generation.time.monotonic(), 10):
+            with pytest.raises(ImageGenerationError) as exc:
+                generate_campaign_image("x")
+    assert calls == []  # the caller then stores a designed poster instead (image_service)
+    assert exc.value.status == "PROVIDER_ERROR"
+    assert {a["reason"] for a in exc.value.attempts} == {"out_of_time"}
+
+
+def test_without_a_deadline_the_chain_is_unchanged(monkeypatch):
+    calls = []
+    with _scripted_chain(monkeypatch, calls):
+        assert generate_campaign_image("x").attempts == []
+    assert calls == ["aihorde"]  # background workers set no deadline and may wait for AI Horde
+    assert image_generation._deadline.get() is None
+
+
 # --- capability -------------------------------------------------------
 
 def test_capability_names_the_providers_and_that_text_leaves_keel(monkeypatch):
