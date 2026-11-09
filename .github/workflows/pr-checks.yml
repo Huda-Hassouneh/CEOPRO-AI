@@ -176,6 +176,13 @@ jobs:
         working-directory: backend
         run: python -m pytest src/ -q
 
+      # backend/tests/ (billing, entitlements, auth phase 1A, remediation) was never run here; its
+      # stale existence-policy test went unnoticed for that reason. Its native-database modules
+      # skip themselves outside the isolated runner (dev.sh test --suite database).
+      - name: Run backend/tests suites (billing, entitlements, auth, remediation)
+        working-directory: backend
+        run: python -m pytest tests/ -q
+
       # Reuse this job's disposable PostgreSQL/Redis and Python install. The
       # native suite also includes real Billing UI tests, so install its UI once.
       - uses: actions/setup-node@v4
