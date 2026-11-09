@@ -41,17 +41,24 @@ rows** and adds dated entries; nobody rewrites another session's rows. Evidence 
 |---|---|---|
 | 2026-11-09 04:30 | Removed plaintext `APP_DB_PASSWORD`, `BREVO_API_KEY`, `DATABASE_URL`, `GROQ_API_KEY`, `JWT_SECRET`, `POSTGRES_PASSWORD`, `REDIS_URL`, `RENDER_API_KEY` from agent environment `ceopro-ai` (Render access remains via the proxy-injected network secret) | `update_environment` result `updated: true`. Production unchanged. **Not a substitute for rotation** (values were readable): see Session 3. The `Default` environment still holds them; only the owner can remove them there |
 
-## Session 3 — credential rotation (2026-11-09)
+## Session 3 — credential rotation (2026-11-09) — CLOSED (handover)
 
-| Item | Branch / PR | Status | Evidence |
+| Item | Where | Status | Evidence |
 |---|---|---|---|
-| `JWT_SECRET` rotation overlap: sign with `JWT_SECRET` only, verify current then `JWT_SECRET_PREVIOUS`; `exp`, revocation, credential_version unchanged; rate limiter + config_check aware | `fix/jwt-key-rotation-overlap` [#107](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/107) | PR open at `6e4590d`, Session 2 security PASS; **awaiting the 2 images CI jobs, then owner merge + deploy approval**; not needed for this incident's hard rotation | CI green on `75614b0` (Session 2) |
-| Session 2 review finding (High): an old-key token forged with a far-future `auth_time` was renewed into a new-key session that outlived the rotation | #107 `a8eb106` | **fixed** | reproduced first (refresh 200, accepted after removing the previous key, negative age); now previous-key tokens are never renewed (401) and future `auth_time` is refused; local fresh PG16 + Redis: `test_jwt_key_rotation.py` 26 passed, the 4 regression tests fail on `75614b0`; full `src/` 5,225 passed, 75 skipped, 1 failed (PG≥17 assertion; sandbox has PG16) |
-| Rotation runbook per secret (JWT A/B, Neon owner, `ceopro_app`, Upstash, Brevo, Groq, Render API key): actor, continuity, verification, rollback | #107, `docs/SECURITY_CREDENTIAL_ROTATION.md` | written; **not executed** | — |
-| Second review finding (High): `POST /auth/workspaces/switch` (same tenant) and `POST /auth/workspaces` re-issued old-key sessions under the new key | #107 `6e4590d` | **fixed; Session 2 independent re-review: SECURITY PASS (15:22 UTC)** | Session 2 probes on `6e4590d`: old-key token on all 4 routes -> 401, no token, no DB connection; future `auth_time` refused for both keys; current-key refresh/switch 200; old-key token 401 after removing the previous key. Fresh PG17 + Redis + MinIO: `src/` 5,283 passed, 0 failed. CI backend/frontend/browser-smoke/gitleaks green; images jobs were still running at that time | `security.get_current_key_context` on refresh, workspace switch/create, change-password; route-walk test pins exactly these 4; `test_jwt_key_rotation.py` 31 passed (4 fail on `a8eb106` code); full `src/` on fresh PG16 + Redis: 5,230 passed, 75 skipped, 1 failed (PG>=17 assertion, environmental) |
-| Owner decision (~10:55 UTC, relayed by Sessions 1/2) | — | **decided: hard JWT rotation, no overlap** | runbook step 1 updated at #107 head `1bd52e4`; overlap kept only for future routine rotations. #107 not deployable until Session 2 records PASS here and the owner approves the deploy |
+| Zero-downtime-capable `JWT_SECRET` rotation: sign with `JWT_SECRET` only; verify current, then optional `JWT_SECRET_PREVIOUS`; `exp` required; revocation/credential_version unchanged; rate limiter + config_check aware | **`main` `b3ae37b`** (squash of PR #107 head `6e4590d`, rebased on `d26b96c`) | **done, on main; not deployed** | see rows below |
+| Review finding 1 (High): old-key token with future `auth_time` renewed into a lasting new-key session | `b3ae37b` | fixed | future `auth_time` (>60 s) refused for any key; `/auth/refresh` refuses previous-key tokens |
+| Review finding 2 (High): `/auth/workspaces/switch` (same tenant) and `/auth/workspaces` re-issued old-key sessions | `b3ae37b` | fixed | `security.get_current_key_context` on refresh, workspace switch/create, `settings/security/change-password`; a route-walk test pins exactly these 4 and fails if a new token-issuing route skips it. Login, email verify, invitation accept (incl. platform invitations) issue tokens from password/code/invite token, not a session |
+| Independent security re-review (Session 2) | PR #107 `6e4590d` | **PASS** | probes: old-key token on all 4 routes -> 401, no token, no DB connection; future `auth_time` refused; current-key refresh/switch 200; old-key 401 after removing PREVIOUS. Fresh PG17+Redis+MinIO: `src/` 5,283 passed, 0 failed |
+| CI | PR #107 head `6e4590d` | **green** | PR Checks (backend, frontend, browser-smoke), Docker images (pr + push), Secret scan: all success. CI on `main` `b3ae37b` started by the push; not observed by this session |
+| Local tests on the exact `main` tree `b3ae37b` | sandbox, fresh PG16 + Redis, local URLs only | PASS* | rotation/auth/security/settings suites 788 passed; full `src/` 5,244 passed, 78 skipped, 1 failed* = `test_connected_source_capacity_integration_db` asserts PG>=17 (sandbox has PG16; passes on PG17 in Session 2's run and CI) |
+| Runbook | `docs/SECURITY_CREDENTIAL_ROTATION.md` on `main` | written; **not executed** | per secret: actor, continuity, verification, rollback. JWT step = owner decision (~10:55 UTC): **hard rotation, no overlap** (new `JWT_SECRET` only; never restore the old value). Also Neon owner, `ceopro_app` (+ other scoped role passwords), Upstash, Brevo, Groq (+ GitHub Actions secret), Render API key |
+| PR #107 | GitHub | superseded by `b3ae37b` (closed) | — |
 
-Next: owner removes the variables from the `Default` agent environment; Session 2 re-reviews #107; rotation (hard JWT rotation and steps 2-6, none of which need #107) runs with Session 1 once the owner schedules it.
+**Remaining (owner / Session 1), nothing blocked on code:**
+1. Owner removes the plaintext variables from the `Default` agent environment (only the owner can).
+2. Owner schedules the rotation with Session 1; Session 1 deploys only with the owner's separate approval; Session 2 verifies each step (runbook "Standard verification"). The hard JWT rotation needs no code; deploying `b3ae37b` only matters for future overlap rotations.
+3. Session 1's inventory of which KEEL services hold each variable is deferred until the rotation is scheduled (the Render env-vars API returns values).
+4. Confirm CI on `main` `b3ae37b` is green.
 
 ## Session 4 — production file storage (2026-11-09) — CLOSED, handed over
 
