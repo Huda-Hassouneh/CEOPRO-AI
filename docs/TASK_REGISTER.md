@@ -132,13 +132,30 @@ Decided by the owner (2026-11-09 ~10:55 UTC):
 2. **Pharmacies by name only stay `INDIRECT`** (the 39 typed "health care" etc.) unless reliable category evidence
    confirms them. Already the behaviour of #113; no change.
 
+### Status board — Session 2 successor (2026-11-09 15:25 UTC)
+
+Legend: **VERIFIED** = run or read by this session, with the evidence named; **REPORTED** = another session's claim,
+not re-run here; **PENDING** = not yet checkable.
+
+| Item | Head | State | Evidence | Owner / next action |
+|---|---|---|---|---|
+| #107 JWT rotation | `6e4590d4` | Security re-review **VERIFIED PASS**; CI 4/6 green, 2 `images` jobs running at 15:25 | My throwaway probes on this head: old-key token on refresh, workspaces/switch, workspaces (create), change-password → 401, no token, no DB connection; future `auth_time` → 401 for both keys; current-key refresh/switch 200; old-key token 401 after `JWT_SECRET_PREVIOUS` removal. My grep: those 4 are the only session-based token issuers (login, email verify, both invitation accepts use password/code/token). Fresh PG17: `test_jwt_key_rotation.py` 31 passed; `src/` 5,283 passed 0 failed; `tests/` 543 passed + 3 pre-existing `main` failures (fixed by #104) | Session 3: none. Owner: approval/merge. Note: the owner's hard rotation needs no code change |
+| #107 runbook | `6e4590d4` | VERIFIED | step 1 = owner's hard rotation (no `JWT_SECRET_PREVIOUS`, fix forward, pre-deploy tab must get 401) | — |
+| #116 Overture mirror | `c44d7277` | **FAIL (VERIFIED)**: decompression finding open; fix not pushed as of 15:09 | probe on this head: 398 KB tile → +867 MB RSS; CI green on this head (VERIFIED via GitHub checks) but it predates the fix | Session 1: push fix → CI green → my re-review |
+| #115 B2 storage, code | `785002c6` | Security review **VERIFIED: no vulnerability**; availability finding (Medium) **VERIFIED** | probe with a fake Minio client: once the quota LISTING is refused with `cap_exceeded` (B2 Class C used up), every upload gets 507 "storage full" although storage is nearly empty; one listing = ceil(objects/1000) Class C calls, so >~17k objects exhaust 2,500/day from one process. CI 4/5 green + images done at 11:14 (VERIFIED) | Session 4: fix (keep last usage on failed listing; measure from DB/Redis) + correct doc |
+| #115 bucket settings A1-A7 | — | PENDING (owner confirms in B2 console; REPORTED via Session 4 when done) | private bucket, SSE-B2, keep-last-version lifecycle, no Object Lock, no CORS, one-bucket R/W key without list-all, $0 caps + alerts | Owner + Session 4 |
+| #115 external checks | — | PENDING | unsigned bucket listing / object GET → 403; `/health/storage` after deploy. Needs endpoint host + bucket name only (never keys) and an approved deploy | Session 4 → me |
+| Production, read-only | `99c213c` API, `375055c` web | VERIFIED 15:13 | `/health/ready` DB 31 ms, Redis 114 ms; `/health/processor` `overture: unsafe`; `/health/storage` 404 (#115 not deployed); first request 23.5 s = free-plan wake-up (no Render failure/restart/OOM event since 04:07) | — |
+| #111-#114 | `3156173`, `5abfb91`, `60959ea`, `f546237` | CI green on each head (VERIFIED via GitHub checks); 0 review threads/comments | — | Owner: merge decision |
+| Backup before main's 5 migrations | — | PENDING | owner requires a restore test + migration test on a separate copy; no production DB credentials requested or used until the owner approves a secure read-only method | Session 1 plan + owner |
+
 ### Remaining blockers (Session 2 successor, 2026-11-09 ~11:15 UTC)
 
 | Blocker | Waiting on |
 |---|---|
-| #107 deployable | Session 3 closing the workspace switch/create path → my re-review PASS. (Not needed for the hard rotation itself) |
-| #116 deployable | fix for the decompression finding → my re-review after CI is green |
-| Production storage checks | Session 1 deploying #115 (owner: no deployments until separately approved); then only health + unsigned-access 403 checks |
+| #107 deployable | security re-review PASS at `6e4590d4`; waiting on 2 `images` CI jobs, then the owner's approval. (Not needed for the hard rotation itself) |
+| #116 deployable | Session 1's decompression fix (not pushed as of 15:09) → CI green → my re-review → owner |
+| #115 deployable | Session 4's fix for the listing-cap availability finding; owner confirming bucket settings A1-A7; my external 403 checks; owner's explicit deploy approval |
 | Backup verification before main's 5 migrations | owner-approved secure read-only access method; until then I request and use no production database credentials |
 | Merges of #103-#106, #111-#114 | owner (agent merges refused by the permission check) |
 
