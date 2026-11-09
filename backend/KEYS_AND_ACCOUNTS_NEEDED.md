@@ -33,7 +33,7 @@ CREDENTIAL_VAULT_MASTER_KEY=
 | `JWT_SECRET` | `openssl rand -hex 32` | The API refuses to start without it. Changing it signs everyone out. |
 | `POSTGRES_PASSWORD` | `openssl rand -hex 32` | Local Docker Postgres only. On Render, the managed database has its own (in `DATABASE_URL`). |
 | `APP_DB_PASSWORD` | `openssl rand -hex 32` | Password of the restricted `ceopro_app` database role; the migration runner sets it. |
-| `MINIO_ROOT_PASSWORD` | `openssl rand -hex 32` (local MinIO) | On staging/production with Cloudflare R2 it is the R2 **Secret Access Key** instead (section 6). |
+| `MINIO_ROOT_PASSWORD` | `openssl rand -hex 32` (local MinIO) | On staging/production with Backblaze B2 it is the bucket-restricted **applicationKey** instead (section 2). |
 | `GRAFANA_ADMIN_PASSWORD` | `openssl rand -hex 32` | Local monitoring stack only (`docker-compose.yml`). |
 | `CREDENTIAL_VAULT_MASTER_KEY` | `python -m scripts.vault_key generate` (from `backend/`) | **Must be a Fernet key** (44 characters, base64, ends in `=`). A hex string from `openssl rand -hex` is **rejected** and saving or syncing connectors is refused. Same value on the API and the workers. To replace it, rotate (below) - never just change it. |
 
@@ -63,11 +63,14 @@ MINIO_ROOT_PASSWORD=
 - `DATABASE_URL` / `REDIS_URL`: copy from Render's managed Postgres / Redis
   (locally the Docker defaults in `.env.example` work).
 - File storage (uploads, documents, marketing images), staging/production on
-  **Cloudflare R2** (free tier, card on file): create a bucket and an R2 API
-  token with read/write on it, then
-  `MINIO_ENDPOINT` = `https://<account-id>.r2.cloudflarestorage.com`,
-  `MINIO_ROOT_USER` = Access Key ID, `MINIO_ROOT_PASSWORD` = Secret Access Key.
-  Without storage everything works except uploads and stored images.
+  **Backblaze B2** (10 GB free, no card; every B2 cap set to $0): one private
+  bucket and an application key restricted to it, then
+  `MINIO_ENDPOINT` = `https://s3.<region>.backblazeb2.com`, `MINIO_BUCKET` =
+  the bucket name, `MINIO_ROOT_USER` = keyID, `MINIO_ROOT_PASSWORD` =
+  applicationKey. Exact steps: `docs/OBJECT_STORAGE_FREE_TIER.md`. Optional:
+  `STORAGE_QUOTA_BYTES` (default 9 GB with `MINIO_BUCKET`),
+  `STORAGE_MAX_OBJECT_BYTES` (default 25 MiB). Without storage everything
+  works except uploads and stored images.
 
 ## 3. AI language model - REQUIRED for the assistant, AI analysis and marketing copy
 

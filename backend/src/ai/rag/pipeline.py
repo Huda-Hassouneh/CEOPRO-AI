@@ -143,7 +143,8 @@ def _ingest_pending_documents_locked(conn, minio_client, tenant_id: str, bucket:
 
     for doc in pending:
         try:
-            text = data_access.fetch_document_text(minio_client, bucket, doc["storage_bucket_path"])
+            text = data_access.fetch_document_text(
+                minio_client, bucket, data_access.storage_object_key(tenant_id, doc["storage_bucket_path"]))
             chunks = chunk_text(text)
             if not chunks:
                 raise ValueError("document produced no chunks (empty or whitespace-only content)")

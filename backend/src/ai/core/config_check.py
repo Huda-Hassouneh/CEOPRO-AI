@@ -13,6 +13,7 @@ there https addresses, a real email service and no local-only settings are
 required.
 """
 import os
+import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
@@ -214,6 +215,27 @@ def check_environment() -> List[Finding]:
                 add(ERROR, name, "is not set while the other storage settings are - uploads will fail")
     elif not storage and is_deployed:
         add(WARNING, "MINIO_ENDPOINT", "file storage is not configured - uploads and stored images are unavailable")
+    if len(storage) == 3:
+        from src.ai.core import object_storage
+
+        problem = object_storage.endpoint_problem(_env("MINIO_ENDPOINT"), is_deployed)
+        if problem:
+            add(ERROR, "MINIO_ENDPOINT", f"{problem} - uploads will fail")
+        bucket = _env("MINIO_BUCKET")
+        host = urlparse(_env("MINIO_ENDPOINT") if "://" in _env("MINIO_ENDPOINT") else "//" + _env("MINIO_ENDPOINT")).hostname or ""
+        if is_deployed and not bucket and not _is_local(host):
+            add(WARNING, "MINIO_BUCKET", "is not set - KEEL creates one bucket per kind of file; on a hosted service "
+                                         "set it to the one private bucket its key is restricted to")
+        if bucket and not re.fullmatch(r"[a-z0-9][a-z0-9-]{4,61}[a-z0-9]", bucket):
+            add(ERROR, "MINIO_BUCKET", "must be 6-63 lowercase letters, digits and hyphens (B2 and S3 bucket rules)")
+        for name in ("STORAGE_QUOTA_BYTES", "STORAGE_MAX_OBJECT_BYTES", "STORAGE_USAGE_TTL_SECONDS"):
+            raw = _env(name)
+            if raw and (not raw.isdigit() or int(raw) <= 0):
+                add(ERROR, name, "must be a positive whole number")
+        quota = _env("STORAGE_QUOTA_BYTES")
+        if bucket and quota.isdigit() and int(quota) > 10_000_000_000 and host.endswith(".backblazeb2.com"):
+            add(WARNING, "STORAGE_QUOTA_BYTES", "is above Backblaze B2's 10 GB free storage - storage could be refused "
+                                                "by the provider's cap (or billed if caps are off)")
 
     # --- integrations ------------------------------------------------------------------
     for first, second in PAIRS:

@@ -34,8 +34,6 @@ import os
 from typing import Optional
 from urllib.parse import quote, urlparse, urlunparse
 
-from minio import Minio
-
 from src.infrastructure.db_pool import PooledTenantConnection, TenantConnectionPool
 
 _POOL: Optional[TenantConnectionPool] = None
@@ -304,24 +302,20 @@ def auth_lookup_connection():
     return conn
 
 
-def minio_client() -> Minio:
+def minio_client():
     """
-    MINIO_ROOT_USER/MINIO_ROOT_PASSWORD (.env.example) - there is no
-    restricted, non-root MinIO service account today, unlike ceopro_app for
-    Postgres. Root credentials for a bucket-scoped upload endpoint is a real,
-    known gap (matches this repo's own convention of flagging what's not
-    ideal rather than silently using it as if it were fine) - genuinely
-    the only working MinIO credential in this repo until a scoped
-    IAM policy/user is set up, which is infra work, not this call site's to
-    invent unilaterally.
-    """
-    endpoint = os.getenv("MINIO_ENDPOINT")
-    access_key = os.getenv("MINIO_ROOT_USER")
-    secret_key = os.getenv("MINIO_ROOT_PASSWORD")
-    if not endpoint or not access_key or not secret_key:
-        raise RuntimeError("MINIO_ENDPOINT/MINIO_ROOT_USER/MINIO_ROOT_PASSWORD must all be set.")
+    The object store every upload, document and stored image goes through:
+    an S3-compatible service (local MinIO, or Backblaze B2 in production)
+    behind src/ai/core/object_storage.py's ObjectStore, which keeps the
+    Minio method names call sites use and adds single-bucket mode, size and
+    total-storage limits, clear "storage full/unavailable" errors and the
+    https requirement where KEEL is deployed.
 
-    parsed = urlparse(endpoint)
-    secure = parsed.scheme == "https"
-    host = parsed.netloc or parsed.path  # netloc empty if endpoint had no scheme at all
-    return Minio(host, access_key=access_key, secret_key=secret_key, secure=secure)
+    MINIO_ROOT_USER/MINIO_ROOT_PASSWORD hold the access key id and secret:
+    MinIO's root user locally, a bucket-restricted B2 application key in
+    production (never the B2 master key). Raises StorageUnavailable (a
+    RuntimeError) when storage is not configured or not usable.
+    """
+    from src.ai.core import object_storage
+
+    return object_storage.object_store()
