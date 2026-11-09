@@ -38,7 +38,7 @@ def overlap(monkeypatch):
 
 def _token(key, exp_in=600, **extra):
     now = int(time.time())
-    claims = {"tenant_id": TENANT, "user_id": USER, "exp": now + exp_in, "iat": now, "auth_time": now,
+    claims = {"tenant_id": TENANT, "user_id": USER, "exp": now + (exp_in or 0), "iat": now, "auth_time": now,
               "jti": "jti-" + str(time.time_ns()), "cv": 0, "ev": True, **extra}
     if exp_in is None:
         claims.pop("exp")
@@ -72,7 +72,7 @@ def test_a_token_signed_with_the_previous_key_stays_valid_during_the_overlap(ove
     assert _authorize(_token(CURRENT)).user_id == USER
 
 
-@pytest.mark.parametrize("key", [OTHER, CURRENT + "x", PREVIOUS[:-1], ""])
+@pytest.mark.parametrize("key", [OTHER, CURRENT + "x", PREVIOUS[:-1], " " + PREVIOUS])
 def test_a_token_signed_with_any_other_key_is_refused(overlap, key):
     token = jwt.encode({"tenant_id": TENANT, "user_id": USER, "exp": int(time.time()) + 600}, key, algorithm="HS256")
     _refused(token)
