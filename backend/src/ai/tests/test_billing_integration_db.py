@@ -510,10 +510,12 @@ def test_subscription_effective_rights_are_tenant_isolated_and_read_only(billing
             "canManageBilling", "paymentsEnabled", "limits", "usage", "features", "entitlements",
             "credits", "trialAvailable", "trialEndsAtExact",
         }
-        expected_top_level = legacy_fields | {"effectiveRights", "currentPrice", "checkoutTrialEndsAt", "subscriptionJourneyRequired"}
+        expected_top_level = legacy_fields | {"effectiveRights", "currentPrice", "checkoutTrialEndsAt", "subscriptionJourneyRequired", "gatewayBindingId", "accessEndsAt"}
         for response in (response_a.json(), response_b.json()):
             assert set(response) == expected_top_level
             assert response["subscriptionJourneyRequired"] is False
+            assert response["gatewayBindingId"] is None
+            assert response["accessEndsAt"] is None
             assert response["checkoutTrialEndsAt"] is None  # no preserved trial exists for these two fixtures
             if response["currentPrice"] is not None:
                 assert set(response["currentPrice"]) == {"amount", "currency", "intervalUnit", "intervalCount"}
