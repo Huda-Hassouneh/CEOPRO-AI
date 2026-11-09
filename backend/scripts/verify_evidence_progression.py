@@ -4,7 +4,7 @@ Fresh chain, populated 171->172 upgrade/replay, ACL equality and focused native 
 Installation uses a disposable superuser; production restricted installation is unverified.
 """
 import argparse
-from contextlib import closing
+from contextlib import closing, ExitStack
 import hashlib
 import json
 import logging
@@ -20,6 +20,7 @@ import uuid
 import xml.etree.ElementTree as ET
 
 import psycopg2
+from scripts.verification_migrations import phase_migrations
 from psycopg2 import sql
 from scripts.verify_recurring_consent import local_docker_endpoint
 
@@ -29,6 +30,7 @@ GUARD = "import socket,psycopg2,os,sys,threading\nfrom urllib.parse import urlsp
 
 
 def main():
+    phase_stack = ExitStack()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--isolated-local', action='store_true', required=True)
     parser.parse_args()
@@ -91,6 +93,8 @@ def main():
                 for database in (fresh,upgrade):
                     cur.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(database)))
         from scripts import apply_migrations as migrations
+        scope = phase_stack.enter_context(phase_migrations(migrations, NEW, target))
+        report['migration_manifest'] = scope.report()
         logging.getLogger('CEOPRO_MIGRATION_RUNNER').setLevel(logging.WARNING)
         os.environ.update(APP_DB_PASSWORD=runtime,BILLING_SETUP_DB_PASSWORD=runtime)
         for database in (fresh,upgrade):
@@ -98,16 +102,16 @@ def main():
                 cur.execute("SELECT to_regclass('public.companies'),to_regclass('public.schema_migrations')")
                 assert cur.fetchone()==(None,None)
         with closing(connect(fresh)) as conn:
-            assert len(migrations.run(conn))==172 and migrations.run(conn)==[]
-        report['fresh_migrations']=172
+            assert len(migrations.run(conn))==scope.count and migrations.run(conn)==[]
+        report['fresh_migrations']=scope.count
         migration_dir = migrations.MIGRATIONS_DIR
         with tempfile.TemporaryDirectory(dir=target) as temporary:
             for path in migration_dir.glob('*.sql'):
                 if path.name!=NEW: shutil.copyfile(path,Path(temporary)/path.name)
-            assert len(list(Path(temporary).glob('*.sql')))==171
+            assert len(list(Path(temporary).glob('*.sql')))==scope.baseline_count
             try:
                 migrations.MIGRATIONS_DIR=Path(temporary)
-                with closing(connect(upgrade)) as conn: assert len(migrations.run(conn))==171
+                with closing(connect(upgrade)) as conn: assert len(migrations.run(conn))==scope.baseline_count
             finally: migrations.MIGRATIONS_DIR=migration_dir
         roles = ['ceopro_app','ceopro_billing_setup','ceopro_billing_webhook','ceopro_credit_accounting',
                  'ceopro_billing_observer','ceopro_trial_attestor','ceopro_trial_confirmer','ceopro_consent_service']
@@ -145,12 +149,12 @@ def main():
             else: raise AssertionError('Injected failure did not fail')
             with conn.cursor() as cur:
                 cur.execute("SELECT to_regprocedure('billing_confirmation_progresses(jsonb,jsonb)'),count(*) FROM schema_migrations")
-                assert cur.fetchone()==(None,171)
+                assert cur.fetchone()==(None,scope.baseline_count)
             conn.rollback()
             report['rollback']=True
             assert migrations.run(conn)==[NEW] and migrations.run(conn)==[]
             assert facts(conn)==before, 'Existing data or authority changed'
-            report.update(upgrade='171->172',replay=True,data_and_existing_runtime_acls_unchanged=True)
+            report.update(upgrade=f'{scope.baseline_count}->{scope.count}',replay=True,data_and_existing_runtime_acls_unchanged=True)
             with conn.cursor() as cur:
                 cur.execute("SELECT r,has_function_privilege(r,'billing_confirmation_progresses(jsonb,jsonb)','EXECUTE') FROM unnest(%s::text[]) r",(roles,))
                 assert all(not granted for _,granted in cur.fetchall())
@@ -184,10 +188,13 @@ def main():
         report['status']='FAIL'
         raise
     finally:
-        for container in reversed(owned): docker('stop',container)
-        report['owned_containers_stopped']=True
-        (target/'result.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
-        print(json.dumps(report,indent=2)); print('Evidence:',target)
+        try:
+            phase_stack.close()
+        finally:
+            for container in reversed(owned): docker('stop',container)
+            report['owned_containers_stopped']=True
+            (target/'result.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+            print(json.dumps(report,indent=2)); print('Evidence:',target)
     return 0
 
 

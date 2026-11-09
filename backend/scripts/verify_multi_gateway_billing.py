@@ -5,7 +5,7 @@ Full production restricted installation is a separate release gate.
 """
 import argparse
 import ast
-from contextlib import closing
+from contextlib import closing, ExitStack
 import hashlib
 import json
 import logging
@@ -21,6 +21,7 @@ import uuid
 import xml.etree.ElementTree as ET
 
 import psycopg2
+from scripts.verification_migrations import phase_migrations
 from psycopg2 import sql
 from scripts.billing_verification import is_test_database_name
 from scripts.verify_recurring_consent import local_docker_endpoint
@@ -30,6 +31,7 @@ NEW='20261212000000_definitive_checkout_retry.sql'
 
 
 def main():
+    phase_stack = ExitStack()
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--isolated-local',action='store_true',required=True)
     parser.add_argument('--select',action='append',help='Exact test node from the bounded consent/B4 selection')
@@ -77,9 +79,11 @@ def main():
         os.environ.update(APP_DB_PASSWORD=runtime,BILLING_SETUP_DB_PASSWORD=runtime,
             BILLING_WEBHOOK_DB_PASSWORD=runtime,CREDIT_ACCOUNTING_DB_PASSWORD=runtime)
         from scripts import apply_migrations as M
+        scope = phase_stack.enter_context(phase_migrations(M, NEW, target))
+        report['migration_manifest'] = scope.report()
         logging.getLogger('CEOPRO_MIGRATION_RUNNER').setLevel(logging.WARNING)
         source=M.MIGRATIONS_DIR
-        migration_count=len(list(source.glob('*.sql')))
+        migration_count=scope.count
         with closing(connect(fresh)) as conn:
             report['fresh']=len(M.run(conn));assert report['fresh']==migration_count and M.run(conn)==[]
         with tempfile.TemporaryDirectory(dir=target) as tmp:
@@ -170,10 +174,13 @@ def main():
     except BaseException as error:
         report.update(status='FAIL',error_type=type(error).__name__);raise
     finally:
-        if started:docker('stop',name)
-        report.update(container=name,stopped=started,production_restricted_installer_verified=False)
-        (target/'result.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
-        print(json.dumps(report,indent=2));print('Evidence:',target)
+        try:
+            phase_stack.close()
+        finally:
+            if started:docker('stop',name)
+            report.update(container=name,stopped=started,production_restricted_installer_verified=False)
+            (target/'result.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+            print(json.dumps(report,indent=2));print('Evidence:',target)
 
 
 if __name__=='__main__':main()

@@ -6,7 +6,7 @@ The uniquely labelled test container is stopped on exit; evidence is retained.
 """
 import argparse
 import hashlib
-from contextlib import closing
+from contextlib import closing, ExitStack
 import json
 import logging
 import os
@@ -20,6 +20,7 @@ import time
 import uuid
 
 import psycopg2
+from scripts.verification_migrations import phase_migrations
 from psycopg2 import sql
 from scripts.billing_verification import is_test_database_name
 
@@ -61,6 +62,7 @@ def local_docker_endpoint(endpoint):
 
 
 def main():
+    phase_stack = ExitStack()
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--isolated-local',action='store_true',required=True)
     parser.parse_args()
@@ -142,25 +144,27 @@ def main():
                 cur.execute("SELECT current_database(),to_regclass('public.companies'),to_regclass('public.schema_migrations')")
                 assert cur.fetchone()==(database,None,None)
         from scripts import apply_migrations as migrations
+        scope = phase_stack.enter_context(phase_migrations(migrations, NEW, target))
+        report['migration_manifest'] = scope.report()
         logging.getLogger('CEOPRO_MIGRATION_RUNNER').setLevel(logging.WARNING)
         os.environ.update(APP_DB_PASSWORD=runtime_password,BILLING_SETUP_DB_PASSWORD=runtime_password)
         with closing(connect(fresh)) as conn:
-            assert len(migrations.run(conn))==169
+            assert len(migrations.run(conn))==scope.count
             assert migrations.run(conn)==[]
             with conn.cursor() as cur:
                 for table in ('billing_gateway_bindings','billing_customer_references','billing_price_references','billing_trial_checkouts','billing_customer_operations','billing_observation_operations','billing_observation_receipts','billing_verification_observations'):
                     cur.execute(sql.SQL('SELECT count(*) FROM {}').format(sql.Identifier(table)))
                     assert cur.fetchone()==(0,), 'No automatic bindings, mappings or reservations'
-        report['fresh_migrations']=169
+        report['fresh_migrations']=scope.count
         report['fresh_installation']={'execution':'EXECUTED','result':'PASS',
                                       'authority':'postgres superuser; full runner and replay'}
         source=migrations.MIGRATIONS_DIR
         with tempfile.TemporaryDirectory(dir=target) as temporary:
             for path in source.glob('*.sql'):
                 if path.name not in NEW:shutil.copyfile(path,Path(temporary)/path.name)
-            assert len(list(Path(temporary).glob('*.sql')))==168
+            assert len(list(Path(temporary).glob('*.sql')))==scope.baseline_count
             migrations.MIGRATIONS_DIR=Path(temporary)
-            with closing(connect(upgrade)) as conn:assert len(migrations.run(conn))==168
+            with closing(connect(upgrade)) as conn:assert len(migrations.run(conn))==scope.baseline_count
         migrations.MIGRATIONS_DIR=source
         with closing(connect(upgrade)) as conn:
             conn.autocommit=True
@@ -237,9 +241,9 @@ def main():
             conn.commit()
             assert migrations.run(conn)==[]
             assert fingerprints(conn)==before
-        report.update(upgrade_migrations=169,legacy_fingerprints_unchanged=True,restricted_installer_new_files=True,
+        report.update(upgrade_migrations=scope.count,legacy_fingerprints_unchanged=True,restricted_installer_new_files=True,
                       populated_upgrade={'execution':'EXECUTED','result':'PASS',
-                                         'authority':'postgres 168 baseline/observer/replay; fixture installer for B3 only'},
+                                         'authority':'postgres named-phase baseline/observer/replay; fixture installer for B3 only'},
                       restricted_new_migrations={'execution':'EXECUTED','result':'PASS',
                                                  'files':list(NEW),
                                                  'scope':'SQL-file executor and ledger transactions; not full runner'})
@@ -250,7 +254,7 @@ def main():
             else:raise AssertionError('Injected migration failure did not fail')
             with conn.cursor() as cur:
                 cur.execute("SELECT to_regclass('public.billing_observation_operations'),(SELECT count(*) FROM schema_migrations)")
-                assert cur.fetchone()==(None,168)
+                assert cur.fetchone()==(None,scope.baseline_count)
         report['failed_migration_rollback']=True
         with closing(connect(upgrade)) as conn:
             conn.autocommit=True
@@ -332,13 +336,16 @@ sys.exit(pytest.main(sys.argv[1:]))
         report['status']='failed'
         raise
     finally:
-        if redis_started:
-            docker('stop',redis_name)
-            report['redis_stopped']=True
-        docker('stop',name)
-        report['container_stopped']=True
-        (target/'result.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
-        print(json.dumps(report,indent=2));print('Evidence:',target)
+        try:
+            phase_stack.close()
+        finally:
+            if redis_started:
+                docker('stop',redis_name)
+                report['redis_stopped']=True
+            docker('stop',name)
+            report['container_stopped']=True
+            (target/'result.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
+            print(json.dumps(report,indent=2));print('Evidence:',target)
     return 0
 
 

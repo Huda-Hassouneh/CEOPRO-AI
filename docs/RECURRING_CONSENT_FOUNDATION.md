@@ -1849,3 +1849,40 @@ catalog was verified. API, frontend, tunnel and owned SMTP were stopped; flags a
 provider egress were disarmed. Loopback PostgreSQL/Redis and private evidence were
 retained, with canonical credentials, Stripe settings and ordinary development
 configuration unchanged. The existing temporary notification destination is offline.
+
+
+## Consolidation verification against GitHub main (2026-11-09)
+
+The prepared PR stack preserves main's 165 immutable migrations and adds the
+Custom discounted-approval guard before the thirteen canonical billing files:
+179 files in the combined preview. Disposable verifiers now select an exact
+named phase with reviewed content hashes, including the Custom predecessor when
+present. They exclude later dependent files from earlier upgrade checks and
+restore the runner path on failure. No production runner, SQL history, grants,
+provider adapter or activation setting changes in this verification correction.
+
+Main already contains the managed-PostgreSQL owner/ACL fixes and restricted-role
+membership cleanup. Five fresh native catalog/tenant-isolation checks passed on
+the 166-file Custom candidate as non-superuser and superuser; the older pinned
+installer helpers are excluded rather than repinned. This does not certify
+production installation or the full combined 179-file restricted runner.
+
+The combined current-main preview passed 195 offline Stripe/shared Checkout,
+signed-decoder, reconciliation and Custom contract cases (including three added
+non-Stripe/protected-cohort legacy-fallthrough denials). Two native reconciliation
+cases remain unexecuted on that preview because the local Docker engine became
+unresponsive after the Windows paging interruption. These results are mocks and
+contract checks, not new Stripe external acceptance or B4 authority proof.
+
+Open PRs #93/#94 cannot be merged unchanged with the canonical December tables:
+their November files create incompatible `billing_trial_checkouts` and
+`billing_customer_operations`. Preserve useful recovery/UI/lean behavior through
+an explicit canonical-model compatibility port, not duplicate migrations. PR #95
+is based on that old stack and its catalog must not overwrite main's later
+version or reprice historical contracts. Existing PRs are not changed by this
+review. Any eventual adoption migration must sort after `20261212000000`.
+
+All billing PRs remain held for combined native fresh/upgrade/restricted-role
+verification and the documented compatibility port. Prior genuine Paddle
+Sandbox evidence is preserved; it does not prove all-nine B4 capabilities,
+reusable recurring authority or production readiness. Activation stays disabled.
