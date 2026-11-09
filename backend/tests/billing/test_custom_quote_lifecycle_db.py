@@ -411,8 +411,33 @@ def test_quote_rejection_and_owner_approval_enforces_fourteen_day_offer(quote_ac
         customer_conn.close()
 
 
-def test_actor_deletion_preserves_event_and_tenant_delete_cascades(quote_actors, owner_db, billing_connections):
-    actors = quote_actors
+@pytest.fixture
+def deletable_quote_actor(quote_actors, owner_db):
+    """Do not delete the shared owner referenced by retained retry audit rows."""
+    actors = dict(quote_actors)
+    original = actors['platform_user']
+    actor = str(uuid.uuid4())
+    with owner_db.cursor() as cur:
+        cur.execute('SELECT status FROM keel_platform_members WHERE user_id=%s', (original,))
+        status = cur.fetchone()[0]
+    try:
+        with owner_db.cursor() as cur:
+            cur.execute("INSERT INTO users(user_id,email,password_hash) VALUES(%s,%s,'test-only')", (actor, actor+'@example.test'))
+            cur.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')", (actors['platform_tenant'], actor))
+            cur.execute("UPDATE keel_platform_members SET status='suspended' WHERE user_id=%s", (original,))
+            cur.execute("INSERT INTO keel_platform_members(user_id,role_key,status) VALUES(%s,'owner','active')", (actor,))
+        actors['platform_user'] = actor
+        yield actors
+    finally:
+        owner_db.rollback()
+        with owner_db.cursor() as cur:
+            cur.execute('DELETE FROM keel_platform_members WHERE user_id=%s', (actor,))
+            cur.execute('DELETE FROM users WHERE user_id=%s', (actor,))
+            cur.execute('UPDATE keel_platform_members SET status=%s WHERE user_id=%s', (status, original))
+
+
+def test_actor_deletion_preserves_event_and_tenant_delete_cascades(deletable_quote_actor, owner_db, billing_connections):
+    actors = deletable_quote_actor
     platform_conn = _conn(billing_connections, actors)
     customer_conn = _conn(billing_connections, actors, "tenant_a")
     try:

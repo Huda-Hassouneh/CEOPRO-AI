@@ -17,14 +17,14 @@ from psycopg2.extras import Json
 from src.ai import db
 from src.ai.billing import payment_contracts as C, verification_observations as V, trial_confirmation as T
 from src.ai.core import usage
-from .test_verification_observations_db import parties, restricted_runtime, ContextConnection, connection, customer_scenario, resolve_customer
+from .test_verification_observations_db import parties, restricted_runtime, ContextConnection, connection, customer_scenario, resolve_customer, role_password
 from .test_payment_bindings_db import fingerprint, reserve
 from src.ai.billing import trial_checkouts
 
 
 def bound(party, role):
     settings = psycopg2.extensions.parse_dsn(os.environ['BILLING_TEST_DATABASE_URL'])
-    settings.update(user=role, password=os.environ['OBSERVATION_TEST_PASSWORD'])
+    settings.update(user=role, password=role_password(role))
     return ContextConnection(db._UnpooledOwner(), psycopg2.connect(**settings), *party)
 
 

@@ -13,7 +13,7 @@ import pytest
 
 from src.ai import db
 from src.ai.billing import recurring_consent as R, verification_observations as V, trial_checkouts
-from .test_verification_observations_db import ContextConnection, connection
+from .test_verification_observations_db import ContextConnection, connection, role_password
 from .test_payment_bindings_db import parties, reserve, fingerprint
 from .test_customer_operations_db import scenario as customer_scenario, run as resolve_customer
 from .test_reconciliation_roles import restricted_runtime
@@ -21,7 +21,7 @@ from .test_reconciliation_roles import restricted_runtime
 
 def service(party, role='ceopro_consent_service'):
     values = psycopg2.extensions.parse_dsn(os.environ['BILLING_TEST_DATABASE_URL'])
-    values.update(user=role, password=os.environ['OBSERVATION_TEST_PASSWORD'])
+    values.update(user=role, password=role_password(role))
     return ContextConnection(db._UnpooledOwner(), psycopg2.connect(**values), *party)
 
 

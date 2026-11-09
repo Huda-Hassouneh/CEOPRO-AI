@@ -300,7 +300,9 @@ def test_automatic_checkout_refuses_every_current_subscription_before_setup(clie
     from src.ai.core.security import TenantContext
     from src.ai.routers import billing
     client.app.dependency_overrides[billing.get_tenant_context] = lambda: TenantContext('tenant', 'user')
-    monkeypatch.setattr(billing.db, 'app_role_connection', lambda *_: MagicMock())
+    connection = MagicMock()
+    connection.cursor.return_value.__enter__.return_value.fetchone.return_value = (False,)
+    monkeypatch.setattr(billing.db, 'app_role_connection', lambda *_: connection)
     monkeypatch.setattr(billing, '_require_billing_role', lambda *_: None)
     monkeypatch.setattr(service.config, 'payments_enabled', lambda: True)
     monkeypatch.setattr(store, 'current_subscription', lambda *_: {'status':status,'cancel_at_period_end':True})

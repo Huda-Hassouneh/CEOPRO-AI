@@ -16,6 +16,7 @@ from .test_subscription_journey_db import CheckoutTransport
 from .test_paddle_completion import CustomerReader
 from .test_recurring_consent_db import fingerprint, restricted_runtime
 from .test_sandbox_runtime import configuration
+from .test_verification_observations_db import role_password
 
 class StripeTransport(CustomerTransport,CheckoutTransport):
     def __init__(self,binding,*args,**kwargs):
@@ -61,7 +62,7 @@ def test_runtime_uses_real_restricted_sockets_for_customer_checkout_and_signed_i
     document,env=configuration();document['synthetic_businesses']=[dict(tenant_id=party[0],actor_id=party[1])]
     raw=psycopg2.extensions.parse_dsn(os.environ['BILLING_TEST_DATABASE_URL'])
     env['DATABASE_URL']=f"postgresql://unused@127.0.0.1:{raw['port']}/{raw['dbname']}"
-    env.update({v:os.environ['OBSERVATION_TEST_PASSWORD'] for v in R.PASSWORDS.values()})
+    env.update({variable:role_password(role) for role,variable in R.PASSWORDS.items()})
     if provider=='stripe':binding=s.binding
     else:binding=C.GatewayBinding('paddle',C.GatewayEnvironment.TEST,bid,bid)
     g=next(v for v in document['gateways'] if v['provider']==provider)
@@ -139,7 +140,12 @@ def test_runtime_uses_real_restricted_sockets_for_customer_checkout_and_signed_i
         else:
             signature=hmac.new(env['KEEL_SANDBOX_PADDLE_WEBHOOK_SECRET'].encode(),str(now).encode()+b':'+payload,hashlib.sha256).hexdigest()
             headers={'Paddle-Signature':f'ts={now};h1={signature}'}
-        assert client.post(route,content=payload,headers=headers).status_code==500
+        response=client.post(route,content=payload,headers=headers)
+        assert response.status_code==200,response.json()
+        result=response.json()
+        assert result['captured'] is True and result['confirmed'] is False
+        assert result['event_id']=='evt_http_runtime'
+        assert (result['state'],result['reason'])==('pending','provider_capabilities_unproved')
     from src.ai.billing.trial_coordinator import observation_identity
     with owner_db.cursor() as q:
         q.execute('SELECT count(*) FROM billing_observation_receipts WHERE operation_id=%s',(str(observation_identity(operation)),));assert q.fetchone()==(1,)

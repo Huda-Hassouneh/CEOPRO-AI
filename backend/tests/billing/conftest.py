@@ -31,7 +31,7 @@ def isolated_evidence_logins():
 
     url = validate_test_environment(dict(os.environ), database=True)
     roles = ("ceopro_billing_observer", "ceopro_trial_attestor",
-             "ceopro_trial_confirmer", "ceopro_consent_service")
+             "ceopro_trial_confirmer", "ceopro_consent_service", "ceopro_journey_router")
     originals = []
     password = secrets.token_hex(32)
     with closing(psycopg2.connect(url, connect_timeout=5, gssencmode="disable", sslmode="disable")) as conn:

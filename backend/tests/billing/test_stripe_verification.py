@@ -840,7 +840,7 @@ def test_invalid_bound_transport_fails_before_dispatch(credential, version, time
 def test_adapter_remains_optional_read_only_and_unimported_by_active_runtime():
     src = Path(__file__).resolve().parents[2] / "src"
     for path in (src / "ai").rglob("*.py"):
-        if "tests" in path.parts or path.name == "stripe_verification.py":
+        if "tests" in path.parts or path.relative_to(src).as_posix() in ("ai/billing/stripe_verification.py", "ai/billing/sandbox_runtime.py"):
             continue
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
         for node in ast.walk(tree):

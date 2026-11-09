@@ -25,20 +25,11 @@ class NativeTransport(Transport):
 
 
 @pytest.fixture
-def catalog(owner_db):
+def catalog(owner_db, platform_owner_context):
     # This file runs only on the separately prepared disposable proof database.
     dsn=os.environ['BILLING_TEST_DATABASE_URL']
     with owner_db.cursor() as q:
-        q.execute('SELECT w.tenant_id,m.user_id FROM keel_platform_workspace w CROSS JOIN keel_platform_members m WHERE m.role_key=\'owner\'')
-        party=q.fetchone()
-        if party is None:
-            tenant,owner=str(uuid.uuid4()),str(uuid.uuid4())
-            q.execute("INSERT INTO companies(tenant_id,business_name,country_code,primary_currency) VALUES(%s,'SYNTHETIC catalog proof','US','USD')",(tenant,))
-            q.execute("INSERT INTO users(user_id,email,password_hash,email_verified_at) VALUES(%s,%s,'SYNTHETIC nonlogin',now())",(owner,owner+'@example.test'))
-            q.execute("INSERT INTO tenant_users(tenant_id,user_id,role_key) VALUES(%s,%s,'owner')",(tenant,owner))
-            q.execute('INSERT INTO keel_platform_workspace(tenant_id) VALUES(%s)',(tenant,))
-            q.execute("INSERT INTO keel_platform_members(user_id,role_key,status) VALUES(%s,'owner','active')",(owner,))
-            party=(tenant,owner)
+        party=platform_owner_context
         key='catalog_'+uuid.uuid4().hex
         q.execute("INSERT INTO billing_gateway_bindings(binding_id,provider,environment,merchant_account_id,provenance) VALUES(%s,'paddle','test',%s,'SYNTHETIC catalog test')",(key,key))
         q.execute('SELECT current_database()');database=q.fetchone()[0]
@@ -60,14 +51,18 @@ def sync(s):return P.synchronize(s.repo,s.adapter,expected=s.expected,apply=True
 
 
 def test_real_durable_create_mapping_exact_repeat_and_history(catalog,owner_db):
+    # Other cases retain consent/audit history in this same disposable cluster.
+    with owner_db.cursor() as q:
+        q.execute('SELECT (SELECT count(*) FROM billing_subscriptions),(SELECT count(*) FROM billing_consent_acceptances)')
+        before=q.fetchone()
     s=catalog;expected=len(s.rows)+1;sync(s);assert len(s.transport.posts)==expected
     assert len(sync(s)['actions'])==expected and len(s.transport.posts)==expected
     with owner_db.cursor() as q:
         q.execute('SELECT state,provider_object_id FROM billing_catalog_operations WHERE binding_id=%s ORDER BY entity_kind',(s.repo.binding.binding_id,));rows=q.fetchall()
         assert len(rows)==expected and all(state=='succeeded' and identifier for state,identifier in rows)
         q.execute('SELECT count(*) FROM billing_price_references WHERE binding_id=%s',(s.repo.binding.binding_id,));assert q.fetchone()==(len(s.rows),)
-        q.execute('SELECT count(*) FROM billing_subscriptions');assert q.fetchone()==(0,)
-        q.execute('SELECT count(*) FROM billing_consent_acceptances');assert q.fetchone()==(0,)
+        q.execute('SELECT (SELECT count(*) FROM billing_subscriptions),(SELECT count(*) FROM billing_consent_acceptances)')
+        assert q.fetchone()==before
     for statement in ('DELETE FROM billing_catalog_operations WHERE binding_id=%s',"UPDATE billing_catalog_operations SET request='{}' WHERE binding_id=%s"):
         with pytest.raises(psycopg2.errors.InvalidParameterValue):
             with s.repo.conn.cursor() as q:q.execute(statement,(s.repo.binding.binding_id,))
