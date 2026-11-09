@@ -17,7 +17,7 @@ const RELATIONSHIP_TONE = { DIRECT: 'success', INDIRECT: 'accent', RELATED: 'neu
 
 // Why a business is labelled as it is, in words (market_discovery/relevance.py).
 function relationshipReason(reasons, t) {
-  const why = (reasons || []).find((r) => ['same_products', 'same_specialty', 'same_trade', 'same_industry', 'related_industry',
+  const why = (reasons || []).find((r) => ['same_products', 'same_specialty', 'same_trade', 'same_industry_default', 'same_industry', 'related_industry',
     'name_matches_industry', 'not_confirmed'].includes(r.code));
   if (!why) return null;
   return t(`discovery.reason.${why.code}`, { count: why.count, term: why.term, where: why.where ? t(`discovery.reason.where.${why.where}`) : '' });

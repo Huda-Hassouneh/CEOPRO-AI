@@ -40,6 +40,9 @@ class DiscoveryQuery:
     category_words: Tuple[str, ...] = ()     # English category words for a type described in another language
     specialty_terms: Tuple[str, ...] = ()    # what this company specifically sells (relevance.py)
     category_paths: Tuple[Tuple[str, ...], ...] = ()  # the segments it operates in (category_taxonomy.py)
+    # Whether the OWNER told us what they specifically sell (products, or specialty words in their business type).
+    # Without it, a business of the same industry is a direct competitor by default (relevance.classify).
+    owner_specialty: bool = True
     max_results: int = int(os.getenv("DISCOVERY_MAX_RESULTS", "1000"))
 
     @property

@@ -681,3 +681,80 @@ def test_a_map_type_does_not_make_a_medical_supplier_or_a_jeweller_a_cafe_compet
 def test_an_arabic_business_type_still_gets_its_segment():
     from src.market_scraper.category_taxonomy import categorize_catalog
     assert categorize_catalog([], "مقهى") == [("food", "beverages", "coffee")]
+
+
+# --- real-data cases (Overture 2026-10-21, Al-Abdali / Jabal Amman, a pharmacy) --------------------------------
+
+def test_a_map_type_does_not_make_a_clinic_or_a_medical_equipment_dealer_a_pharmacy_competitor():
+    query = pipeline.build_query("t", {"business_type": "Pharmacy", "industry_key": "pharmacy", "latitude": AMMAN[0],
+                                       "longitude": AMMAN[1], "country_code": "JO", "city": "Amman"})
+    assert query.category_paths == (("health", "pharmacy"),)
+    near = dict(latitude=AMMAN[0] + 0.001, longitude=AMMAN[1], industry_key="pharmacy")
+    listed = [  # every one of these is typed "pharmacy" in the dataset
+        ("عيادة للايجار", ["overture:pharmacy"]),
+        ("Rami Abu Shiekha For medical equipment رامي ابو شيخة للأجهزة الطبية", ["overture:pharmacy"]),
+        ("المتكاملة للتجهيزات العلمية والطبية", ["overture:pharmacy"]),
+        ("Nuclear Medicine Center", ["overture:pharmacy"]),
+        ("الغد المشرق للبصريات", ["overture:pharmacy"]),
+        ("Dentsply Sirona Prosthetic Jordan", ["overture:pharmacy"]),
+        ("Baraa medical ltd. Hearing Instruments jordan", ["overture:pharmacy"]),
+        ("Salma Al Qosous Pharmacy", ["overture:pharmacy"]),
+        ("صيدلية فتالة", ["overture:hospital", "overture:pharmacy"]),
+        ("Albayena Pharmacy", ["overture:medical_supply_store"]),
+        ("صيدلية ومختبرات الطب البديل", []),
+        ("مجموعه صيدليات زهره الأردن 3", ["overture:pharmacy"]),
+        ("Boats - بوتس", ["overture:pharmacy"]),
+    ]
+    results = [ProviderResult("overture", "ok", [
+        _c(name, "overture", f"o/{i}", categories=categories, **near) for i, (name, categories) in enumerate(listed)])]
+    names = {r[0].name for r in pipeline.rank(query, results)}
+    # Pharmacies stay, whatever extra type they carry; a name with no trade words ("Boats") keeps its map type.
+    assert names == {"Salma Al Qosous Pharmacy", "صيدلية فتالة", "Albayena Pharmacy", "صيدلية ومختبرات الطب البديل",
+                     "مجموعه صيدليات زهره الأردن 3", "Boats - بوتس"}
+
+
+def test_a_name_decisive_trade_never_drops_a_business_of_the_same_trade():
+    from src.market_scraper.market_discovery import relevance
+    clinic = pipeline.build_query("t", {"business_type": "Dental clinic", "latitude": AMMAN[0], "longitude": AMMAN[1],
+                                        "country_code": "JO", "city": "Amman"})
+    assert ("health", "care", "dental") in clinic.category_paths
+    assert not relevance.in_different_category("Smile Dental Center", None, ["overture:pharmacy"], clinic)
+    cafe = pipeline.build_query("t", {"business_type": "Cafe", "latitude": AMMAN[0], "longitude": AMMAN[1],
+                                      "country_code": "JO", "city": "Amman"})
+    # Food listings are unaffected: siblings in one domain are still never ruled out by name alone.
+    assert not relevance.in_different_category("Kepi Restaurant & Cafe", None, ["overture:cafe"], cafe)
+
+
+# --- owner decision 2026-11-09: no products and no specialty -> the same industry is a direct competitor ----------
+
+def _profile(business_type, products=(), industry_key=None):
+    return {"business_type": business_type, "industry_key": industry_key, "product_names": list(products),
+            "latitude": AMMAN[0], "longitude": AMMAN[1], "country_code": "JO", "city": "Amman"}
+
+
+@pytest.mark.parametrize("business_type,products,industry_key,owner_specialty", [
+    ("Pharmacy", (), "pharmacy", False),            # the industry itself, nothing more
+    ("صيدلية", (), "pharmacy", False),               # the same in Arabic
+    ("Cafe", (), None, False),
+    ("Bakery & sweets", (), None, False),           # the industry's own label
+    ("Lebanese restaurant", (), None, True),        # a specialty the owner wrote
+    ("Pharmacy", ("Panadol 500mg",), "pharmacy", True),  # products are what the owner sells
+])
+def test_owner_specialty_comes_from_products_and_the_business_type_only(business_type, products, industry_key, owner_specialty):
+    query = pipeline.build_query("t", _profile(business_type, products, industry_key))
+    assert query.owner_specialty is owner_specialty
+
+
+def test_without_a_specialty_the_same_industry_is_direct_and_otherwise_stays_conservative():
+    from src.market_scraper.market_discovery import relevance
+    plain = pipeline.build_query("t", _profile("Pharmacy", industry_key="pharmacy"))
+    assert relevance.classify("Rawhi Pharmacy", None, ["overture:pharmacy"], "same_industry", plain, ()) == (
+        relevance.DIRECT, [{"code": "same_industry_default"}])
+    # A neighbouring industry or an unconfirmed listing is unchanged by the default.
+    assert relevance.classify("Glow Cosmetics", None, ["overture:cosmetics_store"], "related_industry", plain, ())[0] == relevance.RELATED
+    assert relevance.classify("Some Place", None, [], None, plain, ())[0] == relevance.UNVERIFIED
+    # With a specialty the owner gave, the same industry still needs evidence of it to be direct.
+    lebanese = pipeline.build_query("t", _profile("Lebanese restaurant"))
+    terms = ("lebanese",)
+    assert relevance.classify("Pizza Roma", None, ["overture:restaurant"], "same_industry", lebanese, terms)[0] == relevance.INDIRECT
+    assert relevance.classify("Beirut Lebanese Grill", None, ["overture:restaurant"], "same_industry", lebanese, terms)[0] == relevance.DIRECT

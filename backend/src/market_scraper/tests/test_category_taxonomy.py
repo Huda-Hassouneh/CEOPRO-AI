@@ -134,3 +134,19 @@ def test_a_bakery_and_a_sweets_shop_compete_but_neither_competes_with_a_burger_p
     assert category_similarity(bakery, sweets) >= MIN_COMPETING_SIMILARITY
     assert category_similarity(bakery, categorize("Smash Burger House").path) < MIN_COMPETING_SIMILARITY
     assert category_similarity(bakery, categorize("Krispy Donuts").path) >= MIN_COMPETING_SIMILARITY  # baked goods
+
+
+def test_arabic_names_match_with_or_without_the_article_and_letter_variants():
+    for name in ("رامي ابو شيخة للأجهزة الطبية", "شركة بيت الحكمة للاجهزة الطبية", "ركن الشفاء للتجهيزات الطبيه"):
+        assert categorize(name).path == ("health", "equipment", "medical_supplies"), name
+    assert categorize("الصيدلية العاشرة").path == ("health", "pharmacy")
+    assert categorize("صيدليه الارائك").path == ("health", "pharmacy")
+    assert categorize("حلويات حبيبة").path == categorize("الحلويات الشامية").path == ("food", "desserts", "sweets")
+
+
+def test_other_health_trades_are_a_different_segment_from_a_pharmacy():
+    pharmacy = ("health", "pharmacy")
+    for name in ("Hijazi Medical Supplies", "Revive Clinic", "MicroDent dental lab", "Al Ghad Optics"):
+        path = categorize(name).path
+        assert category_similarity(pharmacy, path) < MIN_COMPETING_SIMILARITY, name
+    assert category_similarity(pharmacy, ("health", "pharmacy")) == 1.0  # the path stored on competitors is unchanged

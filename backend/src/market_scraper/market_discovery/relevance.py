@@ -24,7 +24,8 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple
 
-from src.market_scraper.category_taxonomy import MIN_COMPETING_SIMILARITY, best_similarity, categorize
+from src.market_scraper.category_taxonomy import (MIN_COMPETING_SIMILARITY, NAME_DECISIVE_PATHS, best_similarity,
+                                                  categorize)
 from src.market_scraper.market_discovery import industries
 from src.market_scraper.market_discovery.offerings import _word_in, normalize, tokens
 
@@ -89,6 +90,20 @@ def specialty_terms(profile: dict, query, ask=None) -> Tuple[str, ...]:
     return terms
 
 
+def owner_specialty_terms(profile: dict, industry) -> Tuple[str, ...]:
+    """What the owner has said they specifically sell: their product names, and the words of their business type
+    beyond the industry itself ("Lebanese" in "Lebanese restaurant"; nothing in "Pharmacy"). Words an AI model
+    suggests are not counted - they are a guess, not something the owner specified."""
+    words = set()
+    for name in profile.get("product_names") or []:
+        words.update(tokens(name))
+    industry_words = set()
+    for phrase in (industry.key, industry.label_en, industry.label_ar, *industry.keywords_en, *industry.keywords_ar):
+        industry_words.update(tokens(phrase))
+    words.update(w for w in tokens(profile.get("business_type") or "") if w not in industry_words)
+    return tuple(sorted(w for w in words if len(w) >= 3 and w not in _GENERAL))
+
+
 def _category_text(categories: List[str]) -> str:
     return normalize(" ".join(c.split(":", 1)[-1].split("=", 1)[-1].replace("_", " ") for c in categories or []))
 
@@ -113,6 +128,10 @@ def classify(name: str, name_ar: Optional[str], categories: List[str], fit_reaso
         # The owner's own trade words are what matched: as specific as it gets.
         return DIRECT, [{"code": "same_trade"}]
     if fit_reason == "same_industry":
+        if not getattr(query, "owner_specialty", True):
+            # The owner has not said what they specialise in (no products, a plain business type): every business
+            # of the same industry competes for their customers (owner decision, 2026-11-09).
+            return DIRECT, [{"code": "same_industry_default"}]
         return INDIRECT, [{"code": "same_industry"}]
     if fit_reason == "related_industry":
         return RELATED, [{"code": "related_industry"}]
@@ -168,6 +187,11 @@ def in_different_category(name: str, name_ar: Optional[str], categories: List[st
         words.append(value.replace("_", " "))
     if name_names_another_domain(name, name_ar, paths):
         return True
+    by_name = categorize(" ".join([name or "", name_ar or ""]), [])
+    if by_name is not None and (best_similarity(paths, by_name.path) or 0.0) >= MIN_COMPETING_SIMILARITY:
+        return False  # its own name says it does what the company does, whatever its map type says
+    if name_names_another_trade(by_name, paths):
+        return True
     categorization = categorize(" ".join([name or "", name_ar or "", *words]), types)
     if categorization is None:
         return False
@@ -184,3 +208,12 @@ def name_names_another_domain(name: str, name_ar: Optional[str], paths) -> bool:
     if by_name is None or not paths:
         return False
     return all(path and path[0] != by_name.path[0] for path in paths)
+
+
+def name_names_another_trade(by_name, paths) -> bool:
+    """Inside one domain, a map type is often wrong in open data (a medical-equipment dealer, a dental lab or a
+    "clinic for rent" listed as a pharmacy). Only names in the taxonomy's name-decisive trades outweigh the type
+    (category_taxonomy.NAME_DECISIVE_PATHS); a name that also says the company's own trade was kept before this."""
+    if by_name is None or by_name.path not in NAME_DECISIVE_PATHS or not paths:
+        return False
+    return (best_similarity(paths, by_name.path) or 0.0) < MIN_COMPETING_SIMILARITY
