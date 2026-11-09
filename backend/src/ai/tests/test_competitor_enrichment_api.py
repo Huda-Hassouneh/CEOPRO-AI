@@ -120,6 +120,26 @@ def test_enrich_is_404_when_unknown_and_429_when_retried_too_fast():
     assert response.status_code == 429 and response.headers["Retry-After"] == "12"
 
 
+@pytest.mark.parametrize("background", [False, True])
+def test_retry_on_a_competitor_the_company_does_not_track_is_404_never_a_server_error(background):
+    """Another company's competitor id (found by the 2026-11-09 cross-tenant sweep): the receipt's authorization
+    refuses it, and that refusal used to escape as an unhandled error (500, or a reset connection)."""
+    from src.ai.core import operation_receipts
+
+    def refuse(*_args, **_kwargs):
+        raise operation_receipts.ReceiptAuthorizationError("competitor is not tracked by this tenant")
+
+    conn = MagicMock()
+    with patch(f"{R}.db.app_role_connection", return_value=conn), \
+         patch("src.ai.core.operation_receipts.create_or_get_operation", side_effect=refuse), \
+         patch(f"{R}.competitor_enrichment.enrich_competitor") as enrich:
+        response = client.post(f"/competitors/{COMP}/enrich{'?background=true' if background else ''}", headers=_auth())
+    assert response.status_code == 404 and response.json() == {"detail": "Competitor not found."}
+    enrich.assert_not_called()
+    conn.rollback.assert_called()
+    conn.close.assert_called_once()
+
+
 def test_background_retry_queues_a_force_job_and_never_touches_the_database():
     conn = MagicMock()
     with patch(f"{R}.db.app_role_connection", return_value=conn) as connect:
