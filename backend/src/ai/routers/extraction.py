@@ -404,7 +404,8 @@ def _register_pdf_as_rag_document(
     never the products/inventory/sales data this endpoint's main job
     already committed successfully above.
     """
-    object_key = f"uploads/{job_id}{os.path.splitext(file_name)[1] or '.pdf'}"
+    # Per-tenant prefix like Knowledge Base uploads (rows written before 2026-11-09 keep `uploads/<job_id>.pdf`).
+    object_key = f"uploads/{tenant_id}/{job_id}{os.path.splitext(file_name)[1] or '.pdf'}"
     with conn.cursor() as cursor:
         cursor.execute('SELECT processed_status FROM rag_documents_metadata WHERE tenant_id=%s AND storage_bucket_path=%s LIMIT 1',(tenant_id,object_key))
         prior=cursor.fetchone()

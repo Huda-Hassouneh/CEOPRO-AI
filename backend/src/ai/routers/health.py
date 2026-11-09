@@ -54,6 +54,44 @@ def ready():
     return JSONResponse(status_code=200 if healthy else 503, content={"status": "ok" if healthy else "unavailable", "checks": checks})
 
 
+_STORAGE_CACHE_SECONDS = 300
+_storage_cache: dict = {}
+
+
+@router.get("/health/storage")
+def storage():
+    """Object storage (core/object_storage.py), separate from /health/ready so
+    an object-storage outage never fails the API's readiness. Cached for five
+    minutes: every check is a billable request on hosted storage. Only the
+    mode and how full storage is - never the endpoint, bucket or keys."""
+    from src.ai.core import object_storage
+
+    now = time.monotonic()
+    cached = _storage_cache.get("result")
+    if cached and now - cached[0] < _STORAGE_CACHE_SECONDS:
+        status_code, body = cached[1], cached[2]
+    else:
+        started = time.monotonic()
+        try:
+            store = db.minio_client()
+        except object_storage.StorageUnavailable as err:
+            not_configured = "must all be set" in str(err)
+            status_code, body = (200 if not_configured else 503), {
+                "status": "not_configured" if not_configured else "unavailable", "error": type(err).__name__}
+        else:
+            try:
+                store.bucket_exists(store.settings.bucket or "ceopro-rag-knowledge")
+                summary = store.usage_summary()
+                full = summary["used_percent"] is not None and summary["used_percent"] >= 100
+                status_code, body = 200, {"status": "full" if full else "ok", **summary}
+            except Exception as err:  # noqa: BLE001 - reported, never raised
+                logger.warning("storage check failed: %s", err)
+                status_code, body = 503, {"status": "unavailable", "error": type(err).__name__}
+        body["ms"] = round((time.monotonic() - started) * 1000)
+        _storage_cache["result"] = (now, status_code, body)
+    return JSONResponse(status_code=status_code, content=body)
+
+
 @router.get("/health/processor")
 def processor():
     """The external processor that runs heavy work (src/offload), checked separately from the API:

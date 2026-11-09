@@ -32,6 +32,7 @@ _PUBLIC = {
     ("GET", "/health"),
     ("GET", "/health/ready"),
     ("GET", "/health/processor"),
+    ("GET", "/health/storage"),
     ("POST", "/auth/login"),
     ("POST", "/auth/signup"),
     ("POST", "/auth/password/forgot"),

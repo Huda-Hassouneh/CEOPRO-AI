@@ -130,7 +130,11 @@ def _upsert_summary_document(conn, minio_client, tenant_id: str, slot: str, text
     if existing and existing[1] == content_hash and existing[2] == "Processed":
         return str(existing[0])
 
-    minio_client.put_object(bucket, object_key, io.BytesIO(payload), length=len(payload), content_type="text/plain")
+    from src.ai.rag.data_access import storage_object_key
+
+    # Per-tenant object; the row keeps the shared-looking path (see storage_object_key).
+    minio_client.put_object(bucket, storage_object_key(tenant_id, object_key), io.BytesIO(payload),
+                            length=len(payload), content_type="text/plain")
 
     with conn.cursor() as cursor:
         cursor.execute(

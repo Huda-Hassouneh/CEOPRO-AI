@@ -108,9 +108,11 @@ services:
       - key: DISCOVERY_STREAM_KEY
         value: "market.discovery.requested"
 
-      # --- Object storage (Cloudflare R2, S3-compatible - see
-      # STAGING_DEPLOYMENT.md) ---
+      # --- Object storage (Backblaze B2 free tier, S3-compatible, one private
+      # bucket, every B2 cap at $0 - see docs/OBJECT_STORAGE_FREE_TIER.md) ---
       - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_BUCKET
         sync: false
       - key: MINIO_ROOT_USER
         sync: false

@@ -40,6 +40,8 @@ export function describeMarketingError(error, { action = 'write', source } = {})
     const seconds = Number.parseInt(response.headers?.['retry-after'], 10);
     return Number.isFinite(seconds) && seconds > 0 ? { key: 'busyFor', values: { seconds } } : { key: 'busy' };
   }
+  // 507: KEEL's file storage is full (backend core/object_storage.py), not the plan's allowance.
+  if (status === 507) return { key: 'storageFull' };
   if (action === 'upload' && status === 413) return { key: 'photoTooLarge' };
   if (action === 'upload' && status === 400) return { key: 'photoWrongType' };
   if (action === 'write' && status === 422 && source === 'link') return { key: 'badLink' };
