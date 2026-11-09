@@ -32,15 +32,30 @@ def port():
         return sock.getsockname()[1]
 
 
+def browser_executable():
+    """Honor explicit CI configuration, then discover a local Chromium browser."""
+    configured = os.environ.get('CHROMIUM_PATH')
+    if configured:
+        browser = Path(configured)
+        assert browser.is_file(), 'Configured CHROMIUM_PATH must name an installed browser'
+        return browser
+    for name in ('google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'):
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    for variable, default in (('ProgramFiles', 'C:/Program Files'),
+                              ('ProgramFiles(x86)', 'C:/Program Files (x86)')):
+        browser = Path(os.environ.get(variable, default)) / 'Google/Chrome/Application/chrome.exe'
+        if browser.is_file():
+            return browser
+    raise AssertionError('Install Chrome/Chromium or set CHROMIUM_PATH for browser acceptance')
+
+
 @pytest.mark.parametrize('scenario,locale', [('automatic', 'en'), ('quota', 'en'), ('price', 'en'),
                                          ('unverified', 'en'), ('existing', 'en'), ('automatic', 'ar')])
 def test_browser_custom_builder(scenario, locale, owner_db, tenant, restricted_runtime, monkeypatch):
     root = Path(__file__).resolve().parents[3]
-    candidates = [Path(os.environ.get('CHROMIUM_PATH', 'missing-chromium')),
-                  Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Google/Chrome/Application/chrome.exe',
-                  Path(os.environ.get('ProgramFiles(x86)', 'C:/Program Files (x86)')) / 'Google/Chrome/Application/chrome.exe']
-    chrome = next((candidate for candidate in candidates if candidate.is_file()), None)
-    assert chrome, 'Chrome is required for this acceptance test'
+    chrome = browser_executable()
     tid, uid = tenant
     now = datetime.now(timezone.utc)
     with owner_db.cursor() as cur:
