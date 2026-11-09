@@ -456,6 +456,10 @@ def refresh(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
     company. The old token is left to expire on its own (at most
     JWT_EXPIRE_MINUTES), so other open tabs aren't signed out by this one's
     renewal; signing out still revokes immediately."""
+    if getattr(ctx, "signed_with_current_key", True) is not True:
+        # Signed with JWT_SECRET_PREVIOUS (a rotation is in progress): usable until it expires, never
+        # re-signed with the new key - the old key may be known to someone else.
+        raise HTTPException(status_code=401, detail="Please sign in again.")
     if security.session_age_seconds(ctx) > security.SESSION_MAX_HOURS * 3600:
         raise HTTPException(status_code=401, detail="This sign-in has expired. Please sign in again.")
     conn = db.auth_lookup_connection()

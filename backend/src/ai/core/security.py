@@ -44,6 +44,9 @@ if not _JWT_SECRET:
 # import, like JWT_SECRET - changing either takes a restart (a deploy).
 _JWT_VERIFICATION_KEYS = jwt_keys.verification_keys()
 
+# Allowed clock difference for auth_time (tokens are issued by this service, so small).
+_CLOCK_SKEW_SECONDS = 60
+
 # How long one access token lasts. The app renews it while someone is using
 # it (POST /auth/refresh), so this is effectively the idle timeout: a tab left
 # unused this long signs out. Kept short so a leaked token is useful only
@@ -89,7 +92,7 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     token = authorization[len("Bearer "):]
     try:
         # exp is mandatory: a signed token with no expiry would never stop working.
-        claims = jwt_keys.decode(token, _JWT_VERIFICATION_KEYS, options={"require": ["exp"]})
+        claims, current_key = jwt_keys.decode_with_key(token, _JWT_VERIFICATION_KEYS, options={"require": ["exp"]})
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
@@ -114,6 +117,15 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
                             headers={"X-Auth-Reason": EMAIL_VERIFICATION_REASON})
 
     auth_time = claims.get("auth_time") or (claims.get("exp", 0) - JWT_EXPIRE_MINUTES * 60)
+    # A sign-in time in the future never comes from create_access_token(): it would make the session
+    # look younger than it is (defeating SESSION_MAX_HOURS and the password-change cut-off). PyJWT
+    # already refuses a future iat.
+    try:
+        future = float(auth_time) > datetime.now(timezone.utc).timestamp() + _CLOCK_SKEW_SECONDS
+    except (TypeError, ValueError):
+        future = True
+    if future:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
     if sessions_invalidated_since(user_id) > float(auth_time):
         raise HTTPException(status_code=401, detail="Your password was changed. Please sign in again.")
     credential_version = claims.get("cv", 0)
@@ -131,6 +143,10 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     # When this sign-in started; renewals keep it. Older tokens didn't carry
     # it, so count from when they were issued.
     ctx.auth_time = auth_time
+    # False when only JWT_SECRET_PREVIOUS matched: such a token is honoured until it expires but is
+    # never renewed (routers/auth.py refresh), so a token forged with an exposed old key cannot be
+    # turned into a current-key session that outlives the rotation.
+    ctx.signed_with_current_key = current_key
     return ctx
 
 

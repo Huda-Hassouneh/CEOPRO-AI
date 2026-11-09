@@ -36,18 +36,23 @@ def verification_keys() -> Tuple[str, ...]:
 
 
 def decode(token: str, keys: Optional[Tuple[str, ...]] = None, **options) -> dict:
+    return decode_with_key(token, keys, **options)[0]
+
+
+def decode_with_key(token: str, keys: Optional[Tuple[str, ...]] = None, **options) -> Tuple[dict, bool]:
     """Verify an HS256 token with each key in turn.
 
     Only a wrong signature moves on to the next key: a token signed with a
     valid key but expired, missing a required claim, or malformed is refused
-    straight away, exactly as with a single key.
+    straight away, exactly as with a single key. Returns (claims, current):
+    current is False when only a previous key matched.
     """
     keys = verification_keys() if keys is None else keys
     if not keys:
         raise jwt.InvalidSignatureError("No session signing key is configured")
     for index, key in enumerate(keys):
         try:
-            return jwt.decode(token, key, algorithms=[ALGORITHM], **options)
+            return jwt.decode(token, key, algorithms=[ALGORITHM], **options), index == 0
         except jwt.InvalidSignatureError:
             if index == len(keys) - 1:
                 raise

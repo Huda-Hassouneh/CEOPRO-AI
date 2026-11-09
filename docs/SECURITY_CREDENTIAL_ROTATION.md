@@ -51,39 +51,56 @@ anyone copies them back.
 
 1. Owner removes the variables from the `Default` agent environment (above).
 2. PR `fix/jwt-key-rotation-overlap` (adds `JWT_SECRET_PREVIOUS`) is merged by the owner and **deployed by
-   Session 1**; Session 2 verifies the deploy with the table above. Step 1 must not start before this: code
+   Session 1**; Session 2 verifies the deploy with the table above. Step 1 option B must not start before this: code
    without it ignores `JWT_SECRET_PREVIOUS` and the rotation would sign everyone out.
 3. Session 1 notes the current live deploy id of each KEEL service as the code rollback target, and completes
    the inventory above.
 4. Neon: confirm a restore point exists (Neon -> project -> Backup & Restore / branch history; free plan keeps a
    short history window). No data changes in this runbook, but the owner password grants full access.
 
-Steps 2-6 do not depend on the PR and can go first if its merge is delayed.
+Step 1 option A and steps 2-6 do not depend on the PR and can go first if its merge is delayed.
 
-### Step 1 - `JWT_SECRET` (sessions keep working)
+### Step 1 - `JWT_SECRET`
 
 How the overlap works (`backend/src/ai/core/jwt_keys.py`): new tokens are signed **only** with `JWT_SECRET`;
 verification tries `JWT_SECRET`, then `JWT_SECRET_PREVIOUS`. `exp` stays required; sign-out revocation, the
-password-change cut-off and `credential_version` checks apply to both keys unchanged. The app renews a token
-before it expires (`POST /auth/refresh`, re-signed with the new key, keeping the original sign-in time).
+password-change cut-off and `credential_version` checks apply to both keys unchanged. A token that matched only
+`JWT_SECRET_PREVIOUS` is honoured until it expires but **never renewed** (`POST /auth/refresh` answers 401), and
+any token whose sign-in time (`auth_time`) is in the future is refused. Both close a review finding on #107: a
+token forged with the old key, with a far-future `auth_time`, could otherwise be renewed into a new-key session
+that outlived the rotation and was never capped by `SESSION_MAX_HOURS`.
 
-1. Owner, Render dashboard -> `ceopro-ai-new` -> Environment: add `JWT_SECRET_PREVIOUS` with **exactly** the
-   current `JWT_SECRET` value (reveal and copy inside the dashboard), then replace `JWT_SECRET` with a new value
-   (Render's *Generate* button, or `openssl rand -hex 32` on the owner's own machine). Repeat on every other KEEL
-   service that holds `JWT_SECRET`. Save; Session 1 deploys and watches it go live.
-2. Verify: standard table. Specifically: the tab signed in before the deploy keeps working and, within
-   ~10 minutes of activity, renews; a new sign-in works; the logs show one `[warning] JWT_SECRET_PREVIOUS: is
-   set ...` line (proves the variable is read) and no `[error] JWT_SECRET...` line.
-3. **Remove `JWT_SECRET_PREVIOUS` - step 7.** Every token in use is at most `JWT_EXPIRE_MINUTES` (120 in
-   `render.yaml`) old, and renewals since the deploy are signed with the new key, so after
-   `JWT_EXPIRE_MINUTES` + 1 hour (3 hours) no valid token depends on the old key. The absolute upper bound is
-   `SESSION_MAX_HOURS` (168 h = 7 days). **Recommendation: remove it after 3 hours, not 7 days** - the old
-   key is exposed, and while it is accepted anyone holding it can still mint a session for any account.
-- Rollback: if sign-ins fail after the deploy, set `JWT_SECRET` back to the old value and
-  `JWT_SECRET_PREVIOUS` to the new one (both stay accepted, nobody is signed out), deploy, investigate. If the
-  code itself is at fault, Session 1 rolls back to the step-0 deploy id **and** the owner restores
-  `JWT_SECRET` to the old value and deletes `JWT_SECRET_PREVIOUS` (old code knows only one key).
-- Customer impact: none expected. A tab idle for longer than a token lifetime signs out, exactly as on any day.
+Consequence: **with either option below, every signed-in user signs in once more.** The overlap only lets them
+finish what they are doing (up to `JWT_EXPIRE_MINUTES`, 120) first. No option is both disruption-free and safe
+against someone who holds the old key - during the overlap that person can still mint sessions that last until
+the old key is removed.
+
+**Owner decision - choose one:**
+
+- **A. Hard rotation (recommended for this incident).** The old value was readable by every agent process
+  (and an older `JWT_SECRET` is in public Git history since 2026-10-19). Replace `JWT_SECRET`, do **not** set
+  `JWT_SECRET_PREVIOUS`. Every user is signed out at the deploy and signs in once. Old key accepted for 0
+  minutes. Does not need #107.
+- **B. Overlap.** Set `JWT_SECRET_PREVIOUS` as below; users are asked to sign in at their next renewal, within
+  `JWT_EXPIRE_MINUTES`. Old key accepted for the overlap (remove it after `JWT_EXPIRE_MINUTES` + 1 hour =
+  3 hours; never longer than `SESSION_MAX_HOURS`). Needs #107 deployed. Meant for routine rotations of a key that
+  is not known to be exposed.
+
+Steps (B; for A skip everything about `JWT_SECRET_PREVIOUS`):
+
+1. Owner, Render dashboard -> `ceopro-ai-new` -> Environment: (B only) add `JWT_SECRET_PREVIOUS` with
+   **exactly** the current `JWT_SECRET` value (reveal and copy inside the dashboard); replace `JWT_SECRET` with a
+   new value (Render's *Generate* button, or `openssl rand -hex 32` on the owner's own machine). Repeat on every
+   other KEEL service that holds `JWT_SECRET`. Save; Session 1 deploys and watches it go live.
+2. Verify: standard table, with a **new** sign-in. (B) a tab signed in before the deploy still works, and is
+   asked to sign in again at its next renewal; the logs show one `[warning] JWT_SECRET_PREVIOUS: is set ...`
+   line (proves the variable is read) and no `[error] JWT_SECRET...` line. (A) that tab is signed out.
+3. (B) **Remove `JWT_SECRET_PREVIOUS` after 3 hours - step 7.**
+- Rollback: if new sign-ins fail after the deploy, the new value in Render is wrong (for example cut short):
+  generate another and deploy. Do not put the old value back. If the #107 code itself is at fault, Session 1
+  rolls back to the step-0 deploy id and the owner deletes `JWT_SECRET_PREVIOUS` (old code knows only one key);
+  the new `JWT_SECRET` stays.
+- Customer impact: one extra sign-in per user (A: at the deploy; B: within 2 hours).
 
 ### Step 2 - Neon owner password (`DATABASE_URL`, `POSTGRES_PASSWORD`)
 
@@ -168,7 +185,7 @@ account, not only KEEL. Several keys can exist at once: no window.
 
 ### Step 7 - finish
 
-1. 3 hours after step 1 went live (at most 7 days): owner deletes `JWT_SECRET_PREVIOUS` in Render; Session 1
+1. (Option B only) 3 hours after step 1 went live: owner deletes `JWT_SECRET_PREVIOUS` in Render; Session 1
    deploys; verify: standard table, and the `JWT_SECRET_PREVIOUS` warning line is gone from the logs.
 2. Owner confirms no old value remains in any agent environment, `.dev/` file or password manager entry that is
    shared with agents.
@@ -196,7 +213,7 @@ exposed too. Whether that happened cannot be checked from the development sandbo
 |---|---|---|---|---|
 | 1 | `GROQ_API_KEY` | Paid/rate-limited Groq account | console.groq.com → API Keys: **delete** the old key, create a new one, put it in Render's environment (never in chat or Git) | The key reachable from the sandbox already returns 401, which suggests it was revoked; confirm it is deleted. |
 | 2 | `CREDENTIAL_VAULT_MASTER_KEY` | Encrypts customers' stored connector credentials (database/API connectors) | Generate a new key; set it as `CREDENTIAL_VAULT_MASTER_KEY` and the old one in `CREDENTIAL_VAULT_PREVIOUS_KEYS`; run `python -m scripts.vault_key rewrap`; then remove the old key | If the exposed key was ever used outside local Docker, also ask affected customers to rotate the connector passwords they stored. |
-| 3 | `JWT_SECRET` | Signs every login session | Render environment; generate with `python -c "import secrets;print(secrets.token_hex(32))"` | Rotate without signing anyone out with `JWT_SECRET_PREVIOUS` (step 1 above). Anyone with the old secret can forge a session for any company. |
+| 3 | `JWT_SECRET` | Signs every login session | Render environment; generate with `python -c "import secrets;print(secrets.token_hex(32))"` | See step 1 above (hard rotation or `JWT_SECRET_PREVIOUS` overlap). Anyone with the old secret can forge a session for any company. |
 | 4 | `POSTGRES_PASSWORD`, `DATABASE_URL`, `APP_DB_PASSWORD`, `SCRAPER_DATABASE_URL` | Database admin and application roles | Render → database → credentials (admin); `APP_DB_PASSWORD` then `python scripts/apply_migrations.py` re-syncs the `ceopro_app` password | `SCRAPER_DATABASE_URL` contains a password inside the URL. |
 | 5 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | Object storage (uploads, campaign images) | The storage provider (MinIO/R2/S3) console, then the app's environment | |
 | 6 | `GRAFANA_ADMIN_PASSWORD` | Monitoring dashboards | Grafana admin settings | |

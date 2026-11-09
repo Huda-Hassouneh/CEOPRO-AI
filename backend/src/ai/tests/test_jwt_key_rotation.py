@@ -2,7 +2,7 @@
 Zero-downtime JWT_SECRET rotation (core/jwt_keys.py, docs/SECURITY_CREDENTIAL_ROTATION.md).
 
 During the overlap JWT_SECRET is the new key and JWT_SECRET_PREVIOUS the old one:
-tokens signed with the old key keep working until they expire, nothing is ever
+tokens signed with the old key keep working until they expire but are never renewed, nothing is ever
 signed with the old key, and a token signed with any other key is refused. The
 exp requirement, sign-out revocation and credential_version checks are the same
 for both keys. Offline: conftest.py fakes Redis and the principal lookup.
@@ -138,22 +138,62 @@ def test_new_tokens_are_signed_only_with_the_current_key(overlap):
         jwt.decode(token, PREVIOUS, algorithms=["HS256"])
 
 
-def test_renewing_an_old_key_session_re_signs_it_with_the_current_key(overlap):
+def _refresh(token):
     from src.ai.main import app
 
-    old = _token(PREVIOUS, auth_time=int(time.time()) - 3600)
-    conn = MagicMock()
-    with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=conn), \
+    with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=MagicMock()), \
          patch("src.ai.routers.auth._fetch_user_memberships", return_value=[(TENANT, "owner", "Shop")]), \
          patch("src.ai.routers.auth._email_verified", return_value=True), \
          patch("src.ai.routers.auth._credential_version", return_value=0):
-        response = TestClient(app).post("/auth/refresh", headers={"Authorization": f"Bearer {old}"})
+        return TestClient(app).post("/auth/refresh", headers={"Authorization": f"Bearer {token}"})
+
+
+def test_an_old_key_session_is_never_renewed(overlap):
+    """An old-key token works until it expires but is never re-signed with the new key."""
+    old = _token(PREVIOUS, auth_time=int(time.time()) - 3600)
+    assert _authorize(old).signed_with_current_key is False
+    assert _refresh(old).status_code == 401
+
+
+def test_a_current_key_session_still_renews_during_the_overlap(overlap):
+    current = _token(CURRENT, auth_time=int(time.time()) - 3600)
+    assert _authorize(current).signed_with_current_key is True
+    response = _refresh(current)
     assert response.status_code == 200, response.text
     renewed = response.json()["access_token"]
-    claims = jwt.decode(renewed, CURRENT, algorithms=["HS256"])
-    assert claims["auth_time"] == jwt.decode(old, PREVIOUS, algorithms=["HS256"])["auth_time"]  # max age still counts
+    assert jwt.decode(renewed, CURRENT, algorithms=["HS256"])["auth_time"] == jwt.decode(current, CURRENT, algorithms=["HS256"])["auth_time"]
     with pytest.raises(jwt.InvalidSignatureError):
         jwt.decode(renewed, PREVIOUS, algorithms=["HS256"])
+
+
+def test_a_token_forged_with_the_old_key_cannot_outlive_the_rotation(overlap, monkeypatch):
+    """Review finding on #107: a forged old-key token with a far-future auth_time was renewed into a
+    new-key session that kept working after JWT_SECRET_PREVIOUS was removed."""
+    forged = _token(PREVIOUS, auth_time=int(time.time()) + 10 * 365 * 86400)
+    _refused(forged)
+    assert _refresh(forged).status_code == 401
+    plausible = _token(PREVIOUS)  # a forger choosing a believable auth_time instead
+    assert _refresh(plausible).status_code == 401
+    monkeypatch.setattr(security, "_JWT_VERIFICATION_KEYS", (CURRENT,))  # the previous key is removed
+    _refused(plausible)
+
+
+def test_a_sign_in_time_in_the_future_is_refused_for_any_key():
+    for offset, accepted in ((-30, True), (30, True), (3600, False)):  # 60 s clock skew allowed
+        token = _token(CURRENT, auth_time=int(time.time()) + offset)
+        if accepted:
+            _authorize(token)
+        else:
+            _refused(token)
+    _refused(_token(CURRENT, auth_time="soon"))
+    _refused(_token(CURRENT, iat=int(time.time()) + 3600))  # PyJWT itself refuses a future iat
+
+
+def test_a_legacy_token_whose_derived_sign_in_time_is_in_the_future_is_refused():
+    now = int(time.time())
+    far_exp = jwt.encode({"tenant_id": TENANT, "user_id": USER, "exp": now + 365 * 86400, "jti": "x", "ev": True},
+                         CURRENT, algorithm="HS256")
+    _refused(far_exp)
 
 
 def test_only_a_wrong_signature_falls_through_to_the_previous_key():

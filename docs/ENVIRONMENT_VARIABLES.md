@@ -32,7 +32,7 @@ All rows below require a restart after changes. Setup supplies them; missing/inv
 | IMAGE_WORKER_DB_PASSWORD | Image worker queue and heartbeat authority using `ceopro_image_worker` | Generated private local secret; provisioned during migrations and supplied only to image workers | Image worker system operations fail closed until configured |
 | SCRAPER_DATABASE_URL | Market/commerce worker DB | Same local DB, ceopro_app | Worker cannot operate |
 | JWT_SECRET | Python session signatures | Generated 32-byte secret, retained | Authentication fails |
-| JWT_SECRET_PREVIOUS | Rotation overlap only: the old `JWT_SECRET`, still accepted for verification, never used to sign | Unset; set only during a rotation, remove after `JWT_EXPIRE_MINUTES` + 1 h (at most `SESSION_MAX_HOURS`) - see `SECURITY_CREDENTIAL_ROTATION.md` | Unset = only `JWT_SECRET` is accepted |
+| JWT_SECRET_PREVIOUS | Rotation overlap only: the old `JWT_SECRET`, accepted until its tokens expire, never used to sign, its tokens never renewed | Unset; set only during a rotation, remove after `JWT_EXPIRE_MINUTES` + 1 h (at most `SESSION_MAX_HOURS`) - see `SECURITY_CREDENTIAL_ROTATION.md` | Unset = only `JWT_SECRET` is accepted |
 | CREDENTIAL_VAULT_MASTER_KEY | Connector credential encryption | Generated Fernet key, retained | Stored credentials cannot be opened; never rotate casually |
 | REDIS_URL | Shared Redis client/streams | redis://127.0.0.1:<port>/0, dedicated instance | Queues/cache/rate limits fail |
 | REDIS_HOST / REDIS_PORT | Consumers supporting split form | 127.0.0.1 / generated port | Older split readers fail |
