@@ -3,6 +3,7 @@
 Identity injection is explicit; no login or external payment is simulated as real.
 """
 from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 import os
 import shutil
@@ -31,6 +32,10 @@ def test_browser_pricing_studio(role,locale,scenario,platform_owner_context,tena
     with closing(db.app_role_connection(*platform_owner_context)) as conn:
         sources=plan_studio.bootstrap(conn)
         body=policy_body(sources)
+        # A previous browser case may have saved a policy effective "now".
+        # Make this case's baseline effective after it, rather than one minute
+        # earlier; the UI must edit this exact synthetic scenario.
+        body['effective_from']=datetime.now(timezone.utc).isoformat()
         if scenario=='missing':
             # Explicit separate external cost with no binding remains missing;
             # known local feature coverage no longer needs manual discovery.

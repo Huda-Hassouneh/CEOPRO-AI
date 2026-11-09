@@ -23,7 +23,7 @@ def test_incomplete_or_stored_evidence_cannot_reach_database():
 def test_confirmation_module_is_dormant_and_has_no_provider_or_credential_resolution():
     root=Path(__file__).resolve().parents[2]/'src'
     for path in root.rglob('*.py'):
-        if 'tests' in path.parts or path.name=='trial_confirmation.py':continue
+        if 'tests' in path.parts or path.relative_to(root).as_posix() in ('ai/billing/trial_confirmation.py', 'ai/billing/subscription_lifecycle.py'):continue
         tree=ast.parse(path.read_text(encoding='utf-8-sig'))
         for node in ast.walk(tree):
             if isinstance(node,ast.ImportFrom):

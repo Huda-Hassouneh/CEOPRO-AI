@@ -143,10 +143,14 @@ def clock_runtime(sdk,monkeypatch,restricted_runtime):
 
 def test_native_checkout_mapping_reuse_conflict_and_disable(client,clock_runtime,tenant,test_price,owner_db,monkeypatch):
     sdk=clock_runtime;tid,uid=tenant;plan,_=test_price
+    # Give only this private plan explicit synthetic trial terms. Do not cross
+    # from a Growth trial into a differently shaped catalog/fixture contract.
+    with owner_db.cursor() as cur:
+        cur.execute('UPDATE usage_plans SET trial_days=14 WHERE plan_key=%s',(plan,))
     sdk.clock['frozen_time']-=8*3600  # Existing ready clock with a past origin.
     headers={'Authorization':'Bearer '+create_access_token(tid,uid,email_verified=True)[0]}
     monkeypatch.setenv('PUBLIC_FRONTEND_ORIGIN','http://127.0.0.1:15173')
-    assert client.post('/billing/trial',json={'plan_key':'growth'},headers=headers).status_code==200
+    assert client.post('/billing/trial',json={'plan_key':plan},headers=headers).status_code==200
     response=client.post('/billing/checkout',json={'plan_key':plan,'period_code':'monthly'},headers=headers)
     assert response.status_code==200,response.json()
     again=client.post('/billing/checkout',json={'plan_key':plan,'period_code':'monthly'},headers=headers)

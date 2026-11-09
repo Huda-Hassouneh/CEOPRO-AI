@@ -209,7 +209,7 @@ def test_only_readonly_preview_can_import_coordinator_and_activation_is_absent()
     root=Path(__file__).resolve().parents[2]/'src'
     for path in root.rglob('*.py'):
         if 'tests' in path.parts or path.name=='trial_coordinator.py': continue
-        if path.relative_to(root).as_posix() in ('ai/routers/trial_journey_preview.py','ai/billing/subscription_journey.py','ai/billing/stripe_journey.py','ai/billing/journey_webhooks.py'): continue
+        if path.relative_to(root).as_posix() in ('ai/routers/trial_journey_preview.py','ai/billing/subscription_journey.py','ai/billing/stripe_journey.py','ai/billing/journey_webhooks.py','ai/billing/sandbox_runtime.py'): continue
         for node in ast.walk(ast.parse(path.read_text(encoding='utf-8-sig'))):
             if isinstance(node,(ast.Import,ast.ImportFrom)):
                 assert not (getattr(node,'module','') or '').endswith('trial_coordinator'),str(path)

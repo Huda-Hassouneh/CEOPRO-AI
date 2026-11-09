@@ -31,7 +31,7 @@ def isolated_evidence_logins():
 
     url = validate_test_environment(dict(os.environ), database=True)
     roles = ("ceopro_billing_observer", "ceopro_trial_attestor",
-             "ceopro_trial_confirmer", "ceopro_consent_service")
+             "ceopro_trial_confirmer", "ceopro_consent_service", "ceopro_journey_router")
     originals = []
     password = secrets.token_hex(32)
     with closing(psycopg2.connect(url, connect_timeout=5, gssencmode="disable", sslmode="disable")) as conn:
@@ -233,6 +233,9 @@ def test_price(owner_db):
     with owner_db.cursor() as cur:
         cur.execute("DELETE FROM billing_subscriptions WHERE plan_key=%s", (key,))
         cur.execute("DELETE FROM tenant_plan_assignments WHERE plan_key=%s", (key,))
+        # Trials created by this private-plan fixture must be removed before
+        # its plan row. Public plans and other tenants' trial history stay put.
+        cur.execute("DELETE FROM billing_trials WHERE plan_key=%s", (key,))
         cur.execute("DELETE FROM billing_plan_prices WHERE plan_key=%s", (key,))
         cur.execute("DELETE FROM usage_plans WHERE plan_key=%s", (key,))
     owner_db.commit()
