@@ -341,11 +341,10 @@ class ObjectStore:
                 # the provider's own $0 storage cap still stops real overage. Refusing every upload
                 # as "full" here was a real failure mode (Session 2 review, 2026-11-09).
                 logger.warning("storage usage listing failed (%s); using last known usage", type(err).__name__)
-                if cached is None:
-                    return 0
-                with _usage_lock:
-                    _usage[key] = (now, cached[1], cached[2])  # don't retry the listing on every write
-                return cached[1] + cached[2]
+                listed_before, written_since = (cached[1], cached[2]) if cached else (0, 0)
+                with _usage_lock:  # don't retry the listing on every write
+                    _usage[key] = (now, listed_before, written_since)
+                return listed_before + written_since
             with _usage_lock:
                 _usage[key] = (now, listed, 0)
             return listed

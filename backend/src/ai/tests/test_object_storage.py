@@ -250,4 +250,10 @@ def test_a_capped_or_failed_usage_listing_never_refuses_writes_as_storage_full()
         store.put_object("b", "t1/c", io.BytesIO(b"x" * 100), 100)
     # With no figure at all, a failed listing lets the write through (the provider cap is the backstop).
     storage.reset_usage_cache()
-    store.put_object("b", "t1/d", io.BytesIO(b"x" * 10), 10)
+    calls = []
+    original = fake.list_objects
+    fake.list_objects = lambda *a, **k: calls.append(1) or original(*a, **k)
+    store_slow = storage.ObjectStore(_settings(quota_bytes=50_000, usage_ttl_seconds=3600), client=fake)
+    store_slow.put_object("b", "t1/d", io.BytesIO(b"x" * 10), 10)
+    store_slow.put_object("b", "t1/e", io.BytesIO(b"x" * 10), 10)
+    assert len(calls) == 1  # a failed listing is not retried on every write
