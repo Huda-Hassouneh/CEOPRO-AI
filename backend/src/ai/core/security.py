@@ -29,6 +29,8 @@ import bcrypt
 import jwt
 from fastapi import Header, HTTPException, Request
 
+from src.ai.core import jwt_keys
+
 # Same JWT_SECRET every existing endpoint's get_tenant_context() already
 # requires - reused here, not a second secret to manage/rotate separately.
 # Read at import time (matches every other required-env-var convention in
@@ -37,6 +39,10 @@ from fastapi import Header, HTTPException, Request
 _JWT_SECRET = os.getenv("JWT_SECRET")
 if not _JWT_SECRET:
     raise RuntimeError("JWT_SECRET environment variable is not set.")
+# Rotation overlap (core/jwt_keys.py): sign with JWT_SECRET only; also accept
+# tokens signed with JWT_SECRET_PREVIOUS until they expire. Read once at
+# import, like JWT_SECRET - changing either takes a restart (a deploy).
+_JWT_VERIFICATION_KEYS = jwt_keys.verification_keys()
 
 # How long one access token lasts. The app renews it while someone is using
 # it (POST /auth/refresh), so this is effectively the idle timeout: a tab left
@@ -83,7 +89,7 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     token = authorization[len("Bearer "):]
     try:
         # exp is mandatory: a signed token with no expiry would never stop working.
-        claims = jwt.decode(token, _JWT_SECRET, algorithms=["HS256"], options={"require": ["exp"]})
+        claims = jwt_keys.decode(token, _JWT_VERIFICATION_KEYS, options={"require": ["exp"]})
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 

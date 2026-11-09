@@ -123,6 +123,16 @@ def check_environment() -> List[Finding]:
         add(ERROR, "JWT_SECRET", "is not set - the API refuses to start")
     elif len(jwt) < 32:
         add(ERROR if is_deployed else WARNING, "JWT_SECRET", "is shorter than 32 characters - generate one with `openssl rand -hex 32`")
+    # Rotation overlap (core/jwt_keys.py): only ever verifies, never signs.
+    previous_jwt = _env("JWT_SECRET_PREVIOUS")
+    if previous_jwt:
+        if jwt and previous_jwt == jwt:
+            add(WARNING, "JWT_SECRET_PREVIOUS", "is the same as JWT_SECRET - it has no effect; set it only to the old secret during a rotation")
+        elif len(previous_jwt) < 32:
+            add(ERROR if is_deployed else WARNING, "JWT_SECRET_PREVIOUS", "is shorter than 32 characters - it must be the old JWT_SECRET exactly")
+        else:
+            add(WARNING, "JWT_SECRET_PREVIOUS", "is set: sessions signed with the old secret are still accepted - "
+                "remove it once SESSION_MAX_HOURS have passed since the rotation")
     if not _env("DATABASE_URL"):
         add(ERROR, "DATABASE_URL", "is not set")
     if not _env("APP_DB_PASSWORD"):

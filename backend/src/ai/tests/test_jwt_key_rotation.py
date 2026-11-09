@@ -1,0 +1,222 @@
+"""
+Zero-downtime JWT_SECRET rotation (core/jwt_keys.py, docs/SECURITY_CREDENTIAL_ROTATION.md).
+
+During the overlap JWT_SECRET is the new key and JWT_SECRET_PREVIOUS the old one:
+tokens signed with the old key keep working until they expire, nothing is ever
+signed with the old key, and a token signed with any other key is refused. The
+exp requirement, sign-out revocation and credential_version checks are the same
+for both keys. Offline: conftest.py fakes Redis and the principal lookup.
+"""
+import os
+import time
+from unittest.mock import MagicMock, patch
+
+import jwt
+import pytest
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
+
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-for-unit-tests")
+
+from src.ai.core import config_check, jwt_keys, security  # noqa: E402
+from src.ai.core.rate_limit import RateLimitMiddleware  # noqa: E402
+
+CURRENT = os.environ["JWT_SECRET"]  # what security.py signs with (read at import)
+PREVIOUS = "the-old-jwt-secret-being-rotated-out-0123456789abcdef"
+OTHER = "an-attacker-chosen-key-that-was-never-configured-0123456789"
+TENANT = "22222222-2222-2222-2222-222222222222"
+USER = "11111111-1111-1111-1111-111111111111"
+
+
+@pytest.fixture
+def overlap(monkeypatch):
+    """The state after the rotation deploy: new key current, old key previous."""
+    monkeypatch.setenv("JWT_SECRET_PREVIOUS", PREVIOUS)
+    monkeypatch.setattr(security, "_JWT_VERIFICATION_KEYS", jwt_keys.verification_keys())
+    assert security._JWT_VERIFICATION_KEYS == (CURRENT, PREVIOUS)
+
+
+def _token(key, exp_in=600, **extra):
+    now = int(time.time())
+    claims = {"tenant_id": TENANT, "user_id": USER, "exp": now + exp_in, "iat": now, "auth_time": now,
+              "jti": "jti-" + str(time.time_ns()), "cv": 0, "ev": True, **extra}
+    if exp_in is None:
+        claims.pop("exp")
+    return jwt.encode(claims, key, algorithm="HS256")
+
+
+def _authorize(token):
+    return security.get_tenant_context(authorization=f"Bearer {token}")
+
+
+def _refused(token, status=401):
+    with pytest.raises(HTTPException) as refused:
+        _authorize(token)
+    assert refused.value.status_code == status
+    return refused.value
+
+
+# --- which keys are accepted --------------------------------------------------------------------
+
+def test_without_a_previous_key_only_the_current_key_is_accepted(monkeypatch):
+    monkeypatch.delenv("JWT_SECRET_PREVIOUS", raising=False)
+    monkeypatch.setattr(security, "_JWT_VERIFICATION_KEYS", jwt_keys.verification_keys())
+    assert security._JWT_VERIFICATION_KEYS == (CURRENT,)
+    assert _authorize(_token(CURRENT)).user_id == USER
+    _refused(_token(PREVIOUS))
+
+
+def test_a_token_signed_with_the_previous_key_stays_valid_during_the_overlap(overlap):
+    ctx = _authorize(_token(PREVIOUS))
+    assert (ctx.tenant_id, ctx.user_id) == (TENANT, USER)
+    assert _authorize(_token(CURRENT)).user_id == USER
+
+
+@pytest.mark.parametrize("key", [OTHER, CURRENT + "x", PREVIOUS[:-1], ""])
+def test_a_token_signed_with_any_other_key_is_refused(overlap, key):
+    token = jwt.encode({"tenant_id": TENANT, "user_id": USER, "exp": int(time.time()) + 600}, key, algorithm="HS256")
+    _refused(token)
+
+
+def test_an_unsigned_or_other_algorithm_token_is_refused(overlap):
+    unsigned = jwt.encode({"tenant_id": TENANT, "user_id": USER, "exp": int(time.time()) + 600}, None, algorithm="none")
+    _refused(unsigned)
+    hs512 = jwt.encode({"tenant_id": TENANT, "user_id": USER, "exp": int(time.time()) + 600}, PREVIOUS, algorithm="HS512")
+    _refused(hs512)
+
+
+def test_a_blank_or_repeated_previous_key_adds_nothing(monkeypatch):
+    for value in ("", "   ", CURRENT):
+        monkeypatch.setenv("JWT_SECRET_PREVIOUS", value)
+        assert jwt_keys.verification_keys() == (CURRENT,)
+
+
+# --- the existing checks apply to old-key tokens unchanged -------------------------------------
+
+def test_an_expired_old_key_token_is_refused(overlap):
+    _refused(_token(PREVIOUS, exp_in=-5))
+
+
+def test_an_old_key_token_without_exp_is_refused(overlap):
+    _refused(_token(PREVIOUS, exp_in=None))
+    _refused(_token(CURRENT, exp_in=None))
+
+
+def test_a_signed_out_old_key_token_is_refused(overlap):
+    token = _token(PREVIOUS)
+    ctx = _authorize(token)
+    assert security.revoke_token(ctx.token_id, ctx.token_expires_at) is True
+    _refused(token)
+
+
+def test_an_old_key_token_from_before_a_password_change_is_refused(overlap):
+    token = _token(PREVIOUS, auth_time=int(time.time()) - 100)
+    _authorize(token)
+    security.invalidate_sessions(USER)
+    _refused(token)
+
+
+def test_credential_version_is_still_checked_for_old_key_tokens(overlap, monkeypatch):
+    seen = []
+    monkeypatch.setattr(security, "assert_active_principal", lambda tenant, user, cv: seen.append(cv))
+    _authorize(_token(PREVIOUS, cv=3))
+    assert seen == [3]
+    _refused(_token(PREVIOUS, cv=-1))
+    _refused(_token(PREVIOUS, cv="0"))
+
+
+def test_the_worker_identity_is_refused_with_the_old_key_too(overlap):
+    _refused(_token(PREVIOUS, user_id=security.SERVICE_ACTOR_USER_ID))
+
+
+# --- nothing is signed with the previous key ----------------------------------------------------
+
+def test_new_tokens_are_signed_only_with_the_current_key(overlap):
+    token, _ = security.create_access_token(TENANT, USER, email_verified=True)
+    assert jwt.decode(token, CURRENT, algorithms=["HS256"])["user_id"] == USER
+    with pytest.raises(jwt.InvalidSignatureError):
+        jwt.decode(token, PREVIOUS, algorithms=["HS256"])
+
+
+def test_renewing_an_old_key_session_re_signs_it_with_the_current_key(overlap):
+    from src.ai.main import app
+
+    old = _token(PREVIOUS, auth_time=int(time.time()) - 3600)
+    conn = MagicMock()
+    with patch("src.ai.routers.auth.db.auth_lookup_connection", return_value=conn), \
+         patch("src.ai.routers.auth._fetch_user_memberships", return_value=[(TENANT, "owner", "Shop")]), \
+         patch("src.ai.routers.auth._email_verified", return_value=True), \
+         patch("src.ai.routers.auth._credential_version", return_value=0):
+        response = TestClient(app).post("/auth/refresh", headers={"Authorization": f"Bearer {old}"})
+    assert response.status_code == 200, response.text
+    renewed = response.json()["access_token"]
+    claims = jwt.decode(renewed, CURRENT, algorithms=["HS256"])
+    assert claims["auth_time"] == jwt.decode(old, PREVIOUS, algorithms=["HS256"])["auth_time"]  # max age still counts
+    with pytest.raises(jwt.InvalidSignatureError):
+        jwt.decode(renewed, PREVIOUS, algorithms=["HS256"])
+
+
+def test_only_a_wrong_signature_falls_through_to_the_previous_key():
+    expired = jwt.encode({"exp": int(time.time()) - 5}, CURRENT, algorithm="HS256")
+    with pytest.raises(jwt.ExpiredSignatureError):
+        jwt_keys.decode(expired, (CURRENT, PREVIOUS))
+    with pytest.raises(jwt.InvalidSignatureError):
+        jwt_keys.decode(jwt.encode({"exp": int(time.time()) + 60}, OTHER, algorithm="HS256"), (CURRENT, PREVIOUS))
+    with pytest.raises(jwt.InvalidSignatureError):
+        jwt_keys.decode(jwt.encode({"exp": int(time.time()) + 60}, OTHER, algorithm="HS256"), ())
+
+
+# --- the rate limiter counts old-key sessions per company, not per address ----------------------
+
+def test_rate_limiter_recognises_old_key_tokens_during_the_overlap(monkeypatch):
+    monkeypatch.setenv("JWT_SECRET", CURRENT)
+    monkeypatch.setenv("JWT_SECRET_PREVIOUS", PREVIOUS)
+    middleware = RateLimitMiddleware(FastAPI())
+
+    def identity(key):
+        auth = ("Bearer " + jwt.encode({"tenant_id": TENANT, "user_id": USER}, key, algorithm="HS256")).encode()
+        return middleware._identity({"headers": [(b"authorization", auth)], "client": ("203.0.113.9", 1)})[0]
+
+    assert identity(CURRENT) == f"company:{TENANT}"
+    assert identity(PREVIOUS) == f"company:{TENANT}"
+    assert identity(OTHER) == "ip:203.0.113.9"
+
+
+# --- configuration check -------------------------------------------------------------------------
+
+@pytest.fixture
+def config_env(monkeypatch):
+    monkeypatch.setenv("JWT_SECRET", "n" * 64)
+    monkeypatch.delenv("JWT_SECRET_PREVIOUS", raising=False)
+    monkeypatch.delenv("SENTRY_ENVIRONMENT", raising=False)
+    return monkeypatch
+
+
+def _jwt_previous_findings():
+    return [f for f in config_check.check_environment() if f.setting == "JWT_SECRET_PREVIOUS"]
+
+
+def test_config_check_is_silent_without_a_previous_key(config_env):
+    assert _jwt_previous_findings() == []
+
+
+def test_config_check_reminds_to_remove_a_valid_previous_key_without_its_value(config_env):
+    config_env.setenv("JWT_SECRET_PREVIOUS", PREVIOUS)
+    findings = _jwt_previous_findings()
+    assert [f.level for f in findings] == [config_check.WARNING]
+    assert "SESSION_MAX_HOURS" in findings[0].message or "remove" in findings[0].message
+    assert all(PREVIOUS not in f.line() for f in config_check.check_environment())
+
+
+def test_config_check_flags_a_short_previous_key_as_an_error_where_deployed(config_env):
+    config_env.setenv("JWT_SECRET_PREVIOUS", "short")
+    assert [f.level for f in _jwt_previous_findings()] == [config_check.WARNING]
+    config_env.setenv("SENTRY_ENVIRONMENT", "production")
+    assert [f.level for f in _jwt_previous_findings()] == [config_check.ERROR]
+
+
+def test_config_check_flags_a_previous_key_equal_to_the_current_one(config_env):
+    config_env.setenv("JWT_SECRET_PREVIOUS", "n" * 64)
+    findings = _jwt_previous_findings()
+    assert [f.level for f in findings] == [config_check.WARNING]
+    assert "same as JWT_SECRET" in findings[0].message
