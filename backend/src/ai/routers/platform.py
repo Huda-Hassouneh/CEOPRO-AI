@@ -14,8 +14,21 @@ from src.ai.core.authorization import require_platform_permission
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.platform import service
 
-router = APIRouter(prefix="/platform", tags=["platform"])
 Ctx = Annotated[TenantContext, Depends(get_tenant_context)]
+
+
+def require_platform_operator(ctx: Ctx) -> TenantContext:
+    """Every /platform route except the two invitation links: the caller must be signed in (401) AND hold a
+    platform role (403) before anything else runs. As a router dependency this is resolved before the request
+    body is validated, so a Tenant Owner never sees an admin request schema in a 422. Handlers keep their own,
+    narrower checks (Platform Owner only, per-permission), and the database refuses on its own (42501)."""
+    require_platform_permission(service.command(ctx, "me").get("role"), "me")
+    return ctx
+
+
+router = APIRouter(prefix="/platform", tags=["platform"], dependencies=[Depends(require_platform_operator)])
+# Invitation links are opened by people who are not signed in yet; the token itself is the credential.
+public_router = APIRouter(prefix="/platform", tags=["platform"])
 
 def _pricing_studio(ctx, action, body=None):
     if service.command(ctx, 'me').get('role') != 'owner':
@@ -614,14 +627,14 @@ class Accept(BaseModel):
         return value
 
 
-@router.get("/invitations/{token}")
+@public_router.get("/invitations/{token}")
 def view_invitation(token: str):
     if len(token) > 200:
         raise HTTPException(404, "Invitation not found.")
     return service.invitation(token)
 
 
-@router.post("/invitations/{token}/accept")
+@public_router.post("/invitations/{token}/accept")
 def accept(token: str, body: Accept):
     if len(token) > 200:
         raise HTTPException(404, "Invitation not found.")

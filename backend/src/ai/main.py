@@ -197,6 +197,7 @@ async def _forget_cached_views_after_writes(request, call_next):
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(platform.router)
+app.include_router(platform.public_router)
 app.include_router(pricing.router)
 app.include_router(sentiment.router, dependencies=[requires(usage.MARKET_INTELLIGENCE), Depends(permissions.forbid_read_only_writes)])
 app.include_router(mpi.router, dependencies=[requires(usage.MARKET_INTELLIGENCE)])

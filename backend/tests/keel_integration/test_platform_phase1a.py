@@ -8,6 +8,18 @@ from src.ai.platform import service
 from src.ai.routers import platform
 
 
+def _as_platform(monkeypatch, role='admin', command=None):
+    """Signs the caller in as a platform operator: answers the gate's 'me' with `role`; every other command goes to
+    the test's own double (or fails the test, so nothing reaches SQL unnoticed)."""
+    def double(ctx, action, payload=None):
+        if action == 'me':
+            return {'role': role}
+        if command is None:
+            pytest.fail(f'Unexpected platform command {action}')
+        return command(ctx, action, payload)
+    monkeypatch.setattr(service, 'command', double)
+
+
 @pytest.mark.parametrize('action',sorted(OWNER_ACTIONS))
 def test_platform_admin_has_no_exceptional_authority(action):
     with pytest.raises(HTTPException)as e:require_platform_permission('admin',action)
@@ -51,7 +63,7 @@ def test_platform_admin_can_read_platform_identity(api,monkeypatch,token):
 
 
 def test_management_contract_has_bounded_pagination(api,monkeypatch,token):
-    calls=[];monkeypatch.setattr(service,'command',lambda c,a,p:(calls.append((a,p))or[]))
+    calls=[];_as_platform(monkeypatch,command=lambda c,a,p:(calls.append((a,p))or[]))
     assert api.get('/platform/users?limit=101',headers=token).status_code==422
     assert api.get('/platform/users?offset=-1',headers=token).status_code==422
     assert api.get('/platform/users?offset=1000001',headers=token).status_code==422
@@ -61,7 +73,7 @@ def test_management_contract_has_bounded_pagination(api,monkeypatch,token):
 
 
 def test_platform_directory_search_uses_bounded_backend_contract(api,monkeypatch,token):
-    calls=[]
+    calls=[];_as_platform(monkeypatch)
     monkeypatch.setattr(service,'search',lambda ctx,resource,query,limit,offset:(
         calls.append((resource,query,limit,offset)) or {'items':[{'business_name':'Later result'}],'total':1,'limit':10,'offset':10}))
     response=api.get('/platform/companies?search=Needle&limit=10&offset=10',headers=token)
@@ -73,13 +85,15 @@ def test_platform_directory_search_uses_bounded_backend_contract(api,monkeypatch
 
 
 def test_invitation_cannot_create_an_owner_or_arbitrary_permission(api,monkeypatch,token):
+    _as_platform(monkeypatch,role='owner')  # not even the Platform Owner can invite another owner
     monkeypatch.setattr(service,'invite',lambda *a:pytest.fail('Role escalation reached service'))
     response=api.post('/platform/team/invitations',headers=token,json={'email':'x@example.test','role':'owner','reason':'test'})
     assert response.status_code==422
 
 
 @pytest.mark.parametrize('reason',['','   '])
-def test_privileged_changes_require_reason(api,token,reason):
+def test_privileged_changes_require_reason(api,monkeypatch,token,reason):
+    _as_platform(monkeypatch,role='owner')
     assert api.patch('/platform/users/'+str(uuid4())+'/status',headers=token,json={'active':False,'reason':reason}).status_code==422
 
 
@@ -106,19 +120,20 @@ def test_expired_or_used_invitation_never_issues_session(api,monkeypatch):
 
 
 def test_approval_uses_identified_actor_and_does_not_invoke_billing_or_provider(api,monkeypatch,token):
-    seen=[];monkeypatch.setattr(service,'command',lambda c,a,p:(seen.append((c.user_id,a,p))or{'approval_id':p['request_id']}))
+    seen=[];_as_platform(monkeypatch,role='owner',command=lambda c,a,p:(seen.append((c.user_id,a,p))or{'approval_id':p['request_id']}))
     value={'request_id':str(uuid4()),'kind':'manual_access','subject':'contract-review','terms':{'description':'Owner reviewed only'},'expires_at':(datetime.now(timezone.utc)+timedelta(hours=1)).isoformat(),'reason':'reviewed exception'}
     assert api.post('/platform/financial-approvals',headers=token,json=value).status_code==201
     assert seen[0][0].endswith('0002')and seen[0][1]=='financial_approval'and seen[0][2]['terms']==value['terms']
 
 
-def test_approval_rejects_unspecified_or_expired_terms(api,token):
+def test_approval_rejects_unspecified_or_expired_terms(api,monkeypatch,token):
+    _as_platform(monkeypatch,role='owner')
     value={'request_id':str(uuid4()),'kind':'manual_access','subject':'c','terms':{},'expires_at':datetime.now(timezone.utc).isoformat(),'reason':'review'}
     assert api.post('/platform/financial-approvals',headers=token,json=value).status_code==422
 
 
 def test_per_workspace_suspension_is_distinct_from_global_account_control(api,monkeypatch,token):
-    calls=[];monkeypatch.setattr(service,'command',lambda c,a,p:(calls.append((a,p))or{'active':False}))
+    calls=[];_as_platform(monkeypatch,command=lambda c,a,p:(calls.append((a,p))or{'active':False}))
     identity=str(uuid4())
     response=api.patch('/platform/memberships/'+identity+'/status',headers=token,json={'active':False,'reason':'workspace review'})
     assert response.status_code==200 and calls==[('membership_status',{'id':identity,'active':False,'reason':'workspace review'})]
@@ -139,3 +154,72 @@ def test_operator_cli_never_accepts_a_claimed_owner_uuid_without_a_verified_sess
     with pytest.raises(SystemExit)as error:
         billing_admin.main(['set-control','--provider','*','--kill-switch','on','--by',str(uuid4()),'--reason','test','--owner-token-stdin'])
     assert error.value.code==2
+
+
+# --- router-level gate: a platform permission check before the request body is read -----------------------
+
+_PUBLIC = {('GET', '/platform/invitations/{token}'), ('POST', '/platform/invitations/{token}/accept')}
+
+
+def _platform_routes():
+    for route in platform.router.routes:
+        for method in sorted(route.methods - {'HEAD', 'OPTIONS'}):
+            yield method, route.path
+
+
+def _url(path):
+    import re
+    return re.sub(r'\{[^}]+\}', '00000000-0000-4000-8000-0000000000aa', path)
+
+
+def _tenant_owner_db(monkeypatch):
+    """The real service.command against a database that answers 'forbidden': an ordinary Tenant Owner."""
+    conn = MagicMock(); conn.cursor.return_value.__enter__.return_value.fetchone.return_value = ({'error': 'forbidden'},)
+    monkeypatch.setattr(service.db, 'app_role_connection', lambda *a: conn)
+
+
+def test_every_gated_route_is_on_the_gated_router_and_only_invitations_are_public():
+    gated = set(_platform_routes())
+    public = {(m, r.path) for r in platform.public_router.routes for m in r.methods - {'HEAD', 'OPTIONS'}}
+    assert public == _PUBLIC and not gated & _PUBLIC
+    import inspect, re
+    declared = len(re.findall(r'^@router\.(get|post|put|patch|delete)\(', inspect.getsource(platform), re.M))
+    assert len(gated) == declared  # every route the module declares on `router` is behind the gate
+
+
+@pytest.mark.parametrize('method,path', sorted(_platform_routes()))
+def test_a_tenant_owner_gets_403_never_the_admin_schema(api, monkeypatch, token, method, path):
+    _tenant_owner_db(monkeypatch)
+    # A body that no admin schema accepts: before the gate this answered 422 with the schema's field names.
+    response = api.request(method, _url(path), headers=token, json={'unexpected': 'x'})
+    assert response.status_code == 403, response.text
+    assert 'loc' not in response.text
+
+
+@pytest.mark.parametrize('method,path', sorted(_platform_routes()))
+def test_anonymous_gets_401_on_every_gated_route_before_any_database_call(api, monkeypatch, method, path):
+    monkeypatch.setattr(service, 'command', lambda *a: pytest.fail('Anonymous reached platform SQL'))
+    assert api.request(method, _url(path), json={'unexpected': 'x'}).status_code == 401
+
+
+def test_invitation_links_still_work_without_signing_in(api, monkeypatch):
+    seen = []
+    monkeypatch.setattr(service, 'command', lambda *a: pytest.fail('An invitation link must not need a platform role'))
+    monkeypatch.setattr(service, 'invitation', lambda token, data=None: seen.append((token, data)) or (
+        {'email': 'x@example.test', 'role': 'admin'} if data is None else
+        {'tenant_id': '00000000-0000-4000-8000-000000000001', 'user_id': '00000000-0000-4000-8000-000000000003',
+         'business_name': 'KEEL', 'full_name': data['full_name'], 'email': 'x@example.test'}))
+    from src.ai.routers import auth
+    monkeypatch.setattr(auth, '_session', lambda *a: {'access_token': 'issued', 'full_name': a[4]})
+    assert api.get('/platform/invitations/tok-1').json() == {'email': 'x@example.test', 'role': 'admin'}
+    response = api.post('/platform/invitations/tok-1/accept', json={'full_name': 'New Admin'})
+    assert response.status_code == 200 and response.json()['access_token'] == 'issued'
+    assert [t for t, _ in seen] == ['tok-1', 'tok-1']
+
+
+def test_a_platform_admin_still_reaches_the_handlers(api, monkeypatch, token):
+    _as_platform(monkeypatch, command=lambda c, a, p: {'items': [], 'total': 0})
+    monkeypatch.setattr(service, 'search', lambda *a: {'items': [], 'total': 0, 'limit': 50, 'offset': 0})
+    assert api.get('/platform/companies', headers=token).status_code == 200
+    # Body validation still applies once the caller is a platform operator.
+    assert api.post('/platform/team/invitations', headers=token, json={'unexpected': 'x'}).status_code == 422
