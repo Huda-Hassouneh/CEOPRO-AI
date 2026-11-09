@@ -61,3 +61,55 @@ Reeminikin Cafe, Esquires Coffee House.
 
 Reproduce: create a company as above on a disposable local database, set `OVERTURE_EXECUTION=local`, and run
 `pipeline.execute_run`; list with `discovered_competitors.list_competitors(conn, tenant, limit=5000)`.
+
+## Second business type: a pharmacy — 2026-11-09
+
+Same method, same Overture release, to check that the relevance rules hold beyond cafés.
+
+- **Subject:** *Tala Alfarkh Pharmacy*, Al-Abdali, Amman (Overture `8d42a1e3-ba04-4f03-92f9-285aa10c6169`,
+  31.95397 N 35.91121 E). Business type "Pharmacy", industry `pharmacy`, default radius 5 km, no products.
+- **Code measured:** `main` + #104 + #105 ("before") and the same plus this change ("after"), each on a disposable
+  local PostgreSQL 17 database with an otherwise empty company. Only Overture answered (same blocked sources as above).
+- **Evaluation:** every name of the before-list was read by hand; 30 were labelled as clearly another health trade
+  (clinics, medical-equipment and supply dealers, an optician, dental labs, a "clinic for rent"). Ambiguous names
+  (drug warehouses, a veterinary pharmacy, "medical services") were not labelled and are not counted either way.
+
+| | Before | After |
+|---|---|---|
+| Places read from Overture within 5 km | 285 | 285 |
+| Competitors stored | 265 | 240 |
+| The company itself | excluded | excluded |
+| Labelled other health trades listed | **30** | **4** |
+| ... among the 10 auto-tracked | **4** ("clinic for rent", a nuclear-medicine centre, 2 equipment dealers) | **0** |
+| Real pharmacies removed | - | **0** (every removed name was labelled) |
+| Pharmacies typed as something else (spa) now kept | - | 1 ("Al Bisher Pharmacy") |
+| Run time | 15 s | 16 s |
+
+Café re-run (Rumi Cafe and Deli) on the same two trees: nothing removed, no relationship changed, and 2 cafés whose
+map type was wrong ("كافيه الجادور" typed burger restaurant, "الباشا كافيه" typed grocery store) are now kept.
+
+### Root causes fixed
+
+1. **Health trades were too shallow in the taxonomy.** Every health leaf had a 2-level path, so any two health
+   businesses scored 0.5 - exactly the competing bar - and a medical-equipment dealer counted as a pharmacy's rival.
+   Other health trades now sit one level deeper (`health > equipment > medical supplies`, `health > care > clinic`,
+   `health > care > dental`, `health > optics > eyewear`), 0.33 against a pharmacy. The pharmacy path, already
+   stored on competitors (`global_competitors.category_path`), is unchanged.
+2. **The map type always outweighed the name inside one domain.** `relevance.in_different_category` now (a) keeps a
+   listing whose own name says the company's trade, whatever its type, and (b) lets a name in an unambiguous trade
+   (`category_taxonomy.NAME_DECISIVE_PATHS`) outweigh the type. The new leaves carry no map types: real pharmacies
+   are also typed "hospital" in the data, and the deepest type would otherwise win.
+3. **Arabic names did not match.** "للأجهزة الطبية" never matched "أجهزة طبية". Names and keywords are now folded the
+   same way (alef/ta-marbuta/ya variants, short vowels, the article and its ل/و/ب/ف/ك prefixes).
+
+### Limits (pharmacy)
+
+- **Same-industry pharmacies are all `INDIRECT`, none `DIRECT`.** By design (relevance.py), DIRECT needs evidence of
+  the company's specialty: its products at a published price, or its product/description words in the listing. A
+  pharmacy with no products and no AI hints has neither. Whether "same industry" should count as direct for trades
+  without specialties (pharmacies, supermarkets) is a product decision for the owner, not changed here.
+- 4 labelled names remain: a typo ("Biel Medical Supplie"), and names with no trade word ("MicroDent MENA",
+  "Medical Life Solution industrial Company", "الكاملة للتكنولوجيا"). Reject candidate removes them.
+- Spelling variants of one brand at different addresses ("Salma Al Qosous" / "Salma Qsous", "Adam & Taym" / "Adam and
+  taim") are listed separately; merging transliterations is unsafe for the same reason as single shared words.
+- Drug warehouses (مستودع أدوية, often B2B wholesalers) stay listed: some sell to the public.
