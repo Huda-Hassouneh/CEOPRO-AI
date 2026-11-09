@@ -53,56 +53,34 @@ rows** and adds dated entries; nobody rewrites another session's rows. Evidence 
 
 Next: owner removes the variables from the `Default` agent environment; Session 2 re-reviews #107; rotation (hard JWT rotation and steps 2-6, none of which need #107) runs with Session 1 once the owner schedules it.
 
-## Session 4 — production file storage (2026-11-09)
+## Session 4 — production file storage (2026-11-09) — CLOSED, handed over
 
-| Item | Branch / PR | Status | Evidence |
+| Item | Where | Status | Evidence |
 |---|---|---|---|
-| Free storage choice: **Backblaze B2** (10 GB, no card, all B2 caps $0); Supabase (pauses after a week idle, 1 GB) and Postgres storage (fills the production DB) rejected; R2/Render disk need payment | `docs/OBJECT_STORAGE_FREE_TIER.md` in [#115](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/115) | decided | provider pages via web search (direct fetch blocked by session network); unverified: whether a no-card account is hard-blocked at 10 GB - not relied on |
-| Storage adapter: single private bucket (`MINIO_BUCKET`), 25 MiB/file, 9 GB ceiling, 507 full / 503 unavailable, https where deployed, 5 s timeouts, `/health/storage`, image ETag/304, EN/AR "storage full" | `feat/free-object-storage` [#115](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/115) | PR open, **awaiting CI + owner merge** | local CI layout (PG16+pgvector, Redis 7, MinIO built from the pinned source, local URLs only): `src/` 5,267 passed, 23 skipped, 1 failed = PG>=17 assertion (same on `main`); frontend 282/282 |
-| **Cross-tenant bug fixed**: every company's assistant summary shared object `_generated/<slot>.txt` (B's write could be embedded in A's index; deleting one company deleted all summaries) -> `_generated/<tenant_id>/<slot>.txt` | same PR | fixed | new two-company regression test; production never had storage, so no production object affected |
-| Local end-to-end (real API, 2 synthetic companies, single-bucket mode) | same PR | PASS | upload -> download (byte-identical) -> anonymous 403 -> retry re-read -> assistant receives the text (model = labelled local mock); B isolated; image stored, served, 304, B 404, survives restart; ceiling -> 507; endpoint down -> 503, readiness unaffected |
-| Session 2 independent review of #115 | — | PASS, no security issue; 1 availability finding **fixed** | finding: a capped B2 usage listing made every upload 507 -> now keeps last known usage (`4b26c9e`, regression test); listing hourly; doc limits corrected |
-| B2 account (owner, 2026-11-09) | — | done by owner | US West (closest to Render Oregon), email verified, **no payment method**, all 4 daily caps $0 (owner's report) |
-| Private bucket + bucket-scoped key | — | **needs owner** (website) | creating them via API with the master key failed: B2 answered 401 `bad_auth_token` to the secure-form credential 4 times (values unseen); owner now creates them in the B2 website, no secret via any agent |
-| Render `MINIO_*` vars on `ceopro-ai-new` | — | **held** | owner instruction: no production setting change / deploy without approval; set only at Session 1's "storage window open"; nothing changed on Render |
+| Free storage choice: **Backblaze B2**, region **US West** (API runs in Render Oregon); Supabase (pauses idle projects, 1 GB) and Postgres storage (would fill the production DB) rejected; R2 / Render disk need payment | `docs/OBJECT_STORAGE_FREE_TIER.md` | decided | provider pages via web search (direct fetch blocked); not found: an explicit "no automatic paid conversion" statement, so the design relies on $0 caps + KEEL's 9 GB ceiling + no card on file |
+| Code: storage adapter (single private bucket via `MINIO_BUCKET`, 25 MiB/file, 9 GB ceiling, 507 full / 503 unavailable, https where deployed, 5 s / 60 s timeouts, `/health/storage`, image ETag/304, EN/AR "storage full"); a failed/capped usage listing never refuses uploads | **`main` @ `d26b96c`** (squash of PR #115, same tree as `55f72c6`) | **merged to main** | PR #115 head `55f72c6`: all CI checks green (backend, frontend, browser-smoke, images, gitleaks). `main` push run at handover: secret scan green; PR Checks + Docker images were still running (same tree as the green PR run) |
+| **Cross-tenant fix**: all companies' assistant summaries shared one object `_generated/<slot>.txt` -> `_generated/<tenant_id>/<slot>.txt`; import PDFs -> `uploads/<tenant_id>/<job_id>.pdf` | same commit | merged | two-company regression test; production never had storage, so no production object was affected |
+| Local verification | — | PASS | local CI layout (PG16+pgvector, Redis 7, MinIO built from the pinned source): `src/` 5,267 passed, 1 failed = PG>=17 version assertion (same on old `main`); frontend 282/282; end-to-end on a real API with 2 synthetic companies (upload, download, anonymous 403, assistant retrieval with a labelled local mock model, tenant isolation, image persistence across restart, 507 when full, 503 when unreachable) |
+| Independent review (Session 2) | — | PASS, no security issue | 2 availability findings fixed (`4b26c9e`, `55f72c6` on the PR branch; included in `d26b96c`) |
+| B2 account | owner | done | US West, email verified, no payment method, all 4 daily caps $0 (owner's report) |
+| Private bucket + bucket-scoped key | owner, B2 website | **OPEN** | API setup with the master key failed: B2 returned 401 `bad_auth_token` for the secure-form credential on every attempt (values never seen by any session). Steps: doc §3 steps 3-5 |
+| Render `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` on `ceopro-ai-new` | owner, at Session 1's "storage window open" | **OPEN, held** | nothing changed on Render (only names read). Owner rule: no production setting change or deploy without explicit approval |
+| Deploy of `d26b96c` (or later) | Session 1 | **OPEN** | only after owner approval and the bucket checks below; no migrations |
+| Production verification | Session 2 (read-only) | **OPEN** | `/health/storage` = ok single_bucket; unsigned GET of bucket and object -> 403; other steps only with owner approval |
 
-## Session 1 — Overture, memory, deployments (2026-11-08/09)
-
-Session `session_01BF1evm6jhiwguiiZVnAHWT`. Only Session 1 deploys. Local = this cloud container; production = Render read-only checks.
-
-| Item | Branch / PR | Status | Evidence |
-|---|---|---|---|
-| Crashed scan locked "Refresh scan" (run stuck `running`) | [#96](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/96) | MERGED, **DEPLOYED** (in `99c213c`) | 7 tests (3 fail before); production `/health/processor` route present |
-| Overture never in the API + admission control (one slot, bounded wait, no charge when busy) | [#97](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/97) | MERGED, **DEPLOYED** | production `/health/processor` → `overture: unsafe` |
-| Team-invitation email failure returned 500 for a saved invitation | [#98](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/98) | MERGED, **DEPLOYED** | 6 tests through the real sender |
-| Platform-owner portal Arabic garbled (289 strings) | [#99](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/99) | MERGED, not deployed (keel-web still `375055c`) | integrity test; 282/282 frontend |
-| Overture reader memory-bounded (Dubai 1,002 → 279 MB, identical) | [#100](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/100) | MERGED, not deployed | real-data benchmark, 5 tests |
-| Migration owner keeps no restricted-role membership (Neon) + #81's integration test | [#101](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/101) | MERGED, not deployed; #81 CLOSED superseded | 5/5 on a dedicated cluster (4/5 before) |
-| Emails in the reader's language with real expiry | [#102](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/102) | MERGED, not deployed | 19 tests; CI caught 2 MinIO-only doubles, fixed |
-| **Compact Overture mirror** (cell packs, stdlib reader, no pyarrow in API; monthly workflow publishing a public pre-release) | `feat/overture-compact-mirror` [#116](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/116) | **HELD**: Session 2 review found an inflation flaw on `c44d7277` (398 KB tile → +867 MB); fix in progress (inflated-size cap, line cap, per-tile sha256, malformed-entry handling, bounded candidate heap) → CI → Session 2 re-review → owner | real release `2026-10-21.0`, 24 cells (20°W–60°E, 10°N–40°N), **4,577,681 places, every tile verified, 0 problems**; Amman 5 km 13.7 s/564 MB → 0.5–0.7 s/+5–16 MB, Dubai 15 km 15.2 s/1,002 MB → 1.6 s/+6–25 MB, candidates identical; full `src/` fresh DB 5,205 passed / 80 skipped / 0 failed |
-| Load test, local API (35 users × 60 s) | — | measured | normal 62.7 req/s 0 errors; Overture *inside* the API: −15% throughput, p95 5–10×, +125 MB; API never running it: +47 MB |
-| Production read-only check 10:50 UTC | — | PASS | `/health` 200; `/health/ready` DB 26 ms, Redis 88 ms; `/health/processor` `overture: unsafe`; memory 215–277 MB (6 h); deploys since Nov 7: only `99c213c`; keel-web untouched |
-
-### Plan: production backup + migration rehearsal before `main`'s 5 migrations — **PENDING OWNER APPROVAL**
-
-Owner requirements (relayed 11:12 UTC): a successful **restore test**, and migration testing on a **separate copy**, never on production. No session requests or uses production database credentials until the owner approves a secure read-only access method.
-
-| Step | Who | What proves success |
-|---|---|---|
-| 1. Create Neon branch `restore-point-<date>` from production (free, copy-on-write, production unchanged) | Owner (Neon console) | Branch listed in Neon with its creation time |
-| 2. Create a second branch `rehearsal-<date>` from production | Owner | Branch listed |
-| 3. Restore test on `restore-point` via the owner-approved read-only method: `schema_migrations` rows identical to production; row counts identical for `companies`, `tenant_users`, `billing_subscriptions`, `products`, the credit ledger; `pg_database_size` ≈ equal | Session 1, Session 2 independently | Both record identical counts; any difference = FAIL |
-| 4. Migration rehearsal: `scripts/apply_migrations.py` from `main` against `rehearsal` only | Session 1 | "Applied 5 new migration(s)", second run "Applied 0"; restricted roles unprivileged; FORCE RLS unchanged; app smoke against the copy |
-| 5. Owner approves the production deploy of `main` | Owner | Explicit approval |
-| 6. Deploy `main` to `ceopro-ai-new` (the entrypoint applies the 5 migrations) | Session 1 | Startup log "Applied 5", `/health/ready` ok; Session 2 independent verification |
-| Restore path | Owner + Session 1 | Point `DATABASE_URL` at `restore-point` (or restore it in Neon) and redeploy `99c213c` |
-
-**Session 1 deploy queue** (owner instruction 10:5x: no new deployment until told):
-1. Overture mirror (after the inflation fix, green CI and Session 2 re-review): merge #116 → publish the release (workflow or upload of the verified packs) → set `OVERTURE_MIRROR_URL` on `ceopro-ai-new` → deploy → verify `/health/processor` and a real scan.
-2. `main` (5 migrations, rehearsed clean locally on a Neon-like non-superuser cluster): only after the plan above (restore test + rehearsal on a copy) and owner approval.
-3. #115 storage: after the owner's B2 account + merge (Session 4 handover, doc §4).
-4. #107 JWT rotation: **not before** the High finding above is fixed, re-reviewed and merged.
-5. keel-web: deploy `main` for #99 / #103.
+**Next steps (in order):**
+1. **Owner, in the B2 website:**
+   - Generate a new master key once, which revokes the one entered in the form.
+   - Create the bucket: Private, encryption on, Object Lock off, lifecycle "keep only the last version", no CORS.
+   - Create a key: only that bucket, Read and Write.
+   - Give Session 2 the bucket name and endpoint host. Neither is secret.
+2. **Owner:** delete the failed "Backblaze B2 master key (temporary, setup only)" network secret from the `ceopro-ai` agent environment.
+3. **Owner:** approve the deploy. Session 1 then opens the window, the owner pastes the four values into Render, and Session 1 deploys and checks `/health/storage`.
+4. **Session 2:** the read-only checks above.
+5. **Follow-ups, not done:**
+   - Measuring stored bytes from PostgreSQL instead of bucket listings needs a privileged cross-tenant read: a migration plus a role review.
+   - A per-company daily image-read budget, because B2's 2,500 free downloads a day are shared by all companies.
+   - Close or delete the obsolete branch `feat/free-object-storage`.
 
 ## Session 2 successor — completed (2026-11-09)
 
@@ -178,7 +156,7 @@ not re-run here; **PENDING** = not yet checkable.
 2. **Plaintext production secrets in cloud environments** - removed from `ceopro-ai` (04:30); the `Default` environment still holds `DATABASE_URL`, `APP_DB_PASSWORD`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `REDIS_URL`, `GROQ_API_KEY`, `BREVO_API_KEY` as plain environment variables readable by every agent process. Recommended: rotate them (JWT secret, DB password, Brevo and Groq keys) and keep only network secrets (proxy-injected) in agent environments.
 3. **Credentials pasted in chat** (KEEL login, a Gmail password) - change both.
 4. **Commercial decisions** - #93-#95 (card-required trials, catalogue limits).
-5. **Production file storage** - `MINIO_ENDPOINT` unset in production (reported by Session 1): customer uploads and stored marketing images unavailable. Owned by Session 4: fix in [#115](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/115); the owner creates a free Backblaze B2 account (no card) per `docs/OBJECT_STORAGE_FREE_TIER.md` §3; keys go into the Render dashboard, never chat.
+5. **Production file storage** - `MINIO_ENDPOINT` unset in production (reported by Session 1): customer uploads and stored marketing images unavailable. Code on `main` (`d26b96c`). Remaining: the owner creates the private bucket and scoped key (`docs/OBJECT_STORAGE_FREE_TIER.md` §3), then sets the Render values at Session 1's storage window and approves the deploy.
 
 ## Next steps — Session 2 successor
 
