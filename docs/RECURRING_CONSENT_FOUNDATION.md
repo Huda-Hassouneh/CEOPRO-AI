@@ -1593,3 +1593,296 @@ provider-specific wording and exact notice/execution approvals remain explicit.
 No address or approval reference is invented. Public-launch legal/operational gates
 are separated from the synthetic test; no policy is installed or treated as
 approved. Existing runtime flags remain off and confirmation credentials absent.
+
+### Isolated Paddle definitive-rejection retry — 2026-11-09
+
+Migration 178 adds an append-only, operator-authorized retry journal for the
+specific Paddle TEST HTTP 400 `transaction_checkout_url_domain_is_not_approved`
+rejection. The authenticated Platform Owner tool checks the original complete
+response and frozen request, then performs fresh merchant-bound, Customer-scoped
+GET recovery. Only a complete empty result permits authorization. Timeouts, 5xx,
+unknown outcomes, identity changes and partial recovery remain fenced.
+
+The existing restricted dispatch command consumes at most one authorization under
+its original reservation, authority and consent locks. It preserves the original
+submission timestamp, Customer, operation, request and all evidence. Withdrawal,
+revocation and expiry checks remain effective. No runtime authorization grant or
+confirmation capability is added. Paddle provider-side idempotency is not assumed;
+the durable single-sender election remains decisive after uncertainty.
+
+Focused evidence: 13 network-free cases passed; 18 restricted-password PostgreSQL
+cases passed, including concurrent election, replay, withdrawal, demotion,
+revocation and Stripe exclusion. The disposable PG17 verifier passed fresh 178,
+populated 177-to-178 upgrade, replay, rollback and unchanged runtime EXECUTE checks
+(`.dev/evidence/multi-gateway-billing/7fb41496cb1b/result.json`). Earlier count/fixture
+failures remain in private evidence. This does not certify production restricted
+installation or real provider retry success. The isolated acceptance session has
+separately approved Sandbox-only policies and test-scoped runtime composition;
+public policies, B4 confirmation and production activation remain blocked.
+
+### Genuine isolated Paddle Checkout acceptance — 2026-11-09
+
+The separately authorized original Customer/operation was reused. The audited
+single transaction retry returned 201 after the original documented domain
+rejection; browser Checkout completed and Paddle created a trialing subscription.
+Authoritative GETs verified the original merchant, Customer, transaction, price,
+USD 29 monthly/quantity-one terms and card-required 14-day trial. The actual trial
+window was 2026-11-09T06:55:21.484Z through 2026-11-23T06:55:21.484Z, obtained from
+the provider subscription's trial_dates, not browser completion.
+
+Real signed subscription/transaction notifications reached the isolated handler.
+The first lookup exposed a decoder defect: Paddle omits the adjustments relation
+when none exist, even when explicitly included. Both initial-trial and renewal
+readers now honor that documented omission while refusing explicit null, malformed
+or nonempty adjustments. All identity, money, tax, capture and trial checks remain.
+Source: [Paddle transaction include semantics](https://developer.paddle.com/api-reference/transactions/get-transaction/).
+
+The original conflict observation remains immutable. Reconciliation can now append
+fresh authoritative observations after a conflict, but the existing conflict fence
+still prevents subscription association, attestation or confirmation. Three pending
+observations were persisted on the SAME B3 operation; the original conflict flag
+was never cleared. This is successful pending-evidence capture, not an unconflicted
+or activation-ready operation. Original signed deliveries and the authorized real
+Paddle replay returned HTTP 500 because trusted reconciliation remained blocked;
+Paddle reports failed delivery. No successful acknowledgement is claimed.
+
+One provider replay of the original transaction.completed notification returned
+202. The genuine incoming bytes/header were captured privately after the real
+decoder succeeded and independently rechecked using HMAC-SHA256 and its five-second
+window. Its immutable event digest exactly matched the original SQL receipt; the
+event still has one receipt. Stale, tampered and unsigned negative requests returned
+400. The test never manufactured a signed event as provider acceptance evidence.
+
+Authenticated withdrawal recorded one invalidation and exact retry returned the
+same record. Advance/handoff failed closed after withdrawal (currently generic 503
+rather than a specific conflict response). The authenticated original-object
+cleanup elected one immediate subscription cancellation POST, returned 200, and
+authoritative GET verified canceled with next_billed_at=null. Cleanup retry was
+GET-only. The completed transaction, original Customer, Product, Price, consent and
+audit history remain. No refund, paid renewal or unrelated object write occurred.
+
+Final native reads verified zero KEEL confirmations, subscriptions, trials, Credit
+balances/usage and entitlement overrides; entitlement audit count was unchanged.
+FORCE RLS and restricted effective privileges remain intact; attestor/confirmer
+roles remain NOLOGIN with no runtime credentials. No additional migration was
+needed for the response/reconciliation correction. Focused tests: 41 passed plus
+one fixture-only failure, then that corrected fixture passed (42 distinct cases).
+Existing Stripe, lifecycle, catalog, authorization and financial evidence is reused;
+no broad suites were repeated. Private evidence is under
+`.dev/evidence/paddle-acceptance/`, notably `final-acceptance-evidence.json` and
+`genuine-signature-proof.json`. Raw signatures, credentials, policies and synthetic
+session records remain ignored/private.
+
+Real paid renewal/failure recovery, paid-period cancellation, B4 recurring authority,
+all-nine capability proof, Custom initial confirmation and production restricted
+installation were NOT established. Pricing Studio/Provider Accounting source is
+unchanged; recorded authorization evidence is reused, not represented as a new
+functional acceptance test. Public policy approval, merchant/LIVE authorization and
+production cutover remain separate gates. This original conflicted, withdrawn and
+canceled journey must never be reset or reused to obtain access.
+
+### Durable webhook acknowledgement correction — 2026-11-09
+
+Investigation reused the genuine Paddle notification/readback logs and original
+SQL records. The original transaction.completed event was authenticated and its
+receipt committed; business processing was blocked by the immutable conflict
+created by the earlier adjustments decoder defect. The handler incorrectly made
+notification acknowledgement depend on successful B4 confirmation. Original
+delivery/replay logs truthfully remain HTTP 500/failed; those records are unchanged.
+
+The handler now validates the committed receipt's operation, tenant, original
+binding, event ID, digest and occurrence time before any new acknowledgement. An
+exact Customer plus original Checkout (or already persisted subscription) is
+required; supplied tenant/operation metadata cannot contradict persisted identity.
+A durable conflict or consent invalidation returns HTTP 200 with captured=true,
+confirmed=false, state=quarantined and an explicit reason plus stable receipt/event
+IDs. This does not consume consent, clear history or call confirmation services.
+After fresh durable pending evidence, explicit capability/readiness/service gates
+may return state=pending. Receipt/commit failures, conflicting event bodies,
+unresolved identities, transient provider failures and missing persisted evidence
+remain non-2xx. Confirmed paid lifecycle handling and legacy Stripe dispatch are
+unchanged; their failures are not converted into capture acknowledgements.
+
+Focused verification: 43 distinct network-free cases passed across three targeted
+runs, including both providers, pending/quarantine semantics, revoked authority,
+failed-payment quarantine, receipt/commit failures, contradictory identities,
+signature errors and event replay. No previous broad suite or migration chain was
+rerun. The existing disposable database was also exercised through the actual HTTP
+route, Sandbox resolver and restricted password-authenticated roles using saved
+GENUINE Paddle payload/header bytes. Only that offline test decoder clock was fixed
+at the saved reception time; the real-clock stale header still returned 400.
+Sequential replay returned 200 with the original event/receipt IDs. Four concurrent
+deliveries converged on 200; two first returned recoverable lock-related 500 then
+succeeded on retry. Wrong-tenant/Customer and changed-event negative fixtures got
+500; unsigned/tampered/stale signatures got 400. All protected rows were compared
+before/after and were identical, including receipts, observations, withdrawal,
+compensation, financial/audit history and zero access/credit grants.
+
+Evidence: `.dev/evidence/paddle-acceptance/acknowledgement-native-existing.json`,
+`acknowledgement-offline.xml`, `acknowledgement-metadata.xml` and
+`acknowledgement-authority.xml`. The existing policy, B4, trial timing, lifecycle,
+Standard/Custom, Stripe, Credits/entitlement and accounting-boundary evidence is
+reused where unchanged. No SQL/migration/grant, active route or frontend change.
+
+This proves the corrected local acknowledgement contract, not a new live Paddle
+delivery. There were zero new provider calls, notification replays, charges or
+payment objects. The temporary services/tunnel and flags remain off. A fresh
+provider-observed 200 would require a working HTTPS destination and an additional
+authorized replay of the original notification, not another Checkout. Real paid
+renewal/failure recovery, paid-period cancellation, recurring-authority/all-nine
+capability proof, Custom initial confirmation and B4 activation remain outside
+this verification. The original subscription remains canceled and its consent
+withdrawn; the conflicted operation remains ineligible for access.
+
+### Genuine Paddle acknowledgement redelivery — 2026-11-09
+
+Under a new explicit one-redelivery authorization, the existing isolated database
+and restricted runtime were restored with provider egress blocked and no confirmation
+credentials. A temporary HTTPS tunnel reused the frontend /api proxy with a private
+webhook/readiness-only ingress guard. Only the existing Sandbox notification
+destination URL was updated (PATCH 200); the signing secret, subscribed events and
+all other destination fields were preserved. No Checkout domain/catalog change.
+
+Exactly one POST replay of original notification `ntf_01m6zhe46gt4dqtgx573t3j0rr`
+returned 202, creating delivery notification `ntf_01m6zkszjhtnstcw5r0ktvmh6z` for
+the SAME commercial event `evt_01m6zhe3tvj9yqten4hyyhsb6m`. Paddle's authoritative
+delivery log `ntflog_01m6zkt0ke3sezfr2gw8ms9fmm` records HTTP 200 at
+2026-11-09T07:36:49.006641Z, status=delivered. Its actual response body includes
+received=true, captured=true, confirmed=false, state=quarantined and
+reason=immutable_provider_history_conflict, with the original receipt
+`b611c002-da28-455e-ad30-6936f7c2b460`.
+
+The fresh genuine payload/header passed real-clock signature validation and an
+independent HMAC-SHA256 recheck within five seconds. All protected database rows
+were identical before/after, including the single original-event receipt, three
+pending observations, original conflict, withdrawal, compensation and audit history.
+There were zero new Customers, transactions, subscriptions, commercial events or
+local rights/Credit grants. Readback verified the original provider subscription
+remains canceled with next_billed_at=null. The replay notification is a delivery
+record, not a new commercial event. Historical failed delivery logs remain intact.
+
+No implementation fix or migration was needed. The 43 passing acknowledgement
+cases, restricted SQL/concurrency proof and earlier Stripe/Paddle, plan, consent,
+trial timing, financial and entitlement regressions were reused without broad
+retesting. Evidence: `.dev/evidence/paddle-acceptance/genuine-ack-redelivery-result.json`,
+`ack-redelivery-provider-requests.jsonl`, and before/after database snapshots.
+The tunnel, API and frontend were then stopped and flags/network disarmed;
+database, private evidence, canonical credentials and Stripe settings were retained.
+The notification destination remains a temporary, now stopped test URL.
+
+This closes the genuine HTTP acknowledgement gate only. Real recurring authority,
+all-nine B4 capability proof, trusted confirmation, paid renewals/failures,
+paid-period cancellation and Custom initial confirmation are not established by
+this redelivery. Public policy approval, production restricted installation,
+merchant/LIVE approval and permission cutover remain separate release gates.
+
+### Three-journey Paddle lifecycle acceptance — 2026-11-09
+
+The separately authorized run `20261109-a16a4003` used three fresh, authenticated
+synthetic businesses in the existing disposable database. The historical B3
+Customer, transaction, canceled subscription, conflict and evidence were unchanged.
+Exactly three Customer POSTs and three Checkout transaction POSTs returned 201.
+All three genuine Checkouts completed and created provider-confirmed 14-day trials
+on the existing USD 29/month Starter price. Genuine completion/trial notifications
+were signed, captured durably and ultimately acknowledged with HTTP 200,
+captured=true, confirmed=false and pending/provider_capabilities_unproved.
+
+For the distinct accelerated-success subscription, one authorized activate POST
+returned 200. Paddle completed `txn_01m6zpypavcgyj10ksmtqdhyz9`, USD 29, with a
+captured payment. Its paid period was 2026-11-09T08:31:47.941Z through
+2026-12-09T08:31:47.941Z. This was accelerated first billing with origin
+subscription_update, NOT normal scheduled conversion or a monthly renewal.
+The failure scenario's one activate POST returned 400/subscription_payment_declined;
+`txn_01m6zpyw921dr96ea9gq1cd4f7` was canceled with an authentication_failed
+payment attempt, and its subscription remained trialing. This was a genuine
+Sandbox failure, not evidence of recurring dunning, exhausted retries or recovery.
+
+The run exposed one receipt integration defect: subsequent transaction IDs were
+rejected before capture on an unconfirmed, already-bound subscription. The focused
+correction admits only signed TEST Paddle subscription_update/subscription_recurring
+billing events with the exact persisted Customer/subscription and consistent signed
+transaction identity. Existing tenant/operation metadata, binding and current actor
+authorization checks still apply. A committed original observation and immutable
+receipt are required. These events are explicitly quarantined; they never replace
+the original Checkout, reconcile trial facts, clear conflicts, attest or confirm.
+Confirmed lifecycle processing, Stripe, SQL privileges and migrations are unchanged.
+Paddle redelivery POSTs returned 202, and the actual new delivery logs recorded 200
+for both the successful-charge and failed-payment events after the correction.
+Original failed delivery logs and the accelerated scenario's conflict are retained.
+
+Verification: 69 focused cases passed (27 new and 42 acknowledgement regressions).
+Offline HTTP replay of genuine bytes against actual restricted-password SQL passed
+before and after withdrawal, with a frozen test decoder clock only. Concurrent
+deliveries converged on one receipt; transient lock-contention responses remained
+retryable 500s. Tampered/stale signatures, changed event bodies and wrong tenant,
+Customer/subscription identities failed closed. Existing billing suites were reused,
+including both-provider lifecycle, exclusivity, financial/Credit, Custom pricing,
+catalog, revocation and accounting evidence; no broad suite or migration rerun.
+
+Paid-period cancellation returned 200 and preserved the provider's paid boundary
+while scheduling cancellation for its end. All three consents were then withdrawn.
+Authenticated KEEL cleanup canceled the two trial subscriptions; separately approved
+operator cleanup immediately canceled the paid Sandbox subscription without a
+refund. GETs verified all three canceled with next_billed_at=null. Duplicate cleanup
+of the trial objects did not resubmit. Checkout/advance after withdrawal were denied,
+cross-tenant handoffs were denied, and protected feature requests returned 402.
+The database retained zero confirmations, subscriptions, trials, Credit balances,
+entitlement overrides and usage grants. Catalog and Customers were retained.
+
+B4 remains BLOCKED: Paddle's installed observer proves only authoritative
+reconciliation, not all nine capabilities or accepted reusable recurring authority.
+Paddle does not offer arbitrary client-supplied idempotency keys; KEEL's durable
+single sender is not silently substituted for that accepted capability requirement.
+Internal attestor/confirmer roles remain NOLOGIN with no runtime wiring/passwords;
+they are KEEL authority, not a missing Paddle API permission. The immutable approved
+Sandbox notice also does not authorize local access grants. No guards or policy
+versions were weakened to manufacture confirmation. Normal elapsed-trial conversion,
+scheduled renewals, dunning/recovery, paid access/Credit effects and provider-backed
+Custom initial confirmation remain unproved. Existing synthetic coverage is not
+real-provider proof. Public legal, merchant/LIVE, restricted-installer and cutover
+gates remain. Private request/response, signature, delivery-log, SQL and test evidence
+is retained under `.dev/evidence/paddle-lifecycle/20261109-a16a4003/`.
+Final database checks verified FORCE RLS on nine protected tables, seven restricted
+roles without escalation, no ordinary confirmation/lifecycle EXECUTE grants, and
+both internal confirmation roles still NOLOGIN. The isolated final dump's restore
+catalog was verified. API, frontend, tunnel and owned SMTP were stopped; flags and
+provider egress were disarmed. Loopback PostgreSQL/Redis and private evidence were
+retained, with canonical credentials, Stripe settings and ordinary development
+configuration unchanged. The existing temporary notification destination is offline.
+
+
+## Consolidation verification against GitHub main (2026-11-09)
+
+The prepared PR stack preserves main's 165 immutable migrations and adds the
+Custom discounted-approval guard before the thirteen canonical billing files:
+179 files in the combined preview. Disposable verifiers now select an exact
+named phase with reviewed content hashes, including the Custom predecessor when
+present. They exclude later dependent files from earlier upgrade checks and
+restore the runner path on failure. No production runner, SQL history, grants,
+provider adapter or activation setting changes in this verification correction.
+
+Main already contains the managed-PostgreSQL owner/ACL fixes and restricted-role
+membership cleanup. Five fresh native catalog/tenant-isolation checks passed on
+the 166-file Custom candidate as non-superuser and superuser; the older pinned
+installer helpers are excluded rather than repinned. This does not certify
+production installation or the full combined 179-file restricted runner.
+
+The combined current-main preview passed 195 offline Stripe/shared Checkout,
+signed-decoder, reconciliation and Custom contract cases (including three added
+non-Stripe/protected-cohort legacy-fallthrough denials). Two native reconciliation
+cases remain unexecuted on that preview because the local Docker engine became
+unresponsive after the Windows paging interruption. These results are mocks and
+contract checks, not new Stripe external acceptance or B4 authority proof.
+
+Open PRs #93/#94 cannot be merged unchanged with the canonical December tables:
+their November files create incompatible `billing_trial_checkouts` and
+`billing_customer_operations`. Preserve useful recovery/UI/lean behavior through
+an explicit canonical-model compatibility port, not duplicate migrations. PR #95
+is based on that old stack and its catalog must not overwrite main's later
+version or reprice historical contracts. Existing PRs are not changed by this
+review. Any eventual adoption migration must sort after `20261212000000`.
+
+All billing PRs remain held for combined native fresh/upgrade/restricted-role
+verification and the documented compatibility port. Prior genuine Paddle
+Sandbox evidence is preserved; it does not prove all-nine B4 capabilities,
+reusable recurring authority or production readiness. Activation stays disabled.

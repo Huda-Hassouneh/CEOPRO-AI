@@ -162,8 +162,9 @@ class SubscriptionJourney:
         oid = observation_identity(operation)
         op = self.observations.begin(oid, request)
         self.collection.consents.associate(uuid.UUID(accepted['acceptance_id']), oid)
-        if self.observations.read(oid)['has_conflict']:
-            return self._result(operation, 'conflict', 'immutable_provider_history_conflict')
+        # A prior conflict must never be cleared, but it must not suppress fresh
+        # read-only evidence capture. Record the lookup, then retain the conflict
+        # fence below before subscription association, attestation or confirmation.
         observer = self.observer_for_binding(request.binding,
             lambda req, sub: self.observations.setup_source(oid, sub) if req == request else None)
         if observer.binding != request.binding:

@@ -1,4 +1,6 @@
-"""Neutral reconciliation characterization; offline providers, explicit DB doubles.
+"""Legacy Stripe reconciliation through neutral snapshots; offline DB doubles.
+
+Non-Stripe events must use the protected journey handler and never this legacy path.
 
 Native receipt/RLS/payment outcomes are separately exercised by the billing suite.
 """
@@ -30,8 +32,8 @@ NOW = datetime(2027, 1, 15, tzinfo=timezone.utc)
 
 def notification(kind, **fields):
     return replace(VerifiedPaymentEvent(
-        provider="another", event_id="notification-alpha", kind=kind, occurred_at=NOW,
-        customer=None, subscription=Ref("another", "contract-alpha"), checkout=None,
+        provider="stripe", event_id="notification-alpha", kind=kind, occurred_at=NOW,
+        customer=None, subscription=Ref("stripe", "contract-alpha"), checkout=None,
         invoice=None, schedule=None, raw_payload=b"original evidence", raw_evidence={"type": "opaque-notification"},
     ), **fields)
 
@@ -41,11 +43,11 @@ class Provider:
     def __init__(self):
         self.reads = []
         self.subscription = SubscriptionSnapshot(
-            Ref("another", "contract-alpha"), Ref("another", "account-alpha"), SubscriptionState.ACTIVE,
-            (SubscriptionItem(Ref("another", "item-alpha"), Ref("another", "offer-alpha"), 1),),
+            Ref("stripe", "contract-alpha"), Ref("stripe", "account-alpha"), SubscriptionState.ACTIVE,
+            (SubscriptionItem(Ref("stripe", "item-alpha"), Ref("stripe", "offer-alpha"), 1),),
             NOW, NOW + timedelta(days=30), None, False, None)
         self.invoice = InvoiceSnapshot(
-            Ref("another", "bill-alpha"), self.subscription.customer, self.subscription.reference,
+            Ref("stripe", "bill-alpha"), self.subscription.customer, self.subscription.reference,
             PaymentState.PAID, Money(Decimal("29"), "USD"), Money(Decimal("29"), "USD"),
             NOW, True, ((NOW, NOW + timedelta(days=30)),), settlement_confirmed=True, currency_explicit=True)
 
@@ -140,14 +142,14 @@ def test_identity_and_mapping_failures_remain_retryable(reconciliation, monkeypa
     provider, conn, _, _, payments = reconciliation
     event = notification(Kind.INVOICE_SETTLED, invoice=provider.invoice.reference)
     if mismatch == "subscription":
-        provider.subscription = replace(provider.subscription, reference=Ref("another", "foreign-contract"))
+        provider.subscription = replace(provider.subscription, reference=Ref("stripe", "foreign-contract"))
     elif mismatch == "invoice":
-        provider.invoice = replace(provider.invoice, reference=Ref("another", "foreign-bill"))
+        provider.invoice = replace(provider.invoice, reference=Ref("stripe", "foreign-bill"))
     elif mismatch == "customer":
-        provider.invoice = replace(provider.invoice, customer=Ref("another", "foreign-account"))
+        provider.invoice = replace(provider.invoice, customer=Ref("stripe", "foreign-account"))
         monkeypatch.setattr(store, "tenant_for_customer", lambda conn, ref: "foreign-tenant" if ref == "foreign-account" else "tenant-alpha")
     elif mismatch == "invoice_subscription":
-        provider.invoice = replace(provider.invoice, subscription=Ref("another", "foreign-contract"))
+        provider.invoice = replace(provider.invoice, subscription=Ref("stripe", "foreign-contract"))
     elif mismatch == "unresolved_tenant":
         monkeypatch.setattr(store, "tenant_for_subscription", lambda *a: None)
         monkeypatch.setattr(store, "tenant_for_customer", lambda *a: None)
@@ -193,9 +195,9 @@ def test_post_trial_payment_requires_identity_status_and_current_coverage(reconc
     elif case == "missing_coverage":
         provider.invoice = replace(provider.invoice, coverage=())
     elif case == "other_customer":
-        provider.invoice = replace(provider.invoice, customer=Ref("another", "foreign-account"))
+        provider.invoice = replace(provider.invoice, customer=Ref("stripe", "foreign-account"))
     elif case == "other_subscription":
-        provider.invoice = replace(provider.invoice, subscription=Ref("another", "foreign-contract"))
+        provider.invoice = replace(provider.invoice, subscription=Ref("stripe", "foreign-contract"))
     elif case == "not_confirmed":
         provider.invoice = replace(provider.invoice, settlement_confirmed=False)
     elif case == "missing_invoice":
@@ -207,7 +209,7 @@ def test_post_trial_payment_requires_identity_status_and_current_coverage(reconc
 def test_custom_checkout_completion_only_correlates_and_cannot_attest_payment(reconciliation, monkeypatch):
     provider, conn, _, _, payments = reconciliation
     metadata = {"billing_kind": "custom_quote", "tenant_id": "tenant-alpha"}
-    checkout = CheckoutSnapshot(Ref("another", "purchase-alpha"), CheckoutState.COMPLETE, PaymentState.PAID,
+    checkout = CheckoutSnapshot(Ref("stripe", "purchase-alpha"), CheckoutState.COMPLETE, PaymentState.PAID,
         customer=provider.subscription.customer, subscription=provider.subscription.reference,
         client_reference="attempt-alpha", metadata=metadata, is_subscription=True)
     synced, linked = [], []
@@ -373,3 +375,21 @@ def test_native_unknown_event_retains_original_receipt_without_tenant_binding(se
         kind, evidence, processed, tenant = cur.fetchone()
     assert kind == "future.provider.event" and evidence["data"]["object"] == obj
     assert processed is not None and tenant is None
+
+
+@pytest.mark.parametrize("provider", ["paddle", "another"])
+def test_non_stripe_notification_cannot_fall_through_to_legacy_rights(reconciliation, provider):
+    remote, conn, receipts, applied, payments = reconciliation
+    event = notification(Kind.SUBSCRIPTION_CHANGED, provider=provider,
+                         subscription=Ref(provider, "original-subscription"))
+    with pytest.raises(webhooks.WebhookRetry, match="Protected journey reconciliation unavailable"):
+        webhooks.handle_event(conn, event)
+    assert not remote.reads and not receipts and not applied and not payments
+
+
+def test_protected_stripe_cohort_cannot_fall_through_to_legacy_rights(reconciliation):
+    remote, conn, receipts, applied, payments = reconciliation
+    conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (True,)
+    with pytest.raises(webhooks.WebhookRetry, match="Protected journey reconciliation unavailable"):
+        webhooks.handle_event(conn, notification(Kind.SUBSCRIPTION_CHANGED))
+    assert not remote.reads and not receipts and not applied and not payments
