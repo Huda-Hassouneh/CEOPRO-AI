@@ -17,7 +17,7 @@ from .test_custom_quote_lifecycle_db import quote_actors, _conn  # noqa: F401
 
 def test_new_catalog_retires_only_search_and_preserves_economic_values():
     c = load_catalog()
-    assert c['catalog_version'] == 'standard-plans-lean-search-v1'
+    assert c['catalog_version'] == 'standard-plans-trial14-v2'
     assert features.WEB_SEARCHES in features.QUANTITATIVE_FEATURES
     assert set(features.COMMERCIAL_QUANTITATIVE_FEATURES) == set(features.QUANTITATIVE_FEATURES) - {'web_searches'}
     for p in c['plans']:

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": "standard-plans-lean-search-v1",
+  "catalog_version": "standard-plans-trial14-v2",
   "purpose": "Bootstrap/templates only. Persisted owner catalog, billing_plan_prices and Stripe remain commercial authorities. Categories are presentation only.",
   "categories": [
     {
@@ -536,7 +536,7 @@
       "display_name": "Pro",
       "display_name_ar": "برو",
       "tier_level": 3,
-      "trial_days": 7,
+      "trial_days": 14,
       "bootstrap_active": true,
       "features": [
         "product_management",

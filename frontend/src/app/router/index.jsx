@@ -10,6 +10,7 @@ import { AuthLayout } from '../layouts/AuthLayout.jsx';
 import { DashboardLayout } from '../layouts/DashboardLayout.jsx';
 import { AppErrorPage } from '../../shared/components/feedback/ErrorBoundary.jsx';
 import { PaddlePaymentPage } from '../../features/billing/pages/PaddlePaymentPage.jsx';
+import { PUBLIC_POLICIES } from '../../features/legal/policyCatalog.js';
 import { platformAdminRoute } from '../../features/platform-admin/routes.jsx';
 
 import { LoginPage } from '../../features/auth/pages/LoginPage.jsx';
@@ -98,14 +99,9 @@ const routes = [
       </PublicLayout>
     ),
   },
-  {
-    path: routePaths.terms,
-    lazy: async () => { const { LegalPage } = await import('../../features/legal/pages/LegalPage.jsx'); return { Component: () => <LegalPage kind="terms" /> }; },
-  },
-  {
-    path: routePaths.privacy,
-    lazy: async () => { const { LegalPage } = await import('../../features/legal/pages/LegalPage.jsx'); return { Component: () => <LegalPage kind="privacy" /> }; },
-  },
+  ...PUBLIC_POLICIES.map(({ path, kind }) => ({ path,
+    lazy: async () => { const { LegalPage } = await import('../../features/legal/pages/LegalPage.jsx'); return { Component: () => <LegalPage kind={kind} /> }; },
+  })),
   {
     path: routePaths.landing,
     lazy: async () => ({ Component: (await import('../../features/landing/pages/LandingPage.jsx')).default }),
