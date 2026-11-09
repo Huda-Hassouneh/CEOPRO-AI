@@ -2213,6 +2213,15 @@
       "checkoutConfirmed": "Your subscription is confirmed and plan access is active."
     },
     "customPlan": {
+      "existingPendingBody": "Our team is reviewing this request. Your current subscription, billing and access continue unchanged while you wait.",
+      "subscriptionCheckUnavailable": "We could not confirm Checkout eligibility. Refresh the status and try again.",
+      "replacementUnavailable": "Your current subscription remains active. Direct replacement Checkout is not supported yet. You can continue reviewing this request and manage your current subscription in Billing.",
+      "refreshStatus": "Refresh status",
+      "returnDashboard": "Return to dashboard",
+      "currentAccessPreserved": "Your current subscription and its existing features remain active. This request does not change your access.",
+      "pendingNext": "After approval, review and accept your quote to continue to eligible Checkout. If rejected or expired, return to the builder to prepare a new request.",
+      "pendingBody": "We have received your request. Our team is reviewing your selected features and pricing. No payment is due while you wait.",
+      "pendingTitle": "Your Custom Plan is under review",
       "searchAccountingNotice": "Web search is available through included features. Paid data-provider requests use Data Credits. Free requests are subject to service capacity limits.",
       "cardTitle": "Custom — Build Your Plan",
       "cardDescription": "Choose KEEL capabilities and limits for your business.",
@@ -2276,7 +2285,7 @@
       "checkoutUnavailable": "Checkout is unavailable for this offer.",
       "checkoutPaymentsDisabled": "Payments are not enabled for this environment.",
       "checkoutTermsUnsupported": "This offer has terms not supported by the current checkout flow.",
-      "noActivationNotice": "Only Python billing and verified payment events activate subscription access.",
+      "noActivationNotice": "Submitting or accepting a request does not activate its features. New subscription access requires verified payment confirmation.",
       "status": {
         "submitted": "In review",
         "draft": "Draft",
@@ -2334,6 +2343,8 @@
       "reviewReasons": {
         "QUOTA_ABOVE_AUTOMATIC_LIMIT": "Quantity exceeds the automatic limit",
         "PRICE_ABOVE_AUTOMATIC_LIMIT": "Monthly price exceeds the automatic limit",
+        "VENDOR_COST_RATIO_EXCEEDED": "Vendor costs exceed the allowed share of the final price",
+        "VENDOR_COST_RATIO_UNVERIFIABLE": "The final price does not allow automatic vendor-cost verification",
         "UNVERIFIED_VENDOR_RATE": "Cost rate requires verification",
         "COST_MAPPING_MISSING": "Pricing configuration is required"
       }

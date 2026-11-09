@@ -33,7 +33,8 @@ def port():
 
 
 @pytest.mark.parametrize('scenario,locale', [('automatic', 'en'), ('quota', 'en'), ('price', 'en'),
-                                         ('unverified', 'en'), ('existing', 'en'), ('automatic', 'ar')])
+                                         ('unverified', 'en'), ('existing', 'en'), ('automatic', 'ar'),
+                                         ('vendor-ratio', 'en'), ('vendor-ratio', 'ar')])
 def test_browser_custom_builder(scenario, locale, owner_db, tenant, restricted_runtime, monkeypatch):
     root = Path(__file__).resolve().parents[3]
     candidates = [Path(os.environ.get('CHROMIUM_PATH', 'missing-chromium')),
@@ -50,6 +51,9 @@ def test_browser_custom_builder(scenario, locale, owner_db, tenant, restricted_r
           approved_by,approval_evidence,self_service_policy) VALUES(.35,false,0,0,0,1,'test','SYNTHETIC_TEST_ONLY',%s) RETURNING policy_version_id""",
           (Json({'fixedPlatformFee': '25', 'roundingIncrement': '1'}),))
         policy = str(cur.fetchone()[0])
+        if scenario == 'vendor-ratio':
+            cur.execute("""UPDATE billing_custom_pricing_policies SET enforce_vendor_cost_ratio_floor=true,
+              max_vendor_cost_revenue_ratio=.05 WHERE policy_version_id=%s""", (policy,))
         verification = now.date() + timedelta(days=1 if scenario == 'unverified' else 0)
         cur.execute("""INSERT INTO billing_custom_cost_rates(budget_kind,provider,operation,unit,unit_cost_usd,source,verified_at,
           effective_from,verified_by,verification_evidence) VALUES('data',%s,'source-month','request',1,'SYNTHETIC_TEST_ONLY',%s,%s,'test','test') RETURNING cost_rate_id""",

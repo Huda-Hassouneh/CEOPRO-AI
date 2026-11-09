@@ -12,6 +12,7 @@ from psycopg2.extras import Json
 
 from src.ai.billing import custom_offers
 from src.ai.billing.custom_plan_pricing import calculate_custom_plan_price, apply_billing_discount, CustomPlanPricingError
+from src.ai.billing.pricing_math import usage_cost
 
 DEFAULTS = {
     "currency": "JOD", "targetGrossMargin": "0.35", "fixedPlatformFee": "25",
@@ -77,7 +78,7 @@ def payment_amount(commercial, fx):
 
 
 def calculate(configuration, inputs):
-    """Legacy decision order; prices and thresholds are JOD, never USD."""
+    """Preserve pricing; approve against final discounted, rounded revenue."""
     row = inputs.get("policy")
     policy = policy_values(row)
     limits = configuration["limits"]
@@ -152,6 +153,16 @@ def calculate(configuration, inputs):
     fx = {"rate": str(policy["fxRate"]), "sourceCurrency": "USD", "targetCurrency": "JOD",
           "source": policy["fxSource"], "version": policy["fxVersion"]}
     payment = payment_amount(commercial, fx)
+    if result["enforceVendorCostRatioFloor"]:
+        # The display cost is rounded to cents. Use its exact modeled inputs,
+        # the same term, and the actual frozen USD charge converted to JOD.
+        vendor_cost = sum((usage_cost(*(Decimal(str(item[key])) for key in (
+            "estimatedUsage", "normalizedUnitCost", "operationalMultiplier", "variabilityReserve")))
+            for item in result["vendorBreakdown"]), Decimal("0"))
+        if payment <= 0:
+            reasons.append("VENDOR_COST_RATIO_UNVERIFIABLE")
+        elif vendor_cost * months > payment * Decimal(fx["rate"]) * result["maxVendorCostRevenueRatio"]:
+            reasons.append("VENDOR_COST_RATIO_EXCEEDED")
     snapshot = json.loads(json.dumps({"version": 2, "pricingStatus": "calculated", "currency": "JOD",
         "pricingPolicyVersionId": str(row["policy_version_id"]) if row else "legacy-fallback-v1",
         "policy": policy, "configuration": configuration, "rates": evidence, "calculation": result,

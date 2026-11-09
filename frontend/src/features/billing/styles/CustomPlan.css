@@ -23,3 +23,10 @@
 @media (max-width: 1050px) { .custom-plan-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media (max-width: 900px) { .custom-plan-layout { grid-template-columns: 1fr; }.custom-plan-summary { position: static; }.custom-plan-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media (max-width: 600px) { .custom-plan-grid { grid-template-columns: 1fr; }.custom-plan-allowance { grid-template-columns: minmax(0,1fr) 100px; }.custom-plan-quote-list li { align-items: flex-start; flex-direction: column; }.custom-plan-offer-actions > button { flex: 1 1 100%; } }
+
+.custom-plan-offer-status.is-pending { padding: 28px 20px; text-align: center; }
+.custom-plan-offer-status.is-pending p { max-width: 640px; font-size: 14px; line-height: 1.7; }
+.custom-plan-offer-status.is-pending h2 { font-size: 20px; }
+.custom-plan-offer-status .custom-plan-waiting { display: grid; place-items: center; width: 64px; height: 64px; border: 2px solid var(--ceopro-border); border-radius: 50%; color: var(--ceopro-primary); background: var(--ceopro-primary-light); animation: custom-plan-wait 2.8s ease-in-out infinite; }
+@keyframes custom-plan-wait { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--ceopro-primary) 8%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .custom-plan-offer-status .custom-plan-waiting { animation: none; } }
