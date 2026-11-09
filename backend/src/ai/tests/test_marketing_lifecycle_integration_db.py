@@ -206,7 +206,6 @@ def test_a_storage_failure_in_the_image_step_still_returns_the_saved_campaign(se
     the image step raised after the copy was saved. The request ended in a 500 without
     CORS headers, the Studio showed "Couldn't reach KEEL" and the written campaign never
     opened. Now the campaign comes back with an honest image status, readable by the browser."""
-    from src.ai.core.object_storage import StorageUnavailable
     from src.ai.routers import marketing as marketing_router
 
     client, calls, company = setup
@@ -214,7 +213,7 @@ def test_a_storage_failure_in_the_image_step_still_returns_the_saved_campaign(se
     origin = {"Origin": "http://localhost:5173"}  # the API's default allowed dev origin
 
     for failure in (RuntimeError("MINIO_ENDPOINT/MINIO_ROOT_USER/MINIO_ROOT_PASSWORD must all be set."),
-                    StorageUnavailable("connection refused")):
+                    ConnectionError("connection refused")):  # this branch has no core/object_storage
         def no_storage(failure=failure):
             raise failure
         monkeypatch.setattr(marketing_router.db, "minio_client", no_storage)

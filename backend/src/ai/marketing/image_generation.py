@@ -1068,7 +1068,6 @@ def generate_campaign_image(
             break
         if not _fits_deadline(_split(name)[0]):
             attempts.append({"provider": name, "reason": "out_of_time"})
-            retryable_attempts.append(True)
             continue  # a quicker provider later in the chain may still fit
         logger.info("Generating marketing image via %s (reference_image=%s)", name, bool(reference_image))
         try:
