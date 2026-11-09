@@ -215,6 +215,42 @@ another company's chunk through, evidence mode prints it verbatim, and none appe
 how a live model reacts to persuasion or injected instructions. That remains unverified and needs a valid model
 key (re-run `competitors.py` and the assistant prompts in `attack.py`).
 
+## Re-run on `main` 03d7686 with object storage, and the routes the harness never named (2026-11-09)
+
+Run by the Session 2 successor on a throwaway stack: PostgreSQL 17 (fresh), Redis, MinIO built natively from the
+same pinned source as CI (`go install github.com/minio/minio@v0.0.0-20260212201848-7aac2a2c5b7c`; Docker builds
+cannot resolve DNS in that sandbox), and the API from `main` plus the fix below. Documents were really stored and
+processed (`Processed` for both companies' private PDFs).
+
+| Step | Result |
+|---|---|
+| `seed.py` (now completes sign-up with the logged code), `enrich_state.py` (new) | both companies seeded: products, 150 days of sales, reviews, 2 private PDFs, private competitor + price, staff member, import batches, notifications, campaign + image asset, 2 chat sessions each |
+| `attack.py A B` / `B A` | 401 requests each: **0 findings, 0 oracle diffs, 0 server errors, no victim rows changed** (after Fix 7) |
+| `idor_extended.py A B` / `B A` (new: the 43 id routes `attack.py` never named) | 57 requests each with the victim's real ids: 53 × 404, 3 × 409, identical to random ids; **0 findings, 0 oracle diffs, no victim rows changed**. Bodies come from the local OpenAPI schema so each request reaches its lookup; only `quotes/{id}/checkout-attempts` stops earlier (payments not configured on the stack) |
+| `rls_matrix.py A B` / `B A` | 115 tables each way, `FAILS: []` (32-33 inconclusive = `ceopro_app` has no privilege on the table at all) |
+| `xref.py` | 0 cross-tenant references over 6,553 ids |
+
+### Fix 7 (Low): Retry on another company's competitor was a server error
+
+`POST /competitors/{id}/enrich` with another company's competitor id, or a made-up one, was correctly refused by
+the operation receipt's authorization (`ReceiptAuthorizationError`), but the refusal was not mapped: the API
+answered 500 for one id and reset the connection for another. No data was read or written. It is now the same 404
+"Competitor not found." as the data-status route (branch `fix/enrich-foreign-competitor-404`, unit test fails
+before / passes after; `attack.py` 0 server errors after).
+
+### Harness fixes
+
+- `seed.py`: sign-up always waits for the emailed code now; the code is read from the throwaway API's log.
+- `attack.py`: waits for in-flight discovery runs before its first snapshot. A run the previous pass started for
+  the attacker's *own* company (the `tenant_id`-in-body probe, correctly scoped to the caller) finished while the
+  reverse pass watched that company and was reported as a changed table.
+
+### Still not covered
+
+- Custom-offer quotes were attacked with random ids only: creating one needs the platform-admin pricing flow.
+- Invitation tokens, upload request keys and the Shopify webhook take a secret (token / key / signature) rather
+  than an owned id; they were not part of this sweep.
+
 ## Observations (not changed)
 
 - **A token for a company the user doesn't belong to is not refused up front.** `get_tenant_context()`
