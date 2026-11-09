@@ -12,7 +12,7 @@ PAYLOAD={'email':'New.Owner+trial@example.test','password':'StrongPass1!','full_
 def test_signup_only_stages_and_never_issues_a_session(api,monkeypatch):
     calls=[]
     monkeypatch.setattr(pending,'_call',lambda action,payload:(calls.append((action,payload))or{'status':'pending'}))
-    monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a:True)
+    monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a,**k:True)
     monkeypatch.setattr(auth,'_insert_company',lambda *a:pytest.fail('Permanent company created before verification'))
     monkeypatch.setattr(auth,'_start_free_trial',lambda *a:pytest.fail('Trial started before verification'))
     result=api.post('/auth/signup',json=PAYLOAD)
@@ -33,7 +33,7 @@ def test_invalid_signup_never_reaches_persistence(api,monkeypatch,changes):
 
 def test_duplicate_registration_preserves_existing_pending_credentials(api,monkeypatch):
     monkeypatch.setattr(pending,'_call',lambda *a:{'status':'conflict'})
-    monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a:pytest.fail('Duplicate replaced the code'))
+    monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a,**k:pytest.fail('Duplicate replaced the code'))
     assert api.post('/auth/signup',json=PAYLOAD).status_code==409
 
 

@@ -93,7 +93,7 @@ def test_disabled_or_invalid_member_operation_maps_to_conflict_and_is_audited(ap
 
 def test_invitation_delivery_failure_preserves_retryable_invitation_without_returning_token(monkeypatch):
     monkeypatch.setattr(service,'command',lambda *a:{'invitation_id':'id','email':'x@example.test'})
-    monkeypatch.setattr(service.notifications,'send_email',lambda *a:False)
+    monkeypatch.setattr(service.notifications,'send_email',lambda *a,**k:False)
     events=[];monkeypatch.setattr(service,'record_attempt',lambda *a:events.append(a))
     value=service.invite(object(),{'email':'x@example.test','reason':'join'})
     assert value['delivery']=='unavailable' and 'token'not in value and 'token_hash'not in value
