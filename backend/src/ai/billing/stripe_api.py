@@ -4,6 +4,7 @@ replace these functions instead of the network, and so the API key is set in
 one place. Uses the official stripe-python SDK.
 """
 import stripe
+from datetime import datetime, timezone
 
 from src.ai.billing import config, test_clock
 
@@ -164,3 +165,102 @@ def customer_clock_time(customer_id, tenant_id, *, require_clock=False):
     if local is None:
         return None
     return local.customer_time(_client(), customer_id, tenant_id, require_clock=require_clock)
+
+
+CUSTOMER_ENCODER = 'stripe-customer-v2-no-replay'
+
+
+class BoundCustomerTransport:
+    """Dormant request-scoped SDK client. Never uses _client/global API keys.
+
+    Credentials come only from a future platform-controlled binding resolver.
+    The encoder revision fixes zero retries/backoff and equal connect/read
+    timeouts. These are NOT a total deadline or a remote arrival guarantee.
+    After a submission marker, recovery is read-only; automatic replay is off.
+    No caller or environment can construct this from the current runtime path.
+    """
+    def __init__(self, binding, credential, *, api_version, replay_window_seconds=0, timeout=5):
+        from src.ai.billing.payment_contracts import GatewayEnvironment
+        if binding.provider != 'stripe' or not api_version or not 1 <= timeout <= 20:
+            raise ValueError('Explicit Stripe binding/version/timeout required')
+        prefix = ('sk_test_', 'rk_test_') if binding.environment is GatewayEnvironment.TEST else ('sk_live_', 'rk_live_')
+        if not credential.startswith(prefix):
+            raise ValueError('Credential mode does not match binding')
+        self._policy = (binding, api_version, replay_window_seconds, timeout)
+        # Requests defaults to zero adapter retries. Refuse HTTP redirects too:
+        # a 307/308 must not silently repeat a Customer write at another URL.
+        import requests
+        session = requests.Session()
+        session.max_redirects = 0
+        self._sdk = stripe.StripeClient(credential, stripe_version=api_version,
+            max_network_retries=0, http_client=stripe.RequestsClient(
+                timeout=(timeout, timeout), session=session, verify_ssl_certs=True))
+
+    binding = property(lambda self: self._policy[0])
+    api_version = property(lambda self: self._policy[1])
+    replay_window_seconds = property(lambda self: self._policy[2])
+    timeout = property(lambda self: self._policy[3])
+    max_network_retries = property(lambda self: 0)
+    backoff_seconds = property(lambda self: 0)
+
+    def _validate_policy(self, request):
+        from src.ai.billing.payment_contracts import PaymentProviderError, ProviderOperationOutcome as Outcome
+        if (request.binding != self.binding or request.api_version != self.api_version
+            or request.encoder_version != CUSTOMER_ENCODER
+            or request.dispatch_timeout_seconds != self.timeout
+            or request.replay_window_seconds != self.replay_window_seconds
+            or self.max_network_retries != 0 or self.backoff_seconds != 0):
+            raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
+
+    def _check_budget(self, request, deadline):
+        from src.ai.billing.payment_contracts import CapabilityState, PaymentProviderError, ProviderOperationOutcome as Outcome
+        if (request.replay_support is not CapabilityState.SUPPORTED
+            or request.replay_window_seconds <= request.dispatch_timeout_seconds + 2
+            or (deadline - datetime.now(timezone.utc)).total_seconds() <= request.dispatch_timeout_seconds + 2):
+            raise PaymentProviderError(Outcome.UNAVAILABLE)
+
+    def verify_namespace(self):
+        from src.ai.billing.payment_contracts import GatewayEnvironment
+        account = _plain(self._sdk.raw_request('get', '/v1/account'))
+        balance = _plain(self._sdk.v1.balance.retrieve())
+        if account.get('id') != self.binding.merchant_account_id or balance.get('livemode') is not (
+            self.binding.environment is GatewayEnvironment.LIVE
+        ):
+            raise ValueError('Provider namespace mismatch')
+
+    def create(self, request, *, deadline, authorize):
+        from src.ai.billing.payment_contracts import PaymentProviderError, ProviderOperationOutcome as Outcome
+        self._validate_policy(request)
+        self._check_budget(request, deadline)
+        payload = request.transport.unpack()  # Prepare before the final checks.
+        receipt = authorize()  # Commits; no database locks span the SDK call.
+        # Even a still-valid legacy replay authorization is not dispatch authority.
+        if (not isinstance(receipt, dict) or receipt.get('dispatch_count') != 1
+            or receipt.get('state') != 'submitted'
+            or receipt.get('operation_id') != request.operation_id
+            or receipt.get('tenant_id') != request.tenant_id
+            or receipt.get('idempotency_key') != request.idempotency_key
+            or receipt.get('binding') != dict(binding_id=self.binding.binding_id,
+                provider=self.binding.provider, environment=self.binding.environment.value,
+                merchant_account_id=self.binding.merchant_account_id)
+            or datetime.fromisoformat(receipt['replay_deadline']) != deadline):
+            raise PaymentProviderError(Outcome.UNSUPPORTED_CAPABILITY)
+        self._validate_policy(request)
+        self._check_budget(request, deadline)
+        # This last refusal check covers pauses in preparation/authorization. It
+        # cannot fence arbitrary pauses inside HTTP/DNS or guarantee arrival.
+        # Safety after ambiguity comes from NEVER automatically resubmitting.
+        return _plain(self._sdk.v1.customers.create(payload, options={
+            'idempotency_key': request.idempotency_key, 'max_network_retries': 0}))
+
+    def retrieve(self, identifier):
+        return _plain(self._sdk.v1.customers.retrieve(identifier))
+
+    def search(self, tenant_id, operation_id):
+        # UUIDs originate in KEEL and are validated before query interpolation.
+        from uuid import UUID
+        UUID(tenant_id); UUID(operation_id)
+        result = self._sdk.v1.customers.search({'query':
+            f"metadata['tenant_id']:'{tenant_id}' AND metadata['keel_customer_operation_id']:'{operation_id}'",
+            'limit': 100})
+        return [_plain(item) for item in result.auto_paging_iter()]

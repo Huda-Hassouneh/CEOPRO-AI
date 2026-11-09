@@ -3,6 +3,7 @@
 Identity injection is explicit; no login or external payment is simulated as real.
 """
 from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 import os
 import shutil
@@ -19,7 +20,7 @@ from src.ai import db
 from src.ai.billing import plan_studio
 from src.ai.routers import platform, billing
 from src.ai.core.security import TenantContext, get_tenant_context
-from .test_custom_self_service_browser import port
+from .test_custom_self_service_browser import port, browser_executable
 from .test_reconciliation_roles import restricted_runtime  # noqa: F401
 from .test_plan_studio import policy_body
 
@@ -27,12 +28,14 @@ from .test_plan_studio import policy_body
 @pytest.mark.parametrize('role,locale,scenario',[('owner','en','complete'),('owner','ar','complete'),('tenant','en','denied'),('owner','en','missing'),('owner','en','legacy'),('owner','ar','legacy')])
 def test_browser_pricing_studio(role,locale,scenario,platform_owner_context,tenant,restricted_runtime):
     root=Path(__file__).resolve().parents[3]
-    chrome=next((p for p in [Path(os.environ.get('CHROMIUM_PATH','missing-chrome')),
-        Path('C:/Program Files/Google/Chrome/Application/chrome.exe')] if p.is_file()),None)
-    assert chrome,'Chrome required for browser acceptance'
+    chrome=browser_executable()
     with closing(db.app_role_connection(*platform_owner_context)) as conn:
         sources=plan_studio.bootstrap(conn)
         body=policy_body(sources)
+        # A previous browser case may have saved a policy effective "now".
+        # Make this case's baseline effective after it, rather than one minute
+        # earlier; the UI must edit this exact synthetic scenario.
+        body['effective_from']=datetime.now(timezone.utc).isoformat()
         if scenario=='missing':
             # Explicit separate external cost with no binding remains missing;
             # known local feature coverage no longer needs manual discovery.

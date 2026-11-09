@@ -12,7 +12,7 @@ PAYLOAD={'email':'New.Owner+trial@example.test','password':'StrongPass1!','full_
 def test_signup_only_stages_and_never_issues_a_session(api,monkeypatch):
     calls=[]
     monkeypatch.setattr(pending,'_call',lambda action,payload:(calls.append((action,payload))or{'status':'pending'}))
-    monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a:True)
+    monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a,**kwargs:True)
     monkeypatch.setattr(auth,'_insert_company',lambda *a:pytest.fail('Permanent company created before verification'))
     monkeypatch.setattr(auth,'_start_free_trial',lambda *a:pytest.fail('Trial started before verification'))
     result=api.post('/auth/signup',json=PAYLOAD)
@@ -33,14 +33,14 @@ def test_invalid_signup_never_reaches_persistence(api,monkeypatch,changes):
 
 def test_duplicate_registration_preserves_existing_pending_credentials(api,monkeypatch):
     monkeypatch.setattr(pending,'_call',lambda *a:{'status':'conflict'})
-    monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a:pytest.fail('Duplicate replaced the code'))
+    monkeypatch.setattr(pending.notifications,'send_email_verification_email',lambda *a,**kwargs:pytest.fail('Duplicate replaced the code'))
     assert api.post('/auth/signup',json=PAYLOAD).status_code==409
 
 
 @pytest.mark.parametrize('delivery',[False,RuntimeError('SMTP unavailable')])
 def test_email_failure_is_truthful_and_does_not_create_a_permanent_account(api,monkeypatch,delivery):
     monkeypatch.setattr(pending,'_call',lambda *a:{'status':'pending'})
-    def send(*args):
+    def send(*args,**kwargs):
         if isinstance(delivery,Exception):raise delivery
         return delivery
     monkeypatch.setattr(pending.notifications,'send_email_verification_email',send)
@@ -211,12 +211,38 @@ def test_password_change_invalidates_old_token_without_revoking_account(monkeypa
 
 
 @pytest.mark.parametrize('path',['/auth/password/forgot','/auth/email/resend-verification'])
-def test_durable_send_limit_does_not_reveal_account_existence(api,monkeypatch,path):
+def test_durable_send_limit_preserves_existing_account_response_policy(api,monkeypatch,path):
     conn=MagicMock();monkeypatch.setattr(auth.db,'auth_lookup_connection',lambda:conn)
     monkeypatch.setattr(auth,'_fetch_user_by_email',lambda *a:('u','hash','Owner','en'))
-    def limited(*a,**kwargs):raise HTTPException(429,'budget exhausted')
+    calls=[]
+    def limited(*a,**kwargs):
+        calls.append(a)
+        raise HTTPException(429,'budget exhausted')
     monkeypatch.setattr(auth,'_send_account_code',limited)
     known=api.post(path,json={'email':'known@example.test'})
     monkeypatch.setattr(auth,'_fetch_user_by_email',lambda *a:None)
     unknown=api.post(path,json={'email':'unknown@example.test'})
-    assert known.status_code==unknown.status_code==200 and known.json()==unknown.json()
+    # The existing truthful-response policy discloses only the same existence
+    # fact as signup: unknown addresses are 404, never a claim that mail sent.
+    # An exhausted known-account budget must remain 429, never become success.
+    assert known.status_code==429 and known.json()=={'detail':'budget exhausted'}
+    assert unknown.status_code==404 and unknown.json()=={
+        'code':'ACCOUNT_NOT_FOUND','detail':auth._ACCOUNT_NOT_FOUND_DETAIL}
+    assert len(calls)==1
+    conn.rollback.assert_called_once()
+    conn.commit.assert_not_called()
+    assert conn.close.call_count==2
+
+
+@pytest.mark.parametrize('path',['/auth/password/forgot','/auth/email/resend-verification'])
+def test_request_send_throttle_blocks_before_account_lookup(api,monkeypatch,path):
+    def limited(scope,email):
+        assert scope=='send'
+        raise HTTPException(429,'request budget exhausted',headers={'Retry-After':'60'})
+    monkeypatch.setattr(auth.auth_throttle,'ensure_allowed',limited)
+    monkeypatch.setattr(auth.db,'auth_lookup_connection',lambda:pytest.fail('Throttled request reached account lookup'))
+    for email in ('known@example.test','unknown@example.test'):
+        response=api.post(path,json={'email':email})
+        assert response.status_code==429
+        assert response.json()=={'detail':'request budget exhausted'}
+        assert response.headers['Retry-After']=='60'

@@ -74,3 +74,65 @@ def test_existing_company_deletion_still_works_after_pricing_replay_receipt(requ
         company_data.delete_company(conn,ts[0]);conn.commit()
         with conn.cursor() as q:q.execute('SELECT count(*) FROM companies WHERE tenant_id=%s',(ts[0],));assert q.fetchone()==(0,)
     finally:conn.close()
+
+
+@pytest.mark.parametrize("bulk", [False, True])
+@pytest.mark.parametrize("plan_key,status,expired_period", [
+    ("growth", "active", False),
+    ("custom", "active", False),
+    ("growth", "trialing", False),
+    ("growth", "expired", False),
+    ("growth", "past_due", False),
+    ("growth", "cancelled", False),
+    ("growth", "trialing", True),
+    (None, None, False),
+])
+def test_subscription_guard_uses_real_tenant_plan(request_fixture, bulk, plan_key, status, expired_period):
+    from datetime import date, timedelta
+
+    client, tenants, users, product = request_fixture
+    tenant = tenants[0]
+    with psycopg2.connect(os.environ["AI_TEST_DATABASE_URL"]) as admin, admin.cursor() as cursor:
+        if plan_key is None:
+            cursor.execute("DELETE FROM tenant_plan_assignments WHERE tenant_id=%s", (tenant,))
+        else:
+            end = date.today() + timedelta(days=-1 if expired_period else 30)
+            cursor.execute(
+                "UPDATE tenant_plan_assignments SET plan_key=%s,status=%s,source='contract',"
+                "current_period_start=%s,current_period_end=%s WHERE tenant_id=%s",
+                (plan_key, status, date.today() - timedelta(days=30), end, tenant),
+            )
+    restricted = db.app_role_connection(tenant, users[0])
+    try:
+        with restricted.cursor() as cursor:
+            cursor.execute("SELECT current_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user")
+            assert cursor.fetchone() == ("ceopro_app", False, False)
+    finally:
+        restricted.close()
+    before = counts(tenant)
+    response = client.post("/pricing/recommend-all") if bulk else recommend(client, product, str(uuid4()))
+    eligible = plan_key is not None and status in ("active", "trialing") and not expired_period
+    if eligible:
+        assert response.status_code == 200, response.text
+        after = counts(tenant)
+        assert after["evidence_records"] == before["evidence_records"] + 1
+        assert after["recommendation_outcomes"] == before["recommendation_outcomes"] + 1
+        assert after["usage_ledger"] == before["usage_ledger"]
+    else:
+        assert response.status_code == 402, response.text
+        assert response.json()["detail"]["reason"] == "SUBSCRIPTION_INACTIVE"
+        assert counts(tenant) == before
+
+
+def test_persisted_replay_is_denied_after_subscription_expiry(request_fixture):
+    client, tenants, _, product = request_fixture
+    key = str(uuid4())
+    first = recommend(client, product, key)
+    assert first.status_code == 200, first.text
+    before = counts(tenants[0])
+    with psycopg2.connect(os.environ["AI_TEST_DATABASE_URL"]) as admin, admin.cursor() as cursor:
+        cursor.execute("UPDATE tenant_plan_assignments SET status='expired' WHERE tenant_id=%s", (tenants[0],))
+    response = recommend(client, product, key)
+    assert response.status_code == 402, response.text
+    assert response.json()["detail"]["reason"] == "SUBSCRIPTION_INACTIVE"
+    assert counts(tenants[0]) == before
