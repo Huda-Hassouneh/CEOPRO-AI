@@ -27,7 +27,9 @@ from typing import Optional
 
 import bcrypt
 import jwt
-from fastapi import Header, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request
+
+from src.ai.core import jwt_keys
 
 # Same JWT_SECRET every existing endpoint's get_tenant_context() already
 # requires - reused here, not a second secret to manage/rotate separately.
@@ -37,6 +39,13 @@ from fastapi import Header, HTTPException, Request
 _JWT_SECRET = os.getenv("JWT_SECRET")
 if not _JWT_SECRET:
     raise RuntimeError("JWT_SECRET environment variable is not set.")
+# Rotation overlap (core/jwt_keys.py): sign with JWT_SECRET only; also accept
+# tokens signed with JWT_SECRET_PREVIOUS until they expire. Read once at
+# import, like JWT_SECRET - changing either takes a restart (a deploy).
+_JWT_VERIFICATION_KEYS = jwt_keys.verification_keys()
+
+# Allowed clock difference for auth_time (tokens are issued by this service, so small).
+_CLOCK_SKEW_SECONDS = 60
 
 # How long one access token lasts. The app renews it while someone is using
 # it (POST /auth/refresh), so this is effectively the idle timeout: a tab left
@@ -83,7 +92,7 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     token = authorization[len("Bearer "):]
     try:
         # exp is mandatory: a signed token with no expiry would never stop working.
-        claims = jwt.decode(token, _JWT_SECRET, algorithms=["HS256"], options={"require": ["exp"]})
+        claims, current_key = jwt_keys.decode_with_key(token, _JWT_VERIFICATION_KEYS, options={"require": ["exp"]})
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
@@ -108,6 +117,15 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
                             headers={"X-Auth-Reason": EMAIL_VERIFICATION_REASON})
 
     auth_time = claims.get("auth_time") or (claims.get("exp", 0) - JWT_EXPIRE_MINUTES * 60)
+    # A sign-in time in the future never comes from create_access_token(): it would make the session
+    # look younger than it is (defeating SESSION_MAX_HOURS and the password-change cut-off). PyJWT
+    # already refuses a future iat.
+    try:
+        future = float(auth_time) > datetime.now(timezone.utc).timestamp() + _CLOCK_SKEW_SECONDS
+    except (TypeError, ValueError):
+        future = True
+    if future:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
     if sessions_invalidated_since(user_id) > float(auth_time):
         raise HTTPException(status_code=401, detail="Your password was changed. Please sign in again.")
     credential_version = claims.get("cv", 0)
@@ -125,6 +143,24 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     # When this sign-in started; renewals keep it. Older tokens didn't carry
     # it, so count from when they were issued.
     ctx.auth_time = auth_time
+    # False when only JWT_SECRET_PREVIOUS matched: such a token is honoured until it expires but is
+    # never re-issued under the new key (get_current_key_context below), so a token forged with an
+    # exposed old key cannot be turned into a current-key session that outlives the rotation.
+    ctx.signed_with_current_key = current_key
+    return ctx
+
+
+def get_current_key_context(ctx: TenantContext = Depends(get_tenant_context)) -> TenantContext:
+    """get_tenant_context(), but refused (401) for a token that matched only JWT_SECRET_PREVIOUS.
+
+    Every route that issues a new token from an existing session (renewal, switching or creating a
+    workspace, changing the password) must use this: during a rotation the old key may be known to
+    someone else, so a token signed with it is honoured until it expires but is never re-issued under
+    the new key. test_jwt_key_rotation.py fails if a token-issuing route depends on get_tenant_context
+    directly.
+    """
+    if getattr(ctx, "signed_with_current_key", True) is not True:
+        raise HTTPException(status_code=401, detail="Please sign in again.")
     return ctx
 
 
