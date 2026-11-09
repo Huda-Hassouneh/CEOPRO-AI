@@ -136,7 +136,7 @@ Keys go **only** into the Render dashboard, never into chat, email, Git or an ag
 
    | Variable | Value |
    |---|---|
-   | `MINIO_ENDPOINT` | `https://` + the bucket's endpoint, e.g. `https://s3.eu-central-003.backblazeb2.com` |
+   | `MINIO_ENDPOINT` | `https://` + the bucket's endpoint, e.g. `https://s3.us-west-004.backblazeb2.com` |
    | `MINIO_BUCKET` | the bucket name |
    | `MINIO_ROOT_USER` | the `keyID` |
    | `MINIO_ROOT_PASSWORD` | the `applicationKey` |
