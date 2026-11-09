@@ -28,7 +28,7 @@ def test_all_customer_identities_are_explicit_without_financial_or_platform_bind
         assert set(plan['features']) == keys
         assert len(plan['allowances']) == 12
         competitors = next(a for a in plan['allowances'] if a['feature_key'] == 'tracked_competitors')
-        assert competitors == dict(feature_key='tracked_competitors', state='unlimited', value=None, trial_value=None)
+        assert competitors == dict(feature_key='tracked_competitors', state='limited', value={'starter':5,'growth':15,'enterprise':40}[plan['plan_key']], trial_value=None)
     assert not {'platform_administration','billing','pricing_studio','provider_accounting'} & keys
     assert not any('cost' in k or 'provider' in k for f in catalog['features'] for k in f)
     assert all('?' not in f['label_ar'] and f['label_ar'] != f['label_en'] for f in catalog['features'])

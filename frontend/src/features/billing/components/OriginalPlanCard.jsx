@@ -20,7 +20,7 @@ const planIcons = {
 
 // The capacity rows every self-serve card shows, in the same order so the
 // cards line up row by row. The remaining limits are in the comparison table.
-const LIMIT_ROWS = ['products', 'teamSeats', 'reports', 'storageGb', 'dataSources'];
+const LIMIT_ROWS = ['products', 'teamSeats', 'reports', 'storageGb', 'dataSources', 'competitors'];
 const CUSTOM_FEATURES = ['everythingPro', 'customLimits', 'support', 'largeTeams'];
 
 const normalizePlanName = (plan) => String(plan?.name?.en || plan?.name || '').trim().toLowerCase();
@@ -150,7 +150,7 @@ export function PlanSharedFeatures({ plans }) {
   const list = new Intl.ListFormat(locale, { type: 'conjunction' }).format(common.map((module) => t(`billing.modules.${module}`)));
   return <ul className="ceopro-plan-shared">
     {common.length === PLAN_MODULES.length && <li><Check size={15} aria-hidden="true" />{t('billing.plans.allModules', { modules: list })}</li>}
-    {/* No fixed competitor count: discovery runs within the Data Credits. */}
-    <li><Check size={15} aria-hidden="true" />{t('billing.features.competitorsByBudget')}</li>
+    {/* Capacity and external collection spending are separate controls. */}
+    <li><Check size={15} aria-hidden="true" />{t('billing.features.competitorCapacityAndCredits')}</li>
   </ul>;
 }

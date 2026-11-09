@@ -342,6 +342,7 @@ def classify_competitor(
     broad_domain_threshold: float = DEFAULT_BROAD_DOMAIN_THRESHOLD,
     apply_tracking: bool = True,
     tenant_category_paths: Optional[list] = None,
+    *, commit: bool = True,
 ) -> ClassificationResult:
     """
     Computes and persists the classification for one tenant_competitors
@@ -373,6 +374,9 @@ def classify_competitor(
         raise ValueError("threshold must be between 0.0 and 1.0")
     if not 0.0 <= broad_domain_threshold <= 1.0:
         raise ValueError("broad_domain_threshold must be between 0.0 and 1.0")
+    # Read tracking decisions only after serializing with manual/automatic
+    # capacity changes; a stale pre-lock read must not undo an owner's choice.
+    usage.lock_feature(conn, tenant_id, usage.TRACKED_COMPETITORS)
 
     with conn.cursor() as cursor:
         cursor.execute(
@@ -645,7 +649,8 @@ def classify_competitor(
         )
         if cursor.rowcount != 1:
             raise ValueError("tenant_competitors row not found for this tenant/competitor pair")
-    conn.commit()
+    if commit:
+        conn.commit()
 
     return ClassificationResult(
         global_competitor_id=str(global_competitor_id),

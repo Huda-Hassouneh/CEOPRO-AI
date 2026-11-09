@@ -5,7 +5,11 @@ export function PlanChangePreview({ subscription, preview }) {
   const { t, locale } = useI18n();
   if (!subscription?.hasStripeSubscription) return <p>{t('billing.changePreview.checkoutTrial')}</p>;
   if (preview.isPending) return <p role="status">{t('billing.changePreview.loading')}</p>;
-  if (preview.isError) return <p className="billing-inline-error" role="alert">{getApiError(preview.error).message}</p>;
+  if (preview.isError) {
+    const error = getApiError(preview.error);
+    return <p className="billing-inline-error" role="alert">{error.code === 'plan_transition_mixed_rights'
+      ? t('billing.errors.plan_transition_mixed_rights') : error.message}</p>;
+  }
   const data = preview.data;
   const display = (value) => typeof value === 'boolean' ? t('billing.changePreview.' + (value ? 'enabled' : 'disabled')) : value === null ? t('common.unlimited') : value === 'not_included' ? t('billing.changePreview.disabled') : String(value ?? '—');
   return <section aria-label={t('billing.changePreview.title')}>

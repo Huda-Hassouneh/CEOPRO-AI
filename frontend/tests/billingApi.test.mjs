@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { checkoutConfirmationState, mapPlan } from '../src/features/billing/api/billingApi.js';
 
 test('Checkout return is pending until the backend confirms active billing state', () => {
@@ -16,16 +17,38 @@ test('plan limits show only the customer-facing terms, never internal budgets as
   assert.deepEqual(plan.limits, { products: 250, storageGb: 1 });
 });
 
-test('plans show reports, seats and both credit budgets, with the trial allowance, and no competitor count', () => {
+test('plans retain unlimited legacy competitor capacity and both credit budgets', () => {
   const plan = mapPlan({
     plan_key: 'enterprise', monthly_price: 350, trial_days: 7,
     limits: { tracked_products: 500, monthly_reports: 60, team_seats: 50, data_credits: 2780, ai_credits: 2780,
       tracked_competitors: null, rag_assistant: 2000000 },
     trial_limits: { data_credits: 278, ai_credits: 278 }, prices: [], entitlements: [],
   });
-  assert.deepEqual(plan.limits, { products: 500, reports: 60, teamSeats: 50, dataCredits: 2780, aiCredits: 2780 });
+  assert.deepEqual(plan.limits, { products: 500, reports: 60, teamSeats: 50, dataCredits: 2780, aiCredits: 2780, competitors: null });
   assert.deepEqual(plan.trialLimits, { dataCredits: 278, aiCredits: 278 });
   assert.equal(plan.trialDays, 7);
+});
+test('lean plan capacities use existing binary units and display finite competitors in English and Arabic', async () => {
+  const { toOriginalPlan, toOriginalUsage } = await import('../src/features/billing/api/originalBillingModel.js');
+  for (const [id, storage, extraction, sentiment, sources, competitors] of [
+    ['starter',1024,51200,3000,1,5], ['growth',5120,204800,12000,3,15], ['enterprise',20480,768000,40000,8,40],
+  ]) {
+    const plan = mapPlan({ plan_key:id, limits:{document_storage_mb:storage, document_extraction:extraction,
+      sentiment_analysis:sentiment, connected_data_sources:sources, tracked_competitors:competitors}, prices:[],entitlements:[] });
+    assert.equal(plan.limits.storageGb, storage / 1024);
+    assert.equal(plan.limits.competitors, competitors);
+    assert.equal(toOriginalPlan(plan).features.tracked_competitors.limitValue,competitors);
+    const view = toOriginalUsage({planId:id,features:[{feature_code:'tracked_competitors',limit:competitors,current_usage:3}]});
+    assert.equal(view.limits.tracked_competitors,competitors);
+  }
+  for (const locale of ['en','ar']) {
+    const messages=JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`, import.meta.url),'utf8'));
+    for (const value of [messages.billing.plans.limits.competitors, messages.billing.features.competitorCapacityAndCredits,
+      messages.billing.errors.plan_transition_mixed_rights]) {
+      assert.ok(typeof value==='string' && value.length>5);
+      if (locale==='ar') assert.match(value,/[\u0600-\u06ff]/);
+    }
+  }
 });
 import httpClient from '../src/shared/lib/httpClient.js';
 

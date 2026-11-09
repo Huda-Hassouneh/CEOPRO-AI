@@ -121,7 +121,13 @@ export function OnboardingPaymentPage() {
           {!price?.purchasable && paymentsEnabled && <div className="billing-provider-note" role="note">{t('billing.onboarding.planUnavailable')}</div>}
           <Link className="billing-link-button" to={routePaths.onboardingPlan}>{t('billing.onboarding.backToPlans')}</Link>
         </div>
-        <PlanSummaryCard promotionEntered={Boolean(promoCode.trim())} plan={{...toOriginalPlan(plan),trialPeriodValue:subscriptionQuery.data.checkoutTrialEndsAt?Math.ceil((subscriptionQuery.data.checkoutTrialEndsAt*1000-Date.now())/86400000):0}} billingPeriod={billingPeriod} checkoutMode={subscriptionQuery.data.checkoutTrialEndsAt?'trial':'paid'}/>
+        <PlanSummaryCard
+          promotionEntered={Boolean(promoCode.trim())}
+          plan={toOriginalPlan(plan)}
+          billingPeriod={billingPeriod}
+          checkoutTrialEndsAt={subscriptionQuery.data.checkoutTrialEndsAt}
+          checkoutMode={subscriptionQuery.data.checkoutTrialEndsAt ? 'trial' : 'paid'}
+        />
       </div>
       </>}
     </OnboardingPageShell>

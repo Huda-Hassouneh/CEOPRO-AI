@@ -27,6 +27,7 @@ provider's per-minute capacity for everyone - not a plan allowance.
 """
 import calendar
 import logging
+import math
 import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
@@ -551,6 +552,19 @@ def ensure_capacity(conn, tenant_id: str, feature_code: str, adding: float = 1) 
     if limit is None:
         return
     lock_feature(conn, tenant_id, feature_code)
+    if feature_code == DOCUMENT_STORAGE_MB:
+        # Display usage is rounded to two MB decimals. Capacity must instead
+        # compare integral bytes, including the final generated asset size.
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT (SELECT COALESCE(SUM(file_size_bytes),0) FROM rag_documents_metadata WHERE tenant_id=%(t)s) "
+                "+ (SELECT COALESCE(SUM(size_bytes),0) FROM tenant_storage_objects WHERE tenant_id=%(t)s)",
+                {"t": tenant_id},
+            )
+            used_bytes = int(cursor.fetchone()[0])
+        if used_bytes + math.ceil(adding * 1048576) > limit * 1048576:
+            raise PlanLimitReached("CAPACITY_REACHED", feature_code, used_bytes / 1048576, limit, "lifetime", None)
+        return
     used = _live_used(conn, tenant_id, feature_code)
     if used + adding > limit:
         raise PlanLimitReached("CAPACITY_REACHED", feature_code, used, limit, "lifetime", None)
