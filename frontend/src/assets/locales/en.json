@@ -5553,6 +5553,7 @@
       "uploadFailed": "Could not upload this photo. Please try again.",
       "photoFailed": "That didn't work this time. Please try again.",
       "photoTooLarge": "This photo is larger than 8 MB. Choose a smaller one.",
+      "storageFull": "File storage is full, so new images can't be saved right now. Your existing images are not affected.",
       "photoWrongType": "Use a JPG, PNG or WebP photo."
     },
     "result": {

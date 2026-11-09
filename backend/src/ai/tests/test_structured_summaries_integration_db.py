@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 import psycopg2
 import pytest
 
+from src.ai.rag import data_access as rag_data_access
 from src.ai.rag import structured_summaries
 
 DATABASE_URL = os.getenv("AI_TEST_DATABASE_URL")
@@ -503,7 +504,8 @@ def test_upsert_summary_document_creates_then_updates_the_same_slot(conn, minio_
         cursor.execute("SELECT processed_status FROM rag_documents_metadata WHERE document_id = %s;", (doc_id_1,))
         assert cursor.fetchone()[0] == "Pending"  # regeneration re-arms ingestion
 
-    text = minio_client.get_object(TEST_BUCKET, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY)).read()
+    text = minio_client.get_object(TEST_BUCKET, rag_data_access.storage_object_key(
+        tenant_id, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY))).read()
     assert text.decode("utf-8") == "Second version."
 
 
@@ -574,7 +576,8 @@ def test_upsert_summary_document_still_regenerates_when_content_actually_changes
         cursor.execute("SELECT processed_status FROM rag_documents_metadata WHERE document_id = %s;", (doc_id_1,))
         assert cursor.fetchone()[0] == "Pending"  # re-armed - content genuinely changed
 
-    text = minio_client.get_object(TEST_BUCKET, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY)).read()
+    text = minio_client.get_object(TEST_BUCKET, rag_data_access.storage_object_key(
+        tenant_id, structured_summaries._object_key(structured_summaries.SLOT_SALES_HISTORY))).read()
     assert text.decode("utf-8") == "Version two - actually different."
 
 
@@ -667,3 +670,19 @@ def test_competitor_landscape_summary_ranks_by_confidence_and_states_category(co
 
     assert text.index("Far Strong") < text.index("Near Weak")  # confidence outranks proximity
     assert "High confidence" in text and "category food > snacks > burger" in text
+
+
+@_needs_minio
+def test_two_companies_summaries_never_share_an_object(conn, minio_client):
+    """Regression (2026-11-09): every company's summary of a slot used to be the one object
+    _generated/<slot>.txt, so company B's write was what company A's ingestion read."""
+    slot = structured_summaries.SLOT_SALES_HISTORY
+    tenant_a, tenant_b = _insert_company(conn), _insert_company(conn)
+    conn.commit()
+    structured_summaries._upsert_summary_document(conn, minio_client, tenant_a, slot, "Company A only.", TEST_BUCKET)
+    structured_summaries._upsert_summary_document(conn, minio_client, tenant_b, slot, "Company B only.", TEST_BUCKET)
+    row_path = structured_summaries._object_key(slot)
+    for tenant, expected in ((tenant_a, "Company A only."), (tenant_b, "Company B only.")):
+        key = rag_data_access.storage_object_key(tenant, row_path)
+        assert key.startswith(f"_generated/{tenant}/")
+        assert rag_data_access.fetch_document_text(minio_client, TEST_BUCKET, key) == expected

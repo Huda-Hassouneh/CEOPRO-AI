@@ -37,6 +37,8 @@ All rows below require a restart after changes. Setup supplies them; missing/inv
 | REDIS_HOST / REDIS_PORT | Consumers supporting split form | 127.0.0.1 / generated port | Older split readers fail |
 | MINIO_ENDPOINT | Storage API | 127.0.0.1:<port>, no scheme | Upload/storage operations fail |
 | MINIO_ROOT_USER / MINIO_ROOT_PASSWORD | Local object storage access | keeldev / generated secret | Storage authentication fails |
+| MINIO_BUCKET | Single private bucket on a hosted S3 service (production: Backblaze B2); logical buckets become key prefixes | unset locally (one bucket per kind) | Hosted keys can't create buckets: uploads fail |
+| STORAGE_QUOTA_BYTES / STORAGE_MAX_OBJECT_BYTES / STORAGE_USAGE_TTL_SECONDS | Total-storage ceiling, per-file ceiling, usage re-listing interval | 9 GB with MINIO_BUCKET (none locally) / 25 MiB / 3600 | Writes past the ceiling get 507 "storage full" ([OBJECT_STORAGE_FREE_TIER.md](OBJECT_STORAGE_FREE_TIER.md)) |
 | SMTP_HOST / SMTP_PORT / SMTP_USE_TLS | Real local OTP delivery | 127.0.0.1 / generated SMTP port / false | Signup mail unavailable |
 | EMAIL_FROM_ADDRESS | Transactional email sender | local@keel.example | Uses application default |
 | EMAIL_LOG_UNSENT_BODIES | Sensitive email-body logging | false | No OTP secrets printed in logs |

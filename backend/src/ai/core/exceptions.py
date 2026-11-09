@@ -55,6 +55,16 @@ def register_exception_handlers(app: FastAPI) -> None:
         http = exc.as_http()
         return JSONResponse(status_code=http.status_code, content={"detail": http.detail})
 
+    from src.ai.core.object_storage import StorageError
+
+    @app.exception_handler(StorageError)
+    async def _storage_handler(request: Request, exc: StorageError) -> JSONResponse:
+        # Object storage full (507) or unavailable (503), core/object_storage.py:
+        # a plain message; the cause (never keys or bucket names) goes to the log.
+        logger.warning("object storage refused %s %s: %s", request.method, request.url.path, exc)
+        http = exc.as_http()
+        return JSONResponse(status_code=http.status_code, content={"detail": http.detail})
+
     @app.exception_handler(StarletteHTTPException)
     async def _http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         # Re-implements Starlette's own default HTTPException body exactly

@@ -89,6 +89,27 @@ def mark_document_status(conn, document_id: str, status: str) -> None:
         )
 
 
+GENERATED_SUMMARY_PREFIX = "_generated/"
+
+
+def storage_object_key(tenant_id: str, storage_bucket_path: str) -> str:
+    """The object key a document's bytes live under.
+
+    Assistant summaries keep the per-tenant row path `_generated/<slot>.txt`
+    (rag/access.py and rag/advisor.py derive the slot, and so its access
+    rules, from it), but their object is stored under
+    `_generated/<tenant_id>/<slot>.txt`. Before 2026-11-09 every company's
+    summary of a slot was written to the one shared object
+    `_generated/<slot>.txt`, so a concurrent write by another company could
+    be read and embedded into this company's index, and deleting one
+    company's data removed every company's summaries. Uploaded documents
+    already have per-tenant keys and are unchanged.
+    """
+    if storage_bucket_path.startswith(GENERATED_SUMMARY_PREFIX):
+        return f"{GENERATED_SUMMARY_PREFIX}{tenant_id}/{storage_bucket_path[len(GENERATED_SUMMARY_PREFIX):]}"
+    return storage_bucket_path
+
+
 def fetch_document_text(minio_client, bucket: str, object_key: str) -> str:
     """
     Fetches an object from MinIO and extracts its text content, dispatched

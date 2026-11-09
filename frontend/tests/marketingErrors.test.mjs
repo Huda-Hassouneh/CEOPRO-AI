@@ -27,6 +27,8 @@ test('busy, unconfigured, offline and photo errors get their own explanation', (
   assert.equal(describeMarketingError(failure(422), { source: 'link' }).key, 'badLink');
   assert.equal(describeMarketingError(failure(422), { source: 'describe' }).key, 'failed');
   assert.equal(describeMarketingError(failure(413), { action: 'upload' }).key, 'photoTooLarge');
+  assert.equal(describeMarketingError(failure(507), { action: 'upload' }).key, 'storageFull');
+  assert.equal(describeMarketingError(failure(507), { action: 'image' }).key, 'storageFull');
   assert.equal(describeMarketingError(failure(400), { action: 'upload' }).key, 'photoWrongType');
   assert.equal(describeMarketingError(failure(500), { action: 'image' }).key, 'imageFailed');
   assert.equal(describeMarketingError(failure(502), { action: 'photo' }).key, 'photoFailed');

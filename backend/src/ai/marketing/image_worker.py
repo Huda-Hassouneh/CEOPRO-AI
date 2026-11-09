@@ -35,7 +35,7 @@ from typing import Optional
 
 from src.ai import db
 from src.ai.billing import credits
-from src.ai.core import storage_ledger, usage
+from src.ai.core import object_storage, storage_ledger, usage
 from src.ai.marketing import data_access, image_generation, image_jobs, image_service
 
 logger = logging.getLogger("CEOPRO_AI_IMAGE_WORKER")
@@ -119,6 +119,12 @@ def run_one(worker_id: str, system_connection=None, tenant_connection=None) -> O
             return finish_failed(f"Refused: {type(err).__name__}: {getattr(err, 'reason', '') or err}", retryable=False)
         except image_service.ReferenceImageError:
             return finish_failed("The selected product photo couldn't be read.", retryable=True)
+        except object_storage.StorageQuotaExceeded as err:
+            logger.warning("image job %s: %s", job_id, err)
+            return finish_failed(err.public_message, retryable=False)  # retrying can't free space
+        except object_storage.StorageUnavailable as err:
+            logger.warning("image job %s: %s", job_id, err)
+            return finish_failed(err.public_message, retryable=True)
         except Exception as err:  # noqa: BLE001 - storage or database hiccup: retry later
             logger.exception("image job %s failed", job_id)
             return finish_failed(f"Unexpected error: {type(err).__name__}", retryable=True)
