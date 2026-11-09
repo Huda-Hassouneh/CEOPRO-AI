@@ -20,7 +20,7 @@ pytestmark = pytest.mark.skipif(not DATABASE_URL or not os.getenv("APP_DB_PASSWO
 
 from src.ai import db  # noqa: E402
 from src.ai.market_inputs import discovered_competitors, public_sources  # noqa: E402
-from src.market_scraper.market_discovery import intel, pipeline  # noqa: E402
+from src.market_scraper.market_discovery import industries, intel, pipeline  # noqa: E402
 from src.market_scraper.market_discovery.models import Candidate, ProviderResult  # noqa: E402
 
 AMMAN = (31.9539, 35.9106)
@@ -83,6 +83,12 @@ def _api_token(tenant_id, user_id):
 def _place(name, ref, source="openstreetmap", lat=31.955, lon=35.912, industry="restaurant", **kw):
     return Candidate(name=name, source=source, source_ref=ref, latitude=lat, longitude=lon, industry_key=industry,
                      source_url=f"https://www.openstreetmap.org/{ref}" if source == "openstreetmap" else None, **kw)
+
+
+@pytest.fixture(autouse=True)
+def _fixed_radius(monkeypatch):
+    """These tests count each source's requests; adaptive widening is tested on its own below."""
+    monkeypatch.setattr(pipeline, "EXPANSION_STEPS", 0)
 
 
 def _no_website(url):
@@ -474,3 +480,32 @@ def test_a_run_left_running_by_a_crashed_process_unblocks_the_scan_button():
             assert cursor.fetchone() == ("failed", "timed_out")
     finally:
         conn.close()
+
+
+def test_a_sparse_area_is_searched_wider_and_the_run_says_so(monkeypatch):
+    monkeypatch.setattr(pipeline, "EXPANSION_STEPS", 2)
+    tenant, user = _company("Restaurant", "restaurant")
+    osm = FakeProvider("openstreetmap", [_place("Only Grill", "node/77")])
+    summary, listing, run = _run(tenant, user, (osm,))
+    default = industries.get("restaurant").default_radius_km
+    assert osm.calls == 3 and summary["radius_km"] == min(default * 4, pipeline.MAX_RADIUS_KM)
+    assert run["query"]["expanded_from_km"] == default and float(run["radius_km"]) == summary["radius_km"]
+    assert run["sources_checked"] == 3 and [c["name"] for c in listing["competitors"]] == ["Only Grill"]
+    assert run["query"]["suggested_radius_km"] is None and run["query"]["competitors_found"] == 1
+
+
+def test_an_owner_chosen_radius_is_kept_and_a_wider_one_suggested(monkeypatch):
+    monkeypatch.setattr(pipeline, "EXPANSION_STEPS", 2)
+    tenant, user = _company("Restaurant", "restaurant")
+    osm = FakeProvider("openstreetmap", [_place("Only Grill", "node/78")])
+    conn = db.dedicated_tenant_connection(tenant, user)
+    try:
+        run_id = pipeline.start_run(conn, tenant, user, radius_km=3)
+        conn.commit()
+        summary = pipeline.execute_run(conn, tenant, run_id, 3, providers=(osm,), site_reader=_no_website,
+                                       news_reader=_no_news)
+        run = pipeline.get_run(conn, tenant, run_id)
+    finally:
+        conn.close()
+    assert osm.calls == 1 and summary["radius_km"] == 3
+    assert run["query"]["expanded_from_km"] is None and run["query"]["suggested_radius_km"] == 6
