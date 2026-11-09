@@ -39,6 +39,17 @@ rows** and adds dated entries; nobody rewrites another session's rows. Evidence 
 |---|---|---|
 | 2026-11-09 04:30 | Removed plaintext `APP_DB_PASSWORD`, `BREVO_API_KEY`, `DATABASE_URL`, `GROQ_API_KEY`, `JWT_SECRET`, `POSTGRES_PASSWORD`, `REDIS_URL`, `RENDER_API_KEY` from agent environment `ceopro-ai` (Render access remains via the proxy-injected network secret) | `update_environment` result `updated: true`. Production unchanged. **Not a substitute for rotation** (values were readable): see Session 3. The `Default` environment still holds them; only the owner can remove them there |
 
+## Session 3 — credential rotation (2026-11-09)
+
+| Item | Branch / PR | Status | Evidence |
+|---|---|---|---|
+| Zero-downtime `JWT_SECRET` rotation: sign with `JWT_SECRET` only, verify current then `JWT_SECRET_PREVIOUS`; `exp`, revocation, credential_version unchanged; rate limiter + config_check aware | `fix/jwt-key-rotation-overlap` [#107](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/107) | PR open, **awaiting CI + owner merge**, then Session 1 deploy | local CI layout (PG16+pgvector, Redis 7, local URLs only): new `test_jwt_key_rotation.py` 22 passed (15 fail/error against `main`'s `security.py`); auth/security/rate-limit/config suites 735 passed; full `src/` 5,221 passed, 75 skipped, 1 failed = PG≥17 assertion (sandbox has PG16; environmental) |
+| Rotation runbook per secret (JWT, Neon owner, `ceopro_app`, Upstash, Brevo, Groq, removal of `JWT_SECRET_PREVIOUS`): actor, continuity, verification, rollback | same PR, `docs/SECURITY_CREDENTIAL_ROTATION.md` | written; **not executed** | — |
+| `RENDER_API_KEY` was also plaintext in `ceopro-ai` → added as runbook step 6b | same PR | written | — |
+| Owner decision | — | open | Recommend removing `JWT_SECRET_PREVIOUS` ~3 h after the rotation deploy (`JWT_EXPIRE_MINUTES` 120 + 1 h), not 7 days: the old key is exposed |
+
+Next: after #107 is deployed and verified, Session 1 + owner run runbook steps 1-7 (steps 2-6 do not need #107). Owner first removes the variables from the `Default` agent environment.
+
 ## Blockers that need the owner
 
 1. **Merging** - both sessions' merges are refused by the session permission check ("merge without review"). Merge green PRs yourself, or allow merges.
