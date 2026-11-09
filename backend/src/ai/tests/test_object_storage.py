@@ -43,7 +43,7 @@ class _FakeMinio:
 
     def put_object(self, bucket, key, data, length, **kwargs):
         if bucket not in self.buckets:
-            raise S3Error("NoSuchBucket", "missing", bucket, None, None, None)
+            raise S3Error(None, "NoSuchBucket", "missing", bucket, None, None)
         self.objects[(bucket, key)] = data.read()
 
     def list_objects(self, bucket, prefix=None, recursive=False):
@@ -104,10 +104,10 @@ def test_object_size_and_total_quota_are_enforced_before_the_write():
 def test_provider_cap_refusals_become_storage_full_and_other_errors_stay_unchanged():
     class _Capped(_FakeMinio):
         def put_object(self, *args, **kwargs):
-            raise S3Error("AccessDenied", "Cannot upload files, storage cap exceeded.", "r", "req", "host", None)
+            raise S3Error(None, "AccessDenied", "Cannot upload files, storage cap exceeded.", "r", "req", "host")
 
         def get_object(self, bucket, key):
-            raise S3Error("NoSuchKey", "not found", key, "req", "host", None)
+            raise S3Error(None, "NoSuchKey", "not found", key, "req", "host")
 
     store = storage.ObjectStore(_settings(quota_bytes=None), client=_Capped())
     with pytest.raises(storage.StorageQuotaExceeded):

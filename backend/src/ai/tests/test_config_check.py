@@ -10,6 +10,7 @@ SETTINGS = ("JWT_SECRET", "DATABASE_URL", "APP_DB_PASSWORD", "REDIS_URL", "REDIS
             "CREDENTIAL_VAULT_KMS_BACKEND", "CREDENTIAL_VAULT_MASTER_KEY", "CREDENTIAL_VAULT_PREVIOUS_KEYS", "AWS_KMS_KEY_ID",
             "PUBLIC_FRONTEND_ORIGIN", "FRONTEND_URL", "FRONTEND_BASE_URL", "APP_BASE_URL", "CORS_ALLOWED_ORIGINS", "SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD",
             "EMAIL_FROM_ADDRESS", "EMAIL_LOG_UNSENT_BODIES", "MINIO_ENDPOINT", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD",
+            "MINIO_BUCKET", "STORAGE_QUOTA_BYTES", "STORAGE_MAX_OBJECT_BYTES", "STORAGE_USAGE_TTL_SECONDS",
             "SENTRY_ENVIRONMENT", "GROQ_API_KEY", "PAID_LLM_BASE_URL", "PAID_LLM_API_KEY", "HUGGINGFACE_LLM_MODEL",
             "LOCAL_LLM_BASE_URL", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "CLOUDFLARE_ACCOUNT_ID",
             "CLOUDFLARE_API_TOKEN", "GOOGLE_CUSTOM_SEARCH_API_KEY", "GOOGLE_CUSTOM_SEARCH_CX", "POSTGRES_PASSWORD",
@@ -97,6 +98,7 @@ def test_a_correct_deployment_passes(env):
     for name in ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "EMAIL_FROM_ADDRESS",
                  "MINIO_ENDPOINT", "MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD"):
         env.setenv(name, "https://storage.example.com" if name == "MINIO_ENDPOINT" else "set")
+    env.setenv("MINIO_BUCKET", "keel-prod-files")  # one private bucket on a hosted service
     for name in data_requirements.declared_names():
         env.setenv(name, "set")
     assert config_check.check_environment() == []

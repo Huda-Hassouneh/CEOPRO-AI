@@ -80,6 +80,37 @@ automatically. The design does not rely on it: §3's $0 caps and KEEL's own limi
 - `config_check`: errors for http on a deployed remote endpoint, an endpoint with a path, an invalid bucket name or
   non-numeric limits. Warnings for a hosted endpoint without `MINIO_BUCKET` and for a quota above B2's free 10 GB.
 
+- Storage calls time out in seconds (`STORAGE_CONNECT_TIMEOUT_SECONDS` 5, `STORAGE_READ_TIMEOUT_SECONDS` 60, 2
+  retries). minio's own default was a 300 s timeout with 5 retries, so an outage held requests for minutes.
+- Marketing screens show a localized (EN/AR) "storage is full" message for 507.
+
+## 2a. Local verification (2026-11-09, Session 4)
+
+Local services only: PostgreSQL 16 + pgvector (CI uses 17), Redis 7, and MinIO built from the exact pinned source in
+`Dockerfile.minio` (`go install github.com/minio/minio@v0.0.0-20260212201848-7aac2a2c5b7c`; Docker is not available
+in this sandbox). No hosted URL or key was used; ambient hosted values were unset first.
+
+End-to-end against a real API process (uvicorn), single-bucket mode, a private bucket, two synthetic companies:
+
+| Check | Result |
+|---|---|
+| Upload a Knowledge Base `.txt` → `ready`; object at `ceopro-rag-knowledge/uploads/<tenant>/<sha256>.txt`; downloaded byte-identical; unsigned GET → 403 | PASS |
+| Retry (re-reads the object from storage and re-indexes it) | PASS |
+| Assistant for company A: the document's marked sentence reaches the model prompt and answer | PASS* |
+| Company B: doesn't list A's document, retry on it → 404, assistant never receives it | PASS |
+| Marketing image generated (designed poster) → stored under `<tenant>/<campaign>/`, served, repeat view → 304, B → 404 | PASS** |
+| API restarted → the same image byte-identical and the document still ready | PASS |
+| Ceiling just above use → upload refused **507** "File storage is full…", nothing stored; `/health/storage` shows % used | PASS |
+| Endpoint unreachable → upload **503** "File storage is unavailable…"; `/health/storage` 503 in 0.4 s; `/health/ready` still 200 | PASS |
+
+\* No language model runs locally and the hosted key was deliberately not used: the model was a **local mock** that
+echoes prompt lines carrying the test marker. That proves retrieval from storage reached the model. It does not
+test answer quality. \*\* The campaign row and its copy were inserted as a synthetic fixture (copy generation needs a
+real model). Generating, storing and serving the image used the real API and storage path.
+
+Automated: `test_object_storage.py` (offline + real MinIO), the new two-company summary regression test, the existing
+MinIO-backed upload/summary/marketing tests. Full backend suite: see the PR. Frontend: 282/282 tests, lint clean.
+
 ## 3. Owner steps (one time, about 10 minutes, no card)
 
 Keys go **only** into the Render dashboard, never into chat, email, Git or an agent environment.

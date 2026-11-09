@@ -186,6 +186,20 @@ def reset_usage_cache() -> None:
         _usage.clear()
 
 
+def _http_client():
+    """minio's own default waits 5 minutes and retries 5 times with backoff, so an unreachable
+    service held a request (and /health/storage) for minutes. Fail within seconds instead."""
+    import certifi
+    import urllib3
+
+    return urllib3.PoolManager(
+        timeout=urllib3.Timeout(connect=float(os.getenv("STORAGE_CONNECT_TIMEOUT_SECONDS", "5")),
+                                read=float(os.getenv("STORAGE_READ_TIMEOUT_SECONDS", "60"))),
+        maxsize=10, cert_reqs="CERT_REQUIRED", ca_certs=os.getenv("SSL_CERT_FILE") or certifi.where(),
+        retries=urllib3.Retry(total=2, backoff_factor=0.2, status_forcelist=[500, 502, 503, 504]),
+    )
+
+
 class ObjectStore:
     """Duck-types the Minio methods KEEL uses; see the module docstring."""
 
@@ -193,7 +207,7 @@ class ObjectStore:
         self.settings = settings
         self.client = client or Minio(
             settings.endpoint_host, access_key=settings.access_key, secret_key=settings.secret_key,
-            secure=settings.secure, region=settings.region,
+            secure=settings.secure, region=settings.region, http_client=_http_client(),
         )
         self._physical_bucket_ok = False
 
