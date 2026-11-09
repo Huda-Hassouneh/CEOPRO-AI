@@ -774,7 +774,7 @@ class ChangePasswordRequest(BaseModel):
 
 
 @router.post("/security/change-password")
-def change_password(body: ChangePasswordRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def change_password(body: ChangePasswordRequest, ctx: TenantContext = Depends(security.get_current_key_context)) -> dict:
     """
     Real bcrypt verification of the CALLER's own current password before
     accepting a new one - never a blind overwrite. Reads password_hash via

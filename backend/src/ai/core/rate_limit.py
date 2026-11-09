@@ -27,6 +27,7 @@ import jwt
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from src.ai.core import jwt_keys
 from src.ai.core.redis_client import get_redis_client
 
 logger = logging.getLogger("KEEL_RATE_LIMIT")
@@ -45,7 +46,8 @@ class RateLimitMiddleware:
         self._redis_factory = redis_factory or (lambda: get_redis_client(socket_connect_timeout=0.3, socket_timeout=0.3))
         self._redis = None
         self._clock = clock
-        self._jwt_secret = os.getenv("JWT_SECRET")
+        # Current and previous key during a rotation (core/jwt_keys.py).
+        self._jwt_keys = jwt_keys.verification_keys()
 
     def _client(self):
         if self._redis is None:
@@ -55,9 +57,9 @@ class RateLimitMiddleware:
     def _identity(self, scope: Scope) -> "tuple[str, int]":
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
         authorization = headers.get("authorization", "")
-        if authorization.startswith("Bearer ") and self._jwt_secret:
+        if authorization.startswith("Bearer ") and self._jwt_keys:
             try:
-                claims = jwt.decode(authorization[7:], self._jwt_secret, algorithms=["HS256"])
+                claims = jwt_keys.decode(authorization[7:], self._jwt_keys)
                 if claims.get("tenant_id"):
                     return f"company:{claims['tenant_id']}", int(_setting("API_RATE_LIMIT_PER_COMPANY_PER_MINUTE", "600"))
             except jwt.PyJWTError:
