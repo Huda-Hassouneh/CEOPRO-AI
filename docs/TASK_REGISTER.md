@@ -76,13 +76,27 @@ Session `session_01BF1evm6jhiwguiiZVnAHWT`. Only Session 1 deploys. Local = this
 | Overture reader memory-bounded (Dubai 1,002 → 279 MB, identical) | [#100](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/100) | MERGED, not deployed | real-data benchmark, 5 tests |
 | Migration owner keeps no restricted-role membership (Neon) + #81's integration test | [#101](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/101) | MERGED, not deployed; #81 CLOSED superseded | 5/5 on a dedicated cluster (4/5 before) |
 | Emails in the reader's language with real expiry | [#102](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/102) | MERGED, not deployed | 19 tests; CI caught 2 MinIO-only doubles, fixed |
-| **Compact Overture mirror** (cell packs, stdlib reader, no pyarrow in API; monthly workflow publishing a public pre-release) | `feat/overture-compact-mirror` [#116](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/116) | PR open, CI running | real release `2026-10-21.0`, 24 cells (20°W–60°E, 10°N–40°N), **4,577,681 places, every tile verified, 0 problems**; Amman 5 km 13.7 s/564 MB → 0.5–0.7 s/+5–16 MB, Dubai 15 km 15.2 s/1,002 MB → 1.6 s/+6–25 MB, candidates identical; full `src/` fresh DB 5,205 passed / 80 skipped / 0 failed |
+| **Compact Overture mirror** (cell packs, stdlib reader, no pyarrow in API; monthly workflow publishing a public pre-release) | `feat/overture-compact-mirror` [#116](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/116) | **HELD**: Session 2 review found an inflation flaw on `c44d7277` (398 KB tile → +867 MB); fix in progress (inflated-size cap, line cap, per-tile sha256, malformed-entry handling, bounded candidate heap) → CI → Session 2 re-review → owner | real release `2026-10-21.0`, 24 cells (20°W–60°E, 10°N–40°N), **4,577,681 places, every tile verified, 0 problems**; Amman 5 km 13.7 s/564 MB → 0.5–0.7 s/+5–16 MB, Dubai 15 km 15.2 s/1,002 MB → 1.6 s/+6–25 MB, candidates identical; full `src/` fresh DB 5,205 passed / 80 skipped / 0 failed |
 | Load test, local API (35 users × 60 s) | — | measured | normal 62.7 req/s 0 errors; Overture *inside* the API: −15% throughput, p95 5–10×, +125 MB; API never running it: +47 MB |
 | Production read-only check 10:50 UTC | — | PASS | `/health` 200; `/health/ready` DB 26 ms, Redis 88 ms; `/health/processor` `overture: unsafe`; memory 215–277 MB (6 h); deploys since Nov 7: only `99c213c`; keel-web untouched |
 
+### Plan: production backup + migration rehearsal before `main`'s 5 migrations — **PENDING OWNER APPROVAL**
+
+Owner requirements (relayed 11:12 UTC): a successful **restore test**, and migration testing on a **separate copy**, never on production. No session requests or uses production database credentials until the owner approves a secure read-only access method.
+
+| Step | Who | What proves success |
+|---|---|---|
+| 1. Create Neon branch `restore-point-<date>` from production (free, copy-on-write, production unchanged) | Owner (Neon console) | Branch listed in Neon with its creation time |
+| 2. Create a second branch `rehearsal-<date>` from production | Owner | Branch listed |
+| 3. Restore test on `restore-point` via the owner-approved read-only method: `schema_migrations` rows identical to production; row counts identical for `companies`, `tenant_users`, `billing_subscriptions`, `products`, the credit ledger; `pg_database_size` ≈ equal | Session 1, Session 2 independently | Both record identical counts; any difference = FAIL |
+| 4. Migration rehearsal: `scripts/apply_migrations.py` from `main` against `rehearsal` only | Session 1 | "Applied 5 new migration(s)", second run "Applied 0"; restricted roles unprivileged; FORCE RLS unchanged; app smoke against the copy |
+| 5. Owner approves the production deploy of `main` | Owner | Explicit approval |
+| 6. Deploy `main` to `ceopro-ai-new` (the entrypoint applies the 5 migrations) | Session 1 | Startup log "Applied 5", `/health/ready` ok; Session 2 independent verification |
+| Restore path | Owner + Session 1 | Point `DATABASE_URL` at `restore-point` (or restore it in Neon) and redeploy `99c213c` |
+
 **Session 1 deploy queue** (owner instruction 10:5x: no new deployment until told):
-1. Overture mirror: merge #116 → publish the release (workflow or upload of the verified packs) → set `OVERTURE_MIRROR_URL` on `ceopro-ai-new` → deploy → verify `/health/processor` and a real scan.
-2. `main` (5 migrations, rehearsed clean on a Neon-like non-superuser cluster): needs a production DB backup/branch first.
+1. Overture mirror (after the inflation fix, green CI and Session 2 re-review): merge #116 → publish the release (workflow or upload of the verified packs) → set `OVERTURE_MIRROR_URL` on `ceopro-ai-new` → deploy → verify `/health/processor` and a real scan.
+2. `main` (5 migrations, rehearsed clean locally on a Neon-like non-superuser cluster): only after the plan above (restore test + rehearsal on a copy) and owner approval.
 3. #115 storage: after the owner's B2 account + merge (Session 4 handover, doc §4).
 4. #107 JWT rotation: **not before** the High finding above is fixed, re-reviewed and merged.
 5. keel-web: deploy `main` for #99 / #103.
