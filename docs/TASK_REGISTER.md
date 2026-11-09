@@ -45,12 +45,12 @@ rows** and adds dated entries; nobody rewrites another session's rows. Evidence 
 
 | Item | Branch / PR | Status | Evidence |
 |---|---|---|---|
-| `JWT_SECRET` rotation overlap: sign with `JWT_SECRET` only, verify current then `JWT_SECRET_PREVIOUS`; `exp`, revocation, credential_version unchanged; rate limiter + config_check aware | `fix/jwt-key-rotation-overlap` [#107](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/107) | PR open, **awaiting CI on `a8eb106` + owner merge**, then Session 1 deploy | CI green on `75614b0` (Session 2) |
+| `JWT_SECRET` rotation overlap: sign with `JWT_SECRET` only, verify current then `JWT_SECRET_PREVIOUS`; `exp`, revocation, credential_version unchanged; rate limiter + config_check aware | `fix/jwt-key-rotation-overlap` [#107](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/107) | PR open at `1bd52e4`, **awaiting Session 2 re-review (PASS), CI, owner merge + deploy approval** | CI green on `75614b0` (Session 2) |
 | Session 2 review finding (High): an old-key token forged with a far-future `auth_time` was renewed into a new-key session that outlived the rotation | #107 `a8eb106` | **fixed** | reproduced first (refresh 200, accepted after removing the previous key, negative age); now previous-key tokens are never renewed (401) and future `auth_time` is refused; local fresh PG16 + Redis: `test_jwt_key_rotation.py` 26 passed, the 4 regression tests fail on `75614b0`; full `src/` 5,225 passed, 75 skipped, 1 failed (PG≥17 assertion; sandbox has PG16) |
 | Rotation runbook per secret (JWT A/B, Neon owner, `ceopro_app`, Upstash, Brevo, Groq, Render API key): actor, continuity, verification, rollback | #107, `docs/SECURITY_CREDENTIAL_ROTATION.md` | written; **not executed** | — |
-| Owner decision | — | open | JWT: **A** hard rotation (recommended for this exposure; 1 sign-in per user at deploy; does not need #107) or **B** overlap (1 sign-in within 2 h; old key accepted ~3 h; needs #107). No option avoids the extra sign-in safely |
+| Owner decision (~10:55 UTC, relayed by Sessions 1/2) | — | **decided: hard JWT rotation, no overlap** | runbook step 1 updated at #107 head `1bd52e4`; overlap kept only for future routine rotations. #107 not deployable until Session 2 records PASS here and the owner approves the deploy |
 
-Next: owner removes the variables from the `Default` agent environment and chooses A or B; Session 1 + owner run the runbook (JWT option A and steps 2-6 can start before #107 is merged).
+Next: owner removes the variables from the `Default` agent environment; Session 2 re-reviews #107; rotation (hard JWT rotation and steps 2-6, none of which need #107) runs with Session 1 once the owner schedules it.
 
 ## Session 4 — production file storage (2026-11-09)
 
