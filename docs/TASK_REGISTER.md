@@ -9,7 +9,9 @@ rows** and adds dated entries; nobody rewrites another session's rows. Evidence 
 | Session | Owns | Production deploys |
 |---|---|---|
 | **Session 1** `session_01BF1evm6jhiwguiiZVnAHWT` | Overture mirror implementation, memory profiling and optimization, their deployment and deploy verification | **Deployment owner** (one deployer at a time) |
-| **Session 2** `session_01BF1evkf4NUTzeuRAHoYgjH` and its successors | CI-equivalent isolated test environment, IDOR/security testing, real-data discovery testing, independent read-only production verification | Never deploys; verifies after each deploy |
+| **Session 2** `session_01BF1evkf4NUTzeuRAHoYgjH`, continued by `session_01BF1evjasZyYcJBjuxhn6uJ` | CI-equivalent isolated test environment, IDOR/security testing (incl. platform-admin gate hardening), real-data discovery testing, PR upkeep #103-#106, independent read-only production verification (email, uploads, images, billing pages) | Never deploys; verifies after each deploy |
+| **Session 3** `session_01BF1evmDAewuKdMJtmdqLoe` | Credential rotation readiness: zero-downtime JWT rotation (`JWT_SECRET_PREVIOUS`), rotation runbook in `docs/SECURITY_CREDENTIAL_ROTATION.md` | Never deploys; hands Render steps to Session 1 |
+| **Session 4** `session_01BF1evmdriDxRgtMrx7UH5w` | Production file storage (free, no payment method), end-to-end upload/download/image persistence | Never deploys; hands config to Session 1 |
 
 ## Production state
 
@@ -31,12 +33,19 @@ rows** and adds dated entries; nobody rewrites another session's rows. Evidence 
 | Production read-only smoke before the deploy | — | PASS | 28/28 in each of 3 variants |
 | Older PRs reviewed | #93/#94/#95/#63 | needs owner | #93-#95 change trial/payment policy and plan catalogue (commercial decisions); parent #86 is merged, each conflicts with `main` in `pr-checks.yml` (+ catalogue for #95). #63 is stale (base `KEEL_Test`, CI red) |
 
+## Security containment
+
+| When (UTC) | What | Evidence |
+|---|---|---|
+| 2026-11-09 04:30 | Removed plaintext `APP_DB_PASSWORD`, `BREVO_API_KEY`, `DATABASE_URL`, `GROQ_API_KEY`, `JWT_SECRET`, `POSTGRES_PASSWORD`, `REDIS_URL`, `RENDER_API_KEY` from agent environment `ceopro-ai` (Render access remains via the proxy-injected network secret) | `update_environment` result `updated: true`. Production unchanged. **Not a substitute for rotation** (values were readable): see Session 3. The `Default` environment still holds them; only the owner can remove them there |
+
 ## Blockers that need the owner
 
 1. **Merging** - both sessions' merges are refused by the session permission check ("merge without review"). Merge green PRs yourself, or allow merges.
-2. **Plaintext production secrets in cloud environments** - `Default` and `ceopro-ai` environments hold `DATABASE_URL`, `APP_DB_PASSWORD`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `REDIS_URL`, `GROQ_API_KEY`, `BREVO_API_KEY` as plain environment variables readable by every agent process. Recommended: rotate them (JWT secret, DB password, Brevo and Groq keys) and keep only network secrets (proxy-injected) in agent environments.
+2. **Plaintext production secrets in cloud environments** - removed from `ceopro-ai` (04:30); the `Default` environment still holds `DATABASE_URL`, `APP_DB_PASSWORD`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `REDIS_URL`, `GROQ_API_KEY`, `BREVO_API_KEY` as plain environment variables readable by every agent process. Recommended: rotate them (JWT secret, DB password, Brevo and Groq keys) and keep only network secrets (proxy-injected) in agent environments.
 3. **Credentials pasted in chat** (KEEL login, a Gmail password) - change both.
 4. **Commercial decisions** - #93-#95 (card-required trials, catalogue limits).
+5. **Production file storage** - `MINIO_ENDPOINT` unset in production (reported by Session 1): customer uploads and stored marketing images unavailable. Owned by Session 4; may need the owner to create a free storage account (steps will be given; keys go into the Render dashboard, never chat).
 
 ## Next steps — Session 2 successor
 
