@@ -286,6 +286,28 @@ def test_without_a_deadline_the_chain_is_unchanged(monkeypatch):
     assert image_generation._deadline.get() is None
 
 
+def test_a_self_hosted_server_is_still_used_inside_a_request_but_never_waited_on_past_it(monkeypatch):
+    """LOCAL_IMAGE_TIMEOUT_SECONDS (300 s) never fits a request on its own; the server
+    must still be called, with its wait cut to the time left, not skipped."""
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "local")
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:9")
+    timeouts = []
+
+    def post(url, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        raise httpx.ConnectError("refused")
+
+    monkeypatch.setattr(image_generation.httpx, "post", post)
+    with image_generation.request_deadline(image_generation.time.monotonic(), 90):
+        with pytest.raises(ImageGenerationError):
+            generate_campaign_image("x")
+    assert len(timeouts) == 1 and 1.0 <= timeouts[0] <= 90
+    timeouts.clear()
+    with pytest.raises(ImageGenerationError):
+        generate_campaign_image("x")  # a background worker keeps the server's own wait
+    assert timeouts == [image_generation._LOCAL_IMAGE_TIMEOUT_SECONDS]
+
+
 # --- capability -------------------------------------------------------
 
 def test_capability_names_the_providers_and_that_text_leaves_keel(monkeypatch):
