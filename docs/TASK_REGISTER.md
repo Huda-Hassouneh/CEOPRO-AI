@@ -103,6 +103,7 @@ owner (agent merges are refused by the permission check).
 | Owner decision: same industry with no products/specialty → DIRECT | #113 (commits `4bc98b1`, `60959ea`) | PASS | default only when the owner gave no products and no specialty words in the business type (AI words don't count); a default DIRECT still has to pass the segment filter. Real data: pharmacy 0→191 DIRECT, café 0→450, stored lists and auto-tracked ten identical. Unit 859 passed, frontend 282/282, full `src/` 5,276 passed 0 failed, `tests/` 546 passed |
 | Review of #107 (JWT rotation overlap), requested by Session 3 | — | FAIL (High finding) | verified on the branch with a throwaway test: an old-key token forged with `auth_time` in the future renews to a new-key token (200), survives removal of `JWT_SECRET_PREVIOUS`, never hits `SESSION_MAX_HOURS` (negative age) and renews again (200). Fixes proposed to Session 3 and owner: reject future `auth_time`/`iat`; no renewal of previous-key tokens; hard rotation (no overlap) for this publicly exposed key. Core decode logic otherwise correct; CI green |
 | Production storage checks (#115) | — | BLOCKED | waiting for Session 1 to deploy #115; 09:59 `/health/storage` 404, live `99c213c`. Owner approved only the read-only checks (health, unsigned bucket/object GET = 403); no accounts, uploads, image generation or paid calls without explicit approval |
+| Review of #116 (Overture mirror reader), requested by Session 1 | — | FAIL (Medium, availability), reported to owner + Session 1 | on head `c44d7277`, throwaway probe (mock transport, one tile, no newline): 50 KB compressed → peak RSS +137 MB, 199 KB → +475 MB, 398 KB → +867 MB, all `status ok`; the guard caps only compressed size (8 MB), so one tampered or misserved tile can OOM the 512 MB API. Fix proposed: cap decompressed bytes and line length per tile (+ optional per-tile sha256). Workflow itself OK (dispatch/schedule only, inputs via env). Full review after CI is green |
 | Harness false positive (`discovery_runs` changed) | `test/idor-sweep-extension` | FIXED | the attacker's own run (correctly scoped to itself) was still running when the reverse pass snapshotted; `attack.py` now waits for in-flight runs; re-run 0 findings |
 
 ### Open questions for the owner (Session 2 successor)
@@ -113,6 +114,16 @@ Decided by the owner (2026-11-09 ~10:55 UTC):
    Session 2 successor re-reviews the final head (including the forged-renewal probe) before recommending deployment.
 2. **Pharmacies by name only stay `INDIRECT`** (the 39 typed "health care" etc.) unless reliable category evidence
    confirms them. Already the behaviour of #113; no change.
+
+### Remaining blockers (Session 2 successor, 2026-11-09 ~11:15 UTC)
+
+| Blocker | Waiting on |
+|---|---|
+| #107 deployable | Session 3's final head (no overlap, owner decision) → my independent re-review recorded PASS here |
+| #116 deployable | fix for the decompression finding → my re-review after CI is green |
+| Production storage checks | Session 1 deploying #115 (owner: no deployments until separately approved); then only health + unsigned-access 403 checks |
+| Backup verification before main's 5 migrations | owner-approved secure read-only access method; until then I request and use no production database credentials |
+| Merges of #103-#106, #111-#114 | owner (agent merges refused by the permission check) |
 
 ## Next steps — Session 2 successor (updated 2026-11-09)
 
