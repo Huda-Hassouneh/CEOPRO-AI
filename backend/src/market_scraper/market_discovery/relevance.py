@@ -24,7 +24,8 @@ import os
 import re
 from typing import Dict, List, Optional, Tuple
 
-from src.market_scraper.category_taxonomy import MIN_COMPETING_SIMILARITY, best_similarity, categorize
+from src.market_scraper.category_taxonomy import (MIN_COMPETING_SIMILARITY, NAME_DECISIVE_PATHS, best_similarity,
+                                                  categorize)
 from src.market_scraper.market_discovery import industries
 from src.market_scraper.market_discovery.offerings import _word_in, normalize, tokens
 
@@ -168,6 +169,11 @@ def in_different_category(name: str, name_ar: Optional[str], categories: List[st
         words.append(value.replace("_", " "))
     if name_names_another_domain(name, name_ar, paths):
         return True
+    by_name = categorize(" ".join([name or "", name_ar or ""]), [])
+    if by_name is not None and (best_similarity(paths, by_name.path) or 0.0) >= MIN_COMPETING_SIMILARITY:
+        return False  # its own name says it does what the company does, whatever its map type says
+    if name_names_another_trade(by_name, paths):
+        return True
     categorization = categorize(" ".join([name or "", name_ar or "", *words]), types)
     if categorization is None:
         return False
@@ -184,3 +190,12 @@ def name_names_another_domain(name: str, name_ar: Optional[str], paths) -> bool:
     if by_name is None or not paths:
         return False
     return all(path and path[0] != by_name.path[0] for path in paths)
+
+
+def name_names_another_trade(by_name, paths) -> bool:
+    """Inside one domain, a map type is often wrong in open data (a medical-equipment dealer, a dental lab or a
+    "clinic for rent" listed as a pharmacy). Only names in the taxonomy's name-decisive trades outweigh the type
+    (category_taxonomy.NAME_DECISIVE_PATHS); a name that also says the company's own trade was kept before this."""
+    if by_name is None or by_name.path not in NAME_DECISIVE_PATHS or not paths:
+        return False
+    return (best_similarity(paths, by_name.path) or 0.0) < MIN_COMPETING_SIMILARITY
