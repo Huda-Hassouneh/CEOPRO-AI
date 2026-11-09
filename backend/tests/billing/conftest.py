@@ -13,6 +13,49 @@ validate_test_environment(
 os.environ.setdefault("JWT_SECRET", "billing-isolated-test-secret-not-for-deployment")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def isolated_evidence_logins():
+    """Enable dormant test identities only inside the guarded disposable suite.
+
+    Standalone verifiers already provision their own credentials. CI's generic
+    billing runner does not; give it random password logins, never memberships or
+    grants. Restore the original role attributes/passwords even on test failure.
+    """
+    if os.getenv("BILLING_DATABASE_TESTS") != "1" or os.getenv("OBSERVATION_TEST_PASSWORD"):
+        yield
+        return
+    import secrets
+    from contextlib import closing
+    import psycopg2
+    from psycopg2 import sql
+
+    url = validate_test_environment(dict(os.environ), database=True)
+    roles = ("ceopro_billing_observer", "ceopro_trial_attestor",
+             "ceopro_trial_confirmer", "ceopro_consent_service")
+    originals = []
+    password = secrets.token_hex(32)
+    with closing(psycopg2.connect(url, connect_timeout=5, gssencmode="disable", sslmode="disable")) as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT rolname,rolcanlogin,rolpassword,rolsuper,rolbypassrls,rolcreaterole,rolcreatedb,rolinherit "
+                            "FROM pg_authid WHERE rolname=ANY(%s)", (list(roles),))
+                originals = cur.fetchall()
+                assert all(not any(row[3:]) for row in originals), "Unsafe evidence role attributes"
+                for role, *_ in originals:
+                    cur.execute(sql.SQL("ALTER ROLE {} LOGIN PASSWORD %s").format(sql.Identifier(role)), (password,))
+            conn.commit()
+            os.environ["OBSERVATION_TEST_PASSWORD"] = password
+            yield
+        finally:
+            conn.rollback()
+            with conn.cursor() as cur:
+                for role, login, old_password, *_ in originals:
+                    cur.execute(sql.SQL("ALTER ROLE {} {} PASSWORD %s").format(
+                        sql.Identifier(role), sql.SQL("LOGIN" if login else "NOLOGIN")), (old_password,))
+            conn.commit()
+            os.environ.pop("OBSERVATION_TEST_PASSWORD", None)
+
+
 @pytest.fixture(autouse=True)
 def no_external_network(monkeypatch):
     """Offline provider doubles are explicit; genuine Stripe traffic is refused."""
