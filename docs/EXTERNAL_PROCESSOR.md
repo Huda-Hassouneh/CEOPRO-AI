@@ -1,3 +1,38 @@
+# Overture for competitor discovery: the compact mirror (current) and the external processor
+
+## Current design: the compact mirror (no processor, $0)
+
+Measured 9 Nov 2026 on real Overture data (release 2026-10-21.0), local:
+
+| Search | Reading Overture directly | Mirror (cell packs) |
+|---|---|---|
+| Amman 5 km | 13.7 s, 564 MB peak | 0.7–0.8 s, +16 MB cold / +4 MB warm |
+| Dubai 15 km | 15.2 s, 963–1,002 MB peak | 2.2 s, +25 MB cold / +7 MB warm |
+
+Candidate lists are identical; pyarrow is never loaded in the API process.
+
+- **Build** (`backend/scripts/overture_mirror/build.py`, run by `.github/workflows/overture-mirror.yml`
+  monthly and on demand): per 10° cell, keeps only open, confident places and only the fields discovery
+  reads; writes `cell_<lon>_<lat>.pack` (one gzip member per 0.1° tile, one JSON place per line) and
+  `cell_<lon>_<lat>.idx.json` (each tile's byte range), plus `cells.json` (release, licence, which cells are
+  covered). `scripts/overture_mirror/verify.py` checks every tile before anything is published.
+- **Publish**: assets of a pre-release `overture-mirror-<release>` in this public repository (free; data ©
+  Overture Maps Foundation, CDLA-Permissive-2.0). Only public data is read or published.
+- **Read** (`providers/overture.py::search_mirror`, mode `mirror`, the default whenever `OVERTURE_MIRROR_URL`
+  is set): the API range-reads only the tiles covering a search and streams them line by line with the
+  standard library. Guards: at most `OVERTURE_MIRROR_MAX_TILES` tiles per search, each at most
+  `OVERTURE_MIRROR_MAX_TILE_BYTES` compressed and `OVERTURE_MIRROR_MAX_TILE_INFLATED_BYTES` inflated
+  (decompressed in chunks with a running count), lines at most `OVERTURE_MIRROR_MAX_LINE_BYTES`, every tile's
+  SHA-256 from the index checked after download (a replaced asset is refused), malformed index entries cost
+  only their tile, and only the nearest `MAX_CANDIDATES` are kept while reading. A damaged place is skipped,
+  a failing tile is counted, an unreachable
+  mirror reports `unreachable` and the other sources still run. A region outside `covered` reports
+  `not_covered`, never a false "no competitors".
+- **Coverage**: `backend/config/overture_mirror_cells.json` (initially 20°W–60°E, 10°N–40°N: the Gulf,
+  Levant, Egypt and North Africa). Add a cell there to extend it.
+
+The external processor below remains supported (`OFFLOAD_PROCESSOR_URL`) but is not needed.
+
 # External processor for heavy work
 
 Status: **prototype, tested locally only. Not deployed and not connected to production.**
