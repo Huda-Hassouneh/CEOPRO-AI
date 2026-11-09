@@ -1733,3 +1733,45 @@ renewal/failure recovery, paid-period cancellation, recurring-authority/all-nine
 capability proof, Custom initial confirmation and B4 activation remain outside
 this verification. The original subscription remains canceled and its consent
 withdrawn; the conflicted operation remains ineligible for access.
+
+### Genuine Paddle acknowledgement redelivery — 2026-11-09
+
+Under a new explicit one-redelivery authorization, the existing isolated database
+and restricted runtime were restored with provider egress blocked and no confirmation
+credentials. A temporary HTTPS tunnel reused the frontend /api proxy with a private
+webhook/readiness-only ingress guard. Only the existing Sandbox notification
+destination URL was updated (PATCH 200); the signing secret, subscribed events and
+all other destination fields were preserved. No Checkout domain/catalog change.
+
+Exactly one POST replay of original notification `ntf_01m6zhe46gt4dqtgx573t3j0rr`
+returned 202, creating delivery notification `ntf_01m6zkszjhtnstcw5r0ktvmh6z` for
+the SAME commercial event `evt_01m6zhe3tvj9yqten4hyyhsb6m`. Paddle's authoritative
+delivery log `ntflog_01m6zkt0ke3sezfr2gw8ms9fmm` records HTTP 200 at
+2026-11-09T07:36:49.006641Z, status=delivered. Its actual response body includes
+received=true, captured=true, confirmed=false, state=quarantined and
+reason=immutable_provider_history_conflict, with the original receipt
+`b611c002-da28-455e-ad30-6936f7c2b460`.
+
+The fresh genuine payload/header passed real-clock signature validation and an
+independent HMAC-SHA256 recheck within five seconds. All protected database rows
+were identical before/after, including the single original-event receipt, three
+pending observations, original conflict, withdrawal, compensation and audit history.
+There were zero new Customers, transactions, subscriptions, commercial events or
+local rights/Credit grants. Readback verified the original provider subscription
+remains canceled with next_billed_at=null. The replay notification is a delivery
+record, not a new commercial event. Historical failed delivery logs remain intact.
+
+No implementation fix or migration was needed. The 43 passing acknowledgement
+cases, restricted SQL/concurrency proof and earlier Stripe/Paddle, plan, consent,
+trial timing, financial and entitlement regressions were reused without broad
+retesting. Evidence: `.dev/evidence/paddle-acceptance/genuine-ack-redelivery-result.json`,
+`ack-redelivery-provider-requests.jsonl`, and before/after database snapshots.
+The tunnel, API and frontend were then stopped and flags/network disarmed;
+database, private evidence, canonical credentials and Stripe settings were retained.
+The notification destination remains a temporary, now stopped test URL.
+
+This closes the genuine HTTP acknowledgement gate only. Real recurring authority,
+all-nine B4 capability proof, trusted confirmation, paid renewals/failures,
+paid-period cancellation and Custom initial confirmation are not established by
+this redelivery. Public policy approval, production restricted installation,
+merchant/LIVE approval and permission cutover remain separate release gates.
