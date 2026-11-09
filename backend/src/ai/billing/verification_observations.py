@@ -106,6 +106,10 @@ class ObservationRepository:
     def context(self, attempt_id):
         return self._call('SELECT public.billing_observation_trial_context(%s)',(str(attempt_id),))
 
+    def setup_source(self, operation_id, subscription):
+        return self._call('SELECT public.billing_observation_setup_source(%s,%s)',
+                          (str(operation_id), subscription.opaque_id))
+
     def begin(self, operation_id, request):
         return self._call('SELECT public.billing_observation_begin(%s,%s)',(str(operation_id),Json(request_document(request))))
 

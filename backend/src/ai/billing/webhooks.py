@@ -56,6 +56,9 @@ def sync_subscription(sys_conn, subscription_ref: ProviderReference, event_creat
     subscription = gateway.get_subscription(subscription_ref)
     if subscription.reference != subscription_ref:
         raise WebhookRetry("subscription identity does not match the requested object")
+    from src.ai.billing.journey_webhooks import protected
+    if protected(sys_conn, customer=subscription.customer.opaque_id, subscription=subscription_id, metadata=subscription.metadata):
+        raise WebhookRetry('Protected journey requires trusted reconciliation')
     tenant_id = _resolve_tenant(sys_conn, subscription, hint)
     if not tenant_id:
         # Not one of ours (yet): fail so Stripe retries once checkout's own
@@ -312,11 +315,25 @@ def _unlock_event(sys_conn, event_id: str) -> None:
         logger.warning("could not release the lock for Stripe event %s", event_id)
 
 
-def handle_event(sys_conn, event: VerifiedPaymentEvent) -> dict:
+def handle_event(sys_conn, event: VerifiedPaymentEvent, *, journey_handler=None) -> dict:
     """Processes one verified event, at most once at a time per event id.
     Returns {"duplicate": bool}."""
     if not isinstance(event, VerifiedPaymentEvent):
         raise TypeError("Reconciliation requires a verified payment event")
+    from src.ai.billing.journey_webhooks import classify
+    try:
+        cohort = classify(sys_conn, event)
+        sys_conn.commit()  # No cohort lookup transaction spans provider reads.
+    except Exception:
+        sys_conn.rollback()
+        raise WebhookRetry('Journey classification unavailable') from None
+    if cohort:
+        if journey_handler is None:
+            raise WebhookRetry('Protected journey reconciliation unavailable')
+        try:
+            return journey_handler(event)
+        except Exception:
+            raise WebhookRetry('Protected journey reconciliation pending') from None
     _lock_event(sys_conn, event.event_id)
     try:
         return _handle_locked(sys_conn, event)

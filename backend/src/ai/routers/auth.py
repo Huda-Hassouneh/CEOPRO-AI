@@ -20,6 +20,7 @@ than guessed at.
 """
 
 import logging
+import os
 import smtplib
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -262,6 +263,8 @@ class SignupRequest(BaseModel):
 
 
 def _insert_company(cursor, tenant_id: str, business_name: str, country_code: str, currency: str, is_demo: bool) -> None:
+    cursor.execute("SELECT set_config('app.recurring_journey_required',%s,true)",
+                   ('true' if os.getenv('RECURRING_JOURNEY_ENABLED','').lower()=='true' else 'false',))
     cursor.execute(
         """
         INSERT INTO companies (tenant_id, business_name, country_code, primary_currency,
@@ -289,6 +292,21 @@ def _start_free_trial(tenant_id: str, user_id: str) -> None:
     doesn't get a second one). A failure or a refused trial never blocks
     sign-up: the company has no plan until it subscribes from Billing."""
     from src.ai.billing import store as billing_store
+
+    # Durable cohort selection, independent of later feature-flag changes.
+    # Lookup failure must not issue legacy access after a verified registration.
+    check = None
+    try:
+        check = db.app_role_connection(tenant_id,user_id)
+        with check.cursor() as q:
+            q.execute('SELECT subscription_journey_required FROM companies WHERE tenant_id=%s',(tenant_id,))
+            cohort=q.fetchone()
+        check.commit()
+        if cohort is None or cohort[0]: return
+    except Exception:
+        return
+    finally:
+        if check is not None: check.close()
 
     try:
         sys_conn = db.billing_setup_connection(tenant_id, user_id)

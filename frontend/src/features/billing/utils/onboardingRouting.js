@@ -1,6 +1,14 @@
 export const ONBOARDING_RETURN_PATH_KEY = 'keel.onboarding.returnPath';
 const ALLOWED_RETURN_PATHS = new Set(['/dashboard', '/market']);
 
+export function expireTrialSnapshot(subscription, now = Date.now()) {
+  const end = subscription?.trialEndsAtExact || subscription?.trialEndsAt;
+  if (subscription?.billingStatus === 'trialing' && end && (!Number.isFinite(Date.parse(end)) || Date.parse(end) <= now)) {
+    return { ...subscription, hasAccess: false, billingStatus: 'expired', status: 'expired' };
+  }
+  return subscription;
+}
+
 export function hasActivePlanAccess(subscription) {
   return Boolean(
     subscription?.assigned === true

@@ -256,6 +256,27 @@ class BoundCustomerTransport:
     def retrieve(self, identifier):
         return _plain(self._sdk.v1.customers.retrieve(identifier))
 
+    def checkout_create(self, payload, key):
+        return _plain(self._sdk.v1.checkout.sessions.create(payload, options={
+            'idempotency_key': key, 'max_network_retries': 0}))
+
+    def checkout_retrieve(self, identifier):
+        return _plain(self._sdk.v1.checkout.sessions.retrieve(identifier))
+
+    def checkout_expire(self, identifier, key):
+        return _plain(self._sdk.v1.checkout.sessions.expire(identifier,options={'idempotency_key':key,'max_network_retries':0}))
+
+    def subscription_retrieve(self, identifier):
+        return _plain(self._sdk.v1.subscriptions.retrieve(identifier))
+
+    def subscription_cancel(self, identifier, key):
+        return _plain(self._sdk.v1.subscriptions.update(identifier,{'cancel_at_period_end':True},
+            options={'idempotency_key':key,'max_network_retries':0}))
+
+    def checkout_list(self, customer):
+        # Enumerate every status for exact-operation recovery, never open-only.
+        return [_plain(v) for v in self._sdk.v1.checkout.sessions.list({'customer': customer, 'limit':100}).auto_paging_iter()]
+
     def search(self, tenant_id, operation_id):
         # UUIDs originate in KEEL and are validated before query interpolation.
         from uuid import UUID

@@ -101,17 +101,26 @@ def test_checkout_recovery_provider_errors_have_a_controlled_http_contract(clien
 
     class Connection:
         def close(self): pass
+        def cursor(self):
+            from unittest.mock import MagicMock
+            cursor=MagicMock()
+            cursor.__enter__.return_value.fetchone.return_value=(False,)  # Existing legacy cohort.
+            return cursor
 
     client.app.dependency_overrides[billing.get_tenant_context]=lambda:TenantContext('synthetic-tenant','synthetic-owner')
     monkeypatch.setattr(billing.db,'app_role_connection',lambda *args:Connection())
     monkeypatch.setattr(billing.db,'system_connection',lambda:Connection())
     monkeypatch.setattr(billing.db,'billing_setup_connection',lambda *args:Connection())
     monkeypatch.setattr(billing,'_require_billing_role',lambda *args:None)
-    def unavailable(*args): raise TimeoutError('Synthetic provider timeout')
+    calls=[]
+    def unavailable(*args):
+        calls.append(True)
+        raise TimeoutError('Synthetic provider timeout')
     monkeypatch.setattr(service,operation,unavailable)
     response=getattr(client,method)(path)
     assert response.status_code==502
     assert response.json()['detail']['reason']=='provider_error'
+    assert calls==[True], 'The provider boundary, not an unrelated SQL failure, must cause this response'
 
 
 def test_checkout_preserves_existing_contract_and_provider_idempotency(monkeypatch, memory_checkout_reservations):

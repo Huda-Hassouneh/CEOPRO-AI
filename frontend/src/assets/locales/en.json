@@ -1958,6 +1958,65 @@
     }
   },
   "billing": {
+    "subscriptionJourney": {
+      "cancel": "Stop future renewals",
+      "cleanup": "Recover withdrawn Checkout",
+      "canceled": "Provider cancellation recorded. Existing period access is preserved.",
+      "title": "Recurring subscription journey",
+      "notice": "Preview only until the approved policy bundle and protected services are installed. No access is granted by returning from Checkout.",
+      "prepare": "Prepare frozen terms",
+      "continue": "Continue or recover Checkout",
+      "blocked": "The journey is blocked or awaiting trusted verification. No new payment submission is made during recovery.",
+      "states": {
+        "expired": "Checkout has expired. A reviewed recovery is required.",
+        "conflict": "Conflicting evidence requires review.",
+        "checkout_ready": "Opening secure Checkout.",
+        "consent_required": "Review and accept the approved agreement before Checkout.",
+        "pending": "Provider verification or recovery is pending.",
+        "confirmed": "Trusted confirmation recorded. Refreshing subscription access.",
+        "blocked": "Status unavailable. Please retry."
+      }
+    },
+    "trialConsent": {
+      "title": "Recurring consent preparation",
+      "businessRules": "For eligible business customers: a 14-day free trial followed by automatic paid renewal requires explicit advance consent.",
+      "policyNotice": "Approved agreement text and policy versions are required. Consent acceptance remains blocked while approvals are missing.",
+      "missing": "Missing approved policies",
+      "present": "Review approved agreement",
+      "checkbox": "Recurring-consent acknowledgement",
+      "accept": "Record explicit consent",
+      "withdraw": "Withdraw pre-confirmation consent",
+      "withdrawn": "Pre-confirmation consent withdrawn.",
+      "recorded": "Local consent recorded. Provider readiness and subscription confirmation are still required.",
+      "refused": "Consent action blocked. Refresh the status or request support; do not retry Checkout.",
+      "providerNotice": "Any additional provider-required consent remains a separate, unresolved requirement.",
+      "cancellationNotice": "Pre-confirmation withdrawal is separate from subscription cancellation. Paid cancellation prevents future renewals and retains access through the paid-period end. Refund requests may be reviewed within 14 days after the first paid charge; refunds are not guaranteed and remain subject to applicable law and seller/provider obligations.",
+      "missingFields": {
+        "agreement_text": "Approved agreement text",
+        "agreement_revision": "Agreement revision",
+        "language_version": "Language version",
+        "operator_details": "Seller/operator details",
+        "trial_start_rule": "Trial-start rule",
+        "renewal_cancellation_disclosures": "Renewal and cancellation disclosures",
+        "refund_review_policy": "Refund-review policy",
+        "retention_policy": "Evidence-retention policy"
+      }
+    },
+    "trialJourney": {
+      "title": "Reserved trial terms",
+      "eligible": "Ready for terms review",
+      "pending_verification": "Verification pending",
+      "conflict": "Operation needs review",
+      "expired": "Checkout expired",
+      "blocked": "Preview unavailable",
+      "plan": "Reserved plan",
+      "renewal": "Approved renewal amount",
+      "interval": "Billing interval",
+      "months": "{{count}} month(s)",
+      "duration": "Reserved trial duration",
+      "days": "{{count}} day(s)",
+      "note": "This preview does not start a trial or confirm a subscription. Agreement and trial-start details remain unavailable."
+    },
     "pricingStudio": {
       "tierInternal": {
         "title": "Internal-cost assumptions by plan",

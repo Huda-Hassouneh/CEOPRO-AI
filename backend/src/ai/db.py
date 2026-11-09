@@ -200,6 +200,30 @@ def _service_socket(role: str, password: str):
         raise
 
 
+def billing_preview_connection(tenant_id: str, user_id: str):
+    """Strict read-only setup identity; no legacy administrative fallback.
+
+    The unchanged checkpoint query returns JSONB numeric values. Decode them as
+    Decimal so the approved payment amount is never rounded through a float.
+    No observer, consent, confirmation or activation credentials are resolved.
+    """
+    import json
+    from decimal import Decimal
+    from psycopg2.extras import register_default_jsonb
+
+    password = os.getenv("BILLING_SETUP_DB_PASSWORD")
+    if not password:
+        raise RuntimeError("Restricted billing preview credential unavailable")
+    raw = _service_socket("ceopro_billing_setup", password)
+    try:
+        raw.set_session(readonly=True)
+        register_default_jsonb(raw, loads=lambda value: json.loads(value, parse_float=Decimal))
+        return _BillingSetupConnection(_UnpooledOwner(), raw, tenant_id, user_id)
+    except Exception:
+        raw.close()
+        raise
+
+
 def image_worker_connection():
     """Restricted queue identity; never fall back to the migration owner."""
     password = os.getenv('IMAGE_WORKER_DB_PASSWORD')

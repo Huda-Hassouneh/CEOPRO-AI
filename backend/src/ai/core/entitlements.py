@@ -77,7 +77,7 @@ def _plan(tenant_id: str, user_id: str) -> dict:
         "entitlements": set(plan["entitlements"]),
         "trial_ends_at": (
             plan.get("trial_ends_at")
-            if plan.get("status") == "trialing" and plan.get("source") == "trial"
+            if plan.get("status") == "trialing" and plan.get("source") in ("trial", "stripe")
             else None
         ),
     }
