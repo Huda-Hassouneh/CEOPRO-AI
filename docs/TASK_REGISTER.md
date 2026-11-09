@@ -52,6 +52,16 @@ rows** and adds dated entries; nobody rewrites another session's rows. Evidence 
 
 Next: after #107 is deployed and verified, Session 1 + owner run runbook steps 1-7 (steps 2-6 do not need #107). Owner first removes the variables from the `Default` agent environment.
 
+## Session 4 — production file storage (2026-11-09)
+
+| Item | Branch / PR | Status | Evidence |
+|---|---|---|---|
+| Free storage choice: **Backblaze B2** (10 GB, no card, all B2 caps $0); Supabase (pauses after a week idle, 1 GB) and Postgres storage (fills the production DB) rejected; R2/Render disk need payment | `docs/OBJECT_STORAGE_FREE_TIER.md` in [#115](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/115) | decided | provider pages via web search (direct fetch blocked by session network); unverified: whether a no-card account is hard-blocked at 10 GB - not relied on |
+| Storage adapter: single private bucket (`MINIO_BUCKET`), 25 MiB/file, 9 GB ceiling, 507 full / 503 unavailable, https where deployed, 5 s timeouts, `/health/storage`, image ETag/304, EN/AR "storage full" | `feat/free-object-storage` [#115](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/115) | PR open, **awaiting CI + owner merge** | local CI layout (PG16+pgvector, Redis 7, MinIO built from the pinned source, local URLs only): `src/` 5,267 passed, 23 skipped, 1 failed = PG>=17 assertion (same on `main`); frontend 282/282 |
+| **Cross-tenant bug fixed**: every company's assistant summary shared object `_generated/<slot>.txt` (B's write could be embedded in A's index; deleting one company deleted all summaries) -> `_generated/<tenant_id>/<slot>.txt` | same PR | fixed | new two-company regression test; production never had storage, so no production object affected |
+| Local end-to-end (real API, 2 synthetic companies, single-bucket mode) | same PR | PASS | upload -> download (byte-identical) -> anonymous 403 -> retry re-read -> assistant receives the text (model = labelled local mock); B isolated; image stored, served, 304, B 404, survives restart; ceiling -> 507; endpoint down -> 503, readiness unaffected |
+| Production setup | — | **needs owner** | owner creates B2 account + $0 caps + private bucket + bucket-scoped key (doc §3, keys only in Render); then Session 1 deploys, Session 2 verifies (doc §4) |
+
 ## Session 2 successor — completed (2026-11-09)
 
 Session `session_01BF1evjasZyYcJBjuxhn6uJ`. Branches pushed after the owner's go-ahead; PRs follow. Merges stay with the
@@ -90,7 +100,7 @@ owner (agent merges are refused by the permission check).
 2. **Plaintext production secrets in cloud environments** - removed from `ceopro-ai` (04:30); the `Default` environment still holds `DATABASE_URL`, `APP_DB_PASSWORD`, `POSTGRES_PASSWORD`, `JWT_SECRET`, `REDIS_URL`, `GROQ_API_KEY`, `BREVO_API_KEY` as plain environment variables readable by every agent process. Recommended: rotate them (JWT secret, DB password, Brevo and Groq keys) and keep only network secrets (proxy-injected) in agent environments.
 3. **Credentials pasted in chat** (KEEL login, a Gmail password) - change both.
 4. **Commercial decisions** - #93-#95 (card-required trials, catalogue limits).
-5. **Production file storage** - `MINIO_ENDPOINT` unset in production (reported by Session 1): customer uploads and stored marketing images unavailable. Owned by Session 4; may need the owner to create a free storage account (steps will be given; keys go into the Render dashboard, never chat).
+5. **Production file storage** - `MINIO_ENDPOINT` unset in production (reported by Session 1): customer uploads and stored marketing images unavailable. Owned by Session 4: fix in [#115](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/115); the owner creates a free Backblaze B2 account (no card) per `docs/OBJECT_STORAGE_FREE_TIER.md` §3; keys go into the Render dashboard, never chat.
 
 ## Next steps — Session 2 successor
 
