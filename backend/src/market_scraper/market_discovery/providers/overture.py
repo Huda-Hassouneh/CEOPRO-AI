@@ -506,6 +506,9 @@ def search_mirror(query: DiscoveryQuery) -> ProviderResult:
         if not isinstance(cells, dict) or not isinstance(cells.get("cells"), dict):
             raise ValueError("malformed cells.json")
         covered = set(cells.get("covered") or cells["cells"])
+        # From pack format 2 every tile carries a sha256; a format-2 tile without one is refused, so an index
+        # and pack replaced together cannot skip the check by leaving the hash out.
+        hash_required = isinstance(cells.get("format"), int) and cells["format"] >= 2
         if not {s for s, _t in tiles} & covered:
             # Not built for this region yet: say so, never report "no competitors" for an unread area.
             return ProviderResult(NAME, "skipped", reason="not_covered", requests=requests)
@@ -527,6 +530,8 @@ def search_mirror(query: DiscoveryQuery) -> ProviderResult:
                     digest = entry[3] if len(entry) > 3 else None
                     if digest is not None and not isinstance(digest, str):
                         raise TypeError("tile hash is not text")
+                    if hash_required and digest is None:
+                        raise ValueError("tile hash missing")
                 except (TypeError, ValueError, IndexError, KeyError):
                     failures += 1  # one malformed index entry costs that tile, not the search
                     continue

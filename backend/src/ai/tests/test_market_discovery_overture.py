@@ -563,3 +563,39 @@ print(json.dumps({"compressed_kb": [len(bomb) // 1024, len(long_line) // 1024], 
     assert result["outcomes"][0] == "refused"          # inflated past 96 MB -> refused
     assert result["outcomes"][1] == "refused"          # 400 MB in one "line" also inflates past the cap
     assert result["grown_mb"] < 40, result             # without the guards this grew by hundreds of MB
+
+
+def test_a_format_2_mirror_refuses_a_tile_without_a_hash(monkeypatch, tmp_path):
+    import gzip
+    from scripts.overture_mirror import build
+    member = gzip.compress(("\n".join(json.dumps(build.compact_place(r)) for r in _mirror_rows()) + "\n").encode(), mtime=0)
+    _one_tile_mirror(monkeypatch, tmp_path, member, with_hash=False)
+    files_cells = {"format": 2, "covered": ["cell_40_20"], "cells": {"cell_40_20": {}}}
+    overture._mirror_cache.clear()
+    import httpx
+    original = overture._client
+
+    def client():
+        base = original()
+        handler = base._transport.handler
+        def wrapped(request):
+            if request.url.path.endswith("cells.json"):
+                return httpx.Response(200, content=json.dumps(files_cells).encode())
+            return handler(request)
+        return httpx.Client(transport=httpx.MockTransport(wrapped))
+    monkeypatch.setattr(overture, "_client", client)
+    assert overture.search(_query()).reason == "unreachable"   # format 2 + no hash -> refused
+    files_cells["format"] = 1
+    overture._mirror_cache.clear()
+    assert overture.search(_query()).status == "ok"            # format 1 packs (no hashes) still read
+
+
+@pytest.mark.parametrize("entry", [[0, 10], "x", [0, 10, 1], [0, 10, 1, 7]])
+def test_the_verifier_reports_short_or_malformed_entries_instead_of_crashing(tmp_path, entry):
+    from scripts.overture_mirror import verify
+    release = tmp_path / "r"
+    release.mkdir()
+    (release / "cell_40_20.pack").write_bytes(b"x" * 20)
+    (release / "cell_40_20.idx.json").write_text(json.dumps({"format": 2, "tiles": {"247:466": entry}}))
+    (release / "cells.json").write_text(json.dumps({"format": 2, "covered": ["cell_40_20"], "cells": {"cell_40_20": {"places": 1}}}))
+    assert any("entry must be" in p for p in verify.verify(str(release)))

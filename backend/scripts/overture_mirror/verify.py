@@ -38,8 +38,11 @@ def verify(release_dir: str) -> list:
         places = 0
         with open(pack_path, "rb") as pack:
             for key, entry in index["tiles"].items():
+                if not isinstance(entry, list) or len(entry) < 4 or not isinstance(entry[3], str):
+                    problems.append(f"{stem} {key}: entry must be [offset, length, places, sha256]")
+                    continue
                 offset, length, count = entry[:3]
-                if len(entry) < 4 or length > MAX_TILE_BYTES or offset + length > size:
+                if length > MAX_TILE_BYTES or offset + length > size:
                     problems.append(f"{stem} {key}: missing hash, bad range or tile over {MAX_TILE_BYTES} bytes")
                     continue
                 pack.seek(offset)
