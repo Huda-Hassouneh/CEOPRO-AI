@@ -1,0 +1,58 @@
+# Builds the compact Overture Places mirror that competitor discovery reads (scripts/overture_mirror/build.py)
+# and publishes it as release assets of this public repository: a pre-release tagged
+# overture-mirror-<Overture release>, never marked "latest". The API reads it with HTTP range requests
+# (OVERTURE_MIRROR_URL = https://github.com/<repo>/releases/download/overture-mirror-<release>).
+# Data: Overture Maps Foundation places, CDLA-Permissive-2.0. Only public data is read or published.
+name: Overture mirror
+
+on:
+  workflow_dispatch:
+    inputs:
+      cells:
+        description: "Optional: space-separated lon,lat cells to build (default: backend/config/overture_mirror_cells.json)"
+        required: false
+  schedule:
+    - cron: "41 2 3 * *"  # monthly, after Overture's usual release window
+
+permissions:
+  contents: write
+
+concurrency:
+  group: overture-mirror
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --no-cache-dir -r src/ai/requirements.txt
+      - name: Build the mirror
+        working-directory: backend
+        env:
+          OVERTURE_CACHE_DIR: ${{ runner.temp }}/overture-cache
+          OVERTURE_CACHE_SIGNING_KEY: ci-overture-mirror-build-only
+          INPUT_CELLS: ${{ github.event.inputs.cells }}
+        run: |
+          if [ -n "$INPUT_CELLS" ]; then SELECT="--cells=$INPUT_CELLS"; else SELECT="--cells-file=config/overture_mirror_cells.json"; fi
+          python -m scripts.overture_mirror.build --out-dir "$RUNNER_TEMP/parquet" --packs-dir "$RUNNER_TEMP/packs" "$SELECT"
+      - name: Check the packs before publishing
+        working-directory: backend
+        run: python -m scripts.overture_mirror.verify "$RUNNER_TEMP/packs"
+      - name: Publish as a pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE=$(ls "$RUNNER_TEMP/packs")
+          TAG="overture-mirror-$RELEASE"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --latest=false \
+            --title "Overture mirror $RELEASE" \
+            --notes "Compact Overture Places mirror for competitor discovery (scripts/overture_mirror). Data © Overture Maps Foundation, CDLA-Permissive-2.0."
+          gh release upload "$TAG" "$RUNNER_TEMP/packs/$RELEASE"/* --clobber
+          echo "OVERTURE_MIRROR_URL=https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG" >> "$GITHUB_STEP_SUMMARY"

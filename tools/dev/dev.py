@@ -504,7 +504,9 @@ def setup(args):
         write_json(STATE / "config.json", c)
     c = config()
     if getattr(args, "reuse_python", None):
-        candidate = Path(args.reuse_python).resolve()
+        # absolute(), not resolve(): a POSIX venv's bin/python is a symlink to the base interpreter,
+        # and following it would run outside the venv (sys.prefix == sys.base_prefix).
+        candidate = Path(os.path.abspath(args.reuse_python))
         if not candidate.is_file():
             raise DevError("Selected virtualenv Python does not exist.")
         validate_reused_python(candidate, models=args.models)

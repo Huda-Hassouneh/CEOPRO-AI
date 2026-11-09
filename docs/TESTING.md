@@ -129,3 +129,19 @@ containers; it is not a customer-data reset. See the
 For each change report PASS, FAIL, BLOCKED or NOT TESTED with the exact command,
 source revision, scope, expected versus actual outcome and remaining limits.
 Never disable a guard or skip a failure to produce a green summary.
+
+## Test-run safety guard
+
+`backend/conftest.py` stops any backend test run whose `DATABASE_URL`,
+`AI_TEST_DATABASE_URL`, `AI_TEST_MANAGED_PG_ADMIN_URL`, `SCRAPER_DATABASE_URL`,
+`BILLING_TEST_DATABASE_URL`, `REDIS_URL`, `AI_TEST_REDIS_URL`, `REDIS_HOST` or
+`AI_TEST_REDIS_HOST` points anywhere but loopback or a single-label container
+name (`postgres`, `redis`). A cloud workspace or shell that carries hosted
+production values therefore cannot have tests write to them; the message names
+the variable and host, never credentials. A deliberate run against a disposable
+remote instance sets `KEEL_TEST_ALLOW_REMOTE_SERVICES=1`.
+
+Native database tests assume freshly created clusters (as in CI). Re-running
+`test_managed_postgres_migrations_integration_db.py` or
+`test_standard_plan_creation_contract.py` on a database a previous run already
+used fails on leftover roles/rows; recreate the containers first.
