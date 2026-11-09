@@ -89,6 +89,33 @@ rows** and adds dated entries; nobody rewrites another session's rows. Evidence 
    - A per-company daily image-read budget, because B2's 2,500 free downloads a day are shared by all companies.
    - Close or delete the obsolete branch `feat/free-object-storage`.
 
+## Session 1 — Overture, memory, deployments (2026-11-08/09) — CLOSED (handover)
+
+Session `session_01BF1evm6jhiwguiiZVnAHWT`. Local = cloud container; production = Render read-only checks. No production deploy, setting change or migration since the 04:02 UTC deploy below.
+
+| Item | Branch / PR | Status | Evidence |
+|---|---|---|---|
+| Crashed scan locked "Refresh scan" (run stuck `running`) | [#96](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/96) | MERGED, **DEPLOYED** (in `99c213c`) | 7 tests (3 fail before) |
+| Overture never in the API + admission control (one slot, bounded wait, no charge when busy) | [#97](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/97) | MERGED, **DEPLOYED** | production `/health/processor` → `overture: unsafe` |
+| Team-invitation email failure returned 500 | [#98](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/98) | MERGED, **DEPLOYED** | 6 tests |
+| Platform-owner portal Arabic garbled | [#99](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/99) | MERGED, not deployed (keel-web `375055c`) | integrity test |
+| Overture reader memory-bounded (Dubai 1,002 → 279 MB) | [#100](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/100) | MERGED, not deployed | real-data benchmark, 5 tests |
+| Migration owner keeps no restricted-role membership (Neon) | [#101](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/101) | MERGED, not deployed; #81 closed superseded | 5/5 on dedicated cluster |
+| Emails in the reader's language with real expiry | [#102](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/102) | MERGED, not deployed | 19 tests |
+| **Compact Overture mirror** (cell packs; stdlib range-request reader, no pyarrow in the API; inflated/line/tile caps; per-tile sha256 required from format 2; monthly workflow publishing a public pre-release) | [#116](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/116) head `c0ef4d9f` | **MERGED to main (`40e5d7b`)**, not published, not deployed; inert until `OVERTURE_MIRROR_URL` is set | CI on `c0ef4d9f` 6/6 green (backend, frontend, browser-smoke, gitleaks, images ×2); Session 2 security re-review: inflation finding FIXED (398 KB tile +1 MB, refused), format-2 tile without hash refused; overture tests 49 passed; full `src/` on the merge with main `b3ae37b` (fresh DB, 165 migrations): 5,257 passed / 90 skipped / 1 failed on a reused DB; the failed test (`test_standard_plan_creation_contract.py`, singleton-row duplicate from the first run) passes 9/9 on a fresh DB; real release `2026-10-21.0`, 24 cells, 4,577,681 places, verify 0 problems; Amman 5 km 0.6–0.9 s/+12 MB cold, Dubai 15 km 1.9 s/+7 MB, candidates identical to direct Overture |
+| Load test, local API (35 users × 60 s) | — | measured | normal 62.7 req/s 0 errors; Overture inside API −15% throughput, p95 5–10×, +125 MB |
+
+**Production at handover (read-only):** `ceopro-ai-new` live = `99c213c` (deploy `dep-dbokbr8u01pc73fhtemg`, rollback `700cb9d`); keel-web `375055c`; `/health` 200, `/health/ready` DB + Redis ok. Only the two KEEL Render services were ever read or changed; 360-Radar and other services untouched.
+
+### Remaining — each needs the owner's explicit approval (nothing blocked on code)
+
+1. **Production DB backup + migration rehearsal** before deploying `main` (now 5+ migrations): Neon branches `restore-point-<date>` and `rehearsal-<date>` (owner, console) → restore test (identical `schema_migrations` and row counts for companies, tenant_users, billing_subscriptions, products, credit ledger; Session 2 independently) → `scripts/apply_migrations.py` from `main` against `rehearsal` only ("Applied N", rerun "Applied 0", FORCE RLS and restricted roles unchanged) → owner approval → deploy `main` → startup log + `/health/ready` + independent verification. Restore path: point `DATABASE_URL` at `restore-point` and redeploy `99c213c`.
+2. **Overture mirror go-live:** run workflow `overture-mirror.yml` (or upload the verified packs) to publish pre-release `overture-mirror-2026-10-21.0` → run `backend/scripts/overture_mirror/verify.py` on the downloaded assets → set `OVERTURE_MIRROR_URL` on `ceopro-ai-new` → deploy → `/health/processor` shows `mirror`, one real scan in Amman/Dubai. Note: the monthly cron (`41 2 3 * *`) on main publishes a new pre-release automatically; disable the workflow if publishing should wait.
+3. **#115 storage** (on main `d26b96c`): B2 bucket + `MINIO_*` values on Render, then deploy (Session 4 handover above).
+4. **#107 JWT rotation** (on main `b3ae37b`): per Session 3 handover; hard rotation needs no code.
+5. **keel-web:** deploy `main` for #99/#103.
+6. Longer term: D2 credit periods (3 open owner decisions), F2 failed-campaign reason (needs a migration), VELORA demo-data inventory (needs approved access), test hygiene T1, free-plan wake latency (accepted).
+
 ## Session 2 successor — completed (2026-11-09)
 
 Session `session_01BF1evjasZyYcJBjuxhn6uJ`. Branches pushed after the owner's go-ahead; PRs follow. Merges stay with the
@@ -142,7 +169,7 @@ not re-run here; **PENDING** = not yet checkable.
 | Blocker | Waiting on |
 |---|---|
 | #107 deployable | review PASS + CI green at `6e4590d4`; only the owner's approval remains. (Not needed for the hard rotation itself) |
-| #116 deployable | CI green on `c0ef4d9f` (fix verified) → owner's decision on merge and on publishing the mirror release |
+| #116 deployable | MERGED to main `40e5d7b` (CI 6/6 green on `c0ef4d9f`, fix verified) → owner's decision on publishing the mirror release and deploying |
 | #115 deployable | CI green on `55f72c6d`; owner confirming bucket settings A1-A7 (REPORTED via Session 4); my external 403 checks (needs endpoint host + bucket name); owner's explicit deploy approval |
 | Backup verification before main's 5 migrations | owner-approved secure read-only access method; until then I request and use no production database credentials |
 | Merges of #103-#106, #111-#114 | owner (agent merges refused by the permission check) |
