@@ -99,6 +99,28 @@ class JourneyWebhookReconciler:
         return bool(exact_checkout or exact_subscription)
 
     @staticmethod
+    def _paddle_followup(row,d,event):
+        """Signed subsequent billing is receipt evidence, never a new Checkout.
+
+        A persisted original subscription and Customer must both match. This
+        exception only quarantines unconfirmed subscription billing; it cannot
+        enter trial reconciliation or the confirmed lifecycle application path.
+        """
+        from src.ai.billing.payment_contracts import GatewayEnvironment, PaymentEventKind
+        data=event.raw_evidence.get('data') or {}
+        return bool(row['reservation']['state']=='pending' and event.provider=='paddle'
+            and event.binding.environment is GatewayEnvironment.TEST
+            and event.kind in (PaymentEventKind.INVOICE_SETTLED,PaymentEventKind.INVOICE_FAILED)
+            and event.checkout is None and event.invoice and event.customer and event.subscription
+            and event.invoice.opaque_id!=d['provider_checkout_id']
+            and event.customer.opaque_id==d['provider_customer_id']
+            and event.subscription.opaque_id==d['provider_subscription_id']
+            and data.get('id')==event.invoice.opaque_id
+            and data.get('customer_id')==event.customer.opaque_id
+            and data.get('subscription_id')==event.subscription.opaque_id
+            and data.get('origin') in ('subscription_update','subscription_recurring'))
+
+    @staticmethod
     def _quarantine(journey,operation,oid,d,event,receipt):
         if not JourneyWebhookReconciler._anchored(d,event):return None
         durable=journey.observations.read(oid)
@@ -118,9 +140,10 @@ class JourneyWebhookReconciler:
             if _binding(row)!=event.binding:
                 raise ValueError('Original event binding required')
             d=journey.dispatches.command(operation,'read')
+            followup=d is not None and self._paddle_followup(row,d,event)
             if (d is None or event.customer and event.customer.opaque_id!=d['provider_customer_id']
                     or event.checkout and event.checkout.opaque_id!=d['provider_checkout_id']
-                    or event.provider=='paddle' and event.invoice and row['reservation']['state']!='confirmed' and event.invoice.opaque_id!=d['provider_checkout_id']
+                    or event.provider=='paddle' and event.invoice and row['reservation']['state']!='confirmed' and event.invoice.opaque_id!=d['provider_checkout_id'] and not followup
                     or event.subscription and d['provider_subscription_id'] and event.subscription.opaque_id!=d['provider_subscription_id']):
                 raise ValueError('Original event identity required')
             from src.ai.billing.payment_contracts import PaymentEventKind
@@ -144,6 +167,8 @@ class JourneyWebhookReconciler:
             from src.ai.billing.verification_observations import trial_request
             oid=observation_identity(operation)
             op=journey.observations.read(oid)
+            if followup and (op is None or not op.get('last_observation_id')):
+                raise ValueError('Persisted original subscription evidence required')
             if op is None:
                 if row['reservation']['state']=='confirmed':
                     raise ValueError('Original observation required')
@@ -159,6 +184,8 @@ class JourneyWebhookReconciler:
             self._capture_scope(row,oid,event,receipt,digest)
             captured=self._quarantine(journey,operation,oid,d,event,receipt)
             if captured is not None:return captured
+            if followup:
+                return self._ack(receipt,'quarantined','unconfirmed_subscription_lifecycle')
             result=journey.reconcile(operation,language)
             if result['state']!='confirmed':
                 captured=self._quarantine(journey,operation,oid,d,event,receipt)
