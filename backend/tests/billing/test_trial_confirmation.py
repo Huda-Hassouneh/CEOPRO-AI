@@ -14,6 +14,10 @@ def test_incomplete_or_stored_evidence_cannot_reach_database():
                   replace(observation(),provenance=replace(observation().provenance,stored_observation_id='stored-observation'))):
         with pytest.raises(T.ConfirmationError,match='authoritative_trial_evidence'):
             repo.attest({},value,'consent',checkout_completed_at=value.provenance.observed_at,checkout_expires_at=value.trial.ends_at)
+    # Checkout is COMPLETE in this fixture, but missing provider trial evidence
+    # is rejected by the immutable contract before the SQL repository is reached.
+    with pytest.raises(ValueError,match='complete recurring evidence'):
+        replace(observation(),trial=None)
 
 
 def test_confirmation_module_is_dormant_and_has_no_provider_or_credential_resolution():

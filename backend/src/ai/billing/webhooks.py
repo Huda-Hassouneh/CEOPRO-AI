@@ -327,7 +327,7 @@ def handle_event(sys_conn, event: VerifiedPaymentEvent, *, journey_handler=None)
     except Exception:
         sys_conn.rollback()
         raise WebhookRetry('Journey classification unavailable') from None
-    if cohort:
+    if cohort or event.provider != 'stripe':
         if journey_handler is None:
             raise WebhookRetry('Protected journey reconciliation unavailable')
         try:

@@ -46,7 +46,7 @@ try {
   for(const locale of ['en','ar']){
     const messages=JSON.parse(readFileSync(`src/assets/locales/${locale}.json`,'utf8')).billing;
     const context=await browser.newContext(),page=await context.newPage(),calls=[],errors=[],unexpected=[];
-    let approved=false,accepted=false,confirmed=false,other=false,trialEnd=null;
+    let approved=false,accepted=false,confirmed=false,other=false,trialEnd=null,forcedState=null,paidEnd=null;
     page.on('pageerror',e=>errors.push(e.message));
     await page.addInitScript(l=>localStorage.setItem('ceopro_locale',l),locale);
     await page.route('**/*',async route=>{
@@ -54,13 +54,13 @@ try {
       if(url.href===origin+'/')return route.fulfill({contentType:'text/html',body:'<div id="root"></div><script type="module" src="/fixture.js"></script>'});
       if(url.href===origin+'/fixture.js')return route.fulfill({contentType:'text/javascript',body:script});
       if(url.pathname==='/billing/subscription')return route.fulfill({contentType:'application/json',body:JSON.stringify({
-        assigned:Boolean(trialEnd)&&!other,hasAccess:Boolean(trialEnd)&&!other,status:trialEnd?'trialing':'none',trialEndsAtExact:trialEnd})});
+        assigned:Boolean(paidEnd||trialEnd)&&!other,hasAccess:Boolean(paidEnd||trialEnd)&&!other,status:paidEnd?'active':trialEnd?'trialing':'none',trialEndsAtExact:trialEnd,accessEndsAt:paidEnd})});
       if(!url.pathname.startsWith('/billing/trial-journeys')){unexpected.push(url.href);return route.abort();}
       calls.push({method:req.method(),path:url.pathname,body:req.postDataJSON()});
       const reply=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
       if(other)return reply({detail:'Unavailable'},404);
       if(url.pathname==='/billing/trial-journeys')return reply({operation_id:op,state:'reserved'});
-      if(url.pathname.endsWith('/progress'))return reply({operation_id:op,state:confirmed?'confirmed':'consent_required'});
+      if(url.pathname.endsWith('/progress'))return reply({operation_id:op,state:forcedState||(confirmed?'confirmed':'consent_required')});
       const terms={renewal_amount:'59.000000000000001',currency:'USD',interval_months:1,trial_duration_days:14};
       if(url.pathname.endsWith('/consent/preparation'))return reply({operation_id:op,state:approved?'prepared':'pending_policy',
         missing_approvals:approved?[]:['agreement_text','trial_start_rule'],agreement_text:approved?'SYNTHETIC NOT LEGAL':null,
@@ -91,7 +91,13 @@ try {
     await page.waitForFunction(()=>!document.querySelector('[role=alert]'));
     assert.equal(new URL(page.url()).origin,origin);
     checks.push(locale+': explicit consent connects to advance; pending observation never redirects or grants access');
-    confirmed=true;await page.evaluate(()=>window.refresh());
+    for (const state of ['conflict','expired']) {
+      forcedState=state;await page.evaluate(()=>window.refresh());
+      await page.getByText(messages.subscriptionJourney.states[state],{exact:true}).waitFor();
+      assert.equal(await page.getByRole('button',{name:messages.subscriptionJourney.continue,exact:true}).isDisabled(),true);
+      checks.push(locale+': durable '+state+' overrides cached advance and disables continue');
+    }
+    forcedState=null;confirmed=true;await page.evaluate(()=>window.refresh());
     await page.getByRole('button',{name:messages.subscriptionJourney.cancel,exact:true}).click();
     await page.getByText(messages.subscriptionJourney.canceled,{exact:true}).waitFor();
     checks.push(locale+': confirmed checkpoint exposes separate cancellation action');
@@ -100,6 +106,10 @@ try {
     await page.waitForFunction(()=>document.querySelector('[data-testid=rights]').textContent==='allowed');
     await page.waitForFunction(()=>document.querySelector('[data-testid=rights]').textContent==='denied');
     checks.push(locale+': confirmation/redirect never grants; actual subscription cache expires at exact trial cutoff');
+    paidEnd=new Date(Date.now()+1800).toISOString();await page.evaluate(()=>window.refresh());
+    await page.waitForFunction(()=>document.querySelector('[data-testid=rights]').textContent==='allowed');
+    await page.waitForFunction(()=>document.querySelector('[data-testid=rights]').textContent==='denied');
+    checks.push(locale+': settled paid-period cache expires without another provider event');
     other=true;await page.evaluate(()=>window.switchIdentity());
     await page.waitForFunction(()=>!document.body.textContent.includes('59.000000000000001'));
     assert.equal(await page.getByRole('checkbox').isChecked(),false);

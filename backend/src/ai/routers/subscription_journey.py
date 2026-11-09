@@ -40,6 +40,23 @@ async def journey_webhook(request: Request):
         if connection is not None:connection.close()
 
 
+@router.post('/trial-journeys/webhook/{provider}',include_in_schema=False)
+async def bound_journey_webhook(provider: Literal['stripe','paddle'],request: Request):
+    if os.getenv('RECURRING_JOURNEY_ENABLED','').lower()!='true':raise HTTPException(404,'Journey unavailable')
+    installed=getattr(request.app.state,'bound_journey_webhooks',{})
+    endpoint=installed.get(provider)
+    if endpoint is None:raise HTTPException(503,'Bound journey webhook unavailable')
+    decoder,handler=endpoint
+    if decoder.binding.provider!=provider:raise HTTPException(503,'Webhook binding unavailable')
+    from src.ai.billing.payment_contracts import InvalidPaymentWebhook
+    try:event=decoder.decode(await request.body(),request.headers.get(decoder.signature_header if provider=='paddle' else 'Stripe-Signature'))
+    except (InvalidPaymentWebhook,ValueError,TypeError):raise HTTPException(400,'Invalid journey signature or binding') from None
+    # Resolver and SQL enforce the original persisted actor/tenant/binding. This
+    # route deliberately has no generic legacy handler, including unknown IDs.
+    try:return dict(received=True,**handler(event))
+    except Exception:raise HTTPException(500,'Journey event pending trusted reconciliation') from None
+
+
 class PlanChoice(BaseModel):
     model_config = ConfigDict(extra='forbid')
     request_key: UUID
@@ -113,3 +130,10 @@ def cancellation(operation_id: UUID, request: Request, response: Response, ctx: 
 def cleanup(operation_id: UUID, request: Request, response: Response, ctx: TenantContext=Depends(get_tenant_context)):
     with _journey(request,response,ctx) as journey:
         return _invoke(lambda:journey.cleanup(operation_id))
+
+
+@router.get('/trial-journeys/{operation_id}/checkout')
+def checkout_details(operation_id: UUID, request: Request, response: Response, language: Literal['en','ar']='en',
+                     ctx: TenantContext=Depends(get_tenant_context)):
+    with _journey(request,response,ctx) as journey:
+        return _invoke(lambda:journey.checkout_details(operation_id,language))

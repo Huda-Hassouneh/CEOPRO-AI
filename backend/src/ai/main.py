@@ -51,6 +51,8 @@ from src.ai.routers import (
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     from src.ai.billing import test_clock
+    from src.ai.billing.sandbox_runtime import install as install_sandbox_billing
+    install_sandbox_billing(app)  # Disabled by default; no startup DB/provider calls.
     test_clock.adapter()  # Local adapter absent/forbidden in production; disabled is a no-op.
     # The connection pool (src/infrastructure/db_pool.py) is still created
     # lazily on first real use (db.py's own established convention -

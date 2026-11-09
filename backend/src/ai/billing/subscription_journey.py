@@ -16,6 +16,9 @@ from src.ai.billing.recurring_consent import ConsentRepository
 
 
 class DispatchRepository(ConsentRepository):
+    def compensation(self, operation, action, subscription=None):
+        return self._call('SELECT public.billing_journey_compensate(%s,%s,%s)',(str(operation),action,subscription)).unpack()
+
     def cancellation(self, operation, action):
         return self._call('SELECT public.billing_journey_cancellation(%s,%s)',(str(operation),action)).unpack()
 
@@ -36,13 +39,14 @@ class SubscriptionJourney:
     """
     def __init__(self, collection, dispatches, customers, customer_gateway, checkout_gateway,
                  observations, observer_for_binding, *, attestor=None, confirmer=None,
-                 contact=None, return_urls=None):
+                 contact=None, return_urls=None, lifecycle=None):
         self.collection, self.reservations = collection, collection.reservations
         self.dispatches, self.customers = dispatches, customers
         self.customer_gateway, self.checkout_gateway = customer_gateway, checkout_gateway
         self.observations, self.observer_for_binding = observations, observer_for_binding
         self.attestor, self.confirmer = attestor, confirmer
         self.contact, self.return_urls = contact, return_urls
+        self.lifecycle = lifecycle
 
     def start(self, operation, plan, period):
         # operation is derived at the authenticated boundary, not a provider ID.
@@ -127,11 +131,28 @@ class SubscriptionJourney:
         session = gateway.retrieve(d)
         gateway.validate(session, d)
         if session.state is C.CheckoutState.OPEN:
-            return self._result(operation, 'checkout_ready', 'provider_checkout_open', url=session.url)
+            return self._result(operation, 'checkout_ready', 'provider_checkout_open', url=session.url, provider=binding.provider)
         if session.state is C.CheckoutState.EXPIRED:
             self.dispatches.command(operation,'expired',**args)
             return self._result(operation, 'expired', 'provider_checkout_expired')
         return self.reconcile(operation, language)
+
+    def checkout_details(self, operation, language):
+        """Authenticated read-only payment page handoff. Never provider discovery.
+        Consent/actor/current billing authority are rechecked by protected reads.
+        """
+        row, accepted, policy = self._accepted(operation, language)
+        if row['reservation']['state']!='pending':raise CollectionBlocked('reservation_terminal')
+        binding=_binding(row)
+        d=self.dispatches.command(operation,'read')
+        if (binding.environment is not C.GatewayEnvironment.TEST
+                or d and (d['expired_at'] or d['acceptance_id']!=accepted['acceptance_id'])):
+            raise CollectionBlocked('original_checkout_required')
+        result=dict(operation_id=str(operation),provider=binding.provider,environment='test',
+            binding_id=binding.binding_id, transaction_id=d['provider_checkout_id'] if d else None)
+        bundle=getattr(self.collection.policies,'bundle_digest',None)
+        if bundle is not None:result['policy_bundle_digest']=bundle
+        return result
 
     def reconcile(self, operation, language):
         row, accepted, policy = self._accepted(operation, language)
@@ -217,7 +238,9 @@ class SubscriptionJourney:
         elif d and d['submitted_at']:
             op=self.observations.read(observation_identity(operation))
             state='conflict' if op and op['has_conflict'] else 'pending'
-        return self._result(operation,state,'durable_checkpoint_only')
+        binding=_binding(row)
+        return self._result(operation,state,'durable_checkpoint_only',provider=binding.provider,
+            binding_id=binding.binding_id,environment=binding.environment.value)
 
     def cleanup(self,operation):
         """Best-effort remote compensation after pre-confirmation withdrawal.
@@ -240,4 +263,15 @@ class SubscriptionJourney:
         if session.state is C.CheckoutState.OPEN:
             gateway.expire(session,d,authorize=lambda:self.dispatches.command(operation,'read'))
             return self._result(operation,'withdrawn','provider_checkout_expired')
-        return self._result(operation,'blocked','provider_subscription_compensation_required' if session.state is C.CheckoutState.COMPLETE else 'provider_checkout_expired')
+        if session.state is C.CheckoutState.COMPLETE:
+            if session.subscription is None or not hasattr(gateway,'compensate'):
+                return self._result(operation,'blocked','provider_subscription_compensation_required')
+            receipt=self.dispatches.compensation(operation,'elect')
+            try:
+                done=gateway.compensate(session,d,submit=receipt['elected'],
+                    authorize=lambda:self.dispatches.compensation(operation,'read'))
+            except Exception:done=False
+            if not done:return self._result(operation,'pending','provider_subscription_compensation_required')
+            self.dispatches.compensation(operation,'record',session.subscription.opaque_id)
+            return self._result(operation,'withdrawn','provider_trial_compensated')
+        return self._result(operation,'withdrawn','provider_checkout_expired')

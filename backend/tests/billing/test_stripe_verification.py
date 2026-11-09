@@ -231,6 +231,20 @@ def test_trial_boundaries_are_exact_and_not_fabricated(value, outcome):
     assert observe(reader).outcome is outcome
 
 
+@pytest.mark.parametrize('missing',[False,True])
+def test_checkout_completion_never_substitutes_for_original_provider_trial_start(missing):
+    reader=Reader()
+    reader.data['checkout','cs_A']['completed_at']=START+300
+    if missing:reader.data['subscription','sub_A']['trial_start']=None
+    result=observe(reader)
+    if missing:
+        assert result.outcome is C.VerificationOutcome.UNAVAILABLE and result.trial is None
+    else:
+        assert result.trial.started_at==datetime.fromtimestamp(START,timezone.utc)
+        assert result.outcome is C.VerificationOutcome.PENDING
+    assert not result.capabilities.supports_card_backed_trial()
+
+
 @pytest.mark.parametrize("status", ["requires_action", "requires_confirmation", "processing", "requires_payment_method"])
 def test_pending_setup_remains_pending(status):
     reader = Reader()
