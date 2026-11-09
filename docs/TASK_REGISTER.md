@@ -174,6 +174,56 @@ not re-run here; **PENDING** = not yet checkable.
 | Backup verification before main's 5 migrations | owner-approved secure read-only access method; until then I request and use no production database credentials |
 | Merges of #103-#106, #111-#114 | owner (agent merges refused by the permission check) |
 
+### FINAL HANDOVER — Session 2 successor (2026-11-09 ~16:10 UTC) — CLOSED
+
+**Submitted work:** PR [#125](https://github.com/Huda-Hassouneh/CEOPRO-AI/pull/125), branch `release/session2-work`, head
+`c3095941` (author/committer Huda). It carries the content of #105, #113, #111, #112 and #114 as five commits
+(`146229c5`, `d68f9a4e`, `e0e91949`, `bc58fd2b`, `8a039580`), plus a merge of `main` `b3ae37b9` (`173751fa`) and a
+regenerated `docs/reference/ENVIRONMENT_INVENTORY.md` (`c3095941`).
+
+**Why not on `main`:** a direct push to `main` was refused by the session permission check ("merge without
+review"), and a force-update of the branch was refused too. Neither was worked around. **Owner action:** review and
+merge #125, then close #105, #111, #112, #113 and #114 as superseded by #125. Their branches carry tool trailers;
+#125 does not.
+
+**Verification (VERIFIED on a tree byte-identical to `c3095941`):**
+- Environment: fresh PG17 + Redis 7 + MinIO (built from CI's pinned source).
+- `backend src/`: 5,322 passed, 0 failed, 23 skipped.
+- `backend tests/`: 666 passed, 3 failed. The 3 failures (`tests/keel_integration/test_auth_phase1a.py`: signup and
+  durable-send-limit email doubles) fail identically on `main` `b3ae37b9`; they are fixed by #104; CI runs `src/` only.
+- frontend: 282/282.
+- `tools/dev/environment_inventory.py --check`: matches.
+- CI on #125: running at handover. Each source PR was CI-green on its own head; the owner must confirm #125's
+  CI before merging.
+
+**What the work does:**
+- Discovery: adaptive radius, relevance fixes (map type vs name, health trades separated, Arabic folding).
+- Discovery: same industry is DIRECT when the owner gave no products/specialty (owner decision). Real-data
+  results are in `docs/REAL_DATA_DISCOVERY_TEST_2026-11-08.md`.
+- `POST /competitors/{id}/enrich` answers 404 (not 500) for a competitor the company does not track.
+- `/platform` routes check the platform role before body validation (403, never the admin schema).
+- Security harness: current sign-up, `enrich_state.py`, `idor_extended.py`, no false finding from in-flight runs.
+  Results are in `docs/SECURITY_MULTI_TENANT_TEST.md`.
+
+**Reviews done for other sessions (VERIFIED):**
+- #107 / `main` `b3ae37b9`: security re-review PASS at `6e4590d4` (all 4 token-issuing routes refuse old-key
+  sessions; future `auth_time` refused), CI 6/6 green.
+- #115 / `main` `d26b96c2`: no vulnerability; the listing-cap availability finding was verified fixed at `55f72c6d`.
+- #116 at `c0ef4d9f`: decompression finding verified fixed (398 KB tile +867 MB → +1 MB). CI was still running
+  at my last check, so its final PASS needs that CI confirmed.
+
+**Not done / open (owner):**
+- Merge #125 (and #103, #104, #106, which stay open as they were).
+- #116: confirm CI green on `c0ef4d9f`, then decide on the merge and on publishing the mirror release.
+- #115 is on `main` but not deployed. Before deploying:
+  - the owner confirms the B2 bucket settings A1-A7 (private, SSE-B2, keep-last-version, no Object Lock, no CORS,
+    a one-bucket key, $0 caps);
+  - external checks: unsigned bucket listing and object GET return 403, then `/health/storage`.
+- Backup before the 5 migrations: a restore test plus a migration test on a separate copy (Neon branch). This needs
+  a secure read-only access method approved by the owner; no production credentials were requested or used.
+- Production: read-only throughout; last check 15:13 UTC healthy (API `99c213c`, web `375055c`). No deploys,
+  migrations, configuration or data changes were made.
+
 ## Next steps — Session 2 successor (updated 2026-11-09)
 
 1. Keep #111-#114 and #103-#106 green; merges are blocked for agents by the permission check, the owner merges.
