@@ -1680,3 +1680,56 @@ unchanged; recorded authorization evidence is reused, not represented as a new
 functional acceptance test. Public policy approval, merchant/LIVE authorization and
 production cutover remain separate gates. This original conflicted, withdrawn and
 canceled journey must never be reset or reused to obtain access.
+
+### Durable webhook acknowledgement correction — 2026-11-09
+
+Investigation reused the genuine Paddle notification/readback logs and original
+SQL records. The original transaction.completed event was authenticated and its
+receipt committed; business processing was blocked by the immutable conflict
+created by the earlier adjustments decoder defect. The handler incorrectly made
+notification acknowledgement depend on successful B4 confirmation. Original
+delivery/replay logs truthfully remain HTTP 500/failed; those records are unchanged.
+
+The handler now validates the committed receipt's operation, tenant, original
+binding, event ID, digest and occurrence time before any new acknowledgement. An
+exact Customer plus original Checkout (or already persisted subscription) is
+required; supplied tenant/operation metadata cannot contradict persisted identity.
+A durable conflict or consent invalidation returns HTTP 200 with captured=true,
+confirmed=false, state=quarantined and an explicit reason plus stable receipt/event
+IDs. This does not consume consent, clear history or call confirmation services.
+After fresh durable pending evidence, explicit capability/readiness/service gates
+may return state=pending. Receipt/commit failures, conflicting event bodies,
+unresolved identities, transient provider failures and missing persisted evidence
+remain non-2xx. Confirmed paid lifecycle handling and legacy Stripe dispatch are
+unchanged; their failures are not converted into capture acknowledgements.
+
+Focused verification: 43 distinct network-free cases passed across three targeted
+runs, including both providers, pending/quarantine semantics, revoked authority,
+failed-payment quarantine, receipt/commit failures, contradictory identities,
+signature errors and event replay. No previous broad suite or migration chain was
+rerun. The existing disposable database was also exercised through the actual HTTP
+route, Sandbox resolver and restricted password-authenticated roles using saved
+GENUINE Paddle payload/header bytes. Only that offline test decoder clock was fixed
+at the saved reception time; the real-clock stale header still returned 400.
+Sequential replay returned 200 with the original event/receipt IDs. Four concurrent
+deliveries converged on 200; two first returned recoverable lock-related 500 then
+succeeded on retry. Wrong-tenant/Customer and changed-event negative fixtures got
+500; unsigned/tampered/stale signatures got 400. All protected rows were compared
+before/after and were identical, including receipts, observations, withdrawal,
+compensation, financial/audit history and zero access/credit grants.
+
+Evidence: `.dev/evidence/paddle-acceptance/acknowledgement-native-existing.json`,
+`acknowledgement-offline.xml`, `acknowledgement-metadata.xml` and
+`acknowledgement-authority.xml`. The existing policy, B4, trial timing, lifecycle,
+Standard/Custom, Stripe, Credits/entitlement and accounting-boundary evidence is
+reused where unchanged. No SQL/migration/grant, active route or frontend change.
+
+This proves the corrected local acknowledgement contract, not a new live Paddle
+delivery. There were zero new provider calls, notification replays, charges or
+payment objects. The temporary services/tunnel and flags remain off. A fresh
+provider-observed 200 would require a working HTTPS destination and an additional
+authorized replay of the original notification, not another Checkout. Real paid
+renewal/failure recovery, paid-period cancellation, recurring-authority/all-nine
+capability proof, Custom initial confirmation and B4 activation remain outside
+this verification. The original subscription remains canceled and its consent
+withdrawn; the conflicted operation remains ineligible for access.

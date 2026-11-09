@@ -132,10 +132,15 @@ def test_initial_paddle_receipt_digest_ignores_delivery_id_without_rewriting_eve
     from src.ai.billing.paddle_gateway import PaddleWebhookDecoder,notification_digest
     document,env=configuration();runtime=R.SandboxRuntime(document,env);b=runtime.gateways['paddle'].binding
     op=uuid.uuid4();party=document['synthetic_businesses'][0]
-    row={'reservation':{'state':'pending','binding_id':b.binding_id,'approved_terms':{'binding':dict(provider='paddle',environment='test',merchant_account_id=b.merchant_account_id,binding_id=b.binding_id)}}}
+    row={'reservation':{'state':'pending','tenant_id':party['tenant_id'],'binding_id':b.binding_id,'approved_terms':{'binding':dict(provider='paddle',environment='test',merchant_account_id=b.merchant_account_id,binding_id=b.binding_id)}}}
     flow=Mock();flow.collection._owned.return_value=row
-    flow.dispatches.command.return_value=dict(provider_customer_id='ctm_original',provider_checkout_id='txn_original',provider_subscription_id=None)
-    flow.observations.read.return_value={'operation_id':str(op)}
+    flow.dispatches.command.return_value=dict(provider_customer_id='ctm_original',provider_checkout_id='txn_original',provider_subscription_id=None,presentation_id=str(uuid.uuid4()))
+    from src.ai.billing.trial_coordinator import observation_identity
+    oid=observation_identity(op)
+    flow.observations.read.return_value={'operation_id':str(oid),'has_conflict':False}
+    flow.collection.consents.read.return_value=C.CustomerPayload.freeze(dict(invalidation=None))
+    flow.observations.notification.side_effect=lambda row,eid,digest,occurred:dict(operation_id=str(oid),tenant_id=party['tenant_id'],
+        binding_id=b.binding_id,provider_event_id=eid,body_digest=digest,occurred_at=occurred.isoformat(),authenticated_at='SYNTHETIC',receipt_id=str(uuid.uuid4()))
     flow.reconcile.return_value={'state':'pending'}
     @contextmanager
     def resolve(e):yield flow,op,'en'
