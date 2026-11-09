@@ -192,8 +192,7 @@ merge #125, then close #105, #111, #112, #113 and #114 as superseded by #125. Th
   durable-send-limit email doubles) fail identically on `main` `b3ae37b9`; they are fixed by #104; CI runs `src/` only.
 - frontend: 282/282.
 - `tools/dev/environment_inventory.py --check`: matches.
-- CI on #125: running at handover. Each source PR was CI-green on its own head; the owner must confirm #125's
-  CI before merging.
+- CI on #125 head `c3095941`: **6/6 green** (gitleaks, frontend, backend, browser-smoke, images ×2; finished 16:22 UTC).
 
 **What the work does:**
 - Discovery: adaptive radius, relevance fixes (map type vs name, health trades separated, Arabic folding).
