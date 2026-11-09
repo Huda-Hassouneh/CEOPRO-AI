@@ -137,15 +137,21 @@ def test_non_uuid_invalid_text_errors_still_surface_as_500():
     assert response.status_code == 500
 
 
-def test_pricing_for_an_unknown_or_other_tenants_product_is_a_404():
+@pytest.mark.parametrize("product_id", ["33333333-3333-3333-3333-333333333333", "44444444-4444-4444-4444-444444444444"])
+def test_pricing_for_an_unknown_or_other_tenants_product_is_a_404(product_id):
     client = TestClient(app, raise_server_exceptions=False)
     with patch("src.ai.routers.pricing.db") as fake_db, \
-            patch("src.ai.pricing.pipeline.data_access.load_own_product", return_value=None):
-        fake_db.app_role_connection.return_value = MagicMock()
-        response = client.post("/pricing/recommend", params={"product_id": "33333333-3333-3333-3333-333333333333"},
+            patch("src.ai.pricing.pipeline.data_access.load_own_product", return_value=None) as load_product, \
+            patch("src.ai.routers.pricing.usage.get_plan", return_value={"assigned": True, "status": "active"}):
+        conn = fake_db.app_role_connection.return_value = MagicMock()
+        response = client.post("/pricing/recommend", params={"product_id": product_id},
                                headers=_auth_headers())
     assert response.status_code == 404
     assert response.json() == {"detail": "Product not found"}
+    load_product.assert_called_once_with(conn, "11111111-1111-1111-1111-111111111111", product_id)
+    conn.rollback.assert_called_once()
+    conn.commit.assert_not_called()
+    conn.close.assert_called_once()
 
 
 # --- configuration -----------------------------------------------------------

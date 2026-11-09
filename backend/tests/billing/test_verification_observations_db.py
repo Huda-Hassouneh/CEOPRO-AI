@@ -26,9 +26,18 @@ class ContextConnection(PooledTenantConnection):
                 (self._tenant_id,self._user_id))
 
 
+def role_password(role):
+    """Each restricted login has its own credential; never assume equality."""
+    runtime = {'ceopro_app': 'APP_DB_PASSWORD',
+               'ceopro_billing_setup': 'BILLING_SETUP_DB_PASSWORD',
+               'ceopro_billing_webhook': 'BILLING_WEBHOOK_DB_PASSWORD',
+               'ceopro_credit_accounting': 'CREDIT_ACCOUNTING_DB_PASSWORD'}
+    return os.environ[runtime.get(role, 'OBSERVATION_TEST_PASSWORD')]
+
+
 def connection(party):
     values=psycopg2.extensions.parse_dsn(os.environ['BILLING_TEST_DATABASE_URL'])
-    values.update(user='ceopro_billing_observer',password=os.environ['OBSERVATION_TEST_PASSWORD'])
+    values.update(user='ceopro_billing_observer',password=role_password('ceopro_billing_observer'))
     raw=psycopg2.connect(**values)
     return ContextConnection(db._UnpooledOwner(),raw,*party)
 
