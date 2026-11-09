@@ -308,6 +308,73 @@ def test_a_self_hosted_server_is_still_used_inside_a_request_but_never_waited_on
     assert timeouts == [image_generation._LOCAL_IMAGE_TIMEOUT_SECONDS]
 
 
+class _Clock:
+    """time.monotonic() that only moves when a fake provider call 'takes' time."""
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+def test_a_provider_that_tries_several_models_stays_within_the_request(monkeypatch):
+    """Cloudflare tries up to four models, each with its own 60 s timeout: inside a
+    request each call is cut to the time left (minus the reserve for saving the
+    image) and no further model is started once too little time is left."""
+    clock = _Clock()
+    monkeypatch.setattr(image_generation.time, "monotonic", clock)
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "acct")
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "cf")
+    timeouts = []
+
+    def post(url, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        clock.now += kwargs["timeout"]  # the call hangs until its own timeout
+        raise httpx.ReadTimeout("slow")
+
+    monkeypatch.setattr(image_generation.httpx, "post", post)
+    with image_generation.request_deadline(clock(), 90):  # 80 s for the image after the 10 s reserve
+        with pytest.raises(ImageGenerationError):
+            image_generation._generate_via_cloudflare("x")
+    assert timeouts == [60, 20]  # the third and fourth models are not started
+    assert clock.now - 1000.0 <= 90 - image_generation._RESERVE_SECONDS
+
+    timeouts.clear()
+    with pytest.raises(ImageGenerationError):
+        image_generation._generate_via_cloudflare("x")  # a background worker: every model, full timeouts
+    assert timeouts == [60] * len(image_generation._cloudflare_models())
+
+
+def test_hugging_face_starts_no_second_model_without_time_for_it(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(image_generation.time, "monotonic", clock)
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(kwargs["timeout"])
+        clock.now += 78
+        raise httpx.ReadTimeout("slow")
+
+    monkeypatch.setattr(image_generation.httpx, "post", post)
+    with image_generation.request_deadline(clock(), 90):
+        with pytest.raises(ImageGenerationError) as exc:
+            image_generation._generate_via_huggingface("x")
+    assert calls == [60] and exc.value.status == "PROVIDER_ERROR"
+
+
+def test_with_less_than_the_minimum_left_no_provider_is_started(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(image_generation.time, "monotonic", clock)
+    with image_generation.request_deadline(clock(), image_generation._RESERVE_SECONDS + 4):
+        assert not image_generation._fits_deadline("local")
+        assert not image_generation._fits_deadline("pollinations")
+    with image_generation.request_deadline(clock(), -5):  # already past the deadline
+        assert not image_generation._fits_deadline("huggingface")
+        assert image_generation._call_timeout(60) == 1.0  # never zero or negative
+    assert image_generation._fits_deadline("aihorde")  # outside a request: unchanged
+
+
 # --- capability -------------------------------------------------------
 
 def test_capability_names_the_providers_and_that_text_leaves_keel(monkeypatch):
