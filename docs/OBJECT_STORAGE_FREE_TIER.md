@@ -118,14 +118,15 @@ Frontend: 282/282 tests, lint clean.
 
 Keys go **only** into the Render dashboard, never into chat, email, Git or an agent environment.
 
-1. Go to backblaze.com → **Sign Up** for B2 Cloud Storage. Use the KEEL owner email. Pick a region (choose
-   **EU Central** if most customers are in Jordan/the Gulf; otherwise US West). Do **not** add a payment method.
+1. Go to backblaze.com → **Sign Up** for B2 Cloud Storage. Use the KEEL owner email. Pick region **US West**:
+   the production API runs in Render's Oregon region, so US West is the closest of the regions sign-up offers (CA East,
+   US East, US West) and stays on the same coast as the API. Do **not** add a payment method.
 2. **Caps & Alerts** (left menu, under B2 Cloud Storage): set **every** daily cap to **$0.00**: Storage,
    Download Bandwidth, Class B Transactions, Class C Transactions. Turn on email alerts. Click **Update**.
    (With $0 caps, B2 refuses anything beyond the free allowance instead of billing it.)
 3. **Buckets → Create a Bucket**: name `keel-prod-files-<random 6 letters>` (names are global; lowercase,
    digits, hyphens). **Files in Bucket: Private**. Default encryption: **Enable** (SSE-B2). Object lock: off.
-   Create it. Note the bucket's **Endpoint** shown on its card (e.g. `s3.eu-central-003.backblazeb2.com`).
+   Create it. Note the bucket's **Endpoint** shown on its card (e.g. `s3.us-west-004.backblazeb2.com`).
 4. **Lifecycle settings** for the bucket: "Keep only the last version of the file". Overwritten summaries then
    don't keep old versions that count toward the 10 GB.
 5. **Application Keys → Add a New Application Key**: name `keel-production`; **Allow access to Bucket(s): only the
