@@ -8,6 +8,17 @@ title = "CEOPRO-AI gitleaks config"
 [extend]
 useDefault = true
 
+# These values are recomputed from immutable migration SQL by the verifier.
+# Restrict this exception to SQL filenames paired with SHA-256 digests; other
+# fields in the manifest and generic API-key matches elsewhere still fail.
+[[allowlists]]
+description = "Verified migration SQL SHA-256 fingerprints, not credentials"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^backend/scripts/verification_migrations\.json$''']
+regexTarget = "line"
+regexes = ['''^\s*"[0-9]{14}_[a-z0-9_]+\.sql"\s*:\s*"[0-9a-f]{64}"\s*,?\s*$''']
+
 # A throwaway key for unit tests: set with setdefault, never used outside the
 # test process, and different from any deployed CREDENTIAL_VAULT_MASTER_KEY.
 [[allowlists]]
