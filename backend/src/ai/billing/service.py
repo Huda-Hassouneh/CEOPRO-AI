@@ -146,20 +146,41 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
             raise BillingError(409, 'subscription_exists', 'Your company already has a subscription. Use its plan-change or recovery action.')
         if store.has_custom_contract(conn, tenant_id):
             raise BillingError(409, 'plan_transition_conflict', 'Review the existing Custom contract before starting another subscription.')
+        issued_trial = store.trial(conn, tenant_id)
+        if issued_trial and issued_trial.get('plan_key') and issued_trial['plan_key'] != plan_key:
+            current_rights = usage.get_plan(conn, tenant_id)
+            if current_rights.get('source') == 'trial' and current_rights['status'] == 'trialing':
+                target_rights = store.configured_plan_rights(conn, tenant_id, plan_key, trialing=True)
+                transition, _ = _classify_rights_change(current_rights, target_rights)
+                if transition in ('loss', 'mixed', 'unclassified'):
+                    raise BillingError(409, 'plan_transition_mixed_rights',
+                        'Review the existing trial rights with support before selecting reduced allowances.')
         attempt = checkout_attempts.active(sys_conn, tenant_id)
         _check_legacy_provider_contracts(conn,sys_conn,tenant_id,attempt)
+        if attempt and not attempt['session_id'] and attempt['params'] is None and attempt['request_key'] != request_key:
+            # Under the tenant lock, an unfrozen request proves no Checkout was
+            # submitted. Keep its expired audit row; never release a frozen one.
+            checkout_attempts.expire(sys_conn, attempt)
+            attempt = None
+            _check_legacy_provider_contracts(conn, sys_conn, tenant_id, None)
         if attempt and attempt['session_id']:
-            session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
-            if session.state == CheckoutState.EXPIRED:
+            try:
+                session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
+            except PaymentProviderError as error:
+                if error.outcome != ProviderOperationOutcome.NOT_FOUND:
+                    raise
+                session = None
+            if session is None or session.state == CheckoutState.EXPIRED:
                 checkout_attempts.expire(sys_conn, attempt)
                 attempt = None
+                _check_legacy_provider_contracts(conn, sys_conn, tenant_id, None)
             elif session.state == CheckoutState.COMPLETE:
                 if store.checkout_subscription_ended(conn, tenant_id, session.subscription.opaque_id if session.subscription else None):
                     checkout_attempts.expire(sys_conn, attempt)
                     attempt = None
                 else:
                     raise BillingError(409, 'checkout_reconciling', 'Payment confirmation is being reconciled. Do not start another Checkout.')
-            elif attempt['request_key'] == request_key and session.state == CheckoutState.OPEN:
+            elif attempt['request_key'] == request_key and session.state == CheckoutState.OPEN and session.url:
                 return {'url': session.url, 'session_id': session.reference.opaque_id}
             else:
                 raise BillingError(409, 'checkout_pending', 'Another Checkout is pending. Complete or cancel it before selecting a different contract.')
@@ -168,8 +189,15 @@ def create_checkout(conn, sys_conn, tenant_id: str, email: str, company_name: st
         if attempt and not attempt['session_id'] and time.time()-attempt['created_at'].timestamp()>23*3600:
             raise BillingError(409, 'checkout_reconciling', 'The previous provider request needs reconciliation before it can be retried safely.')
         attempt = attempt or checkout_attempts.reserve(sys_conn, tenant_id, request_key, plan_key, period_code)
-        result = _create_checkout(conn, sys_conn, tenant_id, email, company_name, plan_key, period_code,
-                                  promotion_code, actor_user_id, _attempt=attempt)
+        try:
+            result = _create_checkout(conn, sys_conn, tenant_id, email, company_name, plan_key, period_code,
+                                      promotion_code, actor_user_id, _attempt=attempt)
+        except Exception:
+            sys_conn.rollback()
+            pending = checkout_attempts.active(sys_conn, tenant_id)
+            if pending and str(pending['attempt_id']) == str(attempt['attempt_id']) and not pending['session_id'] and pending['params'] is None:
+                checkout_attempts.expire(sys_conn, pending)
+            raise
         if result.get('session_id'):
             checkout_attempts.opened(sys_conn, attempt, {'id':result['session_id']})
         return result
@@ -355,12 +383,23 @@ def cancel_pending_checkout(conn,sys_conn,tenant_id):
         attempt=checkout_attempts.active(sys_conn,tenant_id)
         if not attempt:return {'state':'no_pending_checkout'}
         if not attempt['session_id']:
+            if attempt['params'] is None:
+                checkout_attempts.expire(sys_conn,attempt)
+                return {'state':'checkout_cancelled'}
             raise BillingError(409,'checkout_reconciling','The previous provider request must be reconciled first.')
-        session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
+        try:
+            session = payment_gateway().get_checkout(_provider_reference(attempt['session_id']))
+        except PaymentProviderError as error:
+            if error.outcome != ProviderOperationOutcome.NOT_FOUND:
+                raise
+            checkout_attempts.expire(sys_conn,attempt)
+            return {'state':'checkout_cancelled'}
         if session.state == CheckoutState.COMPLETE:
             raise BillingError(409,'checkout_reconciling','Checkout completed; verify the subscription instead of cancelling it.')
         if session.state == CheckoutState.OPEN:
-            payment_gateway().expire_checkout(_provider_reference(attempt['session_id']))
+            session = payment_gateway().expire_checkout(_provider_reference(attempt['session_id']))
+        if session.state != CheckoutState.EXPIRED:
+            raise BillingError(409,'checkout_reconciling','The previous Checkout could not be confirmed closed. Try again after reconciliation.')
         checkout_attempts.expire(sys_conn,attempt)
         return {'state':'checkout_cancelled'}
 
@@ -528,6 +567,9 @@ def _plan_change_context(conn, tenant_id: str, plan_key: str, period_code: str) 
         conn, tenant_id, plan_key, trialing=sub["status"] == "trialing",
     )
     transition, _uncertain_features = _classify_rights_change(current_rights, target_rights)
+    if transition == "mixed":
+        raise BillingError(409, "plan_transition_mixed_rights",
+            "This change adds some allowances and reduces others. Contact support to review the terms before changing plan.")
     if transition == "unclassified":
         raise BillingError(
             409, "plan_transition_unclassified",
@@ -554,7 +596,7 @@ def preview_plan_change(conn, tenant_id: str, plan_key: str, period_code: str) -
     used = {item['feature_code']: item['current_usage'] for item in usage.current_usage(conn, tenant_id, current)}
     changes = []
     for code in sorted(set(current['features']) | set(target['features'])):
-        if code in ('web_searches','rag_assistant','tracked_competitors'):
+        if code in ('web_searches','rag_assistant'):
             continue
         before = current['features'].get(code, {}).get('limit', 'not_included')
         after = target['features'].get(code, {}).get('limit', 'not_included')

@@ -313,6 +313,10 @@ def _nearest_branch(entity):
 
 
 def store(conn, tenant_id: str, query: DiscoveryQuery, ranked) -> dict:
+    # Take the shared capacity lock before any competitor row locks, in the
+    # same order as manual registration and legacy automatic discovery.
+    from src.ai.core import usage
+    usage.lock_feature(conn, tenant_id, usage.TRACKED_COMPETITORS)
     now = datetime.now(timezone.utc)
     counts = {"new": 0, "updated": 0, "new_ids": []}
     industry = industries.get(query.industry_key)
@@ -438,8 +442,9 @@ def auto_track(conn, tenant_id: str, new_ids) -> int:
     re-tracks anything the owner untracked."""
     from src.ai.core import usage
 
+    usage.ensure_capacity(conn, tenant_id, usage.TRACKED_COMPETITORS, 0)
     feature = usage.get_plan(conn, tenant_id)["features"].get(usage.TRACKED_COMPETITORS)
-    limit = feature["limit"] if feature else None
+    limit = feature["limit"] if feature else 0
     with conn.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM tenant_competitors WHERE tenant_id = %s AND is_tracked;", (tenant_id,))
         tracked = cursor.fetchone()[0]
@@ -631,6 +636,9 @@ def _match_prices(conn, tenant_id: str, competitor_ids: List[str], ask=None, jud
                     (result["matched"], tenant_id, competitor_id),
                 )
         out["products_covered"] = len(covered)
+        # Matching evidence grants no tracking access. Release its row locks
+        # before taking the capacity lock in the separate tracking phase.
+        conn.commit()
         out["tracked"] = _track_priced(conn, tenant_id, [cid for cid, _n in sorted(matched_ids, key=lambda m: -m[1])])
         out["examples"] = out["examples"][:8]
         conn.commit()
@@ -645,8 +653,9 @@ def _track_priced(conn, tenant_id: str, competitor_ids: List[str]) -> int:
 
     if not competitor_ids:
         return 0
+    usage.ensure_capacity(conn, tenant_id, usage.TRACKED_COMPETITORS, 0)
     feature = usage.get_plan(conn, tenant_id)["features"].get(usage.TRACKED_COMPETITORS)
-    limit = feature["limit"] if feature else None
+    limit = feature["limit"] if feature else 0
     with conn.cursor() as cursor:
         cursor.execute("SELECT COUNT(*) FROM tenant_competitors WHERE tenant_id = %s AND is_tracked;", (tenant_id,))
         tracked = cursor.fetchone()[0]

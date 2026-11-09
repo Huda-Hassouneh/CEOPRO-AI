@@ -320,6 +320,7 @@ def _register_tenant_scoped_competitor(
     conn, tenant_id: str, actor_user_id: str, decision: DiscoveryDecision,
     product_id: str, rate_limit: int,
 ) -> dict:
+    usage.lock_feature(conn, tenant_id, usage.TRACKED_COMPETITORS)
     candidate = decision.candidate
     hostname = urlsplit(candidate.url).hostname or candidate.url
 
@@ -602,6 +603,7 @@ def _register_domain_level_competitor(
     conn, tenant_id: str, candidate: CandidateSource,
     discovery_method: str, industry_sector: Optional[str], country_code: Optional[str],
 ) -> dict:
+    usage.lock_feature(conn, tenant_id, usage.TRACKED_COMPETITORS)
     if candidate.url:
         hostname = urlsplit(candidate.url).hostname or candidate.url
         identity_key = compute_website_identity_key(candidate.url)
@@ -711,7 +713,7 @@ def _register_domain_level_competitor(
     }
 
 
-def register_manual_competitor(conn, tenant_id: str, name: str, website_url: str) -> dict:
+def register_manual_competitor(conn, tenant_id: str, name: str, website_url: str, *, commit: bool = True) -> dict:
     """
     Registers a competitor a business owner adds directly (the "Add
     Competitor" UI action) - not found by any discovery run, so it needs
@@ -737,6 +739,7 @@ def register_manual_competitor(conn, tenant_id: str, name: str, website_url: str
     manufacturer, in-region-or-unknown) the moment this returns, exactly
     like every other registration path in this module.
     """
+    usage.lock_feature(conn, tenant_id, usage.TRACKED_COMPETITORS)
     hostname = urlsplit(website_url).hostname or website_url
     identity_key = compute_website_identity_key(website_url)
     normalized_url = website_url if identity_key and "/" in identity_key else f"{urlsplit(website_url).scheme}://{hostname}"
@@ -781,15 +784,12 @@ def register_manual_competitor(conn, tenant_id: str, name: str, website_url: str
                 (tenant_id, competitor_id),
             )
 
-        classification = classify_competitor(conn, tenant_id, str(competitor_id))
+        # The manual API owns the capacity-check transaction. Other existing
+        # callers retain the classifier's historical commit behavior.
+        classification = classify_competitor(conn, tenant_id, str(competitor_id), commit=commit)
     except Exception:
-        # Same reasoning as register_tenant_scoped_competitor()/
-        # register_domain_level_competitor()'s identical try/except: any
-        # earlier insert above already committed via classify_competitor()
-        # itself (it commits internally - see its own docstring), so this
-        # only ever guards against classify_competitor() failing mid-
-        # statement and leaving the connection in Postgres's aborted-
-        # transaction state for the caller's next query.
+        # Roll back uncommitted registration/classification together. With
+        # commit=False the caller still owns the final capacity check.
         conn.rollback()
         raise
 

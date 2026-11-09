@@ -1097,7 +1097,7 @@ def test_add_competitor_returns_the_pipeline_result():
     assert response.status_code == 200
     assert response.json() == fake_result
     fake_conn.commit.assert_called_once()
-    mock_add.assert_called_once_with(fake_conn, "t1", "Rival Co", "https://rival.example")
+    mock_add.assert_called_once_with(fake_conn, "t1", "Rival Co", "https://rival.example", commit=False)
 
 
 @pytest.mark.parametrize("body", [
@@ -1121,7 +1121,7 @@ def test_add_competitor_accepts_a_bare_domain_as_typed():
          patch("src.ai.routers.competitors.market_scraper_discovery.register_manual_competitor", return_value={"competitor_id": "c1"}) as mock_add:
         response = client.post("/competitors", json={"name": "  Rival   Co ", "website_url": " www.rival.jo/shop "}, headers=_auth())
     assert response.status_code == 200
-    mock_add.assert_called_once_with(fake_conn, "t1", "Rival Co", "https://www.rival.jo/shop")
+    mock_add.assert_called_once_with(fake_conn, "t1", "Rival Co", "https://www.rival.jo/shop", commit=False)
 
 
 def test_list_competitors_requires_auth():

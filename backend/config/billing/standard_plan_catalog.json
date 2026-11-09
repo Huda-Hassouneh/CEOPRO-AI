@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": "standard-plans-launch-v3",
+  "catalog_version": "standard-plans-lean-search-v1",
   "purpose": "Bootstrap/templates only. Persisted owner catalog, billing_plan_prices and Stripe remain commercial authorities. Categories are presentation only.",
   "categories": [
     {
@@ -214,8 +214,8 @@
       "category": "market",
       "label_en": "Tracked Competitors",
       "label_ar": "المنافسون المتتبعون",
-      "description_en": "Live capacity; current tiers use Data Credits rather than a fixed count.",
-      "description_ar": "السعة الحالية؛ تعتمد الباقات الحالية على أرصدة البيانات بدلاً من عدد ثابت.",
+      "description_en": "Live tracked-competitor capacity. External collection also consumes Data Credits.",
+      "description_ar": "الحد الحالي للمنافسين المتابَعين. ويستهلك جمع البيانات الخارجية أرصدة البيانات أيضًا.",
       "display_order": 13,
       "entitlement_type": "max",
       "usage_feature": "tracked_competitors",
@@ -361,14 +361,14 @@
         },
         {
           "feature_key": "tracked_competitors",
-          "state": "unlimited",
-          "value": null,
+          "state": "limited",
+          "value": 5,
           "trial_value": null
         },
         {
           "feature_key": "sentiment_analysis",
           "state": "limited",
-          "value": 5000,
+          "value": 3000,
           "trial_value": null
         },
         {
@@ -411,7 +411,7 @@
           }
         ]
       },
-      "allowance_source": "20261013000000_agreed_plan_limits.sql; 20261020000000_keel_subscriptions_and_credits.sql; 20261021000000_pro_plan_limits_500_products_50_seats.sql"
+      "allowance_source": "Owner-approved lean capacity v1 (2026-11-04); all other historical allowances unchanged."
     },
     {
       "plan_key": "growth",
@@ -456,19 +456,19 @@
         {
           "feature_key": "connected_data_sources",
           "state": "limited",
-          "value": 5,
+          "value": 3,
           "trial_value": null
         },
         {
           "feature_key": "document_extraction",
           "state": "limited",
-          "value": 512000,
+          "value": 204800,
           "trial_value": null
         },
         {
           "feature_key": "document_storage_mb",
           "state": "limited",
-          "value": 10240,
+          "value": 5120,
           "trial_value": null
         },
         {
@@ -479,14 +479,14 @@
         },
         {
           "feature_key": "tracked_competitors",
-          "state": "unlimited",
-          "value": null,
+          "state": "limited",
+          "value": 15,
           "trial_value": null
         },
         {
           "feature_key": "sentiment_analysis",
           "state": "limited",
-          "value": 25000,
+          "value": 12000,
           "trial_value": null
         },
         {
@@ -529,7 +529,7 @@
           }
         ]
       },
-      "allowance_source": "20261013000000_agreed_plan_limits.sql; 20261020000000_keel_subscriptions_and_credits.sql; 20261021000000_pro_plan_limits_500_products_50_seats.sql"
+      "allowance_source": "Owner-approved lean capacity v1 (2026-11-04); all other historical allowances unchanged."
     },
     {
       "plan_key": "enterprise",
@@ -574,19 +574,19 @@
         {
           "feature_key": "connected_data_sources",
           "state": "limited",
-          "value": 20,
+          "value": 8,
           "trial_value": null
         },
         {
           "feature_key": "document_extraction",
           "state": "limited",
-          "value": 2097152,
+          "value": 768000,
           "trial_value": null
         },
         {
           "feature_key": "document_storage_mb",
           "state": "limited",
-          "value": 51200,
+          "value": 20480,
           "trial_value": null
         },
         {
@@ -597,14 +597,14 @@
         },
         {
           "feature_key": "tracked_competitors",
-          "state": "unlimited",
-          "value": null,
+          "state": "limited",
+          "value": 40,
           "trial_value": null
         },
         {
           "feature_key": "sentiment_analysis",
           "state": "limited",
-          "value": 100000,
+          "value": 40000,
           "trial_value": null
         },
         {
@@ -647,7 +647,7 @@
           }
         ]
       },
-      "allowance_source": "20261013000000_agreed_plan_limits.sql; 20261020000000_keel_subscriptions_and_credits.sql; 20261021000000_pro_plan_limits_500_products_50_seats.sql"
+      "allowance_source": "Owner-approved lean capacity v1 (2026-11-04); all other historical allowances unchanged."
     }
   ],
   "unsupported_quantitative_configuration": [

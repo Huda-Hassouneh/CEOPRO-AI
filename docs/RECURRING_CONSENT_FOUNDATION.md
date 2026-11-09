@@ -1882,7 +1882,36 @@ is based on that old stack and its catalog must not overwrite main's later
 version or reprice historical contracts. Existing PRs are not changed by this
 review. Any eventual adoption migration must sort after `20261212000000`.
 
-All billing PRs remain held for combined native fresh/upgrade/restricted-role
-verification and the documented compatibility port. Prior genuine Paddle
+At the earlier checkpoint, billing PRs were held for combined native
+fresh/upgrade/restricted-role verification and the compatibility port.
+These local gates are closed by the verification and port recorded below. Prior genuine Paddle
 Sandbox evidence is preserved; it does not prove all-nine B4 capabilities,
 reusable recurring authority or production readiness. Activation stays disabled.
+
+## Canonical compatibility with pending PRs #93–#95
+
+The consolidation ports the compatible Checkout recovery changes from #94
+and the issued-trial display correction from `14f88055`, without installing
+the competing #93/#94 table definitions or their earlier confirmation path.
+An unsubmitted, unfrozen legacy Checkout may be closed; frozen or uncertain
+submissions retain their recovery fence. Provider cancellation must return a
+confirmed expired Checkout before local cancellation is reported.
+
+The approved `standard-plans-lean-search-v1` future catalog carries the five
+lean allowances from #95 and preserves the retired search allowance. Existing
+plan assignments, frozen snapshots, prices and trial deadlines are not rewritten.
+Installing templates does not authorize changing an installed commercial plan.
+Competitor tracking shares one capacity lock across manual and discovery paths;
+storage enforcement compares actual bytes. Mixed gains/losses require review.
+
+The canonical binding-qualified Customer coordinator supersedes the old #94
+direct-DML operation module for guarded journeys. Existing legacy Stripe
+Customer IDs and its established Checkout contract remain intact; this port
+does not infer an original binding for unbound historical Customer records.
+New-cohort consent, original binding and B4 authority remain mandatory and
+default-off. The earlier #93 provider-completion authority is not imported.
+
+Verification includes the combined 179-chain native installation/upgrade,
+restricted identities, native Stripe replay/receipt cases, 39 lean cases and
+English/Arabic render checks. Evidence is retained in the private consolidation
+packet; no new provider request or Sandbox acceptance run was made.

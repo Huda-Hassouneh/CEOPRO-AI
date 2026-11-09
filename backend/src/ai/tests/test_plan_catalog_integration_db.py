@@ -68,18 +68,18 @@ def test_every_plan_includes_the_core_intelligence(client, plan_key):
     assert {"market_intelligence", "demand_prediction", "competitor_management"} <= set(subscription["entitlements"])
     # Only the plan terms customers see - no internal budgets under raw codes.
     assert set(subscription["limits"]) == {"products", "reports", "teamSeats", "dataCredits", "aiCredits", "imageGenerations",
-                                           "storageGb", "documentProcessingMb", "sentimentRecords", "dataSources"}
+                                           "storageGb", "documentProcessingMb", "sentimentRecords", "dataSources", "competitors"}
     assert set(subscription["credits"]) >= {"data", "ai"}
 
 
-@pytest.mark.parametrize("plan_key", ["starter", "growth", "enterprise"])
-def test_competitors_have_no_fixed_count(client, plan_key):
-    """Competitor tracking is limited by the Data Credit budget, not a count."""
+@pytest.mark.parametrize("plan_key, cap", [("starter", 5), ("growth", 15), ("enterprise", 40)])
+def test_new_catalog_competitors_respect_numeric_capacity(client, plan_key, cap):
+    """New lean plans have a tracking cap in addition to provider Credit checks."""
     session, _ = _company(client, plan_key)
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     try:
-        assert usage.get_plan(conn, session["tenant_id"])["features"]["tracked_competitors"]["limit"] is None
-        assert usage.capacity_left(conn, session["tenant_id"], usage.TRACKED_COMPETITORS) is None
+        assert usage.get_plan(conn, session["tenant_id"])["features"]["tracked_competitors"]["limit"] == cap
+        assert usage.capacity_left(conn, session["tenant_id"], usage.TRACKED_COMPETITORS) == cap
     finally:
         conn.close()
 
@@ -131,12 +131,12 @@ def test_one_companys_usage_never_reduces_anothers_allowance(client):
     a, _ = _company(client, "growth")
     b, _ = _company(client, "growth")
     _admin("INSERT INTO tenant_usage_counters (tenant_id, feature_code, period_start, used) "
-           "SELECT %s, 'sentiment_analysis', current_period_start, 25000 FROM tenant_plan_assignments WHERE tenant_id = %s;",
+           "SELECT %s, 'sentiment_analysis', current_period_start, 12000 FROM tenant_plan_assignments WHERE tenant_id = %s;",
            (a["tenant_id"], a["tenant_id"]))
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     try:
         assert usage.remaining(conn, a["tenant_id"], usage.SENTIMENT_ANALYSIS) == 0
-        assert usage.remaining(conn, b["tenant_id"], usage.SENTIMENT_ANALYSIS) == 25_000
+        assert usage.remaining(conn, b["tenant_id"], usage.SENTIMENT_ANALYSIS) == 12_000
     finally:
         conn.close()
 
@@ -180,14 +180,14 @@ def test_review_analysis_stops_at_the_allowance(client, monkeypatch):
         _admin("INSERT INTO reviews (tenant_id, source_platform, subject_type, review_text, review_rating) VALUES (%s, 'MANUAL', 'BUSINESS', %s, 4);",
                (tenant, f"Good service number {i}"))
     _admin("INSERT INTO tenant_usage_counters (tenant_id, feature_code, period_start, used) "
-           "SELECT %s, 'sentiment_analysis', current_period_start, 24998 FROM tenant_plan_assignments WHERE tenant_id = %s;",
+           "SELECT %s, 'sentiment_analysis', current_period_start, 11998 FROM tenant_plan_assignments WHERE tenant_id = %s;",
            (tenant, tenant))
     monkeypatch.setattr(model, "classify_or_unavailable",
                         lambda texts: [model.predict_from_rating(4) for _ in texts])
     conn = psycopg2.connect(ADMIN_DATABASE_URL)
     try:
         first = pipeline.classify_and_store_reviews(conn, tenant)
-        assert first["analyzed_count"] == 2, "only the 2 records left in the Growth allowance (25,000)"
+        assert first["analyzed_count"] == 2, "only the 2 records left in the new Plus allowance (12,000)"
         assert pipeline.classify_and_store_reviews(conn, tenant)["status"] == "PLAN_LIMIT"
     finally:
         conn.close()

@@ -2686,7 +2686,7 @@
       "allModules": "جميع الوحدات: {{modules}}",
       "trialLine": "تجربة مجانية لمدة {{days}} يومًا مع {{data}} من أرصدة البيانات و{{ai}} من أرصدة الذكاء الاصطناعي",
       "seeAllLimits": "عرض كل الحدود",
-      "limits": {"products": "المنتجات", "teamSeats": "مقاعد الفريق", "reports": "التقارير / شهريًا", "storageGb": "التخزين", "dataSources": "مصادر البيانات"},
+      "limits": {"products": "المنتجات", "teamSeats": "مقاعد الفريق", "reports": "التقارير / شهريًا", "storageGb": "التخزين", "dataSources": "مصادر البيانات", "competitors": "المنافسون المتابَعون"},
       "mostPopular": "الأكثر شيوعاً",
       "customPricing": "سعر مخصص",
       "custom": {
@@ -2737,6 +2737,7 @@
       "dataCredits": "{{value}} من أرصدة البيانات شهريًا",
       "aiCredits": "{{value}} من أرصدة الذكاء الاصطناعي شهريًا",
       "competitorsByBudget": "اكتشاف المنافسين ومتابعتهم ضمن أرصدة البيانات - دون عدد ثابت",
+      "competitorCapacityAndCredits": "يظهر حد المنافسين المتابَعين لكل خطة. ويستهلك جمع البيانات الخارجية أرصدة البيانات أيضًا.",
       "trialCredits": "تشمل التجربة المجانية {{data}} من أرصدة البيانات و{{ai}} من أرصدة الذكاء الاصطناعي",
       "ragQueries": "{{value}} رمز RAG لكل دورة فوترة",
       "everythingGrowth": "كل ما في خطة النمو"
@@ -2767,7 +2768,8 @@
       "trial_already_used": "استخدمت شركتك تجربتها المجانية من قبل.",
       "trial_already_used_by_person": "استخدمت تجربة مجانية مع شركة أخرى من قبل.",
       "plan_has_no_trial": "هذه الخطة لا تتضمن تجربة مجانية.",
-      "plan_already_assigned": "لدى شركتك خطة بالفعل."
+      "plan_already_assigned": "لدى شركتك خطة بالفعل.",
+      "plan_transition_mixed_rights": "قد يقلل هذا التغيير الحدود المشمولة في شروطك الحالية. تواصل مع الدعم لمراجعة الشروط قبل تغيير الخطة."
     },
     "invoices": {
       "title": "سجل الفوترة",
@@ -3516,6 +3518,11 @@
       "trial": "تجربة مجانية لمدة {{days}} يوماً",
       "monthlyPrice": "السعر الشهري",
       "afterTrial": "بعد تجربة {{days}} يوماً",
+      "configuredTrial": "مدة تجربة الخطة (عند استيفاء الأهلية)",
+      "noTrial": "لا توجد تجربة جديدة",
+      "existingTrial": "الوقت المتبقي من تجربتك الحالية",
+      "afterExistingTrial": "بعد انتهاء تجربتك في {{date}} UTC",
+      "preservedTrial": "بدأت تجربتك بالفعل وتنتهي في {{date}} UTC. يحتفظ الدفع بتاريخ الانتهاء الأصلي ولا يبدأ تجربة جديدة. قد يعرض Stripe عدد أيام كاملة متبقية أقل من مدة التجربة المحددة للخطة.",
       "previewTotal": "إجمالي الاشتراك",
       "totalDueToday": "المبلغ المستحق اليوم",
       "secureHostedCheckout": "دفع آمن عبر Stripe",

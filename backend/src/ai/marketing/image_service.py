@@ -172,6 +172,10 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
                     "image_generation_used_reference": False, "image_generation_reference_note": None,
                 }
 
+        # Generate outside the lock; serialize the actual-byte check and
+        # persistence with every other tenant storage capacity operation.
+        usage.ensure_capacity(conn, tenant_id, usage.DOCUMENT_STORAGE_MB,
+                              len(generated.content) / 1048576)
         client = db.minio_client()
         image_key = image_storage.upload_generated_image(
             client, generated.content, generated.content_type, tenant_id, campaign_id,
