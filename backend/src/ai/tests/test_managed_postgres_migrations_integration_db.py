@@ -13,6 +13,8 @@ inbox on the non-superuser build.
 Needs AI_TEST_MANAGED_PG_ADMIN_URL: a superuser URL for a cluster used only by
 this test (roles are cluster-wide; the test drops and recreates the KEEL roles
 there). It refuses to run on a cluster holding any other database.
+For the dormant billing chain, supply AI_TEST_MANAGED_PG_SUPER_ADMIN_URL for
+a second newly created loopback-only cluster, preserving both role catalogs.
 """
 import os
 import uuid
@@ -23,6 +25,7 @@ import psycopg2
 import pytest
 
 ADMIN_URL = os.getenv("AI_TEST_MANAGED_PG_ADMIN_URL")
+SUPER_ADMIN_URL = os.getenv("AI_TEST_MANAGED_PG_SUPER_ADMIN_URL")
 APP_PASSWORD = os.getenv("APP_DB_PASSWORD")
 pytestmark = pytest.mark.skipif(
     not ADMIN_URL or not APP_PASSWORD,
@@ -62,7 +65,7 @@ SNAPSHOT = [
 
 
 def _url(database, user=None, password=None):
-    parsed = urlparse(ADMIN_URL)
+    parsed = urlparse(SUPER_ADMIN_URL if database == SUPER_DB and SUPER_ADMIN_URL else ADMIN_URL)
     netloc = parsed.netloc
     if user:
         host = netloc.rsplit("@", 1)[-1]
@@ -114,6 +117,23 @@ def built():
         cur.execute(f'CREATE DATABASE "{NEON_DB}" OWNER {OWNER}')
         cur.execute(f'CREATE DATABASE "{SUPER_DB}"')
     admin.close()
+    if SUPER_ADMIN_URL:
+        # Dormant role membership is cluster-wide. Comparing two installers on
+        # one cluster would make the second inherit the first installer's ADMIN
+        # memberships, correctly rejected by the immutable billing migrations.
+        # Never remove those guards or mutate the first build to make it pass.
+        second = urlparse(SUPER_ADMIN_URL)
+        assert second.scheme in ('postgres','postgresql') and second.hostname in ('127.0.0.1','localhost','::1')
+        assert second.port and second.path == '/postgres' and not second.query and not second.fragment
+        assert second.netloc.rsplit('@', 1)[-1] != urlparse(ADMIN_URL).netloc.rsplit('@', 1)[-1]
+        super_admin = _autocommit(SUPER_ADMIN_URL)
+        with super_admin.cursor() as cur:
+            cur.execute("SELECT rolsuper FROM pg_roles WHERE rolname=current_user")
+            assert cur.fetchone()[0]
+            cur.execute("SELECT datname FROM pg_database WHERE datname NOT IN ('postgres','template0','template1')")
+            assert cur.fetchall() == [], "Second cluster must be a newly created disposable cluster"
+            cur.execute(f'CREATE DATABASE "{SUPER_DB}"')
+        super_admin.close()
     for database in (NEON_DB, SUPER_DB):  # Neon offers these extensions to the owner.
         conn = _autocommit(_url(database))
         with conn.cursor() as cur:
@@ -173,6 +193,11 @@ def test_migration_owner_keeps_no_membership_in_restricted_roles(built):
                        JOIN pg_roles r ON r.oid = a.roleid JOIN pg_roles m ON m.oid = a.member
                        WHERE m.rolname = %s AND r.rolname = ANY(%s) AND (a.set_option OR a.inherit_option)""",
                     (OWNER, list(KEEL_ROLES)))
+        assert cur.fetchall() == []
+        cur.execute("""SELECT r.rolname FROM pg_auth_members a
+                       JOIN pg_roles r ON r.oid=a.roleid JOIN pg_roles m ON m.oid=a.member
+                       WHERE m.rolname=%s AND r.rolname ~ '^(ceopro|keel)_'
+                         AND (a.set_option OR a.inherit_option)""", (OWNER,))
         assert cur.fetchall() == []
 
 

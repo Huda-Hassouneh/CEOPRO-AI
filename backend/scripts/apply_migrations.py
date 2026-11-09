@@ -168,7 +168,7 @@ def _borrow_restricted_roles(conn) -> None:
     with conn.cursor() as cursor:
         cursor.execute(
             "SELECT r.rolname FROM pg_roles r WHERE r.rolname ~ %s AND r.rolname <> current_user "
-            "AND pg_has_role(current_user, r.oid, 'USAGE WITH ADMIN OPTION') ORDER BY 1;",
+            "AND pg_has_role(current_user, r.oid, 'MEMBER WITH ADMIN OPTION') ORDER BY 1;",
             (_RESTRICTED_ROLE_PATTERN,),
         )
         roles = [row[0] for row in cursor.fetchall()]
@@ -238,6 +238,9 @@ def run(conn=None) -> list:
 
             logger.info(f"Applying migration: {path.name}")
             try:
+                # Some protected migrations release creator membership. A later
+                # migration still needs the roles this installer administers.
+                _borrow_restricted_roles(conn)
                 _apply_sql_file(conn, path)
                 with conn.cursor() as cursor:
                     cursor.execute("INSERT INTO schema_migrations (filename) VALUES (%s);", (path.name,))
