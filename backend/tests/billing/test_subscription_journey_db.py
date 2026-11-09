@@ -104,7 +104,7 @@ def journey(owner_db,parties):
             q.execute('SELECT to_jsonb(p) FROM billing_consent_policy_versions p WHERE policy_id=%s',(pid,));registry=q.fetchone()[0]
         keys=('agreement_reference','agreement_revision','language_tag','agreement_digest','cancellation_reference',
             'renewal_disclosure_reference','trial_start_rule_reference','retention_policy_reference','approval_reference')
-        document=PolicyDocument(uuid.UUID(pid),text,'synthetic-operator','synthetic-refund',tuple((k,registry[k]) for k in keys),'checkout_completion')
+        document=PolicyDocument(uuid.UUID(pid),text,'synthetic-operator','synthetic-refund',tuple((k,registry[k]) for k in keys),'provider_confirmed_trial_start')
         collection=ConsentCollection(*party,reservations,R.ConsentRepository(cons),policies=lambda *args:document,business_eligibility=lambda row:True)
         customer=Gateway(binding);transport=CheckoutTransport(binding);observer=Observer(binding)
         gateway=StripeJourneyGateway(binding,transport,provider_consent_reviewed=True)
@@ -254,7 +254,7 @@ def prepared(s):
     p=accepted(s)
     customer=U.resolve(s.flow.customers,C.CustomerIntent(s.party[0],str(customer_identity(s.row)),
         'recurring-trial-v1',s.binding,'synthetic@example.test','SYNTHETIC B2B'),s.flow.customer_gateway)
-    request=s.gateway.prepare(s.row,customer,dict(s.document.values(),trial_start_mode='checkout_completion'),s.flow.return_urls(s.row))
+    request=s.gateway.prepare(s.row,customer,dict(s.document.values(),trial_start_mode='provider_confirmed_trial_start'),s.flow.return_urls(s.row))
     d=s.flow.dispatches.command(s.operation,'prepare',acceptance=uuid.uuid5(uuid.UUID(p['presentation_id']),'authenticated-acceptance-v1'),
         customer=customer_identity(s.row),request=request)
     return p,d

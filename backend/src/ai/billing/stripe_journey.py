@@ -1,6 +1,7 @@
 """Dormant original-binding Stripe Checkout; explicit transport, no global SDK.
 
-Only the approved checkout-completion start rule is implemented. No promotions,
+Trial start comes from the original provider's authoritative subscription evidence;
+Checkout completion alone never supplies it. No promotions,
 inline Custom prices, taxes or provider consent are guessed. Additional provider
 consent requirements must be supplied by the merchant-approved adapter policy.
 """
@@ -24,7 +25,7 @@ class StripeJourneyGateway:
         from src.ai.billing.trial_coordinator import _binding
         r = row['reservation']
         if (_binding(row) != self.binding or customer.binding != self.binding
-                or policy.get('trial_start_mode') != 'checkout_completion'
+                or policy.get('trial_start_mode') != 'provider_confirmed_trial_start'
                 or self.provider_consent_reviewed is not True):
             raise CollectionBlocked('approved_trial_start_and_provider_consent_required')
         if any(urlsplit(u).scheme != 'https' or not urlsplit(u).hostname or urlsplit(u).username for u in urls) or len(urls)!=2:
@@ -42,7 +43,7 @@ class StripeJourneyGateway:
     def check_policy(self,policy):
         if self.binding.environment is not C.GatewayEnvironment.TEST:
             raise CollectionBlocked('live_confirmation_not_supported')
-        if policy.get('trial_start_mode')!='checkout_completion' or self.provider_consent_reviewed is not True:
+        if policy.get('trial_start_mode')!='provider_confirmed_trial_start' or self.provider_consent_reviewed is not True:
             raise CollectionBlocked('approved_trial_start_and_provider_consent_required')
 
     def validate(self, session, dispatch):

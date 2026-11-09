@@ -164,7 +164,7 @@ def test_checkout_accepts_documented_explicit_free_card_trial_without_inventing_
     terms=dict(binding=dict(binding_id=B.binding_id),approved_amount='140.00',currency='USD',interval_months=1)
     row=dict(reservation=dict(attempt_id='fixture',tenant_id='tenant',trial_duration_days=14,provider_price_id='pri_'+'1'*26,approved_terms=terms))
     gateway=PaddleJourneyGateway(B,Reader(),merchant_reviewed=True,approved_checkout_origin='https://approved.example.test',checkout_page_ready=True)
-    result=gateway.prepare(row,C.ProviderReference('paddle','ctm_fixture',binding=B),{'trial_start_mode':'checkout_completion'},('https://approved.example.test/billing/paddle-payment',)*2)
+    result=gateway.prepare(row,C.ProviderReference('paddle','ctm_fixture',binding=B),{'trial_start_mode':'provider_confirmed_trial_start'},('https://approved.example.test/billing/paddle-payment',)*2)
     assert result['approved_terms']==terms and result['transport']['items'][0]['quantity']==1
 
 

@@ -322,7 +322,7 @@ class PaddleJourneyGateway(PaddleCancellationGateway):
         self.approved_checkout_origin=approved_checkout_origin;self.checkout_page_ready=checkout_page_ready
 
     def check_policy(self,policy):
-        if self.merchant_reviewed is not True or self.checkout_page_ready is not True or not self.approved_checkout_origin or policy.get('trial_start_mode')!='checkout_completion':
+        if self.merchant_reviewed is not True or self.checkout_page_ready is not True or not self.approved_checkout_origin or policy.get('trial_start_mode')!='provider_confirmed_trial_start':
             raise ValueError('Approved Paddle consent and installed payment page required')
 
     def prepare(self,row,customer,policy,urls):
@@ -375,7 +375,7 @@ class PaddleJourneyGateway(PaddleCancellationGateway):
         self.validate(snapshot,d);return snapshot
 
     def submit(self,d,*,authorize):
-        self.check_policy({'trial_start_mode':'checkout_completion'})
+        self.check_policy({'trial_start_mode':'provider_confirmed_trial_start'})
         f=d['request']['approved_terms'];p=d['request']['transport']
         if (d['binding_id']!=self.binding.binding_id or f['tenant_id']!=d['tenant_id'] or f['binding']!=dict(provider=self.binding.provider,environment=self.binding.environment.value,merchant_account_id=self.binding.merchant_account_id,binding_id=self.binding.binding_id)
                 or d['request']['customer']!=d['provider_customer_id'] or d['request']['idempotency_key']!='keel-trial-checkout-'+d['attempt_id']

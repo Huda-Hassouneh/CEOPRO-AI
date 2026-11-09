@@ -148,7 +148,7 @@ def test_persisted_transport_cannot_substitute_frozen_commercial_scope(fact):
     b=dict(provider='stripe',environment='test',binding_id=BINDING.binding_id,merchant_account_id=BINDING.merchant_account_id)
     terms=dict(binding=b,tenant_id='tenant',provider_price_id='price_original',trial_duration_days=14)
     row=dict(reservation=dict(approved_terms=terms,binding_id=BINDING.binding_id,tenant_id='tenant',attempt_id='attempt',provider_price_id='price_original',trial_duration_days=14))
-    request=g.prepare(row,C.ProviderReference('stripe','cus_original',binding=BINDING),{'trial_start_mode':'checkout_completion'},('https://keel.example.test/success','https://keel.example.test/cancel'))
+    request=g.prepare(row,C.ProviderReference('stripe','cus_original',binding=BINDING),{'trial_start_mode':'provider_confirmed_trial_start'},('https://keel.example.test/success','https://keel.example.test/cancel'))
     d=dict(attempt_id='attempt',tenant_id='tenant',binding_id=BINDING.binding_id,provider_customer_id='cus_original',request=request)
     g.check_request(d)
     p=request['transport']

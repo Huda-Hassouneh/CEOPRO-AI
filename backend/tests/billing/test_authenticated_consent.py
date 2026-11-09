@@ -20,7 +20,7 @@ def collection(scenario):
         agreement_digest='sha256:'+hashlib.sha256(b'SYNTHETIC-NOT-LEGAL').hexdigest(),
         cancellation_reference='synthetic',renewal_disclosure_reference='synthetic',trial_start_rule_reference='synthetic',
         retention_policy_reference='synthetic',approval_reference='ISOLATED TEST ONLY')
-    document = A.PolicyDocument(s.policy,'SYNTHETIC-NOT-LEGAL','synthetic-operator','synthetic-refund',tuple(sorted(values.items())),trial_start_mode='checkout_completion')
+    document = A.PolicyDocument(s.policy,'SYNTHETIC-NOT-LEGAL','synthetic-operator','synthetic-refund',tuple(sorted(values.items())),trial_start_mode='provider_confirmed_trial_start')
     registry = dict(values,policy_id=str(s.policy),status='approved')
     presented = dict(s.presentation, policy_id=str(s.policy), terms_digest='sha256:'+'a'*64,
         challenge='x'*72, expires_at='synthetic-db-expiry', policy=registry)
@@ -84,6 +84,17 @@ def test_business_scope_and_language_are_not_guessed(collection):
     with pytest.raises(A.CollectionBlocked,match='policy_version'): flow.present(s.identity,'ar')
     s.row['reservation']['trial_duration_days']=7
     with pytest.raises(A.CollectionBlocked,match='business_eligibility'):flow.present(s.identity,'en')
+
+
+@pytest.mark.parametrize('mode',[None,'checkout_completion','browser_redirect'])
+def test_consent_requires_provider_confirmed_trial_start_rule(collection,mode):
+    from dataclasses import replace
+    s,flow,document,_=collection
+    flow.policies.return_value=replace(document,trial_start_mode=mode)
+    assert flow.prepare(s.identity,'en')['blocker']=='approved_trial_start_rule_required'
+    with pytest.raises(A.CollectionBlocked,match='approved_trial_start_rule_required'):
+        flow.present(s.identity,'en')
+    s.consents.present.assert_not_called()
 
 
 @pytest.mark.parametrize('kind',['expiry','replay','revoked'])

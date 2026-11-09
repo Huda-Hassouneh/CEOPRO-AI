@@ -1562,3 +1562,34 @@ current tunnel and the installed secret belongs to that destination. API key,
 webhook secret and public TEST token are present, but genuine signed delivery is
 still unproved. Complete recurring authority, B4 capability proof and subscription
 activation remain outside this pending-observation test.
+
+
+### Trial-start rule alignment and Sandbox-only packet ? 2026-11-09
+
+Dormant consent and Stripe/Paddle Checkout policy guards now require
+`provider_confirmed_trial_start`, replacing the misleading `checkout_completion`
+policy value. This identifies the required evidence source; it does not invent a
+start date during consent or Checkout preparation. Original provider readers
+continue to obtain Stripe subscription trial_start/trial_end or Paddle subscription
+item trial_dates. Missing authoritative dates cannot be replaced by Checkout
+completion. Existing B4 evidence/SQL, capabilities, authorization, binding,
+withdrawal and entitlement gates are unchanged. Historical policies/evidence are
+not rewritten; the old policy value fails closed. No migration or new grants.
+
+Focused verification: 30 cases passed in the initial targeted selection. One new
+B4 assertion initially expected rejection at the SQL repository, but the immutable
+contract rejects missing trial evidence earlier; the test was corrected to assert
+that earlier rejection and passed on its own retry. Final coverage is 31 distinct
+passing cases, with both evidence files retained under
+`.dev/evidence/paddle-discovery/provider-trial-start-*.xml`. No broad suite,
+migration run, provider call, Checkout or activation occurred.
+
+The private packet revision `DRAFT-sandbox-only-2026-11-09.3` contains EN/AR
+Sandbox-only consent notices adapted from the existing bilingual drafts and
+settled decisions, candidate registry/digests and the exact existing acceptance
+scope. Broad public drafts and original Downloads sources are preserved. Missing
+operator/contact facts, test-record handling, withdrawal/cancellation instructions,
+provider-specific wording and exact notice/execution approvals remain explicit.
+No address or approval reference is invented. Public-launch legal/operational gates
+are separated from the synthetic test; no policy is installed or treated as
+approved. Existing runtime flags remain off and confirmation credentials absent.

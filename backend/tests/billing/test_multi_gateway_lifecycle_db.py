@@ -27,7 +27,7 @@ from .test_recurring_consent_db import restricted_runtime,service,fingerprint
 class SyntheticJourneyGateway:
     """Explicit all-capability test adapter, never Paddle's real readiness proof."""
     def __init__(self,binding,transport,**kw):self.binding=binding;self.transport=transport
-    def check_policy(self,p):assert p['trial_start_mode']=='checkout_completion'
+    def check_policy(self,p):assert p['trial_start_mode']=='provider_confirmed_trial_start'
     def prepare(self,row,customer,policy,urls):
         r=row['reservation'];return dict(approved_terms=r['approved_terms'],customer=customer.opaque_id,
             idempotency_key='keel-trial-checkout-'+r['attempt_id'],transport=dict(metadata=dict(operation=r['attempt_id'])))

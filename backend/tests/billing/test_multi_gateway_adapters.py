@@ -180,7 +180,7 @@ def test_paddle_single_sender_encoder_has_no_unproved_idempotency_or_negative_re
     t=Transport();g=PaddleJourneyGateway(B,t,merchant_reviewed=True,approved_checkout_origin='https://merchant.example.test',checkout_page_ready=True)
     terms=dict(tenant_id='tenant',binding=dict(provider='paddle',environment='test',merchant_account_id=B.merchant_account_id,binding_id=B.binding_id),approved_amount='59',currency='USD',interval_months=1,provider_price_id='pri_test')
     r=dict(attempt_id='operation',tenant_id='tenant',trial_duration_days=14,provider_price_id='pri_test',approved_terms=terms)
-    request=g.prepare({'reservation':r},ref('ctm_test'),{'trial_start_mode':'checkout_completion'},('https://merchant.example.test/pay?trial_operation=operation','https://merchant.example.test/cancel'))
+    request=g.prepare({'reservation':r},ref('ctm_test'),{'trial_start_mode':'provider_confirmed_trial_start'},('https://merchant.example.test/pay?trial_operation=operation','https://merchant.example.test/cancel'))
     d=dict(binding_id=B.binding_id,attempt_id='operation',tenant_id='tenant',provider_customer_id='ctm_test',request=request,provider_checkout_id=None)
     receipt=dict(d,submitted_at='synthetic committed election')
     assert g.submit(d,authorize=lambda:receipt).state is C.CheckoutState.OPEN
@@ -201,3 +201,21 @@ def test_paddle_transport_cannot_switch_namespace_during_an_authoritative_read(s
     r.request=changed
     o=PaddleVerificationGateway(B,r,clock=lambda:NOW).observe_subscription(paddle_request(),event=paddle_event())
     assert o.outcome is not C.VerificationOutcome.VERIFIED and o.customer is None and o.settlement is None
+
+
+@pytest.mark.parametrize('provider',['stripe','paddle'])
+@pytest.mark.parametrize('mode',['provider_confirmed_trial_start','checkout_completion',None])
+def test_journey_policy_guards_require_original_provider_trial_start(provider,mode):
+    from unittest.mock import Mock
+    from src.ai.billing.authenticated_consent import CollectionBlocked
+    from src.ai.billing.stripe_journey import StripeJourneyGateway
+    from src.ai.billing.paddle_gateway import PaddleJourneyGateway
+    from .test_stripe_verification import BINDING
+    transport=Mock(binding=BINDING if provider=='stripe' else B)
+    gateway=(StripeJourneyGateway(BINDING,transport,provider_consent_reviewed=True)
+        if provider=='stripe' else PaddleJourneyGateway(B,transport,merchant_reviewed=True,
+            approved_checkout_origin='https://merchant.example.test',checkout_page_ready=True))
+    if mode=='provider_confirmed_trial_start':gateway.check_policy({'trial_start_mode':mode})
+    else:
+        with pytest.raises((CollectionBlocked,ValueError)):gateway.check_policy({'trial_start_mode':mode})
+    assert not transport.mock_calls  # Policy approval performs no provider work.

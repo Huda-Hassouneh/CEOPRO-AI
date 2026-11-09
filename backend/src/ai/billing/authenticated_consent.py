@@ -71,7 +71,8 @@ class ConsentCollection:
         document = self.policies(row, language, policy_id)
         if type(document) is not PolicyDocument:
             raise CollectionBlocked('policy_not_approved')
-        if document.trial_start_mode != 'checkout_completion':
+        # This names the evidence rule; consent itself supplies no trial timestamp.
+        if document.trial_start_mode != 'provider_confirmed_trial_start':
             raise CollectionBlocked('approved_trial_start_rule_required')
         values = document.values()
         if values['language_tag'] != language or (policy_id and str(document.policy_id) != str(policy_id)):
