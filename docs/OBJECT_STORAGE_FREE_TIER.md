@@ -154,7 +154,10 @@ Session 1, after this PR is merged and the owner has saved the variables:
    `StorageUnavailable` means a wrong key, bucket or endpoint; roll the variables back by deleting `MINIO_ENDPOINT`
    (storage then reads `not_configured` and everything else works as before).
 
-Session 2 (read-only, a synthetic test company only):
+Session 2. Steps 1 and 4 are read-only and run straight after the deploy. Steps 2, 3, 5 and 6 create test accounts and data
+in production, and step 3 may call an image provider. They run **only with the owner's explicit OK** and a
+production test login sent through a secure channel, never chat. Without that OK, the owner can do step 2 and 3 by
+hand in the app (upload a document, generate an image, reload after a restart):
 
 1. `/health/storage` is `ok`.
 2. Knowledge Base: upload a small synthetic `.txt`/`.pdf` → status `ready`; ask the assistant about a fact only in it
