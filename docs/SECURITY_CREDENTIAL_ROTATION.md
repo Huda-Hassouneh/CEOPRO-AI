@@ -65,7 +65,7 @@ Step 1 (hard rotation, decided for this incident) and steps 2-6 do not depend on
 How the overlap works (`backend/src/ai/core/jwt_keys.py`): new tokens are signed **only** with `JWT_SECRET`;
 verification tries `JWT_SECRET`, then `JWT_SECRET_PREVIOUS`. `exp` stays required; sign-out revocation, the
 password-change cut-off and `credential_version` checks apply to both keys unchanged. A token that matched only
-`JWT_SECRET_PREVIOUS` is honoured until it expires but **never renewed** (`POST /auth/refresh` answers 401), and
+`JWT_SECRET_PREVIOUS` is honoured until it expires but **never re-issued under the new key**: renewal, switching or creating a workspace and changing the password all answer 401 (`security.get_current_key_context`), and
 any token whose sign-in time (`auth_time`) is in the future is refused. Both close a review finding on #107: a
 token forged with the old key, with a far-future `auth_time`, could otherwise be renewed into a new-key session
 that outlived the rotation and was never capped by `SESSION_MAX_HOURS`.

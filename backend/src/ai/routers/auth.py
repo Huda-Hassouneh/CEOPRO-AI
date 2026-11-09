@@ -368,7 +368,7 @@ class SwitchWorkspaceRequest(BaseModel):
 
 
 @router.post("/workspaces/switch")
-def switch_workspace(body: SwitchWorkspaceRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def switch_workspace(body: SwitchWorkspaceRequest, ctx: TenantContext = Depends(security.get_current_key_context)) -> dict:
     """A session for another company this login is an active member of."""
     conn = db.auth_lookup_connection()
     try:
@@ -399,7 +399,7 @@ class CreateWorkspaceRequest(BaseModel):
 
 
 @router.post("/workspaces", status_code=201)
-def create_workspace(body: CreateWorkspaceRequest, ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def create_workspace(body: CreateWorkspaceRequest, ctx: TenantContext = Depends(security.get_current_key_context)) -> dict:
     """A new company owned by the signed-in person - its own data, plan
     trial and setup, fully separate from their other companies. Returns a
     session for the new company."""
@@ -449,17 +449,13 @@ def logout(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
 
 
 @router.post("/refresh")
-def refresh(ctx: TenantContext = Depends(get_tenant_context)) -> dict:
+def refresh(ctx: TenantContext = Depends(security.get_current_key_context)) -> dict:
     """A new access token for a session that is still valid, so someone using
     the app isn't signed out mid-work. Refused once the sign-in is older than
     SESSION_MAX_HOURS, or when the user is no longer an active member of the
     company. The old token is left to expire on its own (at most
     JWT_EXPIRE_MINUTES), so other open tabs aren't signed out by this one's
     renewal; signing out still revokes immediately."""
-    if getattr(ctx, "signed_with_current_key", True) is not True:
-        # Signed with JWT_SECRET_PREVIOUS (a rotation is in progress): usable until it expires, never
-        # re-signed with the new key - the old key may be known to someone else.
-        raise HTTPException(status_code=401, detail="Please sign in again.")
     if security.session_age_seconds(ctx) > security.SESSION_MAX_HOURS * 3600:
         raise HTTPException(status_code=401, detail="This sign-in has expired. Please sign in again.")
     conn = db.auth_lookup_connection()

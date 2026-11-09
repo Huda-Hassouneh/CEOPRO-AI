@@ -8,6 +8,7 @@ exp requirement, sign-out revocation and credential_version checks are the same
 for both keys. Offline: conftest.py fakes Redis and the principal lookup.
 """
 import os
+import re
 import time
 from unittest.mock import MagicMock, patch
 
@@ -194,6 +195,69 @@ def test_a_legacy_token_whose_derived_sign_in_time_is_in_the_future_is_refused()
     far_exp = jwt.encode({"tenant_id": TENANT, "user_id": USER, "exp": now + 365 * 86400, "jti": "x", "ev": True},
                          CURRENT, algorithm="HS256")
     _refused(far_exp)
+
+
+# Every route that issues a new token from an existing session (second review finding on #107:
+# switching to the same workspace laundered an old-key token into a current-key session).
+_REISSUE_ROUTES = {
+    ("POST", "/auth/refresh"): None,
+    ("POST", "/auth/workspaces/switch"): {"tenant_id": TENANT},
+    ("POST", "/auth/workspaces"): {"business_name": "Shop", "country_code": "JO", "primary_currency": "JOD"},
+    ("POST", "/settings/security/change-password"): {"current_password": "Old-pass1!", "new_password": "New-pass1!"},
+}
+
+
+@pytest.mark.parametrize("method,path", sorted(_REISSUE_ROUTES))
+def test_no_route_re_issues_an_old_key_session(overlap, method, path):
+    from src.ai.main import app
+
+    old = _token(PREVIOUS)
+    with patch("src.ai.db.auth_lookup_connection") as lookup, patch("src.ai.db.app_role_connection") as app_conn:
+        response = TestClient(app).request(method, path, json=_REISSUE_ROUTES[(method, path)],
+                                           headers={"Authorization": f"Bearer {old}"})
+    assert response.status_code == 401, (path, response.text)
+    assert "access_token" not in response.text
+    assert not lookup.called and not app_conn.called  # refused before the handler ran
+
+
+def _dependency_calls(dependant):
+    for sub in dependant.dependencies:
+        yield sub.call
+        yield from _dependency_calls(sub)
+
+
+def _api_routes(routes):
+    """Every APIRoute, including routers kept nested by newer FastAPI versions."""
+    from fastapi.routing import APIRoute
+
+    for route in routes:
+        if isinstance(route, APIRoute):
+            yield route
+        nested = getattr(route, "original_router", None) or getattr(route, "router", None)
+        if nested is not None and getattr(nested, "routes", None) is not None and nested is not route:
+            yield from _api_routes(nested.routes)
+
+
+def test_every_token_issuing_route_refuses_old_key_sessions():
+    """Fails when a route that creates a token from a signed-in session uses get_tenant_context directly."""
+    import inspect
+
+    from src.ai.main import app
+
+    issuing, signed_in_routes = set(), 0
+    for route in _api_routes(app.routes):
+        calls = list(_dependency_calls(route.dependant))
+        if security.get_tenant_context not in calls:
+            continue  # not a signed-in route (login, signup, codes, invitations)
+        signed_in_routes += 1
+        source = inspect.getsource(route.endpoint)
+        if re.search(r"\bcreate_access_token\(|\b_session\(", source):
+            issuing.add(route.endpoint.__name__)
+            direct = [sub.call for sub in route.dependant.dependencies]
+            assert security.get_tenant_context not in direct, route.path
+            assert security.get_current_key_context in direct, route.path
+    assert signed_in_routes > 50  # the walk really saw the application's routes
+    assert issuing == {"refresh", "switch_workspace", "create_workspace", "change_password"}
 
 
 def test_only_a_wrong_signature_falls_through_to_the_previous_key():

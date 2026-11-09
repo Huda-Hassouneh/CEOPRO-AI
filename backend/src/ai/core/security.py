@@ -27,7 +27,7 @@ from typing import Optional
 
 import bcrypt
 import jwt
-from fastapi import Header, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request
 
 from src.ai.core import jwt_keys
 
@@ -144,9 +144,23 @@ def get_tenant_context(request: Request = None, authorization: Optional[str] = H
     # it, so count from when they were issued.
     ctx.auth_time = auth_time
     # False when only JWT_SECRET_PREVIOUS matched: such a token is honoured until it expires but is
-    # never renewed (routers/auth.py refresh), so a token forged with an exposed old key cannot be
-    # turned into a current-key session that outlives the rotation.
+    # never re-issued under the new key (get_current_key_context below), so a token forged with an
+    # exposed old key cannot be turned into a current-key session that outlives the rotation.
     ctx.signed_with_current_key = current_key
+    return ctx
+
+
+def get_current_key_context(ctx: TenantContext = Depends(get_tenant_context)) -> TenantContext:
+    """get_tenant_context(), but refused (401) for a token that matched only JWT_SECRET_PREVIOUS.
+
+    Every route that issues a new token from an existing session (renewal, switching or creating a
+    workspace, changing the password) must use this: during a rotation the old key may be known to
+    someone else, so a token signed with it is honoured until it expires but is never re-issued under
+    the new key. test_jwt_key_rotation.py fails if a token-issuing route depends on get_tenant_context
+    directly.
+    """
+    if getattr(ctx, "signed_with_current_key", True) is not True:
+        raise HTTPException(status_code=401, detail="Please sign in again.")
     return ctx
 
 
