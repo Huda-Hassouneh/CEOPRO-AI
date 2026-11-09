@@ -27,7 +27,7 @@ Limits, so a free tier is never exceeded silently
     object. STORAGE_QUOTA_BYTES (default 9 GB in single-bucket mode, below
     B2's 10 GB free storage; unset = no total limit locally) refuses a write
     that would take the stored total past it. The total comes from listing
-    the bucket at most once per STORAGE_USAGE_TTL_SECONDS (default 600) per
+    the bucket at most once per STORAGE_USAGE_TTL_SECONDS (default 3600) per
     process, plus this process's own writes since. The provider's own
     caps (B2 "Caps & Alerts", all set to $0) are the hard backstop: their
     "cap exceeded" refusals are reported as StorageQuotaExceeded too.
@@ -44,6 +44,7 @@ TLS
     endpoint must be https; the client refuses a plain-http remote endpoint
     rather than send keys and customer files unencrypted.
 """
+import logging
 import os
 import re
 import threading
@@ -60,7 +61,10 @@ DEFAULT_MAX_OBJECT_BYTES = 25 * 1024 * 1024
 # B2's free allowance is 10 GB (decimal). Leave a margin for overwrites
 # counted twice and for writes from other processes inside one usage window.
 DEFAULT_SINGLE_BUCKET_QUOTA_BYTES = 9_000_000_000
-DEFAULT_USAGE_TTL_SECONDS = 600
+# One listing costs ceil(objects / 1000) B2 Class C calls (2,500 free per day, shared with
+# everything else): hourly keeps it to ~24 x pages per process per day.
+DEFAULT_USAGE_TTL_SECONDS = 3600
+logger = logging.getLogger(__name__)
 _B2_HOST = re.compile(r"^s3\.([a-z0-9-]+)\.backblazeb2\.com$")
 _LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1", "0.0.0.0")
 
@@ -329,7 +333,19 @@ class ObjectStore:
         with _usage_lock:
             cached = _usage.get(key)
         if refresh or cached is None or now - cached[0] > self.settings.usage_ttl_seconds:
-            listed = self._list_total_bytes()
+            try:
+                listed = self._list_total_bytes()
+            except StorageError as err:
+                # A refused or failed LISTING (e.g. B2's daily Class C cap) says nothing about how
+                # full storage is: keep the last known figure, or none, and let the write go ahead -
+                # the provider's own $0 storage cap still stops real overage. Refusing every upload
+                # as "full" here was a real failure mode (Session 2 review, 2026-11-09).
+                logger.warning("storage usage listing failed (%s); using last known usage", type(err).__name__)
+                if cached is None:
+                    return 0
+                with _usage_lock:
+                    _usage[key] = (now, cached[1], cached[2])  # don't retry the listing on every write
+                return cached[1] + cached[2]
             with _usage_lock:
                 _usage[key] = (now, listed, 0)
             return listed

@@ -222,3 +222,32 @@ def test_real_minio_quota_refuses_and_stores_nothing(real_store):
     names = [o.object_name for o in real_store.list_objects("ceopro-rag-knowledge", recursive=True)]
     assert sorted(names) == ["uploads/t/a.txt", "uploads/t/b.txt"]
     assert real_store.usage_summary()["used_percent"] == 90.0
+
+
+def test_a_capped_or_failed_usage_listing_never_refuses_writes_as_storage_full():
+    """Regression (Session 2 review): B2 refusing the LISTING (daily Class C cap) made every upload 507."""
+    class _ListingCapped(_FakeMinio):
+        capped = False
+
+        def list_objects(self, bucket, prefix=None, recursive=False):
+            if self.capped:
+                raise S3Error(None, "AccessDenied", "Transaction cap exceeded.", bucket, "req", "host")
+            return super().list_objects(bucket, prefix=prefix, recursive=recursive)
+
+    fake = _ListingCapped()
+    store = storage.ObjectStore(_settings(quota_bytes=5000, usage_ttl_seconds=0), client=fake)
+    store.put_object("b", "t1/a", io.BytesIO(b"x" * 100), 100)
+    fake.capped = True
+    store.put_object("b", "t1/b", io.BytesIO(b"x" * 100), 100)  # last known usage, not "full"
+    assert len(fake.objects) == 2
+    # Real fullness is still enforced from the last known figure.
+    storage.reset_usage_cache()
+    fake.capped = False
+    fake.objects[("keel-files", "b/t1/big")] = b"x" * 4900
+    store.used_bytes(refresh=True)
+    fake.capped = True
+    with pytest.raises(storage.StorageQuotaExceeded):
+        store.put_object("b", "t1/c", io.BytesIO(b"x" * 100), 100)
+    # With no figure at all, a failed listing lets the write through (the provider cap is the backstop).
+    storage.reset_usage_cache()
+    store.put_object("b", "t1/d", io.BytesIO(b"x" * 10), 10)

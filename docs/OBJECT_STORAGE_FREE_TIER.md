@@ -48,9 +48,14 @@ automatically. The design does not rely on it: §3's $0 caps and KEEL's own limi
 
 - **Downloads (Class B): 2,500 per day.** Each image view or document read is one. KEEL now answers a repeat view
   of the same image with `304 Not Modified` from an ETag, without reading storage. Past the cap, image views fail
-  until the next day (UTC) with "Could not read the stored image"; nothing is lost.
-- **Listings (Class C): 2,500 per day.** KEEL lists the bucket to measure total usage at most once per
-  10 minutes per process (about 150 per day per process), and `/health/storage` caches its answer for 5 minutes.
+  until the next day (UTC) with "Could not read the stored image"; nothing is lost. The allowance is shared by
+  **all companies**: one busy company can use it up for everyone (a per-company daily read budget is a possible
+  follow-up).
+- **Listings (Class C): 2,500 per day.** KEEL lists the bucket to measure total usage at most once an hour per
+  process (`STORAGE_USAGE_TTL_SECONDS`, default 3600). One listing costs one call per 1,000 stored objects, so the
+  daily cost is about 24 x (objects / 1,000) per process: ~24 calls at 1,000 objects, ~240 at 10,000.
+  `/health/storage` caches its answer for 5 minutes. A refused or failed listing (Class C cap reached) never
+  refuses uploads: KEEL keeps the last known usage and logs a warning, and B2's $0 storage cap stays the hard stop.
 - **Storage: 10 GB.** KEEL refuses new files at 9 GB (`STORAGE_QUOTA_BYTES`), with HTTP 507 "File storage is
   full". Each plan's own storage allowance per company still applies first.
 
@@ -149,7 +154,7 @@ Keys go **only** into the Render dashboard, never into chat, email, Git or an ag
 Session 1, after this PR is merged and the owner has saved the variables:
 
 1. Deploy the merged commit as usual (no migrations in this change). Optional variables keep their defaults:
-   `STORAGE_QUOTA_BYTES=9000000000`, `STORAGE_MAX_OBJECT_BYTES=26214400`, `STORAGE_USAGE_TTL_SECONDS=600`.
+   `STORAGE_QUOTA_BYTES=9000000000`, `STORAGE_MAX_OBJECT_BYTES=26214400`, `STORAGE_USAGE_TTL_SECONDS=3600`.
 2. Check the start-up log for config findings on `MINIO_*` / `STORAGE_*` (names only are logged).
 3. `GET https://<api>/health/storage` → 200 `{"status":"ok","mode":"single_bucket", ...}`. `unavailable` with
    `StorageUnavailable` means a wrong key, bucket or endpoint; roll the variables back by deleting `MINIO_ENDPOINT`
@@ -176,7 +181,7 @@ again; nothing else is affected. Objects stay in the private bucket.
 
 ## 6. Known limits
 
-- The 9 GB total is measured per process from a listing every 10 minutes plus that process's own writes, so
+- The 9 GB total is measured per process from a listing every hour plus that process's own writes, so
   several processes writing at the same time can pass it briefly. B2's $0 caps are the hard stop.
 - B2 keeps earlier versions of overwritten or deleted files, and they count as stored data. The lifecycle rule in
   step 4 removes them after a day. KEEL's listing sees only current files, so for that day it slightly
