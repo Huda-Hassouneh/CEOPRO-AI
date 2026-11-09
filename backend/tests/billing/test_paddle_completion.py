@@ -109,7 +109,7 @@ def test_checkout_discovery_rereads_unique_original_transaction_without_post(cou
     assert g._snapshot.call_count==(1 if count==1 else 0)
 
 
-@pytest.mark.parametrize('problem',['valid','attached_card','foreign_customer','foreign_subscription','wrong_terms','wrong_trial','paid_initial','missing_trial_start','missing_trial_dates'])
+@pytest.mark.parametrize('problem',['valid','attached_card','omitted_adjustments','null_adjustments','refund','malformed_adjustments','foreign_customer','foreign_subscription','wrong_terms','wrong_trial','paid_initial','missing_trial_start','missing_trial_dates'])
 def test_paddle_trial_facts_do_not_fabricate_reusable_recurring_authority(problem):
     from decimal import Decimal
     from .test_multi_gateway_adapters import PaddleReader,NOW
@@ -123,6 +123,10 @@ def test_paddle_trial_facts_do_not_fabricate_reusable_recurring_authority(proble
         completed_at=(start+timedelta(minutes=5)).isoformat())
     for key in t.t['details']['totals']:t.t['details']['totals'][key]='0'
     if problem=='attached_card':t.s['default_payment_method_id']='paymtd_attached_only'
+    if problem=='omitted_adjustments':del t.t['adjustments']
+    if problem=='null_adjustments':t.t['adjustments']=None
+    if problem=='refund':t.t['adjustments']=[dict(action='refund',status='approved')]
+    if problem=='malformed_adjustments':t.t['adjustments']={}
     if problem=='foreign_customer':t.t['customer_id']='foreign'
     if problem=='foreign_subscription':t.t['subscription_id']='foreign'
     if problem=='wrong_terms':t.s['items'][0]['price']['unit_price']['amount']='6000'
@@ -132,7 +136,7 @@ def test_paddle_trial_facts_do_not_fabricate_reusable_recurring_authority(proble
     if problem=='missing_trial_dates':del t.s['items'][0]['trial_dates']
     o=PaddleVerificationGateway(B,t,clock=lambda:NOW).observe_trial_checkout(r)
     assert o.outcome is not C.VerificationOutcome.VERIFIED and not o.capabilities.supports_card_backed_trial()
-    if problem in ('valid','attached_card'):
+    if problem in ('valid','attached_card','omitted_adjustments'):
         assert o.outcome is C.VerificationOutcome.PENDING and o.subscription==ref('sub_test') and o.trial.started_at==start and o.trial.ends_at==end
         assert o.recurring_authorization.readiness is C.PaymentMethodReadiness.UNKNOWN
     else:assert o.outcome is C.VerificationOutcome.CONFLICT and o.subscription is None

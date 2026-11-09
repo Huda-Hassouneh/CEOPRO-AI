@@ -1619,3 +1619,64 @@ failures remain in private evidence. This does not certify production restricted
 installation or real provider retry success. The isolated acceptance session has
 separately approved Sandbox-only policies and test-scoped runtime composition;
 public policies, B4 confirmation and production activation remain blocked.
+
+### Genuine isolated Paddle Checkout acceptance — 2026-11-09
+
+The separately authorized original Customer/operation was reused. The audited
+single transaction retry returned 201 after the original documented domain
+rejection; browser Checkout completed and Paddle created a trialing subscription.
+Authoritative GETs verified the original merchant, Customer, transaction, price,
+USD 29 monthly/quantity-one terms and card-required 14-day trial. The actual trial
+window was 2026-11-09T06:55:21.484Z through 2026-11-23T06:55:21.484Z, obtained from
+the provider subscription's trial_dates, not browser completion.
+
+Real signed subscription/transaction notifications reached the isolated handler.
+The first lookup exposed a decoder defect: Paddle omits the adjustments relation
+when none exist, even when explicitly included. Both initial-trial and renewal
+readers now honor that documented omission while refusing explicit null, malformed
+or nonempty adjustments. All identity, money, tax, capture and trial checks remain.
+Source: [Paddle transaction include semantics](https://developer.paddle.com/api-reference/transactions/get-transaction/).
+
+The original conflict observation remains immutable. Reconciliation can now append
+fresh authoritative observations after a conflict, but the existing conflict fence
+still prevents subscription association, attestation or confirmation. Three pending
+observations were persisted on the SAME B3 operation; the original conflict flag
+was never cleared. This is successful pending-evidence capture, not an unconflicted
+or activation-ready operation. Original signed deliveries and the authorized real
+Paddle replay returned HTTP 500 because trusted reconciliation remained blocked;
+Paddle reports failed delivery. No successful acknowledgement is claimed.
+
+One provider replay of the original transaction.completed notification returned
+202. The genuine incoming bytes/header were captured privately after the real
+decoder succeeded and independently rechecked using HMAC-SHA256 and its five-second
+window. Its immutable event digest exactly matched the original SQL receipt; the
+event still has one receipt. Stale, tampered and unsigned negative requests returned
+400. The test never manufactured a signed event as provider acceptance evidence.
+
+Authenticated withdrawal recorded one invalidation and exact retry returned the
+same record. Advance/handoff failed closed after withdrawal (currently generic 503
+rather than a specific conflict response). The authenticated original-object
+cleanup elected one immediate subscription cancellation POST, returned 200, and
+authoritative GET verified canceled with next_billed_at=null. Cleanup retry was
+GET-only. The completed transaction, original Customer, Product, Price, consent and
+audit history remain. No refund, paid renewal or unrelated object write occurred.
+
+Final native reads verified zero KEEL confirmations, subscriptions, trials, Credit
+balances/usage and entitlement overrides; entitlement audit count was unchanged.
+FORCE RLS and restricted effective privileges remain intact; attestor/confirmer
+roles remain NOLOGIN with no runtime credentials. No additional migration was
+needed for the response/reconciliation correction. Focused tests: 41 passed plus
+one fixture-only failure, then that corrected fixture passed (42 distinct cases).
+Existing Stripe, lifecycle, catalog, authorization and financial evidence is reused;
+no broad suites were repeated. Private evidence is under
+`.dev/evidence/paddle-acceptance/`, notably `final-acceptance-evidence.json` and
+`genuine-signature-proof.json`. Raw signatures, credentials, policies and synthetic
+session records remain ignored/private.
+
+Real paid renewal/failure recovery, paid-period cancellation, B4 recurring authority,
+all-nine capability proof, Custom initial confirmation and production restricted
+installation were NOT established. Pricing Studio/Provider Accounting source is
+unchanged; recorded authorization evidence is reused, not represented as a new
+functional acceptance test. Public policy approval, merchant/LIVE authorization and
+production cutover remain separate gates. This original conflicted, withdrawn and
+canceled journey must never be reset or reused to obtain access.

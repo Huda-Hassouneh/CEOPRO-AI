@@ -177,7 +177,7 @@ class PaddleVerificationGateway:
         if t['status']!='completed':return None
         totals=t['details']['totals'];currency=t['currency_code']
         if (t.get('collection_mode')!='automatic' or t.get('origin')!='subscription_recurring'
-                or t.get('discount_id') or 'adjustments' not in t or t['adjustments'] or t.get('revised_at')
+                or t.get('discount_id') or t.get('adjustments',[])!=[] or t.get('revised_at')
                 or any(Decimal(totals[k])!=0 for k in ('discount','tax','credit','credit_to_balance'))):
             raise ValueError('Unsupported settlement adjustments')
         items=t['items'];lines=t['details']['line_items']
@@ -248,7 +248,10 @@ class PaddleVerificationGateway:
                 if (request.expected_terms is None or terms!=request.expected_terms or t['currency_code']!=terms.amount.currency
                         or len(items)!=1 or items[0]['price']['id']!=terms.price.opaque_id or type(items[0]['quantity']) is not int or items[0]['quantity']!=1
                         or money(items[0]['price']['unit_price']['amount'],items[0]['price']['unit_price']['currency_code'])!=terms.amount
-                        or t.get('discount_id') or 'adjustments' not in t or t['adjustments'] or t.get('revised_at')
+                        # This lookup explicitly requests include=adjustments.
+                        # Paddle omits the relation when no adjustments exist;
+                        # an explicit null/malformed/nonempty relation is refused.
+                        or t.get('discount_id') or t.get('adjustments',[])!=[] or t.get('revised_at')
                         or any(Decimal(totals[k])!=0 for k in ('total','grand_total','subtotal','tax','discount','credit','credit_to_balance'))):
                     raise ValueError('Unsupported initial trial financial facts')
                 trial=subscription['items'][0]['trial_dates']
