@@ -9,6 +9,8 @@ import { useSalesReport } from '../hooks/useSalesReport.js';
 import { useFinancialSummaryReport } from '../hooks/useFinancialSummaryReport.js';
 import { reportsApi } from '../api/reportsApi.js';
 import { downloadAsFile } from '../utils/exportFile.js';
+import { useCompany } from '../../settings/hooks/useCompany.js';
+import { createReportDateRange } from '../utils/reportDateRange.js';
 import '../styles/Reports.css';
 
 const PAGE_SIZE = 50;
@@ -25,19 +27,26 @@ const SALES_COLUMNS = [
 
 export default function UnifiedReportsCenterPage() {
   const { t, locale, dir } = useI18n();
+  const companyQuery = useCompany();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [windowDays, setWindowDays] = useState(30);
   const [page, setPage] = useState(0);
   const [exporting, setExporting] = useState(null);
   const [exportFailed, setExportFailed] = useState(false);
+  const hasDateFilter = Boolean(startDate || endDate);
 
-  const range = {
-    startDate: startDate ? new Date(startDate).toISOString() : undefined,
-    // Exclusive end - add a day so the picked end date's own invoices are included.
-    endDate: endDate ? new Date(new Date(endDate).getTime() + 86400000).toISOString() : undefined,
-  };
-  const salesQuery = useSalesReport({ ...range, limit: PAGE_SIZE, offset: page * PAGE_SIZE });
+  const rangeState = useMemo(() => {
+    try {
+      return { range: createReportDateRange(startDate, endDate, companyQuery.data?.company?.timezone || 'UTC'), error: false };
+    } catch {
+      return { range: null, error: true };
+    }
+  }, [startDate, endDate, companyQuery.data?.company?.timezone]);
+  const range = rangeState.range;
+  const rangeReady = Boolean(range) && (!hasDateFilter || !companyQuery.isPending);
+  const rangeInvalid = rangeState.error || (hasDateFilter && companyQuery.isError);
+  const salesQuery = useSalesReport({ ...(range || {}), limit: PAGE_SIZE, offset: page * PAGE_SIZE, enabled: rangeReady && !rangeInvalid });
   const financialQuery = useFinancialSummaryReport({ windowDays });
 
   const currencyFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }), [locale]);
@@ -78,6 +87,7 @@ export default function UnifiedReportsCenterPage() {
   const tableColumns = SALES_COLUMNS.map((col) => ({ ...col, header: t(`reports.sales.columns.${col.header}`), accessor: col.key }));
 
   const exportSales = async (format) => {
+    if (!rangeReady || rangeInvalid) return;
     setExporting(format);
     setExportFailed(false);
     const file = await reportsApi.exportSales({ format, lang: locale, ...range });
@@ -147,14 +157,17 @@ export default function UnifiedReportsCenterPage() {
           <input id="reports-start-date" type="date" value={startDate} onChange={(event) => { setStartDate(event.target.value); setPage(0); }} className="reports-date-input" />
           <label htmlFor="reports-end-date">{t('reports.sales.endDate')}</label>
           <input id="reports-end-date" type="date" value={endDate} onChange={(event) => { setEndDate(event.target.value); setPage(0); }} className="reports-date-input" />
-          <Button size="sm" variant="outline" leadingIcon={<Download size={14} />} disabled={!totalRows || Boolean(exporting)} onClick={() => exportSales('csv')}>{exporting === 'csv' ? t('reports.sales.exporting') : t('reports.common.exportCsv')}</Button>
-          <Button size="sm" variant="outline" leadingIcon={<Download size={14} />} disabled={!totalRows || Boolean(exporting)} onClick={() => exportSales('json')}>{exporting === 'json' ? t('reports.sales.exporting') : t('reports.common.exportJson')}</Button>
-          <Button size="sm" variant="outline" leadingIcon={<FileText size={14} />} disabled={!totalRows || Boolean(exporting)} onClick={() => exportSales('pdf')}>{exporting === 'pdf' ? t('reports.sales.exporting') : t('reports.common.exportPdf')}</Button>
+          <Button size="sm" variant="outline" leadingIcon={<Download size={14} />} disabled={!totalRows || !rangeReady || rangeInvalid || Boolean(exporting)} onClick={() => exportSales('csv')}>{exporting === 'csv' ? t('reports.sales.exporting') : t('reports.common.exportCsv')}</Button>
+          <Button size="sm" variant="outline" leadingIcon={<Download size={14} />} disabled={!totalRows || !rangeReady || rangeInvalid || Boolean(exporting)} onClick={() => exportSales('json')}>{exporting === 'json' ? t('reports.sales.exporting') : t('reports.common.exportJson')}</Button>
+          <Button size="sm" variant="outline" leadingIcon={<FileText size={14} />} disabled={!totalRows || !rangeReady || rangeInvalid || Boolean(exporting)} onClick={() => exportSales('pdf')}>{exporting === 'pdf' ? t('reports.sales.exporting') : t('reports.common.exportPdf')}</Button>
         </div>
       </div>
       {exportFailed && <p className="reports-status reports-status--error" role="alert">{t('reports.sales.exportFailed')}</p>}
-      {salesQuery.isPending && <p className="reports-status">{t('common.loading')}</p>}
-      {salesQuery.isError || sales?.available === false ? (
+      {rangeInvalid ? (
+        <p className="reports-status reports-status--error" role="alert">{t('reports.sales.unavailable')}</p>
+      ) : salesQuery.isPending ? (
+        <p className="reports-status">{t('common.loading')}</p>
+      ) : salesQuery.isError || sales?.available === false ? (
         <p className="reports-status reports-status--error">{t('reports.sales.unavailable')}</p>
       ) : sales && sales.rows.length === 0 ? (
         <p className="reports-status">{t('reports.sales.empty')}</p>

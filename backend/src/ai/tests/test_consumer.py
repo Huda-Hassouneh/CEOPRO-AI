@@ -30,7 +30,9 @@ def dummy_actor_user_id(monkeypatch):
     # to Postgres with it - the tests here mock out app_role_connection/
     # run_forecast so no real DB is needed.
     monkeypatch.setenv("AI_SERVICE_ACTOR_USER_ID", "00000000-0000-0000-0000-000000000000")
-    monkeypatch.setattr(consumer_module, "require_forecast_authorization", lambda *_args: None)
+    # These Redis/plumbing tests use fake DB connections. The service guard
+    # itself is exercised without this patch in the authorization regression suite.
+    monkeypatch.setattr(consumer_module, "require_forecast_service_authorization", lambda *_args: None)
 
 
 @pytest.fixture
