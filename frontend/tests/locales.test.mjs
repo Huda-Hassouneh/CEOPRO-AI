@@ -49,6 +49,32 @@ for (const [name, { en, ar }] of Object.entries(bundles)) {
     }
     assert.deepEqual(problems, []);
   });
+
+  // The interpolator only fills {{name}}; a single-brace {name} would reach
+  // the screen literally ("Verified {date}").
+  test(`${name}: no single-brace {placeholder} that would show literally`, () => {
+    const problems = [];
+    for (const [lang, bundle] of Object.entries({ en, ar })) {
+      for (const [key, value] of leaves(bundle)) {
+        if (typeof value === 'string' && /(?<!\{)\{\w+\}(?!\})/.test(value)) problems.push(`${lang} ${key}: ${value}`);
+      }
+    }
+    assert.deepEqual(problems, []);
+  });
+
+  // An Arabic text with no Arabic letters but an English phrase is an
+  // untranslated copy (product and brand names alone are allowed).
+  test(`${name}: Arabic texts are translated, not English copies`, () => {
+    const problems = [];
+    for (const [key, value] of leaves(ar)) {
+      if (typeof value !== 'string' || /[؀-ۿ]/.test(value)) continue;
+      const words = value.replace(/\{\{\w+\}\}/g, '').match(/[A-Za-z]{3,}/g) || [];
+      const brandOnly = /^(KEEL|English|Excel|Word|Shopify|WooCommerce|PayPal|Stripe|Google( Pay| Analytics)?|Microsoft SQL Server)$/.test(value.trim());
+      const singleToken = !/\s/.test(value.trim()); // an e-mail address or URL example
+      if (words.length >= 3 && !brandOnly && !singleToken) problems.push(`${key}: ${value}`);
+    }
+    assert.deepEqual(problems, []);
+  });
 }
 
 test('every literal t("...") key used in the code exists in English', () => {
