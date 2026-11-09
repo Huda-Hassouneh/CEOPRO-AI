@@ -81,6 +81,17 @@ def _create_competitor_receipt(conn, tenant_id, competitor_id, actor_user_id, fa
     )
 
 
+def _create_single_receipt(conn, tenant_id, competitor_id, actor_user_id, facets, depth):
+    """The receipt for one Retry press. A competitor this company does not track as its own - another company's,
+    a made-up id, an untracked suggestion - is refused by the receipt's authorization; it is answered like any
+    unknown competitor (404), never as a server error that would also tell two kinds of foreign id apart."""
+    try:
+        return _create_competitor_receipt(conn, tenant_id, competitor_id, actor_user_id, facets, depth, "single")
+    except operation_receipts.ReceiptAuthorizationError:
+        conn.rollback()
+        raise HTTPException(status_code=404, detail="Competitor not found.")
+
+
 def _queue_competitor_receipts(conn, tenant_id, actor_user_id, competitor_ids, facets, depth, mode):
     _stage2_enabled()
     receipts = [
@@ -167,10 +178,8 @@ def enrich_competitor_endpoint(
         _stage2_enabled()
         conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
         try:
-            receipt = _create_competitor_receipt(
-                conn, ctx.tenant_id, competitor_id, ctx.user_id, facets,
-                "deep" if deep else "standard", "single",
-            )
+            receipt = _create_single_receipt(conn, ctx.tenant_id, competitor_id, ctx.user_id, facets,
+                                             "deep" if deep else "standard")
         except Exception:
             conn.rollback()
             raise
@@ -183,10 +192,8 @@ def enrich_competitor_endpoint(
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
     receipt = None
     try:
-        intent = _create_competitor_receipt(
-            conn, ctx.tenant_id, competitor_id, ctx.user_id, facets,
-            "deep" if deep else "standard", "single",
-        )
+        intent = _create_single_receipt(conn, ctx.tenant_id, competitor_id, ctx.user_id, facets,
+                                        "deep" if deep else "standard")
         if not intent.get("created"):
             return JSONResponse(status_code=202, content={
                 "queued": True, "already_queued": True,

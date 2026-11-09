@@ -577,3 +577,184 @@ def test_live_and_finished_runs_keep_their_status(status, age, expected):
     run = pipeline.get_run(_RunConn(_run_row(status, age, error="unreachable" if status == "failed" else None)), "t")
     assert run["status"] == expected
     assert run["error"] == ("unreachable" if status == "failed" else None)
+
+
+# --- adaptive radius ------------------------------------------------------
+
+class _Source:
+    """A source whose answer depends on the radius it is asked for: one grill per km ring."""
+    def __init__(self, name, per_km=1.0):
+        self.NAME, self.per_km, self.radii = name, per_km, []
+
+    def search(self, query):
+        self.radii.append(query.radius_km)
+        rings = int(query.radius_km * self.per_km)
+        return ProviderResult(self.NAME, "ok", [
+            _c(f"{self.NAME} Grill {i}", self.NAME, f"{self.NAME}/{i}", latitude=AMMAN[0] + 0.009 * i * 0.9 / self.per_km,
+               longitude=AMMAN[1], industry_key="restaurant") for i in range(1, rings + 1)], requests=1)
+
+
+def test_a_sparse_area_widens_with_free_sources_only_and_records_where_it_started(monkeypatch):
+    monkeypatch.setattr(pipeline, "MIN_DIRECT_COMPETITORS", 3)
+    monkeypatch.setattr(pipeline, "MIN_COMPETITORS", 7)  # 2 km: 2+2, 4 km: 4+2, 8 km: 8+2 grills
+    monkeypatch.setattr(pipeline, "EXPANSION_STEPS", 2)
+    free, metered = _Source("openstreetmap"), _Source("google_places")
+    query, results, ranked, expanded_from, suggested = pipeline.search_and_rank(_query(radius_km=2), (free, metered))
+    assert suggested is None  # the radius was not the owner's: it was widened, not suggested
+    assert expanded_from == 2 and query.radius_km == 8
+    assert free.radii == [2, 4, 8] and metered.radii == [2]  # the metered source is never asked again
+    assert {r.provider: r.requests for r in results} == {"openstreetmap": 3, "google_places": 1}
+    assert pipeline.competitor_count(ranked) == 10
+
+
+def test_enough_direct_competitors_or_an_owner_chosen_radius_never_widens(monkeypatch):
+    monkeypatch.setattr(pipeline, "MIN_COMPETITORS", 2)
+    dense = _Source("openstreetmap", per_km=3)
+    query, _results, _ranked, expanded_from, suggested = pipeline.search_and_rank(_query(radius_km=2), (dense,))
+    assert (query.radius_km, expanded_from, suggested, dense.radii) == (2, None, None, [2])
+    monkeypatch.setattr(pipeline, "MIN_COMPETITORS", 50)
+    sparse = _Source("openstreetmap")
+    query, *_rest, expanded_from, suggested = pipeline.search_and_rank(_query(radius_km=2), (sparse,), owner_radius=True)
+    # The owner's own radius is respected; a wider one is only suggested.
+    assert (query.radius_km, expanded_from, suggested, sparse.radii) == (2, None, 4, [2])
+
+
+def test_widening_stops_at_the_maximum_radius_and_the_time_budget(monkeypatch):
+    monkeypatch.setattr(pipeline, "MIN_COMPETITORS", 1000)
+    monkeypatch.setattr(pipeline, "EXPANSION_STEPS", 5)
+    source = _Source("openstreetmap")
+    query, *_rest = pipeline.search_and_rank(_query(radius_km=10), (source,))
+    assert source.radii == [10, 20, 30] and query.radius_km == pipeline.MAX_RADIUS_KM
+    ticks = iter([0, pipeline.EXPANSION_TIME_BUDGET_SECONDS + 1])
+    slow = _Source("openstreetmap")
+    pipeline.search_and_rank(_query(radius_km=2), (slow,), clock=lambda: next(ticks))
+    assert slow.radii == [2]
+
+
+def test_an_online_business_or_a_run_with_no_answering_source_never_widens(monkeypatch):
+    monkeypatch.setattr(pipeline, "MIN_COMPETITORS", 1000)
+    online = _Source("openstreetmap")
+    pipeline.search_and_rank(_query("online_retail", radius_km=2), (online,))
+    assert online.radii == [2]
+
+    class Down(_Source):
+        def search(self, query):
+            self.radii.append(query.radius_km)
+            return ProviderResult(self.NAME, "failed", reason="unreachable", requests=1)
+    down = Down("openstreetmap")
+    pipeline.search_and_rank(_query(radius_km=2), (down,))
+    assert down.radii == [2]
+
+
+# --- real-data cases (Overture 2026-10-21, Jabal Al-Weibdeh, Amman) --------------------------------------------
+
+def test_branch_listings_of_one_brand_merge_but_a_generic_head_never_does():
+    assert matching.brand_key("Dimitri's Coffee - Lweibdeh") == "dimitri s"
+    assert matching.brand_key("Starbucks (Abdoun)") == "starbucks" and matching.brand_key("KFC - Mecca St") == "kfc"
+    assert matching.brand_key("حلويات حبيبة فرع الجاردنز") == matching.normalize_name("حلويات حبيبة")
+    assert matching.brand_key("Cafe - Amman") is None and matching.brand_key("Rumi at The Library") is None
+    merged = matching.merge([
+        _c("Dimitri's Coffee - Lweibdeh", "overture", "o/1", latitude=31.957, longitude=35.925, industry_key="cafe"),
+        _c("Dimitri's Coffee", "overture", "o/2", latitude=31.97, longitude=35.90, industry_key="cafe"),
+        _c("Cafe - Amman", "overture", "o/3", latitude=31.95, longitude=35.91, industry_key="cafe"),
+        _c("Cafe - Irbid", "overture", "o/4", latitude=32.55, longitude=35.85, industry_key="cafe"),
+    ])
+    assert sorted(len(e.candidates) for e in merged) == [1, 1, 2]
+
+
+def test_a_map_type_does_not_make_a_medical_supplier_or_a_jeweller_a_cafe_competitor():
+    query = pipeline.build_query("t", {"business_type": "Cafe", "latitude": AMMAN[0], "longitude": AMMAN[1],
+                                       "country_code": "JO", "city": "Amman"})
+    assert query.category_paths == (("food", "beverages", "coffee"),)
+    near = dict(latitude=AMMAN[0] + 0.001, longitude=AMMAN[1], industry_key="cafe")
+    results = [ProviderResult("overture", "ok", [
+        _c("Mandeel for medical supplies", "overture", "o/1", **near),
+        _c("مجوهرات خلدون الشريف Alsharif Jewelry", "overture", "o/2", **near),
+        _c("Kepi Restaurant & Cafe", "overture", "o/3", **near),
+        _c("Wildberry", "overture", "o/4", **near),
+        _c("Zokak Coffee House", "overture", "o/5", **near),
+    ])]
+    names = {r[0].name for r in pipeline.rank(query, results)}
+    assert names == {"Kepi Restaurant & Cafe", "Wildberry", "Zokak Coffee House"}
+
+
+def test_an_arabic_business_type_still_gets_its_segment():
+    from src.market_scraper.category_taxonomy import categorize_catalog
+    assert categorize_catalog([], "مقهى") == [("food", "beverages", "coffee")]
+
+
+# --- real-data cases (Overture 2026-10-21, Al-Abdali / Jabal Amman, a pharmacy) --------------------------------
+
+def test_a_map_type_does_not_make_a_clinic_or_a_medical_equipment_dealer_a_pharmacy_competitor():
+    query = pipeline.build_query("t", {"business_type": "Pharmacy", "industry_key": "pharmacy", "latitude": AMMAN[0],
+                                       "longitude": AMMAN[1], "country_code": "JO", "city": "Amman"})
+    assert query.category_paths == (("health", "pharmacy"),)
+    near = dict(latitude=AMMAN[0] + 0.001, longitude=AMMAN[1], industry_key="pharmacy")
+    listed = [  # every one of these is typed "pharmacy" in the dataset
+        ("عيادة للايجار", ["overture:pharmacy"]),
+        ("Rami Abu Shiekha For medical equipment رامي ابو شيخة للأجهزة الطبية", ["overture:pharmacy"]),
+        ("المتكاملة للتجهيزات العلمية والطبية", ["overture:pharmacy"]),
+        ("Nuclear Medicine Center", ["overture:pharmacy"]),
+        ("الغد المشرق للبصريات", ["overture:pharmacy"]),
+        ("Dentsply Sirona Prosthetic Jordan", ["overture:pharmacy"]),
+        ("Baraa medical ltd. Hearing Instruments jordan", ["overture:pharmacy"]),
+        ("Salma Al Qosous Pharmacy", ["overture:pharmacy"]),
+        ("صيدلية فتالة", ["overture:hospital", "overture:pharmacy"]),
+        ("Albayena Pharmacy", ["overture:medical_supply_store"]),
+        ("صيدلية ومختبرات الطب البديل", []),
+        ("مجموعه صيدليات زهره الأردن 3", ["overture:pharmacy"]),
+        ("Boats - بوتس", ["overture:pharmacy"]),
+    ]
+    results = [ProviderResult("overture", "ok", [
+        _c(name, "overture", f"o/{i}", categories=categories, **near) for i, (name, categories) in enumerate(listed)])]
+    names = {r[0].name for r in pipeline.rank(query, results)}
+    # Pharmacies stay, whatever extra type they carry; a name with no trade words ("Boats") keeps its map type.
+    assert names == {"Salma Al Qosous Pharmacy", "صيدلية فتالة", "Albayena Pharmacy", "صيدلية ومختبرات الطب البديل",
+                     "مجموعه صيدليات زهره الأردن 3", "Boats - بوتس"}
+
+
+def test_a_name_decisive_trade_never_drops_a_business_of_the_same_trade():
+    from src.market_scraper.market_discovery import relevance
+    clinic = pipeline.build_query("t", {"business_type": "Dental clinic", "latitude": AMMAN[0], "longitude": AMMAN[1],
+                                        "country_code": "JO", "city": "Amman"})
+    assert ("health", "care", "dental") in clinic.category_paths
+    assert not relevance.in_different_category("Smile Dental Center", None, ["overture:pharmacy"], clinic)
+    cafe = pipeline.build_query("t", {"business_type": "Cafe", "latitude": AMMAN[0], "longitude": AMMAN[1],
+                                      "country_code": "JO", "city": "Amman"})
+    # Food listings are unaffected: siblings in one domain are still never ruled out by name alone.
+    assert not relevance.in_different_category("Kepi Restaurant & Cafe", None, ["overture:cafe"], cafe)
+
+
+# --- owner decision 2026-11-09: no products and no specialty -> the same industry is a direct competitor ----------
+
+def _profile(business_type, products=(), industry_key=None):
+    return {"business_type": business_type, "industry_key": industry_key, "product_names": list(products),
+            "latitude": AMMAN[0], "longitude": AMMAN[1], "country_code": "JO", "city": "Amman"}
+
+
+@pytest.mark.parametrize("business_type,products,industry_key,owner_specialty", [
+    ("Pharmacy", (), "pharmacy", False),            # the industry itself, nothing more
+    ("صيدلية", (), "pharmacy", False),               # the same in Arabic
+    ("Cafe", (), None, False),
+    ("Bakery & sweets", (), None, False),           # the industry's own label
+    ("Lebanese restaurant", (), None, True),        # a specialty the owner wrote
+    ("Pharmacy", ("Panadol 500mg",), "pharmacy", True),  # products are what the owner sells
+])
+def test_owner_specialty_comes_from_products_and_the_business_type_only(business_type, products, industry_key, owner_specialty):
+    query = pipeline.build_query("t", _profile(business_type, products, industry_key))
+    assert query.owner_specialty is owner_specialty
+
+
+def test_without_a_specialty_the_same_industry_is_direct_and_otherwise_stays_conservative():
+    from src.market_scraper.market_discovery import relevance
+    plain = pipeline.build_query("t", _profile("Pharmacy", industry_key="pharmacy"))
+    assert relevance.classify("Rawhi Pharmacy", None, ["overture:pharmacy"], "same_industry", plain, ()) == (
+        relevance.DIRECT, [{"code": "same_industry_default"}])
+    # A neighbouring industry or an unconfirmed listing is unchanged by the default.
+    assert relevance.classify("Glow Cosmetics", None, ["overture:cosmetics_store"], "related_industry", plain, ())[0] == relevance.RELATED
+    assert relevance.classify("Some Place", None, [], None, plain, ())[0] == relevance.UNVERIFIED
+    # With a specialty the owner gave, the same industry still needs evidence of it to be direct.
+    lebanese = pipeline.build_query("t", _profile("Lebanese restaurant"))
+    terms = ("lebanese",)
+    assert relevance.classify("Pizza Roma", None, ["overture:restaurant"], "same_industry", lebanese, terms)[0] == relevance.INDIRECT
+    assert relevance.classify("Beirut Lebanese Grill", None, ["overture:restaurant"], "same_industry", lebanese, terms)[0] == relevance.DIRECT

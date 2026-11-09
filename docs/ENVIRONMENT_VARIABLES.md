@@ -104,6 +104,10 @@ Every advanced setting is tied to its source module; absence uses its recorded d
 | `OVERTURE_EXECUTION` | `auto` | `auto`: on the external processor when `OFFLOAD_PROCESSOR_URL` is set, otherwise skipped; never in the API process. `remote`: processor only. `local`: in-process - the processor image and development machines only, never the production API. |
 | `DISCOVERY_MAX_CONCURRENT` | `1` | Discovery runs allowed at once in one API process (button and scheduled refresh together). |
 | `DISCOVERY_SLOT_WAIT_SECONDS` | `600` | How long a queued run waits for a slot before it is closed as `busy` (capped below the 15-minute stale-run limit). |
+| `DISCOVERY_MIN_DIRECT` | `3` | Adaptive radius: a run with fewer direct competitors than this **and** fewer than `DISCOVERY_MIN_COMPETITORS` direct + indirect ones counts as sparse. |
+| `DISCOVERY_MIN_COMPETITORS` | `10` | See above. A sparse run whose radius the owner did not choose is searched again wider (x2 per step); one with the owner's own radius keeps it and stores `suggested_radius_km`, offered on the Competitors screen. |
+| `DISCOVERY_EXPANSION_STEPS` | `2` | Widening steps at most (never past 30 km). Only free sources (OpenStreetMap, Overture, place search, Wikidata) are asked again; metered sources keep their first answer. `0` turns widening off. |
+| `DISCOVERY_EXPANSION_TIME_BUDGET_SECONDS` | `300` | No widening step starts once the run's searches have taken this long (runs go stale after 15 minutes). |
 
 See `docs/EXTERNAL_PROCESSOR.md`.
 

@@ -77,7 +77,7 @@ _LEAVES: Dict[str, Tuple[CategoryPath, List[str], List[str]]] = {
                ["bakery", "bread", "manakish", "مخبز", "فرن"],
                ["bakery"]),
     "coffee": (("food", "beverages", "coffee"),
-               ["coffee", "cafe", "café", "espresso", "roastery", "قهوة", "كافيه"],
+               ["coffee", "cafe", "café", "espresso", "roastery", "قهوة", "قهوه", "كافيه", "كوفي", "مقهى", "مقاهي"],
                ["cafe", "coffee_shop"]),
     "juice": (("food", "beverages", "juice"),
               ["juice", "smoothie", "smoothies", "عصير"],
@@ -86,8 +86,27 @@ _LEAVES: Dict[str, Tuple[CategoryPath, List[str], List[str]]] = {
                 ["supermarket", "grocery", "minimart", "hypermarket", "سوبرماركت", "بقالة"],
                 ["supermarket", "grocery_store", "convenience_store"]),
     "pharmacy": (("health", "pharmacy"),
-                 ["pharmacy", "drugstore", "صيدلية"],
+                 ["pharmacy", "pharmacies", "drugstore", "صيدلية", "صيدليات"],
                  ["pharmacy", "drugstore"]),
+    # Other health trades sit one level deeper than "pharmacy" (whose path is stored on competitors already), so
+    # each one is a different segment from a pharmacy (similarity 0.33), not a rival at the 0.5 bar. They carry no
+    # map types: open map data gives real pharmacies extra types ("hospital"), and the deepest type would win.
+    "medical_supplies": (("health", "equipment", "medical_supplies"),
+                         ["medical supplies", "medical supply", "medical equipment", "medical devices",
+                          "medical stores", "scientific supplies", "hearing instruments", "hearing aids",
+                          "مستلزمات طبية", "معدات طبية", "أجهزة طبية", "تجهيزات طبية", "مستهلكات طبية",
+                          "تجهيزات علمية", "معدات علمية"],
+                         ["medical_supply_store"]),
+    "clinic": (("health", "care", "clinic"),
+               ["clinic", "clinics", "medical center", "medical centre", "nuclear medicine", "hospital", "عيادة",
+                "عيادات", "مركز طبي", "مستشفى"],
+               []),
+    "dental": (("health", "care", "dental"),
+               ["dental", "dentist", "dentistry", "prosthetic", "prosthetics", "أسنان"],
+               []),
+    "optics": (("health", "optics", "eyewear"),
+               ["optics", "optical", "optician", "eyewear", "بصريات", "نظارات"],
+               []),
     "components": (("electronics", "components", "parts"),
                    ["arduino", "raspberry", "resistor", "capacitor", "microcontroller", "breadboard", "diode",
                     "transistor", "esp32", "esp8266", "stepper", "servo", "relay", "pcb", "sensor", "solder"],
@@ -148,6 +167,13 @@ _LEAVES: Dict[str, Tuple[CategoryPath, List[str], List[str]]] = {
 # discovery searches for the tenant's actual segment ("burger restaurant"),
 # not its whole vertical ("restaurant OR cafe"), so irrelevant businesses
 # are never found in the first place instead of being found then excluded.
+# Trades whose name words are unambiguous ("medical equipment", "clinic"): when a listing's NAME places it in one
+# of these, the name outweighs its map type (relevance.name_names_another_trade).
+NAME_DECISIVE_PATHS = frozenset({
+    ("health", "equipment", "medical_supplies"), ("health", "care", "clinic"), ("health", "care", "dental"),
+    ("health", "optics", "eyewear"),
+})
+
 _SEARCH_LABELS: Dict[CategoryPath, str] = {
     ("food", "snacks", "burger"): "burger restaurant",
     ("food", "snacks", "pizza"): "pizza restaurant",
@@ -163,6 +189,10 @@ _SEARCH_LABELS: Dict[CategoryPath, str] = {
     ("food", "beverages", "juice"): "juice bar",
     ("grocery", "supermarket"): "supermarket",
     ("health", "pharmacy"): "pharmacy",
+    ("health", "equipment", "medical_supplies"): "medical supply store",
+    ("health", "care", "clinic"): "clinic",
+    ("health", "care", "dental"): "dental clinic",
+    ("health", "optics", "eyewear"): "optician",
     ("electronics", "components", "parts"): "electronic components store",
     ("electronics", "accessories", "cables_chargers"): "mobile accessories store",
     ("electronics", "devices", "consumer"): "electronics store",
@@ -214,15 +244,31 @@ class Categorization:
         return " > ".join(part.replace("_", " ") for part in self.path)
 
 
+_AR_LETTER = re.compile(r"[\u0600-\u06ff]")
+_AR_MARKS = re.compile(r"[\u064b-\u0670\u0640]")  # short vowels and tatweel
+_AR_FOLD = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ة": "ه", "ى": "ي", "ؤ": "و", "ئ": "ي"})
+_AR_PREFIX = re.compile(r"^(وال|بال|فال|كال|لل|ال)(?=..)")
+
+
+def _word(token: str) -> str:
+    """One word in a comparable form. Arabic is written with and without the article and with letter variants
+    ("للأجهزة الطبية" is "أجهزة طبية"), so both a name and a keyword are folded the same way; Latin words
+    are only lower-cased."""
+    token = token.lower()
+    if not _AR_LETTER.search(token):
+        return token
+    return _AR_PREFIX.sub("", _AR_MARKS.sub("", token).translate(_AR_FOLD))
+
+
 def _tokens_text(text: str) -> str:
-    return " " + " ".join(m.group(0).lower() for m in _WORD_RE.finditer(text or "")) + " "
+    return " " + " ".join(_word(m.group(0)) for m in _WORD_RE.finditer(text or "")) + " "
 
 
 def _keyword_hits(text: str) -> Counter:
     haystack = _tokens_text(text)
     hits: Counter = Counter()
     for kw, path in _PHRASES:
-        if f" {kw.lower()} " in haystack:
+        if _tokens_text(kw) in haystack:
             hits[path] += 1
     return hits
 
@@ -242,7 +288,8 @@ def categorize(name: Optional[str] = None, place_types: Optional[Iterable[str]] 
     if hits:
         # Prefer the most specific (deepest) path; ties broken by hit count.
         path, _ = max(hits.items(), key=lambda item: (item[1], len(item[0])))
-        evidence = next(kw for kw, p in _PHRASES if p == path and f" {kw.lower()} " in _tokens_text(name or ""))
+        haystack = _tokens_text(name or "")
+        evidence = next(kw for kw, p in _PHRASES if p == path and _tokens_text(kw) in haystack)
         return Categorization(path, "keyword", evidence)
 
     for t in types:

@@ -86,6 +86,26 @@ export function MarketScan() {
         )}
       </p>
     );
+    const scope = latest.query || {};
+    if (scope.expanded_from_km || scope.suggested_radius_km) {
+      outcome = (
+        <>
+          {outcome}
+          {scope.expanded_from_km && (
+            <p className="market-scan__note">{t('discovery.widened', { from: number.format(scope.expanded_from_km), to: number.format(latest.radius_km) })}</p>
+          )}
+          {scope.suggested_radius_km && (
+            <p className="market-scan__note">
+              {scope.competitors_found ? t('discovery.fewNearby', { count: number.format(scope.competitors_found), radius: number.format(latest.radius_km) }) : t('discovery.noneNearby', { radius: number.format(latest.radius_km) })}{' '}
+              <button type="button" className="apex-table__link" disabled={start.isPending}
+                onClick={() => start.mutate({ radiusKm: scope.suggested_radius_km }, { onSuccess: (data) => setStartedRunId(data.run_id) })}>
+                {t('discovery.searchWider', { km: number.format(scope.suggested_radius_km) })}
+              </button>
+            </p>
+          )}
+        </>
+      );
+    }
   }
 
   return (

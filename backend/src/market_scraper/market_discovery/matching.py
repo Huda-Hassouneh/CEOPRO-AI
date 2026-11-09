@@ -43,6 +43,21 @@ def normalize_name(name: str) -> str:
     return " ".join(core or words)
 
 
+_BRANCH_SUFFIX = re.compile(r"\s+[-|\u2013\u2014]\s+|\s+\u0641\u0631\u0639\s+|\s*\(")  # " - Abdoun", " فرع X", " (Weibdeh)"
+
+
+def brand_key(name: str) -> Optional[str]:
+    """The brand part of a branch listing ("Dimitri's Coffee - Lweibdeh" -> "dimitri s"), so its branches merge into
+    one competitor. None unless the name has a branch suffix and its head still names something distinctive: a
+    generic head ("Cafe - Amman") must never merge unrelated businesses."""
+    head = _BRANCH_SUFFIX.split(name or "", maxsplit=1)[0].strip()
+    if not head or head == (name or "").strip():
+        return None
+    key = normalize_name(head)
+    core = [w for w in key.split() if w not in _GENERIC]
+    return key if core and sum(len(w) for w in core) >= 3 else None
+
+
 def domain_key(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
@@ -92,6 +107,8 @@ class Entity:
     def add(self, candidate: Candidate) -> None:
         self.candidates.append(candidate)
         self.name_keys.add(normalize_name(candidate.name))
+        if brand_key(candidate.name):
+            self.name_keys.add(brand_key(candidate.name))
         if candidate.name_ar:
             self.name_keys.add(normalize_name(candidate.name_ar))
         for key in (domain_key(candidate.website), domain_key(candidate.source_url) if candidate.raw.get("social") else None):
@@ -149,7 +166,8 @@ def _same(entity: Entity, candidate: Candidate) -> bool:
         return True
     if phone_key(candidate.phone) and phone_key(candidate.phone) in entity.phone_keys:
         return True
-    names = {normalize_name(candidate.name)} | ({normalize_name(candidate.name_ar)} if candidate.name_ar else set())
+    names = {normalize_name(candidate.name), brand_key(candidate.name) or ""} | (
+        {normalize_name(candidate.name_ar)} if candidate.name_ar else set())
     names.discard("")
     if names & entity.name_keys:
         return True
@@ -170,7 +188,7 @@ def merge(candidates: List[Candidate]) -> List[Entity]:
     for candidate in sorted(candidates, key=lambda c: (c.latitude is None, c.source)):
         quick = [index.get(k) for k in (
             "d:" + (domain_key(candidate.website) or ""), "p:" + (phone_key(candidate.phone) or ""),
-            "n:" + normalize_name(candidate.name)) if not k.endswith(":")]
+            "n:" + normalize_name(candidate.name), "n:" + (brand_key(candidate.name) or "")) if not k.endswith(":")]
         entity = next((e for e in quick if e is not None), None)
         if entity is None:
             entity = next((e for e in entities if _same(e, candidate)), None)

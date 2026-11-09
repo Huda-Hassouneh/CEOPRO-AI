@@ -17,7 +17,7 @@ def api(monkeypatch):
     monkeypatch.setattr(auth_throttle,'ensure_allowed',lambda *a:None)
     monkeypatch.setattr(auth_throttle,'record_failure',lambda *a:False)
     monkeypatch.setattr(auth_throttle,'reset',lambda *a:None)
-    app=FastAPI();app.include_router(auth.router);app.include_router(onboarding.router);app.include_router(platform.router)
+    app=FastAPI();app.include_router(auth.router);app.include_router(onboarding.router);app.include_router(platform.router);app.include_router(platform.public_router)
     with TestClient(app)as client:yield client
 
 
