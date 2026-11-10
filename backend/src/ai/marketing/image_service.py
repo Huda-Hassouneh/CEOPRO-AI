@@ -24,7 +24,8 @@ from PIL import Image
 from src.ai import db
 from src.ai.billing import credits
 from src.ai.core import storage_ledger, usage
-from src.ai.marketing import data_access, designed_poster, image_generation, image_storage, product_composite
+from src.ai.marketing import (ad_composer, data_access, designed_poster, image_generation, image_storage,
+                              product_composite)
 
 logger = logging.getLogger("CEOPRO_AI_MARKETING")
 
@@ -76,9 +77,15 @@ def generate_with_real_product(campaign: dict, reference: bytes, image_format: s
     except image_generation.ImageGenerationError as err:
         logger.warning("No AI scene for campaign %s (%s); using a designed background", campaign.get("campaign_id"), err.message)
         size = image_generation.IMAGE_FORMATS[image_format]["poster"]
-        scene = designed_poster.procedural_scene(campaign.get("creative_theme") or "MINIMAL_CLEAN", size, seed or 0)
-        mode, provider, model = "designed", "designed", None
-    picture = product_composite.composite(scene, product, image_format)
+        scene, mode, provider, model = None, "designed", "designed", None
+        try:  # the full art-directed ad: lit scene + the real product + the campaign's own copy
+            picture = ad_composer.render_ad(campaign, product, size, image_format)
+        except Exception:  # noqa: BLE001 - fall back to the plain designed scene below
+            logger.exception("Art-directed ad failed for campaign %s", campaign.get("campaign_id"))
+            scene = designed_poster.procedural_scene(designed_poster.THEME_TO_STYLE.get(
+                campaign.get("creative_theme") or "", "minimal"), size, seed or 0)
+    if scene is not None:
+        picture = product_composite.composite(scene, product, image_format)
     content, content_type = product_composite.to_bytes(picture)
     logger.info("Real-product picture for campaign %s (cut out by %s, scene: %s)", campaign.get("campaign_id"), how, provider)
     return image_generation.GeneratedImage(
@@ -152,7 +159,8 @@ def generate_and_store(conn, tenant_id: str, user_id: Optional[str], campaign_id
             try:
                 poster_size = image_generation.IMAGE_FORMATS[image_format]["poster"]
                 generated = image_generation.GeneratedImage(
-                    content=designed_poster.render_designed_poster(campaign, reference_content, poster_size),
+                    content=designed_poster.render_designed_poster(campaign, reference_content, poster_size,
+                                                                   image_format),
                     content_type="image/png", provider="designed", mode="designed",
                     used_reference=bool(reference_content), width=poster_size[0], height=poster_size[1],
                     image_format=image_format,

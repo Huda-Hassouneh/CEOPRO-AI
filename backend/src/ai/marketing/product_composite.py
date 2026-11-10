@@ -25,7 +25,7 @@ import io
 import logging
 from typing import Optional, Tuple
 
-from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps, ImageStat
 
 from src.ai.marketing import background_removal
 
@@ -82,6 +82,15 @@ def _key_out_plain_background(image: Image.Image) -> Optional[Image.Image]:
     diff = ImageChops.difference(rgb, Image.new("RGB", rgb.size, bg)).convert("L")
     # Soft edge: within ~18 of the backdrop is background, beyond ~46 is product.
     mask = diff.point(lambda v: 0 if v < 18 else 255 if v > 46 else int((v - 18) * 255 / 28))
+    # Only backdrop-coloured areas CONNECTED to the photo's border are background.
+    # A white label or highlight inside the product (enclosed by the product) is
+    # part of the product and must stay - keying it out would cut a hole in it.
+    candidate = diff.point(lambda v: 255 if v <= 46 else 0)
+    padded = Image.new("L", (w + 2, h + 2), 255)
+    padded.paste(candidate, (1, 1))
+    ImageDraw.floodfill(padded, (0, 0), 128)
+    outside = padded.crop((1, 1, w + 1, h + 1)).point(lambda v: 255 if v == 128 else 0)
+    mask = ImageChops.lighter(mask, ImageChops.invert(outside))  # enclosed areas: fully product
     mask = mask.filter(ImageFilter.MedianFilter(5)).filter(ImageFilter.GaussianBlur(1))
     if mask.getbbox() is None:
         return None
@@ -145,7 +154,6 @@ def composite(scene: Image.Image, product: Image.Image, image_format: str) -> Im
     shadow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
     ew, eh = int(item.width * 0.86), max(6, int(item.height * 0.07))
     ellipse = Image.new("L", (ew, eh), 0)
-    from PIL import ImageDraw  # local: only needed here
     ImageDraw.Draw(ellipse).ellipse((0, 0, ew - 1, eh - 1), fill=150)
     shadow.paste(Image.new("RGBA", (ew, eh), (0, 0, 0, 255)), (x + (item.width - ew) // 2, y + item.height - eh // 2), ellipse)
     shadow = shadow.filter(ImageFilter.GaussianBlur(max(4, eh // 2)))

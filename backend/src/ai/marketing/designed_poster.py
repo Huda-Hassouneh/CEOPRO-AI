@@ -238,9 +238,27 @@ def _product_layer(photo: Image.Image, box: Tuple[int, int]) -> Image.Image:
 
 
 def render_designed_poster(campaign: dict, reference_image: Optional[bytes] = None,
-                           size: Tuple[int, int] = SIZE) -> bytes:
-    """PNG bytes of the designed poster at `size` (any shape: square, portrait,
-    story, landscape). Never raises for a bad reference photo (it is just skipped)."""
+                           size: Tuple[int, int] = SIZE, image_format: Optional[str] = None) -> bytes:
+    """PNG bytes of the designed advertisement at `size` (any shape: square,
+    portrait, story, landscape). Rendered by the art-directed composer
+    (ad_composer.py): a lit scene tinted to the product, the real product as
+    the hero, and the campaign's own copy. MARKETING_DESIGNED_LAYOUT=classic
+    keeps the earlier flat poster (render_classic_poster). Never raises for a
+    bad reference photo (it is just skipped)."""
+    if os.getenv("MARKETING_DESIGNED_LAYOUT", "art_directed").strip().lower() != "classic":
+        from src.ai.marketing import ad_composer  # local: ad_composer imports product_composite
+        try:
+            return ad_composer.render_ad_bytes(campaign, reference_image, size, image_format)
+        except Exception:  # noqa: BLE001 - a composer bug must never cost the tenant their image
+            import logging
+            logging.getLogger("CEOPRO_AI_MARKETING").exception("Art-directed ad failed; using the classic poster")
+    return render_classic_poster(campaign, reference_image, size)
+
+
+def render_classic_poster(campaign: dict, reference_image: Optional[bytes] = None,
+                          size: Tuple[int, int] = SIZE) -> bytes:
+    """The earlier flat poster: gradient backdrop, centred headline, product
+    card and CTA. Kept as the composer's safety net."""
     style_name = THEME_TO_STYLE.get(campaign.get("creative_theme") or "", "minimal")
     st = STYLES[style_name]
     width, height = size

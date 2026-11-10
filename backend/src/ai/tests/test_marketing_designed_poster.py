@@ -41,11 +41,28 @@ def test_copy_comes_only_from_the_campaign():
     assert dp.pick_copy({}) == ("New", None)  # nothing invented beyond a neutral word
 
 
+def _red_pixels(image):
+    import numpy as np
+    arr = np.asarray(image.convert("RGB")).astype(int)
+    return ((arr[..., 0] > 150) & (arr[..., 1] < 110) & (arr[..., 2] < 100)).sum()
+
+
 def test_product_photo_is_placed_on_the_poster():
     plain = Image.open(io.BytesIO(dp.render_designed_poster(_campaign()))).convert("RGB")
     with_product = Image.open(io.BytesIO(dp.render_designed_poster(_campaign(), _cutout()))).convert("RGB")
-    assert with_product.getpixel((540, 540))[0] > 150 > with_product.getpixel((540, 540))[2]  # the red product
-    assert plain.getpixel((540, 540)) != with_product.getpixel((540, 540))
+    assert _red_pixels(with_product) > 40_000 > _red_pixels(plain)  # the red product is the hero
+
+
+def test_classic_layout_is_still_available(monkeypatch):
+    monkeypatch.setenv("MARKETING_DESIGNED_LAYOUT", "classic")
+    with_product = Image.open(io.BytesIO(dp.render_designed_poster(_campaign(), _cutout()))).convert("RGB")
+    assert with_product.getpixel((540, 540))[0] > 150 > with_product.getpixel((540, 540))[2]
+
+
+def test_a_composer_failure_still_delivers_the_classic_poster(monkeypatch):
+    from src.ai.marketing import ad_composer
+    monkeypatch.setattr(ad_composer, "render_ad_bytes", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("bug")))
+    assert Image.open(io.BytesIO(dp.render_designed_poster(_campaign()))).size == (1080, 1080)
 
 
 def test_opaque_photo_goes_on_a_card_and_bad_bytes_are_skipped():
