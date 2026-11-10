@@ -200,6 +200,35 @@ def test_an_image_that_cant_be_made_leaves_a_complete_campaign(setup, monkeypatc
     assert "image_generation_attempts" not in campaign  # provider details stay in the server log
 
 
+
+def test_a_storage_failure_in_the_image_step_still_returns_the_saved_campaign(setup, monkeypatch):
+    """Production incident (keelai.net, Nov 2026): with object storage unset or failing,
+    the image step raised after the copy was saved. The request ended in a 500 without
+    CORS headers, the Studio showed "Couldn't reach KEEL" and the written campaign never
+    opened. Now the campaign comes back with an honest image status, readable by the browser."""
+    from src.ai.routers import marketing as marketing_router
+
+    client, calls, company = setup
+    _session, headers = company()
+    origin = {"Origin": "http://localhost:5173"}  # the API's default allowed dev origin
+
+    for failure in (RuntimeError("MINIO_ENDPOINT/MINIO_ROOT_USER/MINIO_ROOT_PASSWORD must all be set."),
+                    ConnectionError("connection refused")):  # this branch has no core/object_storage
+        def no_storage(failure=failure):
+            raise failure
+        monkeypatch.setattr(marketing_router.db, "minio_client", no_storage)
+        response = client.post("/marketing/campaigns", json={"text": "Fresh kunafa, 3.5 JOD", "strategy_type": "SALES_DRIVEN",
+                                                             "generate_image": True}, headers={**headers, **origin})
+        assert response.status_code == 200, response.text
+        assert response.headers["access-control-allow-origin"] == origin["Origin"]
+        campaign = response.json()
+        assert campaign["status"] == "COMPLETED" and campaign["content"]
+        assert campaign["image_generation_status"] == "PROVIDER_ERROR"
+        assert "MINIO" not in response.text and "connection refused" not in response.text
+        reloaded = client.get(f"/marketing/campaigns/{campaign['campaign_id']}", headers=headers).json()
+        assert reloaded["status"] == "COMPLETED" and reloaded["image_generation_status"] == "PROVIDER_ERROR"
+
+
 def test_when_no_ai_image_can_be_made_a_designed_poster_is_stored_instead(setup, monkeypatch):
     """The fallback path end to end against the real database: a finished image, labelled as designed."""
     from unittest.mock import MagicMock

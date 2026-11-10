@@ -89,6 +89,8 @@ is passed in, the result always says plainly whether it was actually used,
 never just "generated: true".
 """
 import base64
+import contextlib
+import contextvars
 import io
 import logging
 import os
@@ -353,7 +355,7 @@ def _generate_via_pollinations(prompt: str, reference_image: Optional[bytes] = N
             params={"width": width, "height": height, "nologo": "true", "private": "true",
                     "model": os.getenv("POLLINATIONS_MODEL", "flux"),
                     "seed": seed if seed is not None else int(time.time()) % 1_000_000},
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_call_timeout(_TIMEOUT_SECONDS),
         )
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Pollinations request failed: {err}") from err
@@ -394,12 +396,16 @@ def _generate_via_huggingface(prompt: str, reference_image: Optional[bytes] = No
     models = _csv("HUGGINGFACE_IMAGE_MODELS", "HUGGINGFACE_IMAGE_MODEL") or [_DEFAULT_HUGGINGFACE_MODEL, "stabilityai/stable-diffusion-xl-base-1.0"]  # both commercially usable licences
     response = None
     for model in models:  # the next model is tried if one is unavailable; a quota error stops (shared credit)
+        if model != models[0] and not _time_left_for_a_call():  # inside a browser request: no time for another model
+            if response is None:
+                raise ImageGenerationError("PROVIDER_ERROR", "Hugging Face: no time left in this request for another model.")
+            break
         try:
             response = httpx.post(
                 _HUGGINGFACE_API_URL.format(model=model),
                 headers={"Authorization": f"Bearer {token}"},
                 json={"inputs": prompt, **({"parameters": parameters} if (parameters := _hf_parameters(model, size, seed)) else {})},
-                timeout=_TIMEOUT_SECONDS,
+                timeout=_call_timeout(_TIMEOUT_SECONDS),
             )
         except httpx.HTTPError as err:
             if model == models[-1]:
@@ -459,6 +465,8 @@ def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = Non
         raise ImageGenerationError("NOT_CONFIGURED", "CLOUDFLARE_ACCOUNTS (account_id:token) is needed for Cloudflare.")
     last_error = None
     for model in _cloudflare_models():  # the next model is tried if one fails; a quota error stops (same account allowance)
+        if last_error is not None and not _time_left_for_a_call():
+            break  # inside a browser request: no time for another model; the last error is reported
         body = {"prompt": prompt[:2048]}
         # FLUX.1 [schnell] on Workers AI takes no size (always 1024x1024; cropped afterwards).
         width, height = size or (1024, 1024)
@@ -469,7 +477,7 @@ def _generate_via_cloudflare(prompt: str, reference_image: Optional[bytes] = Non
         try:
             response = httpx.post(
                 _CLOUDFLARE_URL.format(account=account, model=model),
-                headers={"Authorization": f"Bearer {token}"}, json=body, timeout=_TIMEOUT_SECONDS,
+                headers={"Authorization": f"Bearer {token}"}, json=body, timeout=_call_timeout(_TIMEOUT_SECONDS),
             )
         except httpx.HTTPError as err:
             last_error = ImageGenerationError("PROVIDER_ERROR", f"Cloudflare request failed: {type(err).__name__}")
@@ -517,7 +525,7 @@ def _generate_via_gemini(prompt: str, reference_image: Optional[bytes] = None, r
                 "responseModalities": ["IMAGE"],
                 **({"imageConfig": {"aspectRatio": min(_GEMINI_RATIOS, key=lambda r: abs(_GEMINI_RATIOS[r] - size[0] / size[1]))}}
                    if size else {})}},
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_call_timeout(_TIMEOUT_SECONDS),
         )
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Gemini request failed: {type(err).__name__}") from err
@@ -552,7 +560,7 @@ def _generate_via_together(prompt: str, reference_image: Optional[bytes] = None,
                   "prompt": prompt[:1500], "width": (size or (1024, 1024))[0], "height": (size or (1024, 1024))[1],
                   "steps": 4, "n": 1, **({"seed": seed} if seed is not None else {}),
                   "response_format": "b64_json"},
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_call_timeout(_TIMEOUT_SECONDS),
         )
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Together request failed: {type(err).__name__}") from err
@@ -706,7 +714,7 @@ def _generate_via_local(prompt: str, reference_image: Optional[bytes] = None, re
         raise ImageGenerationError("NOT_CONFIGURED", f"LOCAL_IMAGE_API must be 'openai' or 'a1111', not {api!r}.")
     try:
         response = httpx.post(url, json=body, headers={"Authorization": f"Bearer {key}"} if key else None,
-                              timeout=_LOCAL_IMAGE_TIMEOUT_SECONDS)
+                              timeout=_call_timeout(_LOCAL_IMAGE_TIMEOUT_SECONDS))
     except httpx.HTTPError as err:
         raise ImageGenerationError("PROVIDER_ERROR", f"Local image server request failed: {type(err).__name__}") from err
     if response.status_code in (429, 503):  # busy with another image
@@ -821,6 +829,60 @@ _PROVIDERS = {
 }
 _KEYED = {name: (lambda n=name: bool(_credentials(n))) for name in ("cloudflare", "huggingface", "together", "gemini", "pollinations")}
 _TOTAL_BUDGET_SECONDS = float(os.getenv("MARKETING_IMAGE_TOTAL_SECONDS", "120"))
+
+# An image made inside a browser request (campaign creation, "Regenerate image")
+# must finish before the proxy in front of the API gives up: Cloudflare answers
+# 524 after 100 s, without CORS headers, and the browser then only reports a
+# network error ("Couldn't reach KEEL"). Inside request_deadline():
+# - every provider call's wait is cut to the time left (_call_timeout), and a
+#   provider that tries several models stops when no time is left for another;
+# - a provider is only started with at least _MIN_CALL_SECONDS left, and AI Horde
+#   (which polls for minutes) only if its whole wait fits;
+# - _RESERVE_SECONDS of the budget is kept for what follows the image (designed
+#   poster, upload, saving), so the request as a whole stays within it.
+# Otherwise the caller's designed-poster fallback is used. Background workers set
+# no deadline and keep every provider's own timeouts.
+SYNC_REQUEST_SECONDS = float(os.getenv("MARKETING_SYNC_REQUEST_SECONDS", "90"))
+_RESERVE_SECONDS = float(os.getenv("MARKETING_SYNC_RESERVE_SECONDS", "10"))
+_MIN_CALL_SECONDS = 5.0
+_deadline: contextvars.ContextVar[Optional[float]] = contextvars.ContextVar("marketing_image_deadline", default=None)
+
+
+@contextlib.contextmanager
+def request_deadline(started: float, seconds: float = None):
+    """Images made in this block must be done `seconds` after `started` (time.monotonic())."""
+    token = _deadline.set(started + (SYNC_REQUEST_SECONDS if seconds is None else seconds))
+    try:
+        yield
+    finally:
+        _deadline.reset(token)
+
+
+def _remaining_seconds() -> Optional[float]:
+    """Time the image step may still use inside a browser request (None outside one)."""
+    deadline = _deadline.get()
+    return None if deadline is None else deadline - _RESERVE_SECONDS - time.monotonic()
+
+
+def _call_timeout(default: float) -> float:
+    """A provider call's wait: its own timeout, never past the request deadline
+    (on time-out the caller's designed-poster fallback is used, as for any failure)."""
+    remaining = _remaining_seconds()
+    return default if remaining is None else max(1.0, min(default, remaining))
+
+
+def _time_left_for_a_call() -> bool:
+    remaining = _remaining_seconds()
+    return remaining is None or remaining >= _MIN_CALL_SECONDS
+
+
+def _fits_deadline(base: str) -> bool:
+    remaining = _remaining_seconds()
+    if remaining is None:
+        return True
+    if base == "aihorde":  # polls for minutes; its wait cannot be cut short safely
+        return _HORDE_MAX_WAIT + _TIMEOUT_SECONDS <= remaining
+    return remaining >= _MIN_CALL_SECONDS
 # Spending-policy refusals about one provider (its price, switch or cap):
 # the next provider may still be tried.
 _PROVIDER_SPECIFIC_REFUSALS = ("COST_NOT_CONFIGURED", "PROVIDER_DISABLED", "PROVIDER_CAP_REACHED")
@@ -1004,6 +1066,9 @@ def generate_campaign_image(
         if attempts and time.monotonic() - started > _TOTAL_BUDGET_SECONDS:
             attempts.append({"provider": name, "reason": "out_of_time"})
             break
+        if not _fits_deadline(_split(name)[0]):
+            attempts.append({"provider": name, "reason": "out_of_time"})
+            continue  # a quicker provider later in the chain may still fit
         logger.info("Generating marketing image via %s (reference_image=%s)", name, bool(reference_image))
         try:
             # Paid from the company's AI Credits (billed per BASE provider, never per
