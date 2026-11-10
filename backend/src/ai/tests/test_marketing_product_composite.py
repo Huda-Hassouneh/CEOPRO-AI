@@ -4,6 +4,7 @@ only the scene from text, and the photo never reaches a provider."""
 import io
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 from PIL import Image, ImageDraw
 
@@ -94,6 +95,30 @@ def test_with_no_scene_model_a_designed_background_still_shows_the_real_product(
         image = image_service.generate_with_real_product({"campaign_id": "c1", "campaign_brief": "Oil"}, _bottle_on_white(), "STORY")
     assert image.mode == "designed" and image.used_reference is True
     assert (image.width, image.height) == (1080, 1920)
+
+
+def test_a_white_label_inside_the_product_is_not_keyed_out():
+    picture = Image.new("RGB", (600, 800), (255, 255, 255))
+    draw = ImageDraw.Draw(picture)
+    draw.rounded_rectangle((200, 200, 400, 760), radius=30, fill=(200, 80, 110))
+    draw.rectangle((230, 400, 370, 600), fill=(255, 255, 255))  # white label, same colour as the backdrop
+    product, how = product_composite.cutout(_png(picture))
+    assert how == "plain-backdrop"
+    label = product.crop((60, 230, 140, 370)).getchannel("A")  # cut-out is cropped to the product box
+    assert label.getextrema()[0] > 240, "the label must stay part of the product"
+
+
+def test_with_no_scene_model_the_designed_picture_is_a_full_advert():
+    campaign = {"campaign_id": "c1", "campaign_brief": "Oil", "creative_theme": "LIFESTYLE",
+                "content": {"INSTAGRAM": [{"headline": "Fresh from the grove", "cta": "Shop"}]}}
+    with patch.object(image_generation, "generate_campaign_image",
+                      side_effect=image_generation.ImageGenerationError("NOT_CONFIGURED", "none")):
+        image = image_service.generate_with_real_product(campaign, _bottle_on_white(), "PORTRAIT")
+    assert image.mode == "designed" and (image.width, image.height) == (1080, 1350)
+    picture = Image.open(io.BytesIO(image.content)).convert("RGB")
+    px = np.asarray(picture).astype(int)
+    greens = ((px[..., 1] > px[..., 0] + 15) & (px[..., 1] > px[..., 2] + 25) & (px[..., 1] > 60)).sum()
+    assert greens > 10_000, "the real green bottle is in the picture"
 
 
 def test_an_unusable_photo_falls_back_to_the_normal_picture():
