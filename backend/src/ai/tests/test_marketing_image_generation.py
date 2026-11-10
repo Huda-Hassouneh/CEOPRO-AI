@@ -238,6 +238,144 @@ def test_every_provider_failing_is_one_honest_error(monkeypatch):
     assert all(a["reason"] == "failed" for a in exc.value.attempts)
 
 
+
+# --- request deadline (images made inside a browser request) ---------------
+# Production incident (keelai.net, Nov 2026): a campaign created with its image
+# could run past the 100 s Cloudflare allows in front of api.keelai.net - the
+# browser then got a 524 without CORS headers and showed "Couldn't reach KEEL".
+
+def _scripted_chain(monkeypatch, calls):
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "aihorde, huggingface")
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    monkeypatch.setenv("MARKETING_IMAGE_FASTEST_FIRST", "false")
+    monkeypatch.setattr(image_generation.random, "shuffle", lambda items: None)
+
+    def provider(name):
+        def call(*a, **k):
+            calls.append(name)
+            return GeneratedImage(content=PNG, content_type="image/png", provider=name)
+        return call
+    return patch.dict(image_generation._PROVIDERS, {"aihorde": provider("aihorde"), "huggingface": provider("huggingface")})
+
+
+def test_inside_a_request_a_provider_that_cannot_finish_in_time_is_not_started(monkeypatch):
+    calls = []
+    with _scripted_chain(monkeypatch, calls):
+        # 90 s left: AI Horde can wait minutes, so it is skipped; a 60 s provider still fits.
+        with image_generation.request_deadline(image_generation.time.monotonic(), 90):
+            image = generate_campaign_image("x")
+    assert calls == ["huggingface"]
+    assert [(a["provider"], a["reason"]) for a in image.attempts] == [("aihorde", "out_of_time")]
+
+
+def test_with_no_time_left_no_provider_runs_and_the_error_is_honest(monkeypatch):
+    calls = []
+    with _scripted_chain(monkeypatch, calls):
+        with image_generation.request_deadline(image_generation.time.monotonic(), 10):
+            with pytest.raises(ImageGenerationError) as exc:
+                generate_campaign_image("x")
+    assert calls == []  # the caller then stores a designed poster instead (image_service)
+    assert exc.value.status == "PROVIDER_ERROR"
+    assert {a["reason"] for a in exc.value.attempts} == {"out_of_time"}
+
+
+def test_without_a_deadline_the_chain_is_unchanged(monkeypatch):
+    calls = []
+    with _scripted_chain(monkeypatch, calls):
+        assert generate_campaign_image("x").attempts == []
+    assert calls == ["aihorde"]  # background workers set no deadline and may wait for AI Horde
+    assert image_generation._deadline.get() is None
+
+
+def test_a_self_hosted_server_is_still_used_inside_a_request_but_never_waited_on_past_it(monkeypatch):
+    """LOCAL_IMAGE_TIMEOUT_SECONDS (300 s) never fits a request on its own; the server
+    must still be called, with its wait cut to the time left, not skipped."""
+    monkeypatch.setenv("MARKETING_IMAGE_PROVIDERS", "local")
+    monkeypatch.setenv("LOCAL_IMAGE_BASE_URL", "http://127.0.0.1:9")
+    timeouts = []
+
+    def post(url, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        raise httpx.ConnectError("refused")
+
+    monkeypatch.setattr(image_generation.httpx, "post", post)
+    with image_generation.request_deadline(image_generation.time.monotonic(), 90):
+        with pytest.raises(ImageGenerationError):
+            generate_campaign_image("x")
+    assert len(timeouts) == 1 and 1.0 <= timeouts[0] <= 90
+    timeouts.clear()
+    with pytest.raises(ImageGenerationError):
+        generate_campaign_image("x")  # a background worker keeps the server's own wait
+    assert timeouts == [image_generation._LOCAL_IMAGE_TIMEOUT_SECONDS]
+
+
+class _Clock:
+    """time.monotonic() that only moves when a fake provider call 'takes' time."""
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+def test_a_provider_that_tries_several_models_stays_within_the_request(monkeypatch):
+    """Cloudflare tries up to four models, each with its own 60 s timeout: inside a
+    request each call is cut to the time left (minus the reserve for saving the
+    image) and no further model is started once too little time is left."""
+    clock = _Clock()
+    monkeypatch.setattr(image_generation.time, "monotonic", clock)
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "acct")
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "cf")
+    timeouts = []
+
+    def post(url, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        clock.now += kwargs["timeout"]  # the call hangs until its own timeout
+        raise httpx.ReadTimeout("slow")
+
+    monkeypatch.setattr(image_generation.httpx, "post", post)
+    with image_generation.request_deadline(clock(), 90):  # 80 s for the image after the 10 s reserve
+        with pytest.raises(ImageGenerationError):
+            image_generation._generate_via_cloudflare("x")
+    assert timeouts == [60, 20]  # the third and fourth models are not started
+    assert clock.now - 1000.0 <= 90 - image_generation._RESERVE_SECONDS
+
+    timeouts.clear()
+    with pytest.raises(ImageGenerationError):
+        image_generation._generate_via_cloudflare("x")  # a background worker: every model, full timeouts
+    assert timeouts == [60] * len(image_generation._cloudflare_models())
+
+
+def test_hugging_face_starts_no_second_model_without_time_for_it(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(image_generation.time, "monotonic", clock)
+    monkeypatch.setenv("HUGGINGFACE_API_TOKEN", "hf")
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(kwargs["timeout"])
+        clock.now += 78
+        raise httpx.ReadTimeout("slow")
+
+    monkeypatch.setattr(image_generation.httpx, "post", post)
+    with image_generation.request_deadline(clock(), 90):
+        with pytest.raises(ImageGenerationError) as exc:
+            image_generation._generate_via_huggingface("x")
+    assert calls == [60] and exc.value.status == "PROVIDER_ERROR"
+
+
+def test_with_less_than_the_minimum_left_no_provider_is_started(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(image_generation.time, "monotonic", clock)
+    with image_generation.request_deadline(clock(), image_generation._RESERVE_SECONDS + 4):
+        assert not image_generation._fits_deadline("local")
+        assert not image_generation._fits_deadline("pollinations")
+    with image_generation.request_deadline(clock(), -5):  # already past the deadline
+        assert not image_generation._fits_deadline("huggingface")
+        assert image_generation._call_timeout(60) == 1.0  # never zero or negative
+    assert image_generation._fits_deadline("aihorde")  # outside a request: unchanged
+
+
 # --- capability -------------------------------------------------------
 
 def test_capability_names_the_providers_and_that_text_leaves_keel(monkeypatch):
