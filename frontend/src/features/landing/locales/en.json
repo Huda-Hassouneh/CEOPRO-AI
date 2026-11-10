@@ -301,6 +301,11 @@
     "evidence": "Evidence-oriented",
     "evidenceText": "Sources, confidence, and uncertainty stay part of the story."
   },
+  "team": {
+    "eyebrow": "DESIGNED & CREATED BY",
+    "title": "Meet the Creative Team",
+    "hint": "Tap to see email"
+  },
   "pricing": {
     "eyebrow": "PRICING THAT GROWS WITH YOU",
     "title": "Choose your next step.",
