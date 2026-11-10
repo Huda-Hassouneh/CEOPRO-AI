@@ -12,6 +12,7 @@ import { useSubmitLock } from '../../../shared/hooks/useSubmitLock.js';
 import { productsApi } from '../../products/api/productsApi.js';
 import httpClient from '../../../shared/lib/httpClient.js';
 import { marketingApi } from '../api/marketingApi.js';
+import { createPostWithPhoto } from '../api/createWithPhoto.js';
 import { CampaignEditor, CampaignStatusPill, PLATFORM_FORMAT } from '../components/CampaignEditor.jsx';
 import { DEFAULT_IMAGE_FORMATS } from '../components/ImageStudio.jsx';
 import { MarketingErrorMessage } from '../components/MarketingErrorMessage.jsx';
@@ -235,35 +236,31 @@ export default function MarketingStudioPage() {
           goal === 'seasonal' && occasion && `Occasion: ${t(`marketingApex.occasions.${occasion.key}`)}.`,
           notes.trim(),
         ].filter(Boolean).join('\n');
-        const campaign = await createCampaign.mutateAsync({
-          productId: source === 'product' ? productId : undefined,
-          url: source === 'link' ? text : undefined,
-          text: source === 'describe' ? text : undefined,
-          strategyType: GOALS[goal].strategy,
-          focus: GOALS[goal].focus,
-          tone: TONES[toneKey] || undefined,
-          creativeTheme: theme || (goal === 'seasonal' ? occasion?.theme : undefined) || GOALS[goal].theme || undefined,
-          customCreativePrompt: extra || undefined,
-          variantsPerPlatform: 1,
-          platforms: [PLACES[place].platform],
-          requestKey: requestKey.current,
-          generateImage: !queueImages,
-          imageFormat,
-          language,
+        const campaign = await createPostWithPhoto({
+          ...marketingApi, createCampaign: createCampaign.mutateAsync,
+        }, {
+          request: {
+            productId: source === 'product' ? productId : undefined,
+            url: source === 'link' ? text : undefined,
+            text: source === 'describe' ? text : undefined,
+            strategyType: GOALS[goal].strategy,
+            focus: GOALS[goal].focus,
+            tone: TONES[toneKey] || undefined,
+            creativeTheme: theme || (goal === 'seasonal' ? occasion?.theme : undefined) || GOALS[goal].theme || undefined,
+            customCreativePrompt: extra || undefined,
+            variantsPerPlatform: 1,
+            platforms: [PLACES[place].platform],
+            requestKey: requestKey.current,
+            language,
+          },
+          photo, queueImages, imageFormat,
         });
-        if (queueImages) {
-          try {
-            await marketingApi.queueImageBatch(campaign.campaign_id, { formats: [imageFormat], variations: 1, attachFirst: true });
-          } catch { /* the post is saved; pictures can be made from it */ }
-        }
-        if (photo) {
-          try {
-            await marketingApi.uploadCampaignImage({ campaignId: campaign.campaign_id, file: photo });
-            await marketingApi.setReferenceSelection(campaign.campaign_id, 'ORIGINAL');
-          } catch { /* the post is saved; the photo can be added again from it */ }
-        }
         requestKey.current = null;
         queryClient.setQueryData(['marketing-campaign', campaign.campaign_id], campaign);
+        if (photo) {  // the stored campaign now has the photo and its picture
+          queryClient.invalidateQueries({ queryKey: ['marketing-campaign', campaign.campaign_id] });
+          queryClient.invalidateQueries({ queryKey: ['marketing-assets', campaign.campaign_id] });
+        }
         open(campaign.campaign_id);
         return campaign;
       } finally {
