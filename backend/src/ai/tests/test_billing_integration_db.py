@@ -84,7 +84,7 @@ def test_the_catalog_lists_self_serve_plans_with_prices_and_limits(sys_conn):
     plans = {p["plan_key"]: p for p in store.catalog(sys_conn)}
     # Approved launch terms; delivery-cost assumptions remain independent.
     assert {k: (p["name"]["en"], p["monthly_price"], p["trial_days"]) for k, p in plans.items() if p["self_serve"]} == {
-        "starter": ("Standard", 29.0, 14), "growth": ("Plus", 59.0, 14), "enterprise": ("Pro", 99.0, 7)}
+        "starter": ("Standard", 29.0, 14), "growth": ("Plus", 59.0, 14), "enterprise": ("Pro", 99.0, 14)}
     # A trial gets a bounded tenth of a paid month's credits, never the whole month.
     assert {k: plans[k]["trial_limits"] for k in ("starter", "growth", "enterprise")} == {
         "starter": {"data_credits": 43, "ai_credits": 43}, "growth": {"data_credits": 111, "ai_credits": 111},

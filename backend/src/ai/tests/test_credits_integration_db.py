@@ -134,7 +134,7 @@ def test_variable_cost_formula_follows_the_spec():
 
 
 @pytest.mark.parametrize("plan_key, products, reports, seats, trial_days, competitors", [
-    ("starter", 100, 5, 5, 14, 5), ("growth", 250, 20, 20, 14, 15), ("enterprise", 500, 60, 50, 7, 40)])
+    ("starter", 100, 5, 5, 14, 5), ("growth", 250, 20, 20, 14, 15), ("enterprise", 500, 60, 50, 14, 40)])
 def test_every_plan_has_its_entitlements(sys_conn, plan_key, products, reports, seats, trial_days, competitors):
     tenant = _company(sys_conn, plan_key)
     plan = usage.get_plan(sys_conn, tenant)
