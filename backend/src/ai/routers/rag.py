@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 from src.ai import db
 from src.ai.billing import credits
 from src.ai.core import usage
+from src.ai.core import object_storage
 from src.ai.core.security import TenantContext, get_tenant_context
 from src.ai.rag import advisor as rag_advisor
 from src.ai.rag import conversation_store
@@ -532,7 +533,7 @@ def upload_knowledge_document(file: UploadFile = File(...), ctx: TenantContext =
     except usage.PlanLimitReached as exc:
         conn.rollback()
         raise exc.as_http() from exc
-    except Exception:
+    except Exception as upload_error:
         logger.exception("Knowledge Base upload failed (tenant=%s)", ctx.tenant_id)
         conn.rollback()
         try:
@@ -559,6 +560,8 @@ def upload_knowledge_document(file: UploadFile = File(...), ctx: TenantContext =
         if reservation is not None and reservation_committed:
             usage.release(conn, reservation)
             conn.commit()
+        if isinstance(upload_error, object_storage.StorageError):
+            raise upload_error.as_http() from upload_error  # "storage full" / "unavailable", not a generic 500
         raise HTTPException(status_code=500, detail="Knowledge Base upload could not be completed.")
     finally:
         if lock_acquired:

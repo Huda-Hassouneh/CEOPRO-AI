@@ -139,7 +139,10 @@ def delete_company(sys_conn, tenant_id: str) -> dict:
                 if cursor.fetchone() is not None:
                     raise DeletionBlocked('integration_evidence_review')
         cursor.execute("SELECT storage_bucket_path FROM rag_documents_metadata WHERE tenant_id = %s AND storage_bucket_path IS NOT NULL;", (tenant_id,))
-        rag_objects = [row[0] for row in cursor.fetchall()]
+        from src.ai.rag.data_access import storage_object_key
+
+        # Object keys, not row paths: summaries live under _generated/<tenant_id>/ (never another company's).
+        rag_objects = [storage_object_key(tenant_id, row[0]) for row in cursor.fetchall()]
         counts = {}
         for table in RESTRICTED_CHILDREN:
             cursor.execute(f'DELETE FROM "{table}" WHERE tenant_id = %s;', (tenant_id,))

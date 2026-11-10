@@ -189,7 +189,8 @@ def test_pdf_upload_registers_and_ingests_a_real_rag_document(tenant, monkeypatc
     # Created on first use - it used to be assumed to exist (NoSuchBucket on a fresh deployment).
     assert extraction.rag_pipeline.DEFAULT_BUCKET in fake_minio.buckets
     assert result_puts[0]["object_key"].startswith(f"{tenant_id}/")
-    assert rag_puts[0]["object_key"].startswith(f"uploads/{response['job_id']}")
+    # Per-tenant prefix, like Knowledge Base uploads.
+    assert rag_puts[0]["object_key"].startswith(f"uploads/{tenant_id}/{response['job_id']}")
 
     rows = _rag_documents_for(tenant_id)
     assert len(rows) == 1

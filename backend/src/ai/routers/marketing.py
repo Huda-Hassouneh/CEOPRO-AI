@@ -35,6 +35,7 @@ plan for why: that scaffold was never wired to anything, and this service
 has no background worker to defer onto even for the real generation step
 image generation now is.
 """
+import hashlib
 import logging
 import os
 import re
@@ -46,7 +47,7 @@ from uuid import UUID, uuid4
 
 import psycopg2
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
@@ -965,6 +966,22 @@ def generate_campaign_image_endpoint(
         conn.close()
 
 
+def _image_etag(bucket: str, key: str) -> str:
+    # Stored image keys are never reused (timestamp + random id), so the key is the version.
+    return '"' + hashlib.sha256(f"{bucket}/{key}".encode()).hexdigest()[:32] + '"'
+
+
+def _not_modified(request: Optional[Request], etag: str, cache_control: str) -> Optional[Response]:
+    """A browser that already has this exact image gets 304 without a storage read: each read
+    is a billable transaction on hosted object storage (B2: 2,500 free per day)."""
+    if request is None:
+        return None
+    sent = [tag.strip() for tag in (request.headers.get("if-none-match") or "").split(",")]
+    if etag in sent or "*" in sent:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": cache_control})
+    return None
+
+
 _IMAGE_KIND_FIELDS = {
     "source": ("source_image_key", image_storage.SOURCE_IMAGES_BUCKET),
     "processed": ("source_image_processed_key", image_storage.PROCESSED_IMAGES_BUCKET),
@@ -975,7 +992,7 @@ _IMAGE_KIND_FIELDS = {
 @router.get("/campaigns/{campaign_id}/image")
 def get_campaign_image_endpoint(
     campaign_id: str, kind: str = Query(default="generated", pattern="^(source|processed|generated)$"),
-    ctx: TenantContext = Depends(get_tenant_context),
+    ctx: TenantContext = Depends(get_tenant_context), request: Request = None,
 ) -> Response:
     """Streams a stored campaign image (uploaded source, its background-
     removed processed version, or AI-generated) back through this
@@ -1001,12 +1018,17 @@ def get_campaign_image_endpoint(
     if not key:
         raise HTTPException(status_code=404, detail=f"No {kind} image stored for this campaign.")
 
+    # no-cache: the browser revalidates every time (the campaign's current image can change), cheaply.
+    etag, cache_control = _image_etag(bucket, key), "private, no-cache"
+    cached = _not_modified(request, etag, cache_control)
+    if cached is not None:
+        return cached
     try:
         content, content_type = image_storage.get_image(db.minio_client(), bucket, key)
     except Exception as err:
         logger.error("Could not read stored image (tenant=%s): %s", ctx.tenant_id, err)
         raise HTTPException(status_code=502, detail="Could not read the stored image. Please try again.") from err
-    return Response(content=content, media_type=content_type)
+    return Response(content=content, media_type=content_type, headers={"ETag": etag, "Cache-Control": cache_control})
 
 
 # --- Image gallery -----------------------------------------------------------
@@ -1046,7 +1068,8 @@ def list_campaign_assets_endpoint(campaign_id: str, ctx: TenantContext = Depends
 
 @router.get("/campaigns/{campaign_id}/assets/{asset_id}/image")
 def get_campaign_asset_image_endpoint(campaign_id: str, asset_id: str,
-                                      ctx: TenantContext = Depends(get_tenant_context)) -> Response:
+                                      ctx: TenantContext = Depends(get_tenant_context),
+                                      request: Request = None) -> Response:
     """Streams one gallery image through this authenticated API (never a
     direct storage URL), like GET .../image."""
     conn = db.app_role_connection(ctx.tenant_id, ctx.user_id)
@@ -1059,13 +1082,17 @@ def get_campaign_asset_image_endpoint(campaign_id: str, asset_id: str,
     if not asset["image_key"].startswith(f"{ctx.tenant_id}/{campaign_id}/"):
         logger.error("Asset %s key outside its company prefix (tenant=%s)", asset_id, ctx.tenant_id)
         raise HTTPException(status_code=404, detail="Image not found")
+    etag, cache_control = _image_etag(image_storage.GENERATED_IMAGES_BUCKET, asset["image_key"]), "private, max-age=3600"
+    cached = _not_modified(request, etag, cache_control)
+    if cached is not None:
+        return cached
     try:
         content, content_type = image_storage.get_image(db.minio_client(), image_storage.GENERATED_IMAGES_BUCKET,
                                                         asset["image_key"])
     except Exception as err:
         logger.error("Could not read stored asset (tenant=%s): %s", ctx.tenant_id, err)
         raise HTTPException(status_code=502, detail="Could not read the stored image. Please try again.") from err
-    return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
+    return Response(content=content, media_type=content_type, headers={"ETag": etag, "Cache-Control": cache_control})
 
 
 class AssetUpdateRequest(BaseModel):
