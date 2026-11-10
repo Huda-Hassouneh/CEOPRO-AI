@@ -1,5 +1,10 @@
 # Public policy candidate review — 2026-11-09
 
+Integration follow-up verified 2026-11-10: the complete local application at
+http://127.0.0.1:5273 now includes these candidates and migration 180. The policy
+text remains UNAPPROVED. Initial-review statements below describe the original
+preview-only checkpoint unless superseded by this follow-up.
+
 Status: local review only, not approved or deployed. Candidate bundle
 `keel-public-candidate-2026-11-09.2` has no effective date and is not installed
 as a consent agreement. Opening a policy page does not persist acceptance.
@@ -87,10 +92,13 @@ the existing audit log. No runtime grants, functions or RLS policies change.
 All 179 historical files and manifest hashes are preserved. The verifier manifest
 adds only the new file/hash.
 
-Do not apply this migration to the running integration database during this task.
-The local preview still reads that unchanged backend and truthfully flags its old
-Pro duration. The new branch's fresh database/API mapping has all three at 14;
-deployment of the approved branch and migration is required to update that runtime.
+At the initial preview-only checkpoint the running integration database was left
+unchanged and its old Pro duration was flagged. On 2026-11-10 the owner separately
+authorized local integration and migration: a full backup was restored into a
+disposable database copy and verified before applying migration 180 through the
+existing launcher/runner. All three tiers now return 14 in the running API.
+All 59 protected billing/tenant/price/entitlement table fingerprints and effective
+RLS/EXECUTE privileges were preserved, and replay applied zero migrations.
 Existing seven-day trials, subscriptions and frozen orders retain their dates and
 terms. Legacy local signup trials remain a separate mechanism; this is no cutover
 to authenticated provider-backed recurring consent. The downgrade safeguard,
@@ -178,6 +186,56 @@ Push, merge, branch rewrites, production access and external payment writes are
 UNSAFE without separate authorization and were not performed. This feature branch
 depends on the assembled billing/teammate stack at its base; do not publish it as
 an independent replacement for that stack.
+
+## Draft PR dependency and integration follow-up
+
+The original `aa50ff771b1f50032579fbb8da51ad36b9f6277c` has assembled application
+ancestry; publishing that branch against main would include unrelated work.
+The clean publication branch `pr/keel-public-policies-trial14` instead transplants
+only that policy commit, with provenance, onto PR #124's exact head
+`95da7f322bcee94e7208de92205887892336311c`. Its initial implementation patch ID
+matches the original and its review diff has only the 34 intended files. The
+additional follow-up commit changes this report only.
+
+Review base: `pr/keel-legacy-checkout-lean-compat` (#124), not main. Prerequisites:
+the upstream chain in owner guide https://github.com/Huda-Hassouneh/CEOPRO-AI/issues/118
+(#110/#117, then #119→#120→#121→#122→#123→#124). #108/#109 are separate assembled
+features whose existing review histories are preserved. #104 and #125 are now
+merged into main; no duplicate copy is included here. Main was refreshed to
+`f1a65f237280c26a9b2baa2fbfbe3fcfb135d178`; newer merged #126 has no policy-file
+overlap. Production-branch-only #127/#128 are not imported.
+
+After the upstream stack reaches main, retarget this Draft to main and verify its
+diff and checks before marking it Ready. Preserve upstream ancestry; never merge
+this child into #124's branch. Migration 180 follows the canonical 179-file chain;
+recheck ordering against any later migration additions. Do not merge #93/#94/#95
+wholesale; #124 provides the canonical compatible replacement. No published
+teammate/billing branch or PR was modified for this follow-up.
+
+The complete integration branch was fast-forwarded to the original policy commit,
+retaining every assembled commit. Existing ignored configuration hashes match,
+including Stripe TEST settings, egress guard and frontend settings. API and eight
+owned workers were paused for the recovery point and resumed through the existing
+launcher; frontend remains at 5273, API at 8100, and Mailpit is unchanged.
+
+New focused checks: 11 local HTTP/security/configuration checks; the public catalog
+has 14-day trials, original USD amounts and nine enabled original TEST mappings.
+The designated synthetic account retains its local trial; the owner's manually
+tested Stripe subscription belongs to another account and was verified unchanged
+in database snapshots, not impersonated. Custom configurator/quotes remain available,
+another synthetic tenant cannot see the original subscription, malformed Stripe
+signatures are rejected, and the protected journey remains disabled. No Checkout
+or payment was submitted. The integrated production frontend build passed.
+
+Private follow-up evidence and the recoverable dump are under the complete
+worktree's ignored `.dev/policy-integration-20261110` directory. Historical provider
+acceptance and prior native/offline tests are reused, not represented as repeated.
+The 2026-11-10 browser verification uses the complete app, not the separate preview.
+All 36 EN/AR desktop/mobile browser cases passed, including six-page accessibility
+scans and Standard/Custom policy links. Authenticated onboarding state returns 200.
+The post-browser check again preserved all 59 protected table fingerprints,
+configuration hashes and RLS/ACLs; API plus eight workers are owned and running,
+and attestor/confirmer roles remain dormant. No application correction was needed.
 
 These checks establish local draft rendering/navigation, not legal approval,
 Stripe/Paddle acceptance or a new authenticated consent workflow.
