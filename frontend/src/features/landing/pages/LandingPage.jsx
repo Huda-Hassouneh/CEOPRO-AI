@@ -101,7 +101,7 @@ export default function LandingPage() {
   return <div className="ceopro-landing" ref={rootRef} onClick={scrollToSection}>
     <a className="lp-skip-link" href="#landing-main">{t('nav.skip')}</a>
     <LandingNavbar />
-    <main id="landing-main"><HeroSection /><TryItSection /><FeaturesSection /><IntelligenceSections /><KnowledgeSections /><ModelsSection /><WorkflowSection /><OutcomesSection /><AboutSection /><TeamSection /><PricingSection /><TrustSection /><FinalCtaSection /></main>
+    <main id="landing-main"><HeroSection /><TryItSection /><FeaturesSection /><IntelligenceSections /><KnowledgeSections /><ModelsSection /><WorkflowSection /><OutcomesSection /><AboutSection /><PricingSection /><TrustSection /><FinalCtaSection /><TeamSection /></main>
     <LandingFooter />
   </div>;
 }
