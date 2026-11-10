@@ -376,13 +376,40 @@ used without a key.
 
 **The weekly volume does not depend on any provider.** If no AI provider can
 serve a request (allowances used up, outage, none configured) the Studio now
-returns a *designed* poster instead of an error: a locally drawn style-matched
-backdrop (from the campaign's creative theme) with the campaign's own headline
-and call to action, and the tenant's selected product photo on it
-(`marketing/designed_poster.py`). It is unlimited, free, watermark-free and
-Arabic-capable (arabic-reshaper + python-bidi + DejaVu). It is not AI-generated
-and the response says so: `image_generation_mode` is `"ai"` or `"designed"`.
-Provider names are still never exposed.
+returns a *designed* advertisement instead of an error
+(`marketing/designed_poster.py` -> `marketing/ad_composer.py`, Pillow + numpy
+only, ~2-6 s per image on CPU). It is an art-directed composition, not a flat
+backdrop with text:
+
+- **Look** (light, surface, atmosphere, typography) follows the campaign's
+  `creative_theme`; with none / CUSTOM, its `strategy_type` (objective):
+  luxury = low-key stone + gold rim light, lifestyle = golden-hour wood +
+  out-of-focus greenery, minimal = bright studio sweep with reflection, tech =
+  cool dark studio, bold = complementary vivid podium, social/seasonal =
+  pastel podium.
+- **Colours** are taken from the product photo itself (dominant and most
+  saturated colours), so each scene is tinted to the product it sells.
+- **Layout** adapts to the format (square / 4:5 / 9:16 / 16:9 / 1.91:1), the
+  product's shape (a wide product gets a stacked layout) and the copy's
+  direction (Arabic mirrors the layout right-to-left).
+- **Emphasis** follows the objective: sales/urgency get a strong CTA, brand
+  awareness an outline CTA, storytelling/influencer show the supporting line.
+- **The product is the photo's own pixels**, cut out on our server
+  (`product_composite.cutout`), with only light, shadow, reflection and a
+  podium added around it; an uncuttable photo is shown as a framed print; no
+  photo means no product is drawn. The plain-backdrop key now removes only
+  backdrop connected to the photo's border, so a white label inside the
+  product is kept.
+- **Words** are only the campaign's own headline, the first sentence of that
+  variant's body copy (when short) and its CTA - nothing invented.
+
+The same composer is used when the real-product path has no AI scene. Fonts
+are bundled under `marketing/fonts/` (Playfair Display, Inter - SIL OFL 1.1);
+Arabic uses DejaVu Sans as before. `MARKETING_DESIGNED_LAYOUT=classic`
+restores the earlier flat poster, which is also the automatic fallback if the
+composer ever fails. It is unlimited, free and watermark-free. It is not
+AI-generated and the response says so: `image_generation_mode` is `"ai"` or
+`"designed"`. Provider names are still never exposed.
 
 **More models.** Cloudflare accounts try FLUX.1-schnell then SDXL-Lightning
 (`CLOUDFLARE_IMAGE_MODELS` to change); Hugging Face accounts try FLUX.1-schnell
