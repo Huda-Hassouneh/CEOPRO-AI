@@ -2,6 +2,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 import ast
+import hashlib
 import json
 import shutil
 
@@ -11,6 +12,7 @@ from scripts.verification_migrations import MANIFEST, digest, inspect_phase, pha
 
 SOURCE = Path(__file__).resolve().parents[2] / 'src/infrastructure/database/migrations'
 OPTIONAL = '20261130000000_custom_discount_approval_guard.sql'
+TRIAL_POLICY = '20261213000000_standard_trial_fourteen_days.sql'
 PHASES = [
     (('20261201000000_provider_binding_foundation.sql', '20261201000100_trial_checkout_reservations.sql'), 167),
     (('20261202000000_customer_creation_operations.sql',), 168),
@@ -21,6 +23,7 @@ PHASES = [
     (('20261207000000_consent_withdrawal_fencing.sql',), 173),
     (('20261208000000_subscription_journey_dispatch.sql',), 174),
     (('20261212000000_definitive_checkout_retry.sql',), 178),
+    ((TRIAL_POLICY,), 179),
 ]
 
 
@@ -96,7 +99,15 @@ def test_scoped_copy_restores_runner_and_preserves_source_on_failure(tmp_path):
 def test_manifest_identifies_the_only_optional_predecessor():
     data = json.loads(MANIFEST.read_text())
     assert data['optional'] == [OPTIONAL]
-    assert len(data['files']) == 179
+    assert len(data['files']) == 180
+    assert max(data['files']) == TRIAL_POLICY
+    assert data['files'][TRIAL_POLICY] == digest(SOURCE / TRIAL_POLICY) == (
+        'b117dc3e2ffecc991621d6df35b6421d5d79929b38096f37502ee306362bd113')
+    # Pin all 179 pre-policy fingerprints, not just their count. A legitimate
+    # forward addition must never silently replace or repin historical entries.
+    historical = {name: value for name, value in data['files'].items() if name != TRIAL_POLICY}
+    assert hashlib.sha256(json.dumps(historical, sort_keys=True, separators=(',', ':')).encode()).hexdigest() == (
+        '5c842c5bedcc554c5f0462a28142035057fa4ae944ed1efef6d967ca48aafe25')
     assert set(data['files']) - {p.name for p in SOURCE.glob('*.sql')} <= {OPTIONAL}
 
 
