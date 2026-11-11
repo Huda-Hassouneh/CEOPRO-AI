@@ -19,7 +19,7 @@ test('plan limits show only the customer-facing terms, never internal budgets as
 
 test('plans retain unlimited legacy competitor capacity and both credit budgets', () => {
   const plan = mapPlan({
-    plan_key: 'enterprise', monthly_price: 350, trial_days: 7,
+    plan_key: 'enterprise', monthly_price: 350, trial_days: 7, // Historical API response must retain its original duration.
     limits: { tracked_products: 500, monthly_reports: 60, team_seats: 50, data_credits: 2780, ai_credits: 2780,
       tracked_competitors: null, rag_assistant: 2000000 },
     trial_limits: { data_credits: 278, ai_credits: 278 }, prices: [], entitlements: [],

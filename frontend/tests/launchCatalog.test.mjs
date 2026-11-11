@@ -11,6 +11,7 @@ for (const locale of ['en', 'ar']) test(`launch catalog stays USD and undiscount
   const messages = JSON.parse(readFileSync(new URL(`../src/assets/locales/${locale}.json`, import.meta.url), 'utf8'));
   const t = (key, args = {}) => key.split('.').reduce((o, k) => o[k], messages).replace(/{{(\w+)}}/g, (_, k) => args[k]);
   for (const plan of catalog.plans) {
+    assert.equal(plan.trial_days, 14);
     const defaults = plan.bootstrap_commercial_defaults;
     assert.equal(Number(defaults.monthly_price), amounts[plan.plan_key][0]);
     assert.ok(defaults.billing_periods.every(p => Number(p.discount_percent) === 0));
@@ -18,7 +19,8 @@ for (const locale of ['en', 'ar']) test(`launch catalog stays USD and undiscount
       period_code, interval_months: [1, 3, 6][i], amount: amounts[plan.plan_key][i],
       currency: 'USD', discount_percent: 0, purchasable: true,
     }));
-    const mapped = mapPlan({ plan_key: plan.plan_key, monthly_price: Number(defaults.monthly_price), currency: 'USD', prices });
+    const mapped = mapPlan({ plan_key: plan.plan_key, trial_days: plan.trial_days, monthly_price: Number(defaults.monthly_price), currency: 'USD', prices });
+    assert.equal(mapped.trialDays, 14);
     assert.equal(mapped.monthlyPrice, amounts[plan.plan_key][0]);
     assert.equal(mapped.currency, 'USD');
     for (const [period, price] of Object.entries(mapped.prices)) {

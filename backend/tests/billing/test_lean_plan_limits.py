@@ -41,7 +41,7 @@ def assign(conn, tenant, plan, period='monthly'):
 
 def test_only_approved_five_allowances_change():
     c = load_catalog()
-    assert c['catalog_version'] == 'standard-plans-lean-search-v1'
+    assert c['catalog_version'] == 'standard-plans-trial14-v2'
     for p, credits, products, seats, images, reports in zip(c['plans'], (436,1111,2780),
             (100,250,500), (5,20,50), (20,100,150), (5,20,60)):
         a = {r['feature_key']: r for r in p['allowances']}
@@ -53,7 +53,7 @@ def test_only_approved_five_allowances_change():
         assert a['monthly_reports']['value'] == reports
         assert a['ai_credits']['value'] == a['data_credits']['value'] == credits
         assert a['rag_assistant']['value'] == {'starter':100000,'growth':500000,'enterprise':2000000}[p['plan_key']]
-        assert p['trial_days'] == (7 if p['plan_key']=='enterprise' else 14)
+        assert p['trial_days'] == 14
         assert p['bootstrap_commercial_defaults']['monthly_price'] == {'starter':'29.00','growth':'59.00','enterprise':'99.00'}[p['plan_key']]
         assert [x['discount_percent'] for x in p['bootstrap_commercial_defaults']['billing_periods']] == ['0.00','0.00']
 

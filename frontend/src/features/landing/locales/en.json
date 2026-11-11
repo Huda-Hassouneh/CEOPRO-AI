@@ -39,7 +39,7 @@
     "title": "Smarter Decisions.",
     "accent": "Stronger Business Growth.",
     "description": "Your business data. Your market. One clear picture. Turn sales, competitor signals, and customer feedback into informed next steps with KEEL.",
-    "note": "{{days}}-day Pro trial",
+    "note": "Trial terms depend on the selected plan",
     "bilingual": "Built for English & Arabic",
     "eyebrow": "YOUR BUSINESS, IN FOCUS",
     "overview": "Business overview",
@@ -304,8 +304,8 @@
   "pricing": {
     "eyebrow": "PRICING THAT GROWS WITH YOU",
     "title": "Choose your next step.",
-    "description": "Every plan includes market intelligence, forecasting and competitor tracking. Start with Standard, add capacity with Plus, or scale up with Pro. Competitors are discovered and monitored within your monthly Data Credits, not a fixed count.",
-    "note": "Plan prices and limits below use the same catalog as checkout. Payment is currently a development preview; no real payment is processed."
+    "description": "Every plan includes market intelligence, forecasting and competitor tracking. Start with Standard, add capacity with Plus, or scale up with Pro. Competitor capacity follows the selected plan; external discovery and monitoring also consume the applicable Data Credits.",
+    "note": "Plan prices and limits below use the same catalog as checkout. Review the trial, renewal and cancellation disclosures before choosing a plan. Public policy wording remains a draft pending approval."
   },
   "trust": {
     "eyebrow": "CLARITY BUILDS CONFIDENCE",
@@ -320,7 +320,7 @@
   "cta": {
     "eyebrow": "YOUR NEXT CHAPTER STARTS WITH CLARITY",
     "title": "See more. Understand more.\nMove forward with KEEL.",
-    "description": "Bring your data and market into focus. Start your {{days}}-day Pro trial and explore a more connected way to make decisions."
+    "description": "Bring your data and market into focus. Review the trial terms for your selected plan and explore a more connected way to make decisions."
   },
   "footer": {
     "description": "Business intelligence for a clearer next move.",

@@ -220,12 +220,12 @@ def test_a_trial_ends_at_its_exact_utc_time(sys_conn):
     started = datetime(2026, 10, 1, 15, 30, tzinfo=timezone.utc)
     trial = store.start_trial(sys_conn, tenant, started, plan_key="enterprise")
     sys_conn.commit()
-    assert trial["ends_at"] == started + timedelta(days=7)          # Pro: 7 days, to the second
+    assert trial["ends_at"] == started + timedelta(days=14)         # Future Pro offers: 14 days, to the second
     assert usage.get_plan(sys_conn, tenant, now=trial["ends_at"] - timedelta(seconds=1))["status"] == "trialing"
     assert usage.get_plan(sys_conn, tenant, now=trial["ends_at"])["status"] == "expired"
 
 
-@pytest.mark.parametrize("plan_key, days", [("starter", 14), ("growth", 14), ("enterprise", 7)])
+@pytest.mark.parametrize("plan_key, days", [("starter", 14), ("growth", 14), ("enterprise", 14)])
 def test_trial_length_per_plan(sys_conn, plan_key, days):
     tenant = str(uuid.uuid4())
     with sys_conn.cursor() as cursor:

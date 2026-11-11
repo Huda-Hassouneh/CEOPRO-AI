@@ -9,3 +9,22 @@
 .legal-page__intro { margin-top: 16px !important; color: var(--ceopro-text-primary) !important; }
 .legal-page__contact { margin-top: 28px !important; }
 .legal-page__other { display: inline-block; margin-top: 28px; font-weight: 600; color: var(--ceopro-primary); }
+.policy-page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.policy-page-header button { color: inherit; background: transparent; border: 1px solid currentColor; padding: 8px 14px; border-radius: 10px; cursor: pointer; }
+.policy-draft-banner, .policy-review-note { padding: 16px; border: 2px solid #a66500; border-radius: 12px; background: #fff4d6; color: #533000 !important; margin-block: 20px !important; overflow-wrap: anywhere; }
+.policy-draft-banner p { color: inherit; margin-block-start: 8px; }
+.policy-links { margin-block: 20px; }
+.policy-links nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.policy-links a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.policy-links small { display: block; margin-block-start: 10px; line-height: 1.6; }
+.legal-page a:focus-visible, .policy-links a:focus-visible, .policy-page-header button:focus-visible { outline: 3px solid var(--ceopro-primary, #635bff); outline-offset: 4px; }
+.policy-draft-body { overflow-wrap: anywhere; }
+.policy-draft-body p { white-space: pre-line; }
+.legal-page li { margin-block: 10px; }
+.legal-page mark { background: #fff4d6; color: #533000; padding-inline: 3px; border-radius: 3px; overflow-wrap: anywhere; }
+.policy-table-scroll { max-width: 100%; overflow-x: auto; margin-block: 16px; }
+.policy-table-scroll table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: start; }
+.policy-table-scroll th, .policy-table-scroll td { padding: 10px; border-block-end: 1px solid var(--ceopro-border, #aab); text-align: start; }
+.legal-page footer { border-block-start: 1px solid var(--ceopro-border, #aab); margin-block-start: 32px; }
+.billing-payment-boundary .policy-links { font-size: 13px; text-align: start; }
+@media (max-width: 480px) { .legal-page { padding-inline: 10px; } .legal-page__card { padding-inline: 18px; } }

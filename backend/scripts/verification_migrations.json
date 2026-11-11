@@ -183,6 +183,7 @@
     "20261209000000_neutral_subscription_lifecycle.sql": "91c218f8890f83c325d7105d3369c34f76b84db520743caf68d62ee09528e178",
     "20261210000000_paddle_customer_single_dispatch.sql": "920c0afa17588fdb8bc28036218096a61ec4f70f30b182e8b01f85705790166b",
     "20261211000000_billing_catalog_operations.sql": "b53fe15e234debe06b17b2314892a2a96910abc8d5cbe99118c607bd347e5fcc",
-    "20261212000000_definitive_checkout_retry.sql": "52a66c37d4def1284a6fa691d981ec05c8b6775bd99a91b9895be2b6187a73fc"
+    "20261212000000_definitive_checkout_retry.sql": "52a66c37d4def1284a6fa691d981ec05c8b6775bd99a91b9895be2b6187a73fc",
+    "20261213000000_standard_trial_fourteen_days.sql": "b117dc3e2ffecc991621d6df35b6421d5d79929b38096f37502ee306362bd113"
   }
 }

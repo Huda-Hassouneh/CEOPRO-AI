@@ -20,6 +20,7 @@ import { SubscriptionRecoveryBanner } from "../components/SubscriptionRecoveryBa
 import { useSubscriptionRecovery } from "../hooks/useSubscriptionRecovery.js";
 import { describeBillingOption } from "../utils/billingPeriodPresentation.js";
 import { isRecoverableSubscriptionStatus } from "../utils/subscriptionStatus.js";
+import { PolicyLinks } from '../../legal/PolicyLinks.jsx';
 import {
   getPlanChangeNotice,
   getPlanChangeRecoveryLabel,
@@ -351,6 +352,7 @@ export function BillingCheckoutPage() {
         </Card>
 
         <aside className="billing-payment-boundary">
+          <PolicyLinks billing />
           <span>
             <LockKeyhole size={24} />
           </span>

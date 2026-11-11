@@ -7,6 +7,7 @@ import { routePaths } from '../../../app/router/routePaths.js';
 import Button from '../../../shared/components/ui/Button.jsx';
 import EmptyState from '../../../shared/components/ui/EmptyState.jsx';
 import { CustomPlanBuilder } from "../components/CustomPlanBuilder.jsx";
+import { PolicyLinks } from '../../legal/PolicyLinks.jsx';
 import PageHeader from '../../../shared/components/layout/PageHeader.jsx';
 
 import Skeleton from '../../../shared/components/ui/Skeleton.jsx';
@@ -164,6 +165,7 @@ export function CustomPlanBuilderPage() {
         {preview && !preview.paymentsEnabled && <p>{t('billing.customPlan.checkoutPaymentsDisabled')}</p>}
         {preview && !preview.reviewRequired ? <Button fullWidth variant="primary" loading={checkout.isPending} disabled={!preview.checkoutAllowed || validating || checkout.isPending} onClick={() => checkout.mutate()}>{t('billing.customPlan.continueCheckout')}</Button> : <Button fullWidth variant="primary" loading={submitQuote.isPending} disabled={!validation?.valid || validating || submitQuote.isPending} onClick={requestQuote}>{t('billing.customPlan.requestQuote')}</Button>}
         <small>{t('billing.customPlan.noActivationNotice')}</small>
+        <PolicyLinks billing />
       </aside>
     </div>
 
